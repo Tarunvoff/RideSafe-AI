@@ -168,6 +168,36 @@ cython_debug/
 # VS Code
 .vscode/
 
+# ─── Node / React Native / Expo ───────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Metro bundler
+.metro-health-check*
+
+# React Native
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+android/
+ios/
+
+# OS
+.DS_Store
+Thumbs.db
+
 # Models and data cache
 ml_microservice/models/*.pkl
 ml_microservice/ml/synthetic_gigshield_dataset.csv
