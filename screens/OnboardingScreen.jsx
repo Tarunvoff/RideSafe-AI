@@ -41,7 +41,7 @@ export default function OnboardingScreen({ navigation }) {
         anim.setValue(0);
       });
     } else {
-      navigation.replace('Main');
+      navigation.replace('KYC');
     }
   };
 

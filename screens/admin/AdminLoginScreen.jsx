@@ -9,7 +9,7 @@ import { ADMIN_CREDENTIALS } from '../../data/adminMockData';
 
 export default function AdminLoginScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,21 +27,21 @@ export default function AdminLoginScreen({ navigation }) {
 
   const handleLogin = () => {
     setError('');
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter email and password.');
+    if (!username.trim() || !password.trim()) {
+      setError('Please enter username and password.');
       return;
     }
     setLoading(true);
     setTimeout(() => {
       if (
-        email.trim().toLowerCase() === ADMIN_CREDENTIALS.email &&
+        username.trim() === ADMIN_CREDENTIALS.username &&
         password === ADMIN_CREDENTIALS.password
       ) {
         setLoading(false);
         navigation.replace('AdminMain');
       } else {
         setLoading(false);
-        setError('Invalid credentials. Try admin@blinkinsure.in / admin123');
+        setError('Invalid credentials. Use username: admin123 / password: 1234');
       }
     }, 800);
   };
@@ -70,16 +70,15 @@ export default function AdminLoginScreen({ navigation }) {
           <Text style={styles.cardTitle}>Sign In</Text>
           <Text style={styles.cardSub}>Access restricted — authorized personnel only</Text>
 
-          {/* Email */}
+          {/* Username */}
           <View style={styles.inputWrap}>
-            <Text style={styles.inputLabel}>Admin Email</Text>
+            <Text style={styles.inputLabel}>Username</Text>
             <TextInput
               style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="admin@blinkinsure.in"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="admin123"
               placeholderTextColor="#94A3B8"
-              keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -116,7 +115,7 @@ export default function AdminLoginScreen({ navigation }) {
 
           {/* Demo hint */}
           <View style={styles.hintBox}>
-            <Text style={styles.hintText}>Demo: admin@blinkinsure.in · admin123</Text>
+            <Text style={styles.hintText}>Demo: admin123 · 1234</Text>
           </View>
 
           {/* Submit */}

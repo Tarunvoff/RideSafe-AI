@@ -5,8 +5,8 @@
 
 // ── Admin Credentials ─────────────────────────────────────────
 export const ADMIN_CREDENTIALS = {
-  email: 'admin@blinkinsure.in',
-  password: 'admin123',
+  username: 'admin123',
+  password: '1234',
   name: 'Arjun Mehta',
   role: 'Super Admin',
   avatar: null,
