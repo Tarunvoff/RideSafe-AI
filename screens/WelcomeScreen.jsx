@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Shield, Zap, TrendingUp, ChevronRight } from 'lucide-react-native';
+import { Shield, Zap, TrendingUp, ChevronRight, Truck } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS } from '../constants/colors';
 
 const { width, height } = Dimensions.get('window');
@@ -64,13 +64,28 @@ export default function WelcomeScreen({ navigation }) {
 
       {/* CTA */}
       <Animated.View style={[styles.ctaArea, { opacity: fadeAnim }]}>
+        <Text style={styles.ctaHeading}>Sign in as</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Onboarding')}
           style={styles.ctaBtn}
           activeOpacity={0.9}
         >
-          <Text style={styles.ctaBtnText}>Get Started</Text>
+          <View style={styles.ctaBtnIcon}>
+            <Truck size={18} color={COLORS.navy} strokeWidth={2.5} />
+          </View>
+          <Text style={styles.ctaBtnText}>Delivery Person</Text>
           <ChevronRight size={18} color={COLORS.navy} strokeWidth={2.5} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('AdminPortal')}
+          style={styles.ctaAdminBtn}
+          activeOpacity={0.9}
+        >
+          <View style={styles.ctaAdminBtnIcon}>
+            <Shield size={18} color="#60A5FA" strokeWidth={2.5} />
+          </View>
+          <Text style={styles.ctaAdminBtnText}>Admin</Text>
+          <ChevronRight size={18} color="#60A5FA" strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={styles.ctaDisclaimer}>No paperwork. No waiting. Just instant protection.</Text>
       </Animated.View>
@@ -96,7 +111,12 @@ const styles = StyleSheet.create({
   statVal: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
   statLbl: { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   ctaArea: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
-  ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: RADIUS.full, paddingVertical: 16, gap: 8, marginBottom: 12 },
-  ctaBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.navy },
+  ctaHeading: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 12 },
+  ctaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: RADIUS.full, paddingVertical: 14, paddingHorizontal: 20, gap: 8, marginBottom: 10 },
+  ctaBtnIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(15,12,41,0.1)', alignItems: 'center', justifyContent: 'center' },
+  ctaBtnText: { flex: 1, fontSize: 16, fontWeight: '800', color: COLORS.navy, textAlign: 'center' },
+  ctaAdminBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: RADIUS.full, paddingVertical: 14, paddingHorizontal: 20, gap: 8, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(96,165,250,0.35)' },
+  ctaAdminBtnIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(96,165,250,0.12)', alignItems: 'center', justifyContent: 'center' },
+  ctaAdminBtnText: { flex: 1, fontSize: 16, fontWeight: '800', color: '#60A5FA', textAlign: 'center' },
   ctaDisclaimer: { textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.5)' },
 });

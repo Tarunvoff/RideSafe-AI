@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Animated, StatusBar, Alert,
+  KeyboardAvoidingView, Platform, Animated, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Shield, Eye, EyeOff, LogIn } from 'lucide-react-native';
+import { Shield, Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react-native';
 import { ADMIN_CREDENTIALS } from '../../data/adminMockData';
 
 export default function AdminLoginScreen({ navigation }) {
@@ -54,6 +54,12 @@ export default function AdminLoginScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
       <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+
+        {/* Back button */}
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <ArrowLeft size={18} color="#94A3B8" strokeWidth={2.5} />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
 
         {/* Badge */}
         <View style={styles.badge}>
@@ -155,6 +161,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
   },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 16,
+    position: 'absolute',
+    top: 16,
+    left: 24,
+  },
+  backText: { fontSize: 14, color: '#94A3B8', fontWeight: '600' },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',

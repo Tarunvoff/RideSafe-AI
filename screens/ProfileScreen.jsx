@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Shield, FileText, Bell, ChevronRight, LogOut, Star, MapPin, Phone, Mail, Car, Settings } from 'lucide-react-native';
+import { User, Shield, FileText, Bell, ChevronRight, LogOut, Star, MapPin, Phone, Mail, Car } from 'lucide-react-native';
 import { MOCK_WORKER } from '../data/mockData';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/colors';
 
@@ -82,22 +82,6 @@ export default function ProfileScreen({ navigation }) {
 
         <Text style={styles.versionText}>Blink Insurance v1.0.0 · Policy backed by IRDAI</Text>
 
-        {/* Admin Portal Access */}
-        <TouchableOpacity
-          style={styles.adminPortalBtn}
-          onPress={() => navigation.navigate('AdminPortal')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.adminPortalIcon}>
-            <Settings size={16} color="#60A5FA" strokeWidth={2.5} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.adminPortalLabel}>Admin Portal</Text>
-            <Text style={styles.adminPortalSub}>System management panel</Text>
-          </View>
-          <ChevronRight size={14} color="#60A5FA" strokeWidth={2} />
-        </TouchableOpacity>
-
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
     </View>
@@ -132,21 +116,4 @@ const styles = StyleSheet.create({
   menuLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
   menuSub: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
   versionText: { fontSize: 10, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.sm },
-  adminPortalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    marginTop: SPACING.md,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(96,165,250,0.2)',
-  },
-  adminPortalIcon: {
-    width: 38, height: 38, backgroundColor: 'rgba(96,165,250,0.12)',
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-  },
-  adminPortalLabel: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  adminPortalSub: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 1 },
 });
