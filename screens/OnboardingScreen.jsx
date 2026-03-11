@@ -45,7 +45,7 @@ export default function OnboardingScreen({ navigation }) {
     }
   };
 
-  const slide = SLIDES[current];
+  const slide = SLIDES[current] || SLIDES[0];
   const Icon = slide.icon;
 
   return (

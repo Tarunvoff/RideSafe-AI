@@ -7,7 +7,7 @@ import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Shield, Check, Star, Zap, ChevronLeft, X,
-  CheckCircle, Lock, CreditCard, IndianRupee,
+  CircleCheck, Lock, CreditCard, IndianRupee,
 } from 'lucide-react-native';
 import { MOCK_INSURANCE_PLANS, MOCK_WORKER } from '../data/mockData';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/colors';
@@ -412,7 +412,7 @@ function PlanCard({ plan, config, selected, isCurrentPlan, onSelect, onSubscribe
         <View style={styles.featuresWrap}>
           {plan.features.map(f => (
             <View key={f} style={styles.featureRow}>
-              <CheckCircle size={13} color={config.color} strokeWidth={2.5} />
+              <CircleCheck size={13} color={config.color} strokeWidth={2.5} />
               <Text style={styles.featureText}>{f}</Text>
             </View>
           ))}
@@ -421,7 +421,7 @@ function PlanCard({ plan, config, selected, isCurrentPlan, onSelect, onSubscribe
         {/* CTA */}
         {isCurrentPlan ? (
           <View style={[styles.currentPlanBtn, { borderColor: config.color, backgroundColor: config.bg }]}>
-            <CheckCircle size={14} color={config.color} strokeWidth={2.5} />
+            <CircleCheck size={14} color={config.color} strokeWidth={2.5} />
             <Text style={[styles.currentPlanBtnText, { color: config.color }]}>Current Plan · Active</Text>
           </View>
         ) : (
@@ -471,7 +471,7 @@ function PaymentResultModal({ result, onClose, onRetry }) {
           {/* Icon */}
           <View style={[styles.resultCircle, { backgroundColor: success ? '#D1FAE5' : '#FEE2E2' }]}>
             {success
-              ? <CheckCircle size={42} color={COLORS.green} strokeWidth={2.5} />
+              ? <CircleCheck size={42} color={COLORS.green} strokeWidth={2.5} />
               : <X size={42} color="#DC2626" strokeWidth={2.5} />
             }
           </View>
@@ -496,7 +496,7 @@ function PaymentResultModal({ result, onClose, onRetry }) {
               <View style={styles.resultFeatures}>
                 {['Coverage active immediately', 'Auto-payout within 2 min of trigger', 'Policy confirmation on app'].map(f => (
                   <View key={f} style={styles.resultFeatureRow}>
-                    <CheckCircle size={13} color={COLORS.green} strokeWidth={2.5} />
+                    <CircleCheck size={13} color={COLORS.green} strokeWidth={2.5} />
                     <Text style={styles.resultFeatureText}>{f}</Text>
                   </View>
                 ))}

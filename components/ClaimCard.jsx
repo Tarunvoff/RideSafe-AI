@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
   Easing,
 } from 'react-native-reanimated';
-import { CheckCircle, Clock, AlertCircle, CreditCard } from 'lucide-react-native';
+import { CircleCheck, Clock, CircleAlert, CreditCard } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, SPACING, SHADOWS, RADIUS } from '../constants/colors';
 
 const STATUS_CONFIG = {
@@ -17,7 +17,7 @@ const STATUS_CONFIG = {
     label: 'Paid',
     color: COLORS.green,
     bg: 'rgba(16,185,129,0.12)',
-    icon: CheckCircle,
+    icon: CircleCheck,
     gradient: ['rgba(16,185,129,0.12)', 'rgba(16,185,129,0.04)'],
   },
   processing: {
@@ -31,7 +31,7 @@ const STATUS_CONFIG = {
     label: 'Rejected',
     color: COLORS.red,
     bg: 'rgba(239,68,68,0.12)',
-    icon: AlertCircle,
+    icon: CircleAlert,
     gradient: ['rgba(239,68,68,0.12)', 'rgba(239,68,68,0.04)'],
   },
 };

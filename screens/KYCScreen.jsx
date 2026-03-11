@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Phone, ShieldCheck, User, Fingerprint, Briefcase,
-  MapPin, Truck, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw,
+  MapPin, Truck, CircleCheck, ChevronRight, ChevronLeft, RefreshCw,
 } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS } from '../constants/colors';
 
@@ -24,7 +24,7 @@ const STEP_CONFIG = [
   { icon: Phone,       label: 'Phone',    title: 'Verify Phone Number',   sub: 'We\'ll send a one-time password to your mobile number' },
   { icon: User,        label: 'Personal', title: 'Personal Details',      sub: 'Tell us a bit about yourself' },
   { icon: Briefcase,   label: 'Work',     title: 'Work Profile',          sub: 'Choose your gig platform and vehicle' },
-  { icon: CheckCircle2, label: 'Done',   title: 'KYC Verified!',         sub: 'You\'re all set to get protected' },
+  { icon: CircleCheck, label: 'Done',   title: 'KYC Verified!',         sub: 'You\'re all set to get protected' },
 ];
 
 export default function KYCScreen({ navigation }) {
@@ -169,7 +169,7 @@ export default function KYCScreen({ navigation }) {
                 i === step && styles.stepDotActive,
               ]}>
                 {i < step
-                  ? <CheckCircle2 size={14} color="#1D4ED8" strokeWidth={2.5} />
+                  ? <CircleCheck size={14} color="#1D4ED8" strokeWidth={2.5} />
                   : <Text style={[styles.stepDotNum, i === step && styles.stepDotNumActive]}>{i + 1}</Text>
                 }
               </View>
@@ -321,7 +321,7 @@ export default function KYCScreen({ navigation }) {
               {step === 3 && (
                 <View style={styles.successBlock}>
                   <View style={styles.successCircle}>
-                    <CheckCircle2 size={56} color="#059669" strokeWidth={2} />
+                    <CircleCheck size={56} color="#059669" strokeWidth={2} />
                   </View>
                   <Text style={styles.successTitle}>Identity Verified</Text>
                   <Text style={styles.successBody}>

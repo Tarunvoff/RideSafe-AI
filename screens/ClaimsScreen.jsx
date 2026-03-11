@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  CheckCircle, Clock, XCircle, IndianRupee, X,
+  CircleCheck, Clock, CircleX, IndianRupee, X,
   CloudRain, Wind, Zap, MapPin, Thermometer,
   ArrowDownLeft, ShieldCheck, CreditCard, Hash,
 } from "lucide-react-native";
@@ -13,10 +13,10 @@ import { MOCK_CLAIMS, MOCK_WORKER } from "../data/mockData";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../constants/colors";
 
 const STATUS_CONFIG = {
-  approved:   { color: COLORS.green,  bg: COLORS.greenLight,  icon: CheckCircle, label: "Paid Out" },
-  paid:       { color: COLORS.green,  bg: COLORS.greenLight,  icon: CheckCircle, label: "Paid Out" },
+  approved:   { color: COLORS.green,  bg: COLORS.greenLight,  icon: CircleCheck, label: "Paid Out" },
+  paid:       { color: COLORS.green,  bg: COLORS.greenLight,  icon: CircleCheck, label: "Paid Out" },
   pending:    { color: COLORS.orange, bg: COLORS.orangeLight, icon: Clock,       label: "Pending" },
-  rejected:   { color: COLORS.red,    bg: COLORS.redLight,    icon: XCircle,     label: "Rejected" },
+  rejected:   { color: COLORS.red,    bg: COLORS.redLight,    icon: CircleX,     label: "Rejected" },
   processing: { color: COLORS.blue,   bg: COLORS.blueLight,   icon: Clock,       label: "Processing" },
 };
 
@@ -301,7 +301,7 @@ function TimelineStep({ step, isLast }) {
       <View style={styles.tlLeft}>
         <View style={[styles.tlDot, step.done && styles.tlDotDone]}>
           {step.done
-            ? <CheckCircle size={14} color={COLORS.green} strokeWidth={2.5} />
+            ? <CircleCheck size={14} color={COLORS.green} strokeWidth={2.5} />
             : <Clock size={14} color={COLORS.textMuted} strokeWidth={2.5} />
           }
         </View>
