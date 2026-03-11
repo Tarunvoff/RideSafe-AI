@@ -197,6 +197,7 @@ function PayoutDetailModal({ payout, onClose }) {
     }
   }, [payout]);
 
+  if (!payout) return null;
 
   const norm = normalizeStatus(payout.status);
   const sc = STATUS_CONFIG[norm] || STATUS_CONFIG.pending;
