@@ -205,7 +205,7 @@ function PayoutDetailModal({ payout, onClose }) {
   const StatusIcon = sc.icon;
 
   return (
-    <Modal transparent visible={git pull origin main payout} animationType="none" onRequestClose={onClose}>
+    <Modal transparent visible={!!payout} animationType="none" onRequestClose={onClose}>
       <Animated.View style={[styles.modalOverlay, { opacity: overlayAnim }]}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
       </Animated.View>
