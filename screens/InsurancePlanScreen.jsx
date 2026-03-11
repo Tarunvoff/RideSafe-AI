@@ -13,7 +13,7 @@ import { MOCK_INSURANCE_PLANS, MOCK_WORKER } from '../data/mockData';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/colors';
 
 const { height: SCREEN_H } = Dimensions.get('window');
-const RZP_KEY = 'rzp_test_SDUxtZWXxKn1iL';
+const RZP_KEY = 'rzp_test_SPpGbrErLpphDz';
 
 // Plan visual config (light-theme friendly)
 const PLAN_CONFIG = {
@@ -26,11 +26,9 @@ const PLAN_CONFIG = {
 // Razorpay checkout HTML injected into WebView
 // ──────────────────────────────────────────────────────────────
 function getRazorpayHTML(plan) {
-  const amount = plan.price * 100; // paise
+  const amount = plan.price * 100;
   const planColors = { basic: '#2563EB', pro: '#7C3AED', elite: '#D97706' };
   const accentColor = planColors[plan.id] || '#1E3A8A';
-  const planEmoji = { basic: '🛡️', pro: '⭐', elite: '⚡' };
-  const emoji = planEmoji[plan.id] || '⚡';
 
   return `<!DOCTYPE html>
 <html>
@@ -38,236 +36,105 @@ function getRazorpayHTML(plan) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Blink Payment</title>
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100%; height: 100%; overflow-x: hidden; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #0F172A; overflow: hidden; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-      background: #F0F4FF;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 32px 24px;
     }
-
-    /* ── TOP BANNER ── */
-    .top-banner {
-      background: linear-gradient(135deg, #0F172A 0%, ${accentColor} 100%);
-      padding: 28px 20px 36px;
-      position: relative;
-      overflow: hidden;
-    }
-    .top-banner::after {
-      content: '';
-      position: absolute;
-      bottom: -20px; left: 0; right: 0;
-      height: 40px;
-      background: #F0F4FF;
-      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-    }
-    .brand-row {
-      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
-    }
-    .brand-icon {
-      width: 44px; height: 44px; border-radius: 14px;
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.25);
+    .logo-wrap {
+      width: 72px; height: 72px; border-radius: 22px;
+      background: linear-gradient(135deg, ${accentColor}, #0F172A);
+      border: 1.5px solid rgba(255,255,255,0.15);
       display: flex; align-items: center; justify-content: center;
-      font-size: 22px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
     }
-    .brand-name { color: #fff; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
-    .brand-sub  { color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 1px; }
-
-    .plan-pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 100px;
-      padding: 5px 12px; font-size: 12px; color: rgba(255,255,255,0.9);
-      font-weight: 600; margin-bottom: 14px;
-    }
-    .plan-pill span { font-size: 14px; }
-
-    .amount-hero { color: #fff; }
-    .amount-hero .label { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 500; margin-bottom: 2px; }
-    .amount-hero .value { font-size: 42px; font-weight: 900; letter-spacing: -1px; line-height: 1; }
-    .amount-hero .per  { font-size: 14px; color: rgba(255,255,255,0.6); font-weight: 500; margin-left: 3px; }
-
-    /* ── BODY ── */
-    .body { flex: 1; padding: 24px 16px 32px; }
-
-    /* ── SUMMARY CARD ── */
-    .summary-card {
-      background: #fff;
+    .logo-wrap svg { width: 36px; height: 36px; }
+    .title { font-size: 22px; font-weight: 800; color: #FFFFFF; margin-bottom: 6px; letter-spacing: -0.4px; }
+    .sub { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 36px; }
+    .amount-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 20px;
-      padding: 16px;
-      box-shadow: 0 2px 16px rgba(30,58,138,0.08);
-      margin-bottom: 14px;
-      border: 1px solid #E8EEF8;
-    }
-    .summary-title {
-      font-size: 11px; font-weight: 700;
-      color: #94A3B8; text-transform: uppercase; letter-spacing: 0.8px;
-      margin-bottom: 12px;
-    }
-    .feature-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 0;
-      border-bottom: 1px solid #F1F5F9;
-      font-size: 13px; color: #334155;
-    }
-    .feature-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .check-icon {
-      width: 20px; height: 20px; border-radius: 6px;
-      background: #DCFCE7;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; flex-shrink: 0;
-    }
-
-    /* ── PAYER CARD ── */
-    .payer-card {
-      background: #fff;
-      border-radius: 20px;
-      padding: 16px;
-      box-shadow: 0 2px 16px rgba(30,58,138,0.08);
-      margin-bottom: 14px;
-      border: 1px solid #E8EEF8;
-    }
-    .payer-row { display: flex; align-items: center; gap: 10px; }
-    .payer-avatar {
-      width: 40px; height: 40px; border-radius: 12px;
-      background: linear-gradient(135deg, #1E3A8A, ${accentColor});
-      color: #fff; font-size: 15px; font-weight: 800;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .payer-name  { font-size: 14px; font-weight: 700; color: #0F172A; }
-    .payer-email { font-size: 11px; color: #94A3B8; margin-top: 1px; }
-
-    /* ── PAY BUTTON ── */
-    .pay-wrap { padding: 0 0 8px; }
-    .pay-btn {
+      padding: 20px 28px;
+      text-align: center;
+      margin-bottom: 32px;
       width: 100%;
-      background: linear-gradient(135deg, #0F172A 0%, ${accentColor} 100%);
-      color: #fff; border: none;
-      border-radius: 16px; padding: 17px 20px;
-      font-size: 16px; font-weight: 800; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      box-shadow: 0 6px 24px rgba(30,58,138,0.25);
-      transition: opacity 0.15s; letter-spacing: 0.2px;
+      max-width: 300px;
     }
-    .pay-btn:active { opacity: 0.88; transform: scale(0.99); }
-    .pay-btn .lock { font-size: 16px; }
-    .pay-btn .amount { font-size: 18px; }
-
-    /* ── LOADING STATE ── */
-    .pay-btn.loading { opacity: 0.7; pointer-events: none; }
+    .amount-label { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .amount-value { font-size: 38px; font-weight: 900; color: #FFFFFF; letter-spacing: -1px; }
+    .amount-plan { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+    /* Spinner */
+    .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
     .spinner {
-      width: 18px; height: 18px;
-      border: 2.5px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
+      width: 44px; height: 44px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: ${accentColor};
       border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── SECURE FOOTER ── */
-    .secure-row {
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      margin-top: 12px;
-      font-size: 11px; color: #94A3B8;
+    .spinner-text { font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 500; }
+    .dots span {
+      display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(255,255,255,0.3); margin: 0 3px;
+      animation: pulse 1.2s ease-in-out infinite;
     }
-    .rzp-logo {
-      background: #072654; color: #fff;
-      font-size: 9px; font-weight: 800;
-      padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%,80%,100%{opacity:0.3;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+    .rzp-badge {
+      position: fixed; bottom: 24px;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: rgba(255,255,255,0.25);
     }
+    .rzp-tag { background: #072654; color: #5FA8D3; font-weight: 800; font-size: 9px; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; }
   </style>
 </head>
 <body>
-
-<!-- TOP BANNER -->
-<div class="top-banner">
-  <div class="brand-row">
-    <div class="brand-icon">⚡</div>
-    <div>
-      <div class="brand-name">Blink Insurance</div>
-      <div class="brand-sub">Gig Worker Protection</div>
-    </div>
-  </div>
-  <div class="plan-pill"><span>${emoji}</span> ${plan.name} — Weekly</div>
-  <div class="amount-hero">
-    <div class="label">Weekly Premium</div>
-    <div class="value">₹${plan.price}<span class="per">/week</span></div>
-  </div>
-</div>
-
-<!-- BODY -->
-<div class="body">
-
-  <!-- PAYER INFO -->
-  <div class="payer-card">
-    <div class="summary-title">Paying As</div>
-    <div class="payer-row">
-      <div class="payer-avatar">${(MOCK_WORKER.initials || 'RK')}</div>
-      <div>
-        <div class="payer-name">${MOCK_WORKER.name}</div>
-        <div class="payer-email">${MOCK_WORKER.email || 'rahul.k@blinkinsure.in'}</div>
-      </div>
-    </div>
+  <div class="logo-wrap">
+    <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 4L30 10V18C30 24.627 24.627 30 18 30C11.373 30 6 24.627 6 18V10L18 4Z" fill="white" fill-opacity="0.15" stroke="white" stroke-width="1.5"/>
+      <path d="M14 18L17 21L22 15" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
   </div>
 
-  <!-- COVERAGE FEATURES -->
-  <div class="summary-card">
-    <div class="summary-title">What you get</div>
-    ${plan.features.map(f => `
-    <div class="feature-row">
-      <div class="check-icon">✓</div>
-      <span>${f}</span>
-    </div>`).join('')}
-    <div class="feature-row">
-      <div class="check-icon">✓</div>
-      <span>Up to <strong>₹${plan.maxPayout.toLocaleString('en-IN')}</strong> weekly payout</span>
-    </div>
-    <div class="feature-row">
-      <div class="check-icon">✓</div>
-      <span>IRDAI compliant · Auto-payout within 2 min</span>
-    </div>
+  <div class="title">Blink Insurance</div>
+  <div class="sub">Secure Checkout</div>
+
+  <div class="amount-card">
+    <div class="amount-label">Weekly Premium</div>
+    <div class="amount-value">₹${plan.price}</div>
+    <div class="amount-plan">${plan.name} · Weekly Coverage</div>
   </div>
 
-  <!-- CTA -->
-  <div class="pay-wrap">
-    <button class="pay-btn" id="payBtn" onclick="startPayment()">
-      <span class="lock">🔒</span>
-      <span>Pay <span class="amount">₹${plan.price}</span></span>
-    </button>
-    <div class="secure-row">
-      <span>Secured by</span>
-      <span class="rzp-logo">razorpay</span>
-      <span>· 256-bit SSL</span>
-    </div>
+  <div class="spinner-wrap">
+    <div class="spinner"></div>
+    <div class="spinner-text">Opening payment gateway</div>
+    <div class="dots"><span></span><span></span><span></span></div>
   </div>
 
-</div><!-- /body -->
+  <div class="rzp-badge">
+    <span>Secured by</span>
+    <span class="rzp-tag">razorpay</span>
+    <span>· 256-bit SSL</span>
+  </div>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-var paying = false;
 function startPayment() {
-  if (paying) return;
-  paying = true;
-  var btn = document.getElementById('payBtn');
-  btn.classList.add('loading');
-  btn.innerHTML = '<div class="spinner"></div><span>Opening payment…</span>';
-
   var options = {
     key: '${RZP_KEY}',
     amount: ${amount},
     currency: 'INR',
     name: 'Blink Insurance',
     description: '${plan.name} – Weekly Coverage',
-    image: 'https://i.imgur.com/n5tjHFD.png',
     prefill: {
       name: '${MOCK_WORKER.name}',
-      contact: '${MOCK_WORKER.phone || '9876543210'}',
+      contact: '9876543210',
       email: '${MOCK_WORKER.email || 'rahul.k@blinkinsure.in'}',
     },
     notes: {
@@ -275,16 +142,9 @@ function startPayment() {
       plan_name: '${plan.name}',
       worker_id: '${MOCK_WORKER.id || 'WRK-001'}',
     },
-    theme: {
-      color: '${accentColor}',
-      backdrop_color: 'rgba(15,23,42,0.75)',
-      hide_topbar: false,
-    },
+    theme: { color: '${accentColor}' },
     modal: {
       ondismiss: function() {
-        paying = false;
-        btn.classList.remove('loading');
-        btn.innerHTML = '<span class="lock">🔒</span><span>Pay <span class="amount">₹${plan.price}</span></span>';
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DISMISSED' }));
       },
       confirm_close: true,
@@ -300,13 +160,9 @@ function startPayment() {
       }));
     },
   };
-
   try {
     var rzp = new Razorpay(options);
     rzp.on('payment.failed', function(resp) {
-      paying = false;
-      btn.classList.remove('loading');
-      btn.innerHTML = '<span class="lock">🔒</span><span>Pay <span class="amount">₹${plan.price}</span></span>';
       window.ReactNativeWebView.postMessage(JSON.stringify({
         type: 'FAILED',
         code: resp.error.code,
@@ -315,14 +171,10 @@ function startPayment() {
     });
     rzp.open();
   } catch(e) {
-    paying = false;
-    btn.classList.remove('loading');
-    btn.innerHTML = '<span class="lock">🔒</span><span>Pay <span class="amount">₹${plan.price}</span></span>';
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ERROR', msg: e.message }));
   }
 }
-// Auto-trigger after DOM ready
-window.addEventListener('load', function() { setTimeout(startPayment, 600); });
+window.addEventListener('load', function() { setTimeout(startPayment, 800); });
 </script>
 </body>
 </html>`;
@@ -439,18 +291,29 @@ export default function InsurancePlanScreen({ navigation }) {
 
       {/* Razorpay WebView Modal */}
       {checkoutPlan && (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setCheckoutPlan(null)}>
+        <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={() => setCheckoutPlan(null)}>
           <View style={styles.webviewModal}>
-            <View style={styles.webviewHeader}>
-              <Text style={styles.webviewTitle}>Secure Checkout</Text>
-              <TouchableOpacity onPress={() => setCheckoutPlan(null)} style={styles.webviewClose}>
-                <X size={18} color={COLORS.textMuted} strokeWidth={2.5} />
-              </TouchableOpacity>
+            {/* Gradient header */}
+            <View style={[styles.webviewHeader, { paddingTop: insets.top + 6 }]}>
+              <View style={styles.webviewHeaderInner}>
+                <View style={styles.webviewTitleWrap}>
+                  <View style={styles.webviewLockIcon}>
+                    <Lock size={14} color="#FFFFFF" strokeWidth={2.5} />
+                  </View>
+                  <View>
+                    <Text style={styles.webviewTitle}>Secure Payment</Text>
+                    <Text style={styles.webviewSubtitle}>{checkoutPlan?.name} · ₹{checkoutPlan?.price}/week</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => setCheckoutPlan(null)} style={styles.webviewClose}>
+                  <X size={18} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
             </View>
             <WebView
               source={{ html: getRazorpayHTML(checkoutPlan) }}
               onMessage={handleMessage}
-              style={{ flex: 1, backgroundColor: '#F5F7FA' }}
+              style={{ flex: 1, backgroundColor: '#0F172A' }}
               javaScriptEnabled
               domStorageEnabled
               startInLoadingState
@@ -460,7 +323,7 @@ export default function InsurancePlanScreen({ navigation }) {
               mediaPlaybackRequiresUserAction={false}
               onError={() => {
                 setCheckoutPlan(null);
-                setPaymentResult({ status: 'failed', reason: 'Network error. Please check your connection and try again.' });
+                setPaymentResult({ status: 'failed', reason: 'Network error. Please check your connection and try again.', retryPlan: checkoutPlanRef.current });
               }}
             />
           </View>
@@ -582,13 +445,15 @@ function PlanCard({ plan, config, selected, isCurrentPlan, onSelect, onSubscribe
 // PAYMENT RESULT MODAL
 // ──────────────────────────────────────────────────────────────
 function PaymentResultModal({ result, onClose, onRetry }) {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: 1, tension: 80, friction: 7, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, tension: 90, friction: 8, useNativeDriver: true }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 90, friction: 9, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -597,11 +462,17 @@ function PaymentResultModal({ result, onClose, onRetry }) {
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
       <Animated.View style={[styles.resultOverlay, { opacity: fadeAnim }]}>
-        <Animated.View style={[styles.resultCard, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={[styles.resultCircle, { backgroundColor: success ? COLORS.green : COLORS.red }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={success ? onClose : undefined} />
+        <Animated.View style={[styles.resultCard, { transform: [{ scale: scaleAnim }, { translateY: slideAnim }] }]}>
+
+          {/* Top colour bar */}
+          <View style={[styles.resultTopBar, { backgroundColor: success ? COLORS.green : '#DC2626' }]} />
+
+          {/* Icon */}
+          <View style={[styles.resultCircle, { backgroundColor: success ? '#D1FAE5' : '#FEE2E2' }]}>
             {success
-              ? <CheckCircle size={44} color="#FFFFFF" strokeWidth={2.5} />
-              : <X size={44} color="#FFFFFF" strokeWidth={2.5} />
+              ? <CheckCircle size={42} color={COLORS.green} strokeWidth={2.5} />
+              : <X size={42} color="#DC2626" strokeWidth={2.5} />
             }
           </View>
 
@@ -610,15 +481,20 @@ function PaymentResultModal({ result, onClose, onRetry }) {
           {success ? (
             <>
               <Text style={styles.resultSub}>
-                You're now covered under{'\n'}
+                You're now covered under{' '}
                 <Text style={styles.resultBold}>{result.plan?.name}</Text>
               </Text>
-              <View style={styles.paymentIdBox}>
-                <Text style={styles.paymentIdLabel}>Razorpay Payment ID</Text>
-                <Text style={styles.paymentIdVal}>{result.paymentId}</Text>
-              </View>
+              {result.paymentId && (
+                <View style={styles.paymentIdBox}>
+                  <CreditCard size={13} color={COLORS.textMuted} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentIdLabel}>Payment ID</Text>
+                    <Text style={styles.paymentIdVal}>{result.paymentId}</Text>
+                  </View>
+                </View>
+              )}
               <View style={styles.resultFeatures}>
-                {['Coverage active immediately', 'Payout within 2 minutes of trigger', 'Policy confirmation sent to email'].map(f => (
+                {['Coverage active immediately', 'Auto-payout within 2 min of trigger', 'Policy confirmation on app'].map(f => (
                   <View key={f} style={styles.resultFeatureRow}>
                     <CheckCircle size={13} color={COLORS.green} strokeWidth={2.5} />
                     <Text style={styles.resultFeatureText}>{f}</Text>
@@ -627,19 +503,24 @@ function PaymentResultModal({ result, onClose, onRetry }) {
               </View>
             </>
           ) : (
-            <Text style={styles.resultSub}>{result.reason || 'Your payment could not be processed. Please try again.'}</Text>
+            <>
+              <Text style={styles.resultSub}>{result.reason || 'Your payment could not be processed. Please try again.'}</Text>
+              <View style={styles.failHint}>
+                <Text style={styles.failHintText}>💡 Try a different card, UPI ID, or payment method</Text>
+              </View>
+            </>
           )}
 
           <TouchableOpacity
-            style={[styles.resultBtn, { backgroundColor: success ? COLORS.navy : COLORS.blue }]}
+            style={[styles.resultBtn, { backgroundColor: success ? COLORS.navy : '#2563EB' }]}
             onPress={success ? onClose : (onRetry || onClose)}
             activeOpacity={0.9}
           >
             <Text style={styles.resultBtnText}>{success ? 'View My Coverage' : 'Try Again'}</Text>
           </TouchableOpacity>
           {!success && (
-            <TouchableOpacity onPress={onClose} style={{ marginTop: 12 }} activeOpacity={0.7}>
-              <Text style={{ fontSize: 13, color: COLORS.textMuted, textAlign: 'center' }}>Cancel</Text>
+            <TouchableOpacity onPress={onClose} style={styles.resultCancelBtn} activeOpacity={0.7}>
+              <Text style={styles.resultCancelText}>Cancel</Text>
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -694,25 +575,34 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: SPACING.sm },
   footerText: { fontSize: 11, color: COLORS.textMuted },
 
-  // WebView Modal
-  webviewModal: { flex: 1, backgroundColor: '#FFFFFF', marginTop: 50, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
-  webviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.bgBorder, backgroundColor: '#FFFFFF' },
-  webviewTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
-  webviewClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.bgPrimary, alignItems: 'center', justifyContent: 'center' },
+  // WebView Modal – full screen
+  webviewModal: { flex: 1, backgroundColor: '#0F172A' },
+  webviewHeader: { backgroundColor: '#0F172A', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' },
+  webviewHeaderInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 14, paddingTop: 6 },
+  webviewTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  webviewLockIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  webviewTitle: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  webviewSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 1, fontWeight: '500' },
+  webviewClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
 
   // Result Modal
-  resultOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', alignItems: 'center', justifyContent: 'center', padding: SPACING.md },
-  resultCard: { backgroundColor: '#FFFFFF', borderRadius: 28, padding: SPACING.lg, width: '100%', alignItems: 'center' },
-  resultCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 10 },
-  resultTitle: { fontSize: 22, fontWeight: '900', color: COLORS.textPrimary, marginBottom: 8, textAlign: 'center' },
-  resultSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 21, marginBottom: 16 },
+  resultOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.72)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  resultCard: { backgroundColor: '#FFFFFF', borderRadius: 28, width: '100%', alignItems: 'center', overflow: 'hidden', paddingBottom: 24 },
+  resultTopBar: { width: '100%', height: 5, marginBottom: 24 },
+  resultCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  resultTitle: { fontSize: 22, fontWeight: '900', color: COLORS.textPrimary, marginBottom: 8, textAlign: 'center', paddingHorizontal: 20 },
+  resultSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 21, marginBottom: 14, paddingHorizontal: 24 },
   resultBold: { fontWeight: '800', color: COLORS.textPrimary },
-  paymentIdBox: { backgroundColor: COLORS.bgPrimary, borderRadius: RADIUS.lg, padding: SPACING.sm, width: '100%', alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: COLORS.bgBorder },
-  paymentIdLabel: { fontSize: 10, color: COLORS.textMuted, marginBottom: 3 },
-  paymentIdVal: { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary, fontFamily: 'monospace' },
-  resultFeatures: { width: '100%', gap: 8, marginBottom: 20 },
+  paymentIdBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.bgPrimary, borderRadius: RADIUS.lg, paddingHorizontal: 14, paddingVertical: 12, width: '90%', marginBottom: 14, borderWidth: 1, borderColor: COLORS.bgBorder },
+  paymentIdLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
+  paymentIdVal: { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary },
+  resultFeatures: { width: '90%', gap: 10, marginBottom: 20 },
   resultFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  resultFeatureText: { fontSize: 13, color: COLORS.textSecondary },
-  resultBtn: { width: '100%', borderRadius: RADIUS.full, paddingVertical: 15, alignItems: 'center' },
+  resultFeatureText: { fontSize: 13, color: COLORS.textSecondary, flex: 1 },
+  resultBtn: { width: '90%', borderRadius: RADIUS.full, paddingVertical: 16, alignItems: 'center', marginBottom: 2 },
   resultBtnText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  resultCancelBtn: { marginTop: 12, paddingVertical: 6 },
+  resultCancelText: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  failHint: { backgroundColor: '#FEF3C7', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, width: '90%', marginBottom: 16 },
+  failHintText: { fontSize: 12, color: '#92400E', fontWeight: '500', textAlign: 'center' },
 });
