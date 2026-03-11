@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Animated, StatusBar, Modal, Pressable, Dimensions,
@@ -280,16 +280,6 @@ function startPayment() {
       backdrop_color: 'rgba(15,23,42,0.75)',
       hide_topbar: false,
     },
-    config: {
-      display: {
-        blocks: {
-          banks: { name: 'Pay via UPI / Bank', instruments: [ { method: 'upi' }, { method: 'netbanking' } ] },
-          cards: { name: 'Cards', instruments: [ { method: 'card' } ] },
-        },
-        sequence: ['block.banks', 'block.cards'],
-        preferences: { show_default_blocks: true },
-      }
-    },
     modal: {
       ondismiss: function() {
         paying = false;
@@ -345,27 +335,38 @@ export default function InsurancePlanScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState('pro');
   const [checkoutPlan, setCheckoutPlan] = useState(null); // triggers WebView modal
-  const [paymentResult, setPaymentResult] = useState(null); // 'success' | 'failed'
+  const [paymentResult, setPaymentResult] = useState(null); // { status, plan, paymentId, reason }
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Ref to avoid stale closure in handleMessage
+  const checkoutPlanRef = useRef(null);
+
+  useEffect(() => {
+    checkoutPlanRef.current = checkoutPlan;
+  }, [checkoutPlan]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }, []);
 
-  const handleMessage = (event) => {
+  const handleMessage = useCallback((event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+      const currentPlan = checkoutPlanRef.current;
       if (data.type === 'SUCCESS') {
         setCheckoutPlan(null);
-        setPaymentResult({ status: 'success', plan: checkoutPlan, paymentId: data.payment_id });
+        setPaymentResult({ status: 'success', plan: currentPlan, paymentId: data.payment_id });
       } else if (data.type === 'FAILED') {
         setCheckoutPlan(null);
-        setPaymentResult({ status: 'failed', reason: data.description });
+        // Keep plan reference so Try Again can reopen checkout
+        setPaymentResult({ status: 'failed', reason: data.description || 'Payment could not be processed.', retryPlan: currentPlan });
+      } else if (data.type === 'ERROR') {
+        setCheckoutPlan(null);
+        setPaymentResult({ status: 'failed', reason: data.msg || 'An unexpected error occurred.', retryPlan: currentPlan });
       } else if (data.type === 'DISMISSED') {
         setCheckoutPlan(null);
       }
     } catch {}
-  };
+  }, []);
 
   const activePlan = MOCK_INSURANCE_PLANS.find(p => p.id === (MOCK_WORKER.activePolicy === 'Pro Guard' ? 'pro' : 'basic'));
 
@@ -455,6 +456,12 @@ export default function InsurancePlanScreen({ navigation }) {
               startInLoadingState
               mixedContentMode="always"
               originWhitelist={['*']}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              onError={() => {
+                setCheckoutPlan(null);
+                setPaymentResult({ status: 'failed', reason: 'Network error. Please check your connection and try again.' });
+              }}
             />
           </View>
         </Modal>
@@ -465,6 +472,14 @@ export default function InsurancePlanScreen({ navigation }) {
         <PaymentResultModal
           result={paymentResult}
           onClose={() => setPaymentResult(null)}
+          onRetry={() => {
+            const retryPlan = paymentResult.retryPlan;
+            setPaymentResult(null);
+            if (retryPlan) {
+              // Brief delay so modal closes before reopening checkout
+              setTimeout(() => setCheckoutPlan(retryPlan), 300);
+            }
+          }}
         />
       )}
     </View>
@@ -566,7 +581,7 @@ function PlanCard({ plan, config, selected, isCurrentPlan, onSelect, onSubscribe
 // ──────────────────────────────────────────────────────────────
 // PAYMENT RESULT MODAL
 // ──────────────────────────────────────────────────────────────
-function PaymentResultModal({ result, onClose }) {
+function PaymentResultModal({ result, onClose, onRetry }) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -615,9 +630,18 @@ function PaymentResultModal({ result, onClose }) {
             <Text style={styles.resultSub}>{result.reason || 'Your payment could not be processed. Please try again.'}</Text>
           )}
 
-          <TouchableOpacity style={[styles.resultBtn, { backgroundColor: success ? COLORS.navy : COLORS.blue }]} onPress={onClose} activeOpacity={0.9}>
+          <TouchableOpacity
+            style={[styles.resultBtn, { backgroundColor: success ? COLORS.navy : COLORS.blue }]}
+            onPress={success ? onClose : (onRetry || onClose)}
+            activeOpacity={0.9}
+          >
             <Text style={styles.resultBtnText}>{success ? 'View My Coverage' : 'Try Again'}</Text>
           </TouchableOpacity>
+          {!success && (
+            <TouchableOpacity onPress={onClose} style={{ marginTop: 12 }} activeOpacity={0.7}>
+              <Text style={{ fontSize: 13, color: COLORS.textMuted, textAlign: 'center' }}>Cancel</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </Animated.View>
     </Modal>

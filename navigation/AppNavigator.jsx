@@ -7,6 +7,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import InsurancePlanScreen from '../screens/InsurancePlanScreen';
 import TabNavigator from './TabNavigator';
+import AdminNavigator from './AdminNavigator';
 
 const Stack = createStackNavigator();
 
@@ -26,6 +27,12 @@ export default function AppNavigator() {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="Plans" component={InsurancePlanScreen} />
+        {/* Admin Portal — accessed from Profile screen */}
+        <Stack.Screen
+          name="AdminPortal"
+          component={AdminNavigator}
+          options={{ cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
