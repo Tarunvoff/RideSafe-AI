@@ -1,4 +1,3 @@
-<<<<<<< HEAD:ml_microservice/ml/generate_dataset.py
 import pandas as pd
 import numpy as np
 import datetime
@@ -155,7 +154,7 @@ if __name__ == "__main__":
     
     print("\nSample Output:")
     print(df.head())
-=======
+
 import pandas as pd
 import numpy as np
 import datetime
@@ -312,4 +311,4 @@ if __name__ == "__main__":
     
     print("\nSample Output:")
     print(df.head())
->>>>>>> 6219dbda82f9d6b432d0c2f11def228657780b99:backend/ml_microservice/ml/generate_dataset.py
+

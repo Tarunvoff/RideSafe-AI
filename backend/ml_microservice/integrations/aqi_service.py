@@ -1,4 +1,3 @@
-<<<<<<< HEAD:ml_microservice/integrations/aqi_service.py
 import requests
 import logging
 import math
@@ -151,7 +150,7 @@ class AQIService:
 
     def _fetch_cpcb_fallback(self) -> dict:
         return {"aqi": 80.0, "pm25": 30.0, "pm10": 45.0}
-=======
+
 import requests
 import logging
 
@@ -198,4 +197,4 @@ class AQIService:
             "pm25": 30.0,
             "pm10": 45.0
         }
->>>>>>> 6219dbda82f9d6b432d0c2f11def228657780b99:backend/ml_microservice/integrations/aqi_service.py
+

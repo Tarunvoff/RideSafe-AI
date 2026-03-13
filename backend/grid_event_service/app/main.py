@@ -12,7 +12,6 @@ logging.basicConfig(level=logging.INFO)
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -26,7 +25,6 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     logging.info("Grid Monitor Scheduler stopped.")
 
-
 app = FastAPI(
     title="Grid Event Microservice",
     description="Spatial event engine converting environmental intelligence into grid-level operational states.",
@@ -36,7 +34,6 @@ app = FastAPI(
 
 app.include_router(zone_routes.router)
 app.include_router(grid_routes.router)
-
 
 @app.get("/")
 def root():

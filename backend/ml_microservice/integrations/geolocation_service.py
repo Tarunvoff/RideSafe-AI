@@ -1,4 +1,3 @@
-<<<<<<< HEAD:ml_microservice/integrations/geolocation_service.py
 import requests
 import redis
 import json
@@ -49,7 +48,7 @@ class GeolocationService:
         
         # Default/Fallback returning Bangalore center
         return {"lat": 0.0, "lon": 0.0}
-=======
+
 import requests
 import redis
 import json
@@ -100,4 +99,4 @@ class GeolocationService:
         
         # Default/Fallback returning Bangalore center
         return {"lat": 12.9716, "lon": 77.5946}
->>>>>>> 6219dbda82f9d6b432d0c2f11def228657780b99:backend/ml_microservice/integrations/geolocation_service.py
+

@@ -31,7 +31,6 @@ def fetch_and_evaluate_zones():
                 # Auto-assign grid_id if missing (zones ingested via ML microservice lack one)
                 if not zone.grid_id:
                     from app.utils.h3_mapper import geo_to_h3
-
                     computed = geo_to_h3(zone.latitude, zone.longitude, resolution=8)
                     zone.grid_id = computed
                     db.commit()

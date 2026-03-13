@@ -1,4 +1,3 @@
-<<<<<<< HEAD:ml_microservice/integrations/weather_service.py
 import requests
 import logging
 from datetime import datetime, timezone
@@ -74,7 +73,7 @@ class WeatherService:
             "humidity":    65.0,
             "rainfall":    0.0,
         }
-=======
+
 import requests
 import logging
 
@@ -127,4 +126,4 @@ class WeatherService:
             "humidity": 65.0,
             "rainfall": 0.0
         }
->>>>>>> 6219dbda82f9d6b432d0c2f11def228657780b99:backend/ml_microservice/integrations/weather_service.py
+
