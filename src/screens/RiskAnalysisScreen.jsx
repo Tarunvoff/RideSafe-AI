@@ -3,16 +3,26 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Shield, TrendingUp, TrendingDown, AlertTriangle, ChevronRight, Activity, Cloud, Wind, Zap } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Shield, TrendingUp, TrendingDown, ChevronRight, Activity, Cloud, Wind, Zap } from 'lucide-react-native';
 import { MOCK_WORKER, MOCK_RISK_FACTORS } from '../data/mockData';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/colors';
+import AnimatedProgressRing from '../components/AnimatedProgressRing';
+import PresenceLayerCard from '../components/PresenceLayerCard';
+import CyberGlobe from '../components/CyberGlobe';
+import { runPresenceLayerCheck } from '../services/presenceAttestationService';
 
 const RISK_SCORE = 68;
-const TABS = ['Overview', 'Factors', 'History'];
+const TABS = ['Overview', 'Factors', 'History', 'Proof'];
 
 export default function RiskAnalysisScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('Overview');
+  const [isChecking, setIsChecking] = useState(false);
+  const [presenceAssessment, setPresenceAssessment] = useState(null);
+  const [snapshotHistory, setSnapshotHistory] = useState([]);
+  const [lastSyncStatus, setLastSyncStatus] = useState(null);
+  const [proofError, setProofError] = useState(null);
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -23,10 +33,207 @@ export default function RiskAnalysisScreen({ navigation }) {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    if (tab === 'Proof' && !presenceAssessment && !isChecking) {
+      handleRunPresenceCheck();
+    }
+  }, [tab, presenceAssessment, isChecking]);
+
   const scoreColor = RISK_SCORE > 75 ? COLORS.red : RISK_SCORE > 50 ? COLORS.orange : COLORS.green;
   const scoreLabel = RISK_SCORE > 75 ? 'High Risk' : RISK_SCORE > 50 ? 'Moderate' : 'Low Risk';
 
   const scoreWidth = scoreAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+
+  const handleRunPresenceCheck = async () => {
+    try {
+      setIsChecking(true);
+      setProofError(null);
+
+      const checkResult = await runPresenceLayerCheck({
+        riderId: MOCK_WORKER.id,
+        previousSnapshots: snapshotHistory,
+      });
+
+      setPresenceAssessment(checkResult.assessment);
+      setLastSyncStatus(checkResult.syncResult);
+      setSnapshotHistory((previous) => [...previous, checkResult.snapshot].slice(-12));
+    } catch (error) {
+      setProofError(error?.message || 'Unable to run live presence checks right now.');
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const renderOverviewContent = () => (
+    <>
+      <View style={[styles.scoreCard, SHADOWS.card]}>
+        <View style={styles.scoreLeft}>
+          <Text style={styles.scoreLabelText}>Your Risk Score</Text>
+          <Text style={[styles.scoreValue, { color: scoreColor }]}>{RISK_SCORE}<Text style={styles.scoreMax}>/100</Text></Text>
+          <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '18' }]}>
+            <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>{scoreLabel}</Text>
+          </View>
+        </View>
+        <View style={styles.scoreRight}>
+          <View style={styles.scoreBarWrap}>
+            <View style={styles.scoreBarBg}>
+              <Animated.View style={[styles.scoreBarFill, { width: scoreWidth, backgroundColor: scoreColor }]} />
+            </View>
+            <View style={styles.scoreBarZones}>
+              <Text style={[styles.scoreZoneText, { color: COLORS.green }]}>Safe</Text>
+              <Text style={[styles.scoreZoneText, { color: COLORS.orange }]}>Moderate</Text>
+              <Text style={[styles.scoreZoneText, { color: COLORS.red }]}>High</Text>
+            </View>
+          </View>
+          <Text style={styles.scoreSub}>Based on 14 days of data</Text>
+          <View style={styles.scoreTrend}>
+            <TrendingUp size={13} color={COLORS.red} strokeWidth={2.5} />
+            <Text style={[styles.scoreTrendText, { color: COLORS.red }]}>+5 pts vs last week</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.statsRow}>
+        {[
+          { label: 'Weather Events', value: '3', icon: Cloud, color: COLORS.blue },
+          { label: 'AQI Breaches', value: '2', icon: Wind, color: COLORS.orange },
+          { label: 'Disruptions', value: '1', icon: Zap, color: COLORS.red },
+        ].map((stat) => (
+          <View key={stat.label} style={[styles.statBox, SHADOWS.card]}>
+            <View style={[styles.statIcon, { backgroundColor: stat.color + '18' }]}>
+              <stat.icon size={16} color={stat.color} strokeWidth={2.5} />
+            </View>
+            <Text style={styles.statVal}>{stat.value}</Text>
+            <Text style={styles.statLbl}>{stat.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.sectionTitle}>Risk Factors</Text>
+      {(MOCK_RISK_FACTORS || [
+        { id: 1, name: 'Heavy Rainfall', impact: 'high', score: 82, description: 'Monsoon season active — high flood risk in delivery zones', trend: 'up' },
+        { id: 2, name: 'Poor AQI', impact: 'medium', score: 61, description: 'AQI 245 in Koramangala — unsafe for outdoor workers', trend: 'stable' },
+        { id: 3, name: 'Road Disruption', impact: 'low', score: 34, description: 'Annual infrastructure maintenance near Silk Board junction', trend: 'down' },
+        { id: 4, name: 'Peak Heat', impact: 'medium', score: 58, description: 'Temperatures exceeding 38°C between 12–4pm', trend: 'up' },
+      ]).map((factor) => (
+        <RiskFactorCard key={factor.id} factor={factor} />
+      ))}
+
+      <View style={[styles.recCard, SHADOWS.card]}>
+        <View style={styles.recHeader}>
+          <Shield size={20} color={COLORS.blue} strokeWidth={2} />
+          <Text style={styles.recTitle}>Coverage Recommendation</Text>
+        </View>
+        <Text style={styles.recBody}>
+          Based on your current risk profile, upgrading to <Text style={styles.recHighlight}>Elite Guard</Text> would provide ₹800 extra weekly protection against weather and AQI disruptions in your delivery zones.
+        </Text>
+        <TouchableOpacity style={styles.recCta} onPress={() => navigation.navigate('Plans')}>
+          <Text style={styles.recCtaText}>View Upgrade Options</Text>
+          <ChevronRight size={14} color={COLORS.blue} strokeWidth={2.5} />
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const recommendationColor =
+    presenceAssessment?.recommendation === 'REJECT'
+      ? COLORS.red
+      : presenceAssessment?.recommendation === 'MANUAL_REVIEW'
+        ? COLORS.orange
+        : COLORS.green;
+
+  const locationHistory = snapshotHistory
+    .map((snapshot) => ({
+      lat: snapshot?.layers?.gps?.lat,
+      lng: snapshot?.layers?.gps?.lng,
+    }))
+    .filter((entry) => entry.lat !== null && entry.lat !== undefined && entry.lng !== null && entry.lng !== undefined);
+
+  const renderProofContent = () => (
+    <>
+      <LinearGradient
+        colors={[COLORS.navy, COLORS.purpleDark, COLORS.blue]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.proofHero, SHADOWS.strong]}
+      >
+        <View style={styles.proofHeroHeader}>
+          <Text style={styles.proofHeroKicker}>Proof of Presence Protocol</Text>
+          <Text style={styles.proofHeroTitle}>GPS Spoofing Defense Grid</Text>
+          <Text style={styles.proofHeroSub}>Multi-signal attestation using GPS integrity, radio context, motion signature, and device trust.</Text>
+        </View>
+
+        <View style={styles.proofHeroBody}>
+          <AnimatedProgressRing
+            score={presenceAssessment?.trustScore || 0}
+            size={132}
+            color={presenceAssessment ? recommendationColor : COLORS.cyan}
+            bgColor={'rgba(255,255,255,0.16)'}
+            label="Trust Score"
+            sublabel={presenceAssessment ? `${presenceAssessment.confidence} confidence` : 'Run live check'}
+          />
+
+          <View style={styles.proofBadgeColumn}>
+            <View style={[styles.proofBadge, { borderColor: `${recommendationColor}66`, backgroundColor: `${recommendationColor}22` }]}>
+              <Text style={[styles.proofBadgeLabel, { color: recommendationColor }]}>
+                {presenceAssessment ? presenceAssessment.recommendation.replace('_', ' ') : 'PENDING CHECK'}
+              </Text>
+            </View>
+            <Text style={styles.proofMetricLabel}>Fraud Score</Text>
+            <Text style={styles.proofMetricValue}>{presenceAssessment?.fraudScore ?? '--'}%</Text>
+            <Text style={styles.proofMetaText}>
+              {presenceAssessment?.checkedAt
+                ? `Last check ${new Date(presenceAssessment.checkedAt).toLocaleTimeString()}`
+                : 'No snapshot collected yet'}
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.proofRunButton, isChecking && styles.proofRunButtonDisabled]}
+          activeOpacity={0.85}
+          onPress={handleRunPresenceCheck}
+          disabled={isChecking}
+        >
+          <Activity size={16} color={COLORS.textWhite} strokeWidth={2.3} />
+          <Text style={styles.proofRunButtonText}>{isChecking ? 'Running live attestation…' : 'Run Live Presence Check'}</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+
+      <View style={[styles.proofPanel, SHADOWS.card]}>
+        <CyberGlobe
+          latitude={presenceAssessment?.location?.latitude}
+          longitude={presenceAssessment?.location?.longitude}
+          history={locationHistory}
+          riskScore={presenceAssessment?.fraudScore || 0}
+        />
+      </View>
+
+      {proofError ? (
+        <View style={[styles.proofErrorCard, SHADOWS.card]}>
+          <Text style={styles.proofErrorText}>{proofError}</Text>
+        </View>
+      ) : null}
+
+      <Text style={styles.proofSectionTitle}>Layer Results</Text>
+      {presenceAssessment
+        ? Object.values(presenceAssessment.layers).map((layer) => <PresenceLayerCard key={layer.id} layer={layer} />)
+        : (
+          <View style={[styles.proofEmptyCard, SHADOWS.card]}>
+            <Text style={styles.proofEmptyText}>Run the live check to populate all anti-spoofing layer scores.</Text>
+          </View>
+        )}
+
+      <View style={[styles.syncCard, SHADOWS.card]}>
+        <Text style={styles.syncTitle}>Snapshot Sync</Text>
+        <Text style={styles.syncText}>
+          {lastSyncStatus
+            ? `Pushed ${lastSyncStatus.pushed} • Pending ${lastSyncStatus.pending}${lastSyncStatus.skipped ? ' • Configure EXPO_PUBLIC_ML_API_URL for backend sync' : ''}`
+            : 'Snapshot queue not synced yet.'}
+        </Text>
+      </View>
+    </>
+  );
 
   return (
     <View style={styles.root}>
@@ -44,75 +251,7 @@ export default function RiskAnalysisScreen({ navigation }) {
       </View>
 
       <Animated.ScrollView style={{ opacity: fadeAnim }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Score Card */}
-        <View style={[styles.scoreCard, SHADOWS.card]}>
-          <View style={styles.scoreLeft}>
-            <Text style={styles.scoreLabelText}>Your Risk Score</Text>
-            <Text style={[styles.scoreValue, { color: scoreColor }]}>{RISK_SCORE}<Text style={styles.scoreMax}>/100</Text></Text>
-            <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '18' }]}>
-              <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>{scoreLabel}</Text>
-            </View>
-          </View>
-          <View style={styles.scoreRight}>
-            <View style={styles.scoreBarWrap}>
-              <View style={styles.scoreBarBg}>
-                <Animated.View style={[styles.scoreBarFill, { width: scoreWidth, backgroundColor: scoreColor }]} />
-              </View>
-              <View style={styles.scoreBarZones}>
-                <Text style={[styles.scoreZoneText, { color: COLORS.green }]}>Safe</Text>
-                <Text style={[styles.scoreZoneText, { color: COLORS.orange }]}>Moderate</Text>
-                <Text style={[styles.scoreZoneText, { color: COLORS.red }]}>High</Text>
-              </View>
-            </View>
-            <Text style={styles.scoreSub}>Based on 14 days of data</Text>
-            <View style={styles.scoreTrend}>
-              <TrendingUp size={13} color={COLORS.red} strokeWidth={2.5} />
-              <Text style={[styles.scoreTrendText, { color: COLORS.red }]}>+5 pts vs last week</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Quick stats */}
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Weather Events', value: '3', icon: Cloud, color: COLORS.blue },
-            { label: 'AQI Breaches', value: '2', icon: Wind, color: COLORS.orange },
-            { label: 'Disruptions', value: '1', icon: Zap, color: COLORS.red },
-          ].map((s) => (
-            <View key={s.label} style={[styles.statBox, SHADOWS.card]}>
-              <View style={[styles.statIcon, { backgroundColor: s.color + '18' }]}>
-                <s.icon size={16} color={s.color} strokeWidth={2.5} />
-              </View>
-              <Text style={styles.statVal}>{s.value}</Text>
-              <Text style={styles.statLbl}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>Risk Factors</Text>
-        {(MOCK_RISK_FACTORS || [
-          { id: 1, name: 'Heavy Rainfall', impact: 'high', score: 82, description: 'Monsoon season active — high flood risk in delivery zones', trend: 'up' },
-          { id: 2, name: 'Poor AQI', impact: 'medium', score: 61, description: 'AQI 245 in Koramangala — unsafe for outdoor workers', trend: 'stable' },
-          { id: 3, name: 'Road Disruption', impact: 'low', score: 34, description: 'Annual infrastructure maintenance near Silk Board junction', trend: 'down' },
-          { id: 4, name: 'Peak Heat', impact: 'medium', score: 58, description: 'Temperatures exceeding 38°C between 12–4pm', trend: 'up' },
-        ]).map((factor) => (
-          <RiskFactorCard key={factor.id} factor={factor} />
-        ))}
-
-        {/* Coverage recommendation */}
-        <View style={[styles.recCard, SHADOWS.card]}>
-          <View style={styles.recHeader}>
-            <Shield size={20} color={COLORS.blue} strokeWidth={2} />
-            <Text style={styles.recTitle}>Coverage Recommendation</Text>
-          </View>
-          <Text style={styles.recBody}>
-            Based on your current risk profile, upgrading to <Text style={styles.recHighlight}>Elite Guard</Text> would provide ₹800 extra weekly protection against weather and AQI disruptions in your delivery zones.
-          </Text>
-          <TouchableOpacity style={styles.recCta} onPress={() => navigation.navigate('Plans')}>
-            <Text style={styles.recCtaText}>View Upgrade Options</Text>
-            <ChevronRight size={14} color={COLORS.blue} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
+        {tab === 'Proof' ? renderProofContent() : renderOverviewContent()}
 
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
@@ -214,4 +353,149 @@ const styles = StyleSheet.create({
   recHighlight: { color: COLORS.blue, fontWeight: '700' },
   recCta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   recCtaText: { fontSize: 13, color: COLORS.blue, fontWeight: '700' },
+
+  proofHero: {
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  proofHeroHeader: {
+    marginBottom: 12,
+  },
+  proofHeroKicker: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.72)',
+    marginBottom: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '700',
+  },
+  proofHeroTitle: {
+    fontSize: 21,
+    color: COLORS.textWhite,
+    fontWeight: '800',
+    marginBottom: 5,
+  },
+  proofHeroSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  proofHeroBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  proofBadgeColumn: {
+    alignItems: 'flex-end',
+    flex: 1,
+  },
+  proofBadge: {
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 10,
+  },
+  proofBadgeLabel: {
+    fontSize: 10,
+    letterSpacing: 0.7,
+    fontWeight: '800',
+  },
+  proofMetricLabel: {
+    color: 'rgba(255,255,255,0.74)',
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  proofMetricValue: {
+    color: COLORS.textWhite,
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  proofMetaText: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 10,
+  },
+  proofRunButton: {
+    marginTop: 2,
+    borderRadius: RADIUS.lg,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proofRunButtonDisabled: {
+    opacity: 0.7,
+  },
+  proofRunButtonText: {
+    color: COLORS.textWhite,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  proofPanel: {
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.bgBorder,
+    backgroundColor: COLORS.navy,
+    marginBottom: SPACING.md,
+    paddingVertical: 10,
+  },
+  proofSectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+  },
+  proofEmptyCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.bgBorder,
+    backgroundColor: COLORS.bgCard,
+    padding: 14,
+    marginBottom: 10,
+  },
+  proofEmptyText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  syncCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.bgBorder,
+    backgroundColor: COLORS.bgCard,
+    padding: 12,
+    marginTop: 2,
+  },
+  syncTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  syncText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  proofErrorCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.redLight,
+    backgroundColor: COLORS.redLight,
+    padding: 10,
+    marginBottom: 10,
+  },
+  proofErrorText: {
+    fontSize: 12,
+    color: COLORS.red,
+    fontWeight: '600',
+  },
 });

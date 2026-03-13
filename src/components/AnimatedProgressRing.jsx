@@ -18,6 +18,7 @@ const AnimatedCircle = createAnimatedComponent(Circle);
  * SVG-based circular progress ring with smooth fill animation.
  * Shows a score value in the center with a label and sublabel.
  */
+
 export default function AnimatedProgressRing({
   score = 0,
   size = 140,
