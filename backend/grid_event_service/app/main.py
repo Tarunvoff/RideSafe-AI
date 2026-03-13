@@ -29,7 +29,7 @@ app = FastAPI(
     title="Grid Event Microservice",
     description="Spatial event engine converting environmental intelligence into grid-level operational states.",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.include_router(zone_routes.router)
@@ -39,6 +39,8 @@ app.include_router(grid_routes.router)
 def root():
     return {"message": "Welcome to the GigShield Grid Event Microservice"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="127.0.0.1", port=8001, reload=True)

@@ -11,8 +11,6 @@ import {
 } from 'lucide-react-native';
 import { MOCK_WORKER, MOCK_RISK_SCORE, MOCK_ALERTS, MOCK_DASHBOARD_STATS } from '../data/mockData';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../constants/colors';
-import { useGpsMockDetection } from '../hooks/useGpsMockDetection';
-import GpsSpoofingDetectionCard from '../components/GpsSpoofingDetectionCard';
 
 const { width } = Dimensions.get('window');
 
@@ -22,9 +20,6 @@ export default function HomeScreen({ navigation }) {
   const slideAnim = useRef(new Animated.Value(24)).current;
   const [currentTime, setCurrentTime] = useState(new Date());
   const activeAlerts = MOCK_ALERTS.filter((a) => a.isActive);
-
-  // GPS Spoofing Detection Hook
-  const { detectionResult, isChecking, performDetection } = useGpsMockDetection();
 
   useEffect(() => {
     Animated.parallel([
@@ -135,24 +130,6 @@ export default function HomeScreen({ navigation }) {
 
         <Text style={styles.sectionTitle}>Weekly Earnings</Text>
         <WeeklyEarningsCard data={MOCK_DASHBOARD_STATS} />
-
-        {/* GPS Spoofing Detection Card */}
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Security Check</Text>
-          <TouchableOpacity style={styles.seeAllBtn} onPress={performDetection} disabled={isChecking}>
-            <Text style={styles.seeAllText}>{isChecking ? 'Checking...' : 'Re-check'}</Text>
-          </TouchableOpacity>
-        </View>
-        <GpsSpoofingDetectionCard
-          detectionResult={detectionResult}
-          isChecking={isChecking}
-          onRefresh={performDetection}
-          onViewDetails={() => {
-            // Could navigate to detailed security report screen
-            alert(`GPS Status: ${detectionResult?.recommendation}\nFraud Score: ${detectionResult?.fraudScore}%`);
-          }}
-          compact={false}
-        />
 
         {activeAlerts.length > 0 && (
           <>
