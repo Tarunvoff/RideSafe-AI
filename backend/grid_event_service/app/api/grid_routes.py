@@ -15,16 +15,16 @@ def get_all_grid_states(db: Session = Depends(get_db)):
     grids = db.query(GridState).all()
     return [
         {
-            "grid_id":        g.grid_id,
-            "zone_id":        g.zone_id,
-            "state":          g.state,
-            "risk_score":     g.risk_score,
-            "rainfall_mm":    g.rainfall,
-            "aqi":            g.aqi,
-            "temperature_c":  g.temperature,
-            "active_riders":  g.active_riders,
+            "grid_id": g.grid_id,
+            "zone_id": g.zone_id,
+            "state": g.state,
+            "risk_score": g.risk_score,
+            "rainfall_mm": g.rainfall,
+            "aqi": g.aqi,
+            "temperature_c": g.temperature,
+            "active_riders": g.active_riders,
             "platform_orders": g.platform_orders,
-            "last_updated":   g.last_updated.isoformat() if g.last_updated else None,
+            "last_updated": g.last_updated.isoformat() if g.last_updated else None,
         }
         for g in grids
     ]
@@ -40,14 +40,14 @@ def get_grid_state(grid_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Grid '{grid_id}' not found")
 
     return {
-        "grid_id":         grid.grid_id,
-        "zone_id":         grid.zone_id,
-        "state":           grid.state,
-        "risk_score":      grid.risk_score,
-        "rainfall_mm":     grid.rainfall,
-        "aqi":             grid.aqi,
-        "temperature_c":   grid.temperature,
-        "active_riders":   grid.active_riders,
+        "grid_id": grid.grid_id,
+        "zone_id": grid.zone_id,
+        "state": grid.state,
+        "risk_score": grid.risk_score,
+        "rainfall_mm": grid.rainfall,
+        "aqi": grid.aqi,
+        "temperature_c": grid.temperature,
+        "active_riders": grid.active_riders,
         "platform_orders": grid.platform_orders,
-        "last_updated":    grid.last_updated.isoformat() if grid.last_updated else None,
+        "last_updated": grid.last_updated.isoformat() if grid.last_updated else None,
     }

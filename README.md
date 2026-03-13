@@ -528,29 +528,119 @@ Trigger checks should run in the background, not block app requests.
 
 ---
 
+
+
 ## 19) Repository structure
 
 ```text
-gigshield/
+GUIDEWIRE_BLINK/
+├── App.js                          # Entry point — mounts AppNavigator
+├── app.json                        # Expo config (bundle ID, icons, orientation)
+├── package.json                    # JS dependencies
+├── babel.config.js                 # Babel preset for Expo
+├── .env.example                    # Environment variable template (copy to .env)
+├── .gitignore
 ├── README.md
-├── docker-compose.yml
-├── .env.example
-├── backend/
-│   ├── auth-service/
-│   ├── policy-service/
-│   ├── payout-service/
-│   └── notification-service/
-├── risk-engine/
-│   ├── premium-engine/
-│   ├── trigger-monitor/
-│   ├── claims-engine/
-│   ├── fraud-engine/
-│   └── ml-models/
-├── frontend-app/
-│   ├── screens/
-│   ├── components/
-│   └── store/
-├── admin-dashboard/
-├── mock-platform-api/
-├── infra/
-└── tests/
+│
+├── assets/                         # Static assets bundled by Expo
+│   ├── fonts/                      # Custom font files (.ttf / .otf)
+│   ├── images/                     # Logos and illustrations
+│   ├── icon.png
+│   ├── splash.png
+│   ├── adaptive-icon.png
+│   └── favicon.png
+│
+├── src/                            # All React Native application source code
+│   │
+│   ├── navigation/                 # React Navigation stack and tab navigators
+│   │   ├── AppNavigator.jsx        # Root stack: Splash > Welcome > Main / AdminPortal
+│   │   ├── TabNavigator.jsx        # Worker bottom tab bar
+│   │   ├── AdminNavigator.jsx      # Admin stack: Login > AdminMain > detail screens
+│   │   └── AdminTabNavigator.jsx   # Admin bottom tab bar
+│   │
+│   ├── screens/                    # Full-screen views, one per route
+│   │   ├── SplashScreen.jsx
+│   │   ├── WelcomeScreen.jsx       # Role selector: Delivery Person or Admin
+│   │   ├── OnboardingScreen.jsx
+│   │   ├── KYCScreen.jsx
+│   │   ├── HomeScreen.jsx
+│   │   ├── InsurancePlanScreen.jsx # Mock payment flow, works fully offline
+│   │   ├── ClaimsScreen.jsx
+│   │   ├── RiskAnalysisScreen.jsx
+│   │   ├── DisruptionAlertsScreen.jsx
+│   │   ├── ProfileScreen.jsx
+│   │   └── admin/
+│   │       ├── AdminLoginScreen.jsx
+│   │       ├── AdminDashboardScreen.jsx
+│   │       ├── AdminWorkersScreen.jsx
+│   │       ├── AdminWorkerDetailScreen.jsx
+│   │       ├── AdminClaimsScreen.jsx
+│   │       ├── AdminPoliciesScreen.jsx
+│   │       ├── AdminDisruptionsScreen.jsx
+│   │       ├── AdminAnalyticsScreen.jsx
+│   │       └── AdminFraudScreen.jsx
+│   │
+│   ├── components/                 # Reusable UI components
+│   │   ├── AlertCard.jsx
+│   │   ├── AnimatedProgressRing.jsx
+│   │   ├── ClaimCard.jsx
+│   │   ├── GradientHeader.jsx
+│   │   ├── InsurancePlanCard.jsx
+│   │   ├── RiskScoreCard.jsx
+│   │   ├── StatsCard.jsx
+│   │   ├── WorkerProfileCard.jsx
+│   │   └── admin/
+│   │       ├── AdminClaimCard.jsx
+│   │       ├── AdminDisruptionCard.jsx
+│   │       ├── AdminPolicyCard.jsx
+│   │       ├── AdminStatsCard.jsx
+│   │       ├── AnalyticsChart.jsx
+│   │       ├── FraudAlertCard.jsx
+│   │       └── WorkerListCard.jsx
+│   │
+│   ├── constants/                  # Design tokens and config constants
+│   │   ├── colors.js               # COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS
+│   │   └── theme.js                # SCREEN, RISK_LEVELS, PLAN_COLORS, getRiskLevel()
+│   │
+│   ├── data/                       # Mock data (Phase 1 — no live backend)
+│   │   ├── mockData.js             # Worker profile, plans, claims, risk scores
+│   │   └── adminMockData.js        # Admin stats, worker list, policy data
+│   │
+│   ├── hooks/                      # Custom React hooks
+│   │   └── useAnimations.js        # Shared Animated value helpers
+│   │
+│   ├── services/                   # Business logic and API-facing modules
+│   │   └── riskCalculator.js       # Risk scoring, payout calculator, alert priority
+│   │
+│   └── utils/                      # Pure utility functions (no React Native deps)
+│       ├── formatters.js           # formatINR, formatDate, timeAgo, getInitials, makeId
+│       ├── validators.js           # isValidPhone, isValidAadhaar, validateKYCForm
+│       └── index.js                # Barrel re-export: import { formatINR } from '../utils'
+│
+└── ml_microservice/                # Python backend: FastAPI + Celery + Redis
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── requirements.txt
+    ├── ML_MICROSERVICE_README.md
+    ├── app/
+    │   ├── main.py                 # FastAPI app and route handlers
+    │   ├── models/database.py      # SQLite / Postgres ORM models
+    │   └── workers/
+    │       ├── celery_app.py
+    │       └── tasks.py
+    ├── integrations/               # External data sources
+    │   ├── weather_service.py
+    │   ├── aqi_service.py
+    │   ├── civic_alert_service.py
+    │   ├── geolocation_service.py
+    │   ├── platform_activity_service.py
+    │   └── data_aggregator.py
+    └── ml/                         # ML model training and inference
+        ├── generate_dataset.py
+        ├── train_models.py
+        ├── risk_model.py
+        ├── fraud_model.py
+        ├── feature_engineering.py
+        ├── data_collector.py
+        └── predictor.py
+```

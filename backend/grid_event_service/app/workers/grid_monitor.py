@@ -1,7 +1,6 @@
 import logging
 import requests
 import json
-from urllib.parse import quote
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
@@ -12,6 +11,7 @@ from app.services.grid_state_evaluator import evaluate_grid_state
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 def fetch_and_evaluate_zones():
     """
@@ -31,35 +31,21 @@ def fetch_and_evaluate_zones():
                 # Auto-assign grid_id if missing (zones ingested via ML microservice lack one)
                 if not zone.grid_id:
                     from app.utils.h3_mapper import geo_to_h3
+
                     computed = geo_to_h3(zone.latitude, zone.longitude, resolution=8)
                     zone.grid_id = computed
                     db.commit()
                     db.refresh(zone)
 
-                # Call ML by zone name + coords (avoids zone-ID mismatch between services)
-                encoded_name = quote(zone.name)
-                response = requests.get(
-                    f"{settings.ML_SERVICE_URL}/zone-intelligence/by-name/{encoded_name}",
-                    params={"lat": zone.latitude, "lon": zone.longitude},
-                    timeout=45,
-                )
+                response = requests.get(f"{settings.ML_SERVICE_URL}/zone-intelligence/{zone.zone_id}", timeout=3)
                 if response.status_code == 200:
                     ml_data = response.json()
                     new_state, reasons = evaluate_grid_state(ml_data)
-                    logger.info(
-                        f"[{zone.name}] Live → "
-                        f"Temp={ml_data.get('temperature','?')}°C  "
-                        f"Rain={ml_data.get('rainfall','?')}mm  "
-                        f"AQI={ml_data.get('aqi','?')}  "
-                        f"Risk={ml_data.get('risk_level','?')}  "
-                        f"P(disrupt)={ml_data.get('disruption_probability','?')}  "
-                        f"→ Grid={new_state}  source={ml_data.get('data_source','?')}"
-                    )
-                    
+
                     grid_state_record = db.query(GridState).filter(GridState.grid_id == zone.grid_id).first()
                     previous_state = "NORMAL"
                     risk_score = ml_data.get("disruption_probability", 0.0)
-                    
+
                     if grid_state_record:
                         previous_state = grid_state_record.state
                         grid_state_record.state = new_state
@@ -80,30 +66,29 @@ def fetch_and_evaluate_zones():
                             aqi=ml_data.get("aqi", 0.0),
                             temperature=ml_data.get("temperature", 0.0),
                             active_riders=ml_data.get("active_riders", 0),
-                            platform_orders=ml_data.get("platform_orders", 0)
+                            platform_orders=ml_data.get("platform_orders", 0),
                         )
                         db.add(grid_state_record)
-                    
+
                     if previous_state != new_state:
                         # 5. Trigger events if state changed
                         event = GridEvent(
                             grid_id=zone.grid_id,
                             previous_state=previous_state,
                             new_state=new_state,
-                            reason=json.dumps(reasons)
+                            reason=json.dumps(reasons),
                         )
                         db.add(event)
-                        
+
                         event_payload = {
                             "grid_id": zone.grid_id,
                             "zone_id": zone.zone_id,
                             "previous_state": previous_state,
                             "new_state": new_state,
                             "reason": reasons,
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.utcnow().isoformat(),
                         }
                         logger.info(f"EVENT TRIGGERED: {json.dumps(event_payload)}")
-                        
                 else:
                     logger.warning(f"Failed to fetch ML data for zone {zone.zone_id}. Status: {response.status_code}")
                 db.commit()
