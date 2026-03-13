@@ -1,89 +1,50 @@
-# ─── Node / React Native / Expo ──────────────────────────────────────────────
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Expo
-.expo/
-.expo-shared/
-dist/
-web-build/
-expo-env.d.ts
-
-# Metro bundler
-.metro-health-check*
-
-# React Native build artifacts
-android/
-ios/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-
-# ─── Environment variables ────────────────────────────────────────────────────
+# Environment Variables
 .env
 .env.local
+.env.development
+.env.test
 .env.production
-# .env.example is committed intentionally (no secrets inside)
 
-# ─── Python / ML Microservice ────────────────────────────────────────────────
+# Dependencies
+node_modules/
+backend/venv/
+backend/env/
+*/venv/
+*/.venv/
+ml_microservice/venv/
+ml_microservice/.venv/
+
+# Build and IDE
+.idea/
+.vscode/
 __pycache__/
-*.py[cod]
 *.pyc
 *.pyo
 *.pyd
-*.so
-
-# Virtual environments
-ml_microservice/venv/
-ml_microservice/.venv/
-ml_microservice/env/
-ml_microservice/.env
-
-# Build / dist
 build/
+dist/
 *.egg-info/
-*.egg
-MANIFEST
-develop-eggs/
-eggs/
-.eggs/
-lib/
-lib64/
-sdist/
-var/
-wheels/
-
-# Testing
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-htmlcov/
 .pytest_cache/
-nosetests.xml
-coverage.xml
+htmlcov/
+.coverage
+.tox/
 
-# ML model artifacts (large binaries — regenerate via train_models.py)
-ml_microservice/ml/*.pkl
-ml_microservice/ml/*.joblib
-ml_microservice/ml/*.h5
-ml_microservice/ml/synthetic_gigshield_dataset.csv
-
-# Jupyter
-.ipynb_checkpoints/
-
-# ─── IDE / OS ─────────────────────────────────────────────────────────────────
-.idea/
-.vscode/
+# OS Files
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# Backup files (never commit)
+# Logs and databases
+*.log
+*.sqlite3
+
+# Models and data
+ml_microservice/ml/*.pkl
+ml_microservice/ml/*.joblib
+ml_microservice/ml/checkpoints/*.h5
+ml_microservice/ml/synthetic_data/
+
+# Backup files
 *.bak
 *.orig
+*~
