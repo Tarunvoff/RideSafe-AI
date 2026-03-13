@@ -47,4 +47,4 @@ class GeolocationService:
             logger.error(f"Failed to fetch geolocation for {pincode}: {e}")
         
         # Default/Fallback returning Bangalore center
-        return {"lat": 12.9716, "lon": 77.5946}
+        return {"lat": 0.0, "lon": 0.0}

@@ -5,12 +5,12 @@ import random
 from typing import List, Dict
 
 ZONES = [
-    {"name": "Whitefield", "lat": 12.9698, "lon": 77.7499},
-    {"name": "Koramangala", "lat": 12.9343, "lon": 77.6214},
-    {"name": "Indiranagar", "lat": 12.9784, "lon": 77.6408},
-    {"name": "HSR Layout", "lat": 12.9121, "lon": 77.6446},
-    {"name": "Electronic City", "lat": 12.8399, "lon": 77.6770},
-    {"name": "Marathahalli", "lat": 12.9569, "lon": 77.7011}
+    {"name": "Whitefield", "lat": 0.0, "lon": 0.0},
+    {"name": "Koramangala", "lat": 0.0, "lon": 0.0},
+    {"name": "Indiranagar", "lat": 0.0, "lon": 0.0},
+    {"name": "HSR Layout", "lat": 0.0, "lon": 0.0},
+    {"name": "Electronic City", "lat": 0.0, "lon": 0.0},
+    {"name": "Marathahalli", "lat": 0.0, "lon": 0.0}
 ]
 
 def generate_monsoon_rainfall(month: int) -> float:
