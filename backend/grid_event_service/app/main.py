@@ -12,7 +12,6 @@ logging.basicConfig(level=logging.INFO)
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -26,24 +25,20 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     logging.info("Grid Monitor Scheduler stopped.")
 
-
 app = FastAPI(
     title="Grid Event Microservice",
     description="Spatial event engine converting environmental intelligence into grid-level operational states.",
     version="1.0.0",
-    lifespan=lifespan,
+    lifespan=lifespan
 )
 
 app.include_router(zone_routes.router)
 app.include_router(grid_routes.router)
 
-
 @app.get("/")
 def root():
     return {"message": "Welcome to the GigShield Grid Event Microservice"}
 
-
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("app.main:app", host="127.0.0.1", port=8001, reload=True)
