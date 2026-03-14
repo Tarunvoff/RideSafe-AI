@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, Animated, Text } from 'react-native';
-import Svg, { Circle, Ellipse } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS } from '../constants/colors';
 
 function toPoint(latitude, longitude, radius, center) {
@@ -57,62 +58,151 @@ export default function CyberGlobe({
   const orbitColor = riskScore >= 65 ? COLORS.red : riskScore >= 40 ? COLORS.orange : COLORS.cyan;
 
   return (
-    <View style={styles.wrapper}>
-      <Animated.View style={[styles.orbitLayer, { transform: [{ rotate }] }]}>
-        <Svg width={size} height={size}>
-          <Circle cx={center} cy={center} r={radius} stroke={COLORS.cyan} strokeWidth={1.5} fill="rgba(30,58,138,0.16)" />
+    <LinearGradient
+      colors={['rgba(30, 58, 138, 0.8)', 'rgba(20, 40, 100, 0.6)']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      {/* Glow Background Effect */}
+      <View style={[styles.glowBg, { backgroundColor: orbitColor, opacity: 0.08 }]} />
+      
+      {/* Main Globe Wrapper */}
+      <View style={styles.wrapper}>
+        <Animated.View style={[styles.orbitLayer, { transform: [{ rotate }] }]}>
+          <Svg width={size} height={size}>
+            <Defs>
+              <RadialGradient id="globeGradient" cx="50%" cy="50%" r="50%">
+                <Stop offset="0%" stopColor={COLORS.cyan} stopOpacity="0.3" />
+                <Stop offset="100%" stopColor={COLORS.blue} stopOpacity="0.1" />
+              </RadialGradient>
+            </Defs>
 
-          <Ellipse cx={center} cy={center} rx={radius} ry={radius * 0.68} stroke={COLORS.blue} strokeWidth={1} fill="none" opacity={0.6} />
-          <Ellipse cx={center} cy={center} rx={radius} ry={radius * 0.35} stroke={COLORS.blue} strokeWidth={1} fill="none" opacity={0.5} />
+            {/* Main Circle with Gradient */}
+            <Circle 
+              cx={center} 
+              cy={center} 
+              r={radius} 
+              stroke={COLORS.cyan} 
+              strokeWidth={2} 
+              fill="url(#globeGradient)" 
+            />
 
-          <Ellipse cx={center} cy={center} rx={radius * 0.55} ry={radius} stroke={COLORS.cyan} strokeWidth={1} fill="none" opacity={0.6} />
-          <Ellipse cx={center} cy={center} rx={radius * 0.2} ry={radius} stroke={COLORS.cyan} strokeWidth={1} fill="none" opacity={0.45} />
-        </Svg>
-      </Animated.View>
+            {/* Orbital Rings */}
+            <Ellipse 
+              cx={center} 
+              cy={center} 
+              rx={radius} 
+              ry={radius * 0.68} 
+              stroke={COLORS.blue} 
+              strokeWidth={1.2} 
+              fill="none" 
+              opacity={0.7} 
+            />
+            <Ellipse 
+              cx={center} 
+              cy={center} 
+              rx={radius} 
+              ry={radius * 0.35} 
+              stroke={COLORS.blue} 
+              strokeWidth={1} 
+              fill="none" 
+              opacity={0.6} 
+            />
 
-      <View style={styles.pointOverlay}>
-        {historyPoints.map((point, index) => (
-          <View
-            key={`${point.x}-${point.y}-${index}`}
-            style={[
-              styles.historyPoint,
-              {
-                left: point.x - 2,
-                top: point.y - 2,
-              },
-            ]}
-          />
-        ))}
+            {/* Cross Ellipses */}
+            <Ellipse 
+              cx={center} 
+              cy={center} 
+              rx={radius * 0.55} 
+              ry={radius} 
+              stroke={COLORS.cyan} 
+              strokeWidth={1.2} 
+              fill="none" 
+              opacity={0.7} 
+            />
+            <Ellipse 
+              cx={center} 
+              cy={center} 
+              rx={radius * 0.2} 
+              ry={radius} 
+              stroke={COLORS.cyan} 
+              strokeWidth={1} 
+              fill="none" 
+              opacity={0.5} 
+            />
+          </Svg>
+        </Animated.View>
 
-        {projectedPoint ? (
-          <View
-            style={[
-              styles.activePoint,
-              {
-                borderColor: orbitColor,
-                left: projectedPoint.x - 6,
-                top: projectedPoint.y - 6,
-              },
-            ]}
-          />
-        ) : null}
+        <View style={styles.pointOverlay}>
+          {/* History Points */}
+          {historyPoints.map((point, index) => (
+            <Animated.View
+              key={`${point.x}-${point.y}-${index}`}
+              style={[
+                styles.historyPoint,
+                {
+                  left: point.x - 2,
+                  top: point.y - 2,
+                  opacity: 0.6 + (index / historyPoints.length) * 0.4,
+                },
+              ]}
+            />
+          ))}
+
+          {/* Active Location Point */}
+          {projectedPoint ? (
+            <Animated.View
+              style={[
+                styles.activePoint,
+                {
+                  borderColor: orbitColor,
+                  left: projectedPoint.x - 6,
+                  top: projectedPoint.y - 6,
+                  shadowColor: orbitColor,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.8,
+                  shadowRadius: 6,
+                  elevation: 8,
+                },
+              ]}
+            />
+          ) : null}
+        </View>
       </View>
 
+      {/* Labels */}
       <View style={styles.labelWrap}>
         <Text style={styles.labelTitle}>Geo Attestation Globe</Text>
         <Text style={styles.labelSub}>
           {projectedPoint ? 'Live coordinate projected' : 'Waiting for GPS coordinate'}
         </Text>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glowBg: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
   wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    zIndex: 10,
   },
   orbitLayer: {
     width: 220,
@@ -130,7 +220,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: RADIUS.full,
-    borderWidth: 2,
+    borderWidth: 2.5,
     backgroundColor: COLORS.white,
   },
   historyPoint: {
@@ -139,21 +229,22 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.cyan,
-    opacity: 0.65,
   },
   labelWrap: {
-    marginTop: 8,
+    marginTop: 12,
     alignItems: 'center',
+    zIndex: 10,
   },
   labelTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.textWhite,
     letterSpacing: 0.3,
   },
   labelSub: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '500',
   },
 });

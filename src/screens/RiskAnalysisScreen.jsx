@@ -9,7 +9,7 @@ import { MOCK_WORKER, MOCK_RISK_FACTORS } from '../data/mockData';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/colors';
 import AnimatedProgressRing from '../components/AnimatedProgressRing';
 import PresenceLayerCard from '../components/PresenceLayerCard';
-import CyberGlobe from '../components/CyberGlobe';
+import RotatingEarthGlobe from '../components/RotatingEarthGlobe';
 import { runPresenceLayerCheck } from '../services/presenceAttestationService';
 
 const RISK_SCORE = 68;
@@ -201,7 +201,8 @@ export default function RiskAnalysisScreen({ navigation }) {
       </LinearGradient>
 
       <View style={[styles.proofPanel, SHADOWS.card]}>
-        <CyberGlobe
+        <RotatingEarthGlobe
+          size={280}
           latitude={presenceAssessment?.location?.latitude}
           longitude={presenceAssessment?.location?.longitude}
           history={locationHistory}
@@ -442,10 +443,12 @@ const styles = StyleSheet.create({
   proofPanel: {
     borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.bgBorder,
-    backgroundColor: COLORS.navy,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     marginBottom: SPACING.md,
-    paddingVertical: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+    overflow: 'hidden',
   },
   proofSectionTitle: {
     fontSize: 15,

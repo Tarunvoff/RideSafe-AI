@@ -7,8 +7,8 @@ const geist = Inter({ subsets: ['latin'], variable: '--font-geist-sans' })
 const geistMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Global Coverage - Digital Risk Assessment',
+  description: 'Real-time presence attestation and global risk assessment platform',
   generator: 'v0.app',
   icons: {
     icon: [
