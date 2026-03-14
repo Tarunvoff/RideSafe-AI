@@ -126,6 +126,20 @@ export default function ClaimCard({ claim, onPress, index = 0, showTimeline = fa
             )}
           </View>
 
+          {/* Fraud Rejection Banner */}
+          {claim.status === 'rejected' && claim.rejectReason === 'GPS Spoofing Detected' && (
+            <View style={[styles.fraudBanner, { borderLeftColor: COLORS.red }]}>
+              <Text style={styles.fraudReason}>🚨 {claim.rejectReason}</Text>
+              <Text style={styles.fraudDetails}>{claim.rejectDetails}</Text>
+              {claim.fraudScore && (
+                <View style={styles.fraudScore}>
+                  <Text style={styles.fraudScoreLabel}>Fraud Confidence</Text>
+                  <Text style={styles.fraudScoreValue}>{claim.fraudScore}%</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Optional Timeline */}
           {showTimeline && (
             <View style={styles.timeline}>
@@ -295,5 +309,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  fraudBanner: {
+    backgroundColor: '#FEE2E2',
+    borderLeftWidth: 4,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  fraudReason: {
+    ...TYPOGRAPHY.bodySmall,
+    fontWeight: '700',
+    color: COLORS.red,
+    marginBottom: SPACING.xs,
+  },
+  fraudDetails: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.red,
+    lineHeight: 15,
+    marginBottom: SPACING.sm,
+  },
+  fraudScore: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: SPACING.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  fraudScoreLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.red,
+    fontWeight: '600',
+  },
+  fraudScoreValue: {
+    ...TYPOGRAPHY.bodySmall,
+    fontWeight: '700',
+    color: COLORS.red,
   },
 });

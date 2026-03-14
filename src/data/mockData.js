@@ -310,6 +310,27 @@ export const MOCK_CLAIMS = [
       { event: 'Payout Processed', time: 'Pending', done: false },
     ],
   },
+  {
+    id: 'CLM-2024-095',
+    title: 'Wind Storm – Location Fraud Detected',
+    date: 'Mar 12, 2026',
+    disruption: 'Strong Wind Gust (65 km/h)',
+    estimatedLoss: 950,
+    approvedPayout: 0,
+    status: 'rejected',
+    processingTime: '< 1 minute',
+    transactionId: null,
+    paymentMethod: 'None',
+    rejectReason: 'GPS Spoofing Detected',
+    rejectDetails: 'Fraud detection system identified GPS signal manipulation. Location was spoofed using GPS spoofing app. Claim rejected per policy terms.',
+    fraudScore: 92,
+    timeline: [
+      { event: 'Disruption Detected', time: '4:30 PM', done: true },
+      { event: 'Claim Auto-Triggered', time: '4:31 PM', done: true },
+      { event: 'GPS Spoofing Detection', time: '4:32 PM', done: true },
+      { event: 'Claim Rejected', time: '4:32 PM', done: true },
+    ],
+  },
 ];
 
 // ── Dashboard Stats ───────────────────────────────────────────
