@@ -4,6 +4,7 @@
 .env.development
 .env.test
 .env.production
+.env.*.local
 
 # Dependencies
 node_modules/
@@ -13,21 +14,75 @@ backend/env/
 */.venv/
 ml_microservice/venv/
 ml_microservice/.venv/
+yarn.lock
+package-lock.json
 
-# Build and IDE
+# Frontend Build Artifacts
+frontend/mobile/.expo/
+frontend/mobile/dist/
+frontend/mobile/build/
+frontend/web/.next/
+frontend/web/out/
+frontend/web/.turbo/
+frontend/web/public/
+
+# Backend Build Artifacts
+backend/*/build/
+backend/*/dist/
+backend/*/__pycache__/
+backend/*/.eggs/
+backend/*/*.egg-info/
+
+# IDE and Editor
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.AppleDouble
+.LSOverride
+*.sublime-project
+*.sublime-workspace
+
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-build/
-dist/
-*.egg-info/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
 .pytest_cache/
 htmlcov/
 .coverage
 .tox/
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Logs
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+*.bak
 
 # OS Files
 .DS_Store
