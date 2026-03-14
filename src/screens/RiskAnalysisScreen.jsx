@@ -8,21 +8,13 @@ import { Shield, TrendingUp, TrendingDown, ChevronRight, Activity, Cloud, Wind, 
 import { MOCK_WORKER, MOCK_RISK_FACTORS } from '../data/mockData';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/colors';
 import AnimatedProgressRing from '../components/AnimatedProgressRing';
-import PresenceLayerCard from '../components/PresenceLayerCard';
-import RotatingEarthGlobe from '../components/RotatingEarthGlobe';
-import { runPresenceLayerCheck } from '../services/presenceAttestationService';
 
 const RISK_SCORE = 68;
-const TABS = ['Overview', 'Factors', 'History', 'Proof'];
+const TABS = ['Overview', 'Factors', 'History'];
 
 export default function RiskAnalysisScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('Overview');
-  const [isChecking, setIsChecking] = useState(false);
-  const [presenceAssessment, setPresenceAssessment] = useState(null);
-  const [snapshotHistory, setSnapshotHistory] = useState([]);
-  const [lastSyncStatus, setLastSyncStatus] = useState(null);
-  const [proofError, setProofError] = useState(null);
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -33,36 +25,10 @@ export default function RiskAnalysisScreen({ navigation }) {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    if (tab === 'Proof' && !presenceAssessment && !isChecking) {
-      handleRunPresenceCheck();
-    }
-  }, [tab, presenceAssessment, isChecking]);
-
   const scoreColor = RISK_SCORE > 75 ? COLORS.red : RISK_SCORE > 50 ? COLORS.orange : COLORS.green;
   const scoreLabel = RISK_SCORE > 75 ? 'High Risk' : RISK_SCORE > 50 ? 'Moderate' : 'Low Risk';
 
   const scoreWidth = scoreAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
-
-  const handleRunPresenceCheck = async () => {
-    try {
-      setIsChecking(true);
-      setProofError(null);
-
-      const checkResult = await runPresenceLayerCheck({
-        riderId: MOCK_WORKER.id,
-        previousSnapshots: snapshotHistory,
-      });
-
-      setPresenceAssessment(checkResult.assessment);
-      setLastSyncStatus(checkResult.syncResult);
-      setSnapshotHistory((previous) => [...previous, checkResult.snapshot].slice(-12));
-    } catch (error) {
-      setProofError(error?.message || 'Unable to run live presence checks right now.');
-    } finally {
-      setIsChecking(false);
-    }
-  };
 
   const renderOverviewContent = () => (
     <>
@@ -135,107 +101,6 @@ export default function RiskAnalysisScreen({ navigation }) {
     </>
   );
 
-  const recommendationColor =
-    presenceAssessment?.recommendation === 'REJECT'
-      ? COLORS.red
-      : presenceAssessment?.recommendation === 'MANUAL_REVIEW'
-        ? COLORS.orange
-        : COLORS.green;
-
-  const locationHistory = snapshotHistory
-    .map((snapshot) => ({
-      lat: snapshot?.layers?.gps?.lat,
-      lng: snapshot?.layers?.gps?.lng,
-    }))
-    .filter((entry) => entry.lat !== null && entry.lat !== undefined && entry.lng !== null && entry.lng !== undefined);
-
-  const renderProofContent = () => (
-    <>
-      <LinearGradient
-        colors={[COLORS.navy, COLORS.purpleDark, COLORS.blue]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.proofHero, SHADOWS.strong]}
-      >
-        <View style={styles.proofHeroHeader}>
-          <Text style={styles.proofHeroKicker}>Proof of Presence Protocol</Text>
-          <Text style={styles.proofHeroTitle}>GPS Spoofing Defense Grid</Text>
-          <Text style={styles.proofHeroSub}>Multi-signal attestation using GPS integrity, radio context, motion signature, and device trust.</Text>
-        </View>
-
-        <View style={styles.proofHeroBody}>
-          <AnimatedProgressRing
-            score={presenceAssessment?.trustScore || 0}
-            size={132}
-            color={presenceAssessment ? recommendationColor : COLORS.cyan}
-            bgColor={'rgba(255,255,255,0.16)'}
-            label="Trust Score"
-            sublabel={presenceAssessment ? `${presenceAssessment.confidence} confidence` : 'Run live check'}
-          />
-
-          <View style={styles.proofBadgeColumn}>
-            <View style={[styles.proofBadge, { borderColor: `${recommendationColor}66`, backgroundColor: `${recommendationColor}22` }]}>
-              <Text style={[styles.proofBadgeLabel, { color: recommendationColor }]}>
-                {presenceAssessment ? presenceAssessment.recommendation.replace('_', ' ') : 'PENDING CHECK'}
-              </Text>
-            </View>
-            <Text style={styles.proofMetricLabel}>Fraud Score</Text>
-            <Text style={styles.proofMetricValue}>{presenceAssessment?.fraudScore ?? '--'}%</Text>
-            <Text style={styles.proofMetaText}>
-              {presenceAssessment?.checkedAt
-                ? `Last check ${new Date(presenceAssessment.checkedAt).toLocaleTimeString()}`
-                : 'No snapshot collected yet'}
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.proofRunButton, isChecking && styles.proofRunButtonDisabled]}
-          activeOpacity={0.85}
-          onPress={handleRunPresenceCheck}
-          disabled={isChecking}
-        >
-          <Activity size={16} color={COLORS.textWhite} strokeWidth={2.3} />
-          <Text style={styles.proofRunButtonText}>{isChecking ? 'Running live attestation…' : 'Run Live Presence Check'}</Text>
-        </TouchableOpacity>
-      </LinearGradient>
-
-      <View style={[styles.proofPanel, SHADOWS.card]}>
-        <RotatingEarthGlobe
-          size={280}
-          latitude={presenceAssessment?.location?.latitude}
-          longitude={presenceAssessment?.location?.longitude}
-          history={locationHistory}
-          riskScore={presenceAssessment?.fraudScore || 0}
-        />
-      </View>
-
-      {proofError ? (
-        <View style={[styles.proofErrorCard, SHADOWS.card]}>
-          <Text style={styles.proofErrorText}>{proofError}</Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.proofSectionTitle}>Layer Results</Text>
-      {presenceAssessment
-        ? Object.values(presenceAssessment.layers).map((layer) => <PresenceLayerCard key={layer.id} layer={layer} />)
-        : (
-          <View style={[styles.proofEmptyCard, SHADOWS.card]}>
-            <Text style={styles.proofEmptyText}>Run the live check to populate all anti-spoofing layer scores.</Text>
-          </View>
-        )}
-
-      <View style={[styles.syncCard, SHADOWS.card]}>
-        <Text style={styles.syncTitle}>Snapshot Sync</Text>
-        <Text style={styles.syncText}>
-          {lastSyncStatus
-            ? `Pushed ${lastSyncStatus.pushed} • Pending ${lastSyncStatus.pending}${lastSyncStatus.skipped ? ' • Fetching Required' : ''}`
-            : 'Snapshot queue not synced yet.'}
-        </Text>
-      </View>
-    </>
-  );
-
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
@@ -252,7 +117,7 @@ export default function RiskAnalysisScreen({ navigation }) {
       </View>
 
       <Animated.ScrollView style={{ opacity: fadeAnim }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {tab === 'Proof' ? renderProofContent() : renderOverviewContent()}
+        {renderOverviewContent()}
 
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
@@ -354,151 +219,5 @@ const styles = StyleSheet.create({
   recHighlight: { color: COLORS.blue, fontWeight: '700' },
   recCta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   recCtaText: { fontSize: 13, color: COLORS.blue, fontWeight: '700' },
-
-  proofHero: {
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  proofHeroHeader: {
-    marginBottom: 12,
-  },
-  proofHeroKicker: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.72)',
-    marginBottom: 3,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontWeight: '700',
-  },
-  proofHeroTitle: {
-    fontSize: 21,
-    color: COLORS.textWhite,
-    fontWeight: '800',
-    marginBottom: 5,
-  },
-  proofHeroSub: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  proofHeroBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  proofBadgeColumn: {
-    alignItems: 'flex-end',
-    flex: 1,
-  },
-  proofBadge: {
-    borderWidth: 1,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginBottom: 10,
-  },
-  proofBadgeLabel: {
-    fontSize: 10,
-    letterSpacing: 0.7,
-    fontWeight: '800',
-  },
-  proofMetricLabel: {
-    color: 'rgba(255,255,255,0.74)',
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  proofMetricValue: {
-    color: COLORS.textWhite,
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 3,
-  },
-  proofMetaText: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 10,
-  },
-  proofRunButton: {
-    marginTop: 2,
-    borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  proofRunButtonDisabled: {
-    opacity: 0.7,
-  },
-  proofRunButtonText: {
-    color: COLORS.textWhite,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  proofPanel: {
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    marginBottom: SPACING.md,
-    paddingVertical: 4,
-    paddingHorizontal: 0,
-    overflow: 'hidden',
-  },
-  proofSectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: 8,
-  },
-  proofEmptyCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.bgBorder,
-    backgroundColor: COLORS.bgCard,
-    padding: 14,
-    marginBottom: 10,
-  },
-  proofEmptyText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  syncCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.bgBorder,
-    backgroundColor: COLORS.bgCard,
-    padding: 12,
-    marginTop: 2,
-  },
-  syncTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  syncText: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  proofErrorCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.redLight,
-    backgroundColor: COLORS.redLight,
-    padding: 10,
-    marginBottom: 10,
-  },
-  proofErrorText: {
-    fontSize: 12,
-    color: COLORS.red,
-    fontWeight: '600',
-  },
 });
+

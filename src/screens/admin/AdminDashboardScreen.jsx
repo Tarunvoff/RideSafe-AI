@@ -117,7 +117,9 @@ export default function AdminDashboardScreen({ navigation }) {
             { label: 'View Workers', color: '#2563EB', bg: '#EFF6FF', screen: 'AdminWorkers', icon: Users },
             { label: 'Monitor Claims', color: '#F97316', bg: '#FFF7ED', screen: 'AdminClaims', icon: FileText },
             { label: 'Disruptions', color: '#EF4444', bg: '#FEF2F2', screen: 'AdminDisruptions', icon: Activity },
-            { label: 'Fraud Panel', color: '#DC2626', bg: '#FEF2F2', screen: 'AdminFraud', icon: AlertTriangle },
+            { label: 'Fraud & GPS', color: '#DC2626', bg: '#FEF2F2', screen: 'AdminFraud', icon: AlertTriangle },
+            { label: 'Payouts', color: '#10B981', bg: '#D1FAE5', screen: 'AdminPayouts', icon: TrendingUp },
+            { label: 'Policies', color: '#8B5CF6', bg: '#EDE9FE', screen: 'AdminPolicies', icon: Shield },
           ].map((action, i) => {
             const ActionIcon = action.icon;
             return (
@@ -144,6 +146,44 @@ export default function AdminDashboardScreen({ navigation }) {
               ₹{((stats.totalPremiumCollected - stats.totalPayoutsIssued) / 10000000).toFixed(2)} Cr
             </Text>
           </Text>
+        </View>
+
+        {/* Payouts Section */}
+        <Text style={styles.sectionTitle}>Payout Distribution</Text>
+        <View style={styles.payoutGrid}>
+          <View style={[styles.payoutCard, { backgroundColor: '#D1FAE5', borderColor: '#86EFAC' }]}>
+            <Text style={[styles.payoutLabel, { color: '#10B981' }]}>Valid Payouts</Text>
+            <Text style={[styles.payoutValue, { color: '#10B981' }]}>₹{(stats.totalPayoutsIssued * 0.85 / 1000000).toFixed(1)}M</Text>
+            <Text style={styles.payoutSub}>2,540 workers</Text>
+          </View>
+          <View style={[styles.payoutCard, { backgroundColor: '#FECACA', borderColor: '#FCA5A5' }]}>
+            <Text style={[styles.payoutLabel, { color: '#EF4444' }]}>Blocked (GPS)</Text>
+            <Text style={[styles.payoutValue, { color: '#EF4444' }]}>₹{(stats.totalPayoutsIssued * 0.12 / 1000000).toFixed(1)}M</Text>
+            <Text style={styles.payoutSub}>127 workers detected</Text>
+          </View>
+          <View style={[styles.payoutCard, { backgroundColor: '#FED7AA', borderColor: '#FDBA74' }]}>
+            <Text style={[styles.payoutLabel, { color: '#F97316' }]}>Under Review</Text>
+            <Text style={[styles.payoutValue, { color: '#F97316' }]}>₹{(stats.totalPayoutsIssued * 0.03 / 1000000).toFixed(1)}M</Text>
+            <Text style={styles.payoutSub}>43 workers flagged</Text>
+          </View>
+        </View>
+
+        {/* GPS Spoofing Impact */}
+        <View style={styles.impactCard}>
+          <View style={styles.impactHeader}>
+            <AlertTriangle size={18} color="#EF4444" strokeWidth={2.5} />
+            <Text style={styles.impactTitle}>GPS Spoofing Impact</Text>
+          </View>
+          <View style={styles.impactRow}>
+            <View>
+              <Text style={styles.impactLabel}>Payouts Blocked This Month</Text>
+              <Text style={[styles.impactValue, { color: '#EF4444' }]}>₹2.4 Cr</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.impactLabel}>Workers Flagged</Text>
+              <Text style={styles.impactValue}>127</Text>
+            </View>
+          </View>
         </View>
 
         <View style={{ height: 100 }} />
@@ -224,4 +264,27 @@ const styles = StyleSheet.create({
   premiumLabel: { fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   premiumValue: { fontSize: 28, fontWeight: '900', color: '#FFFFFF', marginBottom: 4 },
   premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  payoutGrid: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  payoutCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 13,
+    borderWidth: 1.5,
+  },
+  payoutLabel: { fontSize: 11, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+  payoutValue: { fontSize: 16, fontWeight: '900', marginBottom: 4 },
+  payoutSub: { fontSize: 10, color: '#64748B' },
+  impactCard: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    marginBottom: 16,
+  },
+  impactHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  impactTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
+  impactRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  impactLabel: { fontSize: 11, color: '#64748B', marginBottom: 4 },
+  impactValue: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
 });
