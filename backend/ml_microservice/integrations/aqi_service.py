@@ -150,3 +150,4 @@ class AQIService:
 
     def _fetch_cpcb_fallback(self) -> dict:
         return {"aqi": 80.0, "pm25": 30.0, "pm10": 45.0}
+

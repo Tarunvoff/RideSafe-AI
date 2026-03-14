@@ -73,5 +73,4 @@ def get_zone_intelligence(zone_id: int, db: Session = Depends(get_db)):
     
     # Store in cache
     set_cached_zone_data(zone_id, data, expire=30)
-    
     return data

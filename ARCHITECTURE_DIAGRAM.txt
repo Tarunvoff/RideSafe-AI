@@ -1,0 +1,430 @@
+#!/usr/bin/env cat
+# GPS SPOOFING DETECTION MVP - ARCHITECTURE DIAGRAM
+
+## APPLICATION ARCHITECTURE
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                           App Entry Point                              │
+│                         (App.js / Expo)                                │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                      │
+                    ┌─────────────────┴──────────────────┐
+                    │                                    │
+            ┌───────▼────────────┐         ┌────────────▼──────────┐
+            │  Navigation Stack  │         │  Theme Provider       │
+            │  (AppNavigator)    │         │  (Colors, SPACING)    │
+            └───────┬────────────┘         └───────────────────────┘
+                    │
+        ┌───────────┼───────────────┐
+        │           │               │
+    ┌───▼──────┐ ┌─▼──────┐ ┌─────▼──┐
+    │ Home     │ │ Claims │ │ Profile│
+    │ Screen   │ │ Screen │ │ Screen │
+    │ 📱       │ │ 📋     │ │ 👤     │
+    └───┬──────┘ └────────┘ └────────┘
+        │
+        │
+    ┌───▼──────────────────────────────────────────────┐
+    │          HOME SCREEN LAYOUT                      │
+    ├───────────────────────────────────────────────────┤
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  Header (Greeting, Avatar, Notifications) │  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  Summary Row (Payouts, Risk, Status)       │  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  Active Policy Card                         │  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  This Week Stats (Earnings, Claims, Alerts)│  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  Weekly Earnings Chart                      │  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  🆕 SECURITY CHECK 🆕                        │  │◄─── NEW!
+    │ │  ┌───────────────────────────────────────┐ │  │
+    │ │  │ GPS Spoofing Detection Card           │ │  │
+    │ │  │                                       │ │  │
+    │ │  │  🛡️ GPS Authentication  [VERIFIED ✓] │ │  │
+    │ │  │                                       │ │  │
+    │ │  │  Fraud Score: 12%                  │ │  │
+    │ │  │  ████░░░░░░░░░░░░░░░░░░░░░░░░░░   │ │  │
+    │ │  │                                       │ │  │
+    │ │  │  Detection Signals:                 │ │  │
+    │ │  │  ✓ GPS: 8m accuracy (normal)       │ │  │
+    │ │  │  ✓ Speed: 45 km/h (realistic)      │ │  │
+    │ │  │  ✓ Signal: Consistent             │ │  │
+    │ │  │                                       │ │  │
+    │ │  │  [Re-check]  [View Full Report]    │ │  │
+    │ │  └───────────────────────────────────┘ │  │
+    │ └─────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  Active Alert (if any)                      │  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    │ ┌─────────────────────────────────────────────┐  │
+    │ │  Risk Analysis                              │  │
+    │ └─────────────────────────────────────────────┘  │
+    │                                                   │
+    └───────────────────────────────────────────────────┘
+
+
+## COMPONENT HIERARCHY
+
+```
+HomeScreen
+├── Header Section (Greeting)
+├── Summary Row (Stats)
+├── Active Policy Card
+├── This Week Stats
+├── Weekly Earnings Chart
+│
+├── 🆕 SECURITY CHECK SECTION 🆕
+│   ├── Section Title: "Security Check"
+│   ├── Re-check Button (with spinner)
+│   │
+│   └── GpsSpoofingDetectionCard ◄────────────────┐
+│       ├── Header                                │
+│       │   ├── Icon + Title                      │  Uses styling from:
+│       │   └── Status Badge                      │  - COLORS constant
+│       ├── Score Section                         │  - TYPOGRAPHY constant
+│       │   ├── Circular Score Display            │  - SPACING constant
+│       │   ├── Confidence Indicator              │  - SHADOWS constant
+│       │   └── Score Progress Bar                │  - RADIUS constant
+│       ├── Location Info                         │
+│       │   ├── Coordinates                       │
+│       │   └── Accuracy Meter                    │
+│       ├── Detection Signals                     │
+│       │   ├── Signal 1                          │
+│       │   ├── Signal 2                          │
+│       │   └── Signal 3                          │
+│       ├── Assessment Box                        │
+│       ├── Action Buttons                        │
+│       │   ├── Re-check Button                   │
+│       │   └── View Full Report                  │
+│       └── Timestamp                             │
+│
+├── Active Alerts Section
+├── Risk Analysis Section
+└── Footer Padding
+
+
+## DATA FLOW ARCHITECTURE
+
+```
+┌─────────────────────────────────────────────────────┐
+│  HomeScreen Component Mounts                        │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  useGpsMockDetection Hook Initializes               │
+├─────────────────────────────────────────────────────┤
+│  - Sets up state: detectionResult, isChecking       │
+│  - Sets up refs: checkCount                         │
+│  - Defines functions: performDetection(),           │
+│    generateMockedDetectionResult()                  │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  Hook useEffect - Auto-run performDetection()       │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  performDetection() Executes                        │
+├─────────────────────────────────────────────────────┤
+│  1. Sets isChecking = true                          │
+│  2. Simulates 1200ms network delay                  │
+│  3. Calls generateMockedDetectionResult()           │
+│  4. Returns structured result                       │
+│  5. Sets isChecking = false                         │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  generateMockedDetectionResult() Runs               │
+├─────────────────────────────────────────────────────┤
+│  Increments checkCount.current                      │
+│  Cycles through scenarios: 1 → 2 → 3 → 4 → 1...   │
+│                                                     │
+│  Scenario 1: Mock GPS Detected                     │
+│  ├─ fraudScore: 85                                 │
+│  ├─ recommendation: REJECT                         │
+│  ├─ isMocked: true                                 │
+│  └─ signals: [mock_flag, accuracy_anomaly, ...]   │
+│                                                     │
+│  Scenario 2: Suspicious Pattern                    │
+│  ├─ fraudScore: 45                                 │
+│  ├─ recommendation: MANUAL_REVIEW                  │
+│  ├─ isMocked: false                                │
+│  └─ signals: [accuracy_poor, speed_anomaly, ...]  │
+│                                                     │
+│  Scenario 3: Legitimate Rider                      │
+│  ├─ fraudScore: 12                                 │
+│  ├─ recommendation: APPROVE                        │
+│  ├─ isMocked: false                                │
+│  └─ signals: [accurate_reading, realistic_speed, ▼
+│                                                     │
+│  Scenario 4: Rooted Device                         │
+│  ├─ fraudScore: 72                                 │
+│  ├─ recommendation: REJECT                         │
+│  ├─ isMocked: false                                │
+│  └─ signals: [rooted_device, mock_providers, ...]  │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  Detection Result Returns to Hook State             │
+├─────────────────────────────────────────────────────┤
+│  setDetectionResult(result)                         │
+│  Returns:                                           │
+│  {                                                  │
+│    isMocked: boolean,                               │
+│    fraudScore: 0-100,                               │
+│    confidence: 'HIGH'|'MEDIUM',                     │
+│    timestamp: ISO string,                           │
+│    signals: [{type, detected, severity, msg}, ...], │
+│    location: {lat, lng, accuracy, provider},        │
+│    recommendation: 'APPROVE'|'REJECT'|'REVIEW',    │
+│    reasonText: string                               │
+│  }                                                  │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  HomeScreen Re-renders with New State               │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  GpsSpoofingDetectionCard Receives Props            │
+├─────────────────────────────────────────────────────┤
+│  Props:                                             │
+│  - detectionResult (from hook state)                │
+│  - isChecking (from hook state)                     │
+│  - onRefresh={performDetection}                     │
+│  - onViewDetails={handler}                          │
+│  - compact={false}                                  │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  Component Determines Colors & Layout               │
+├─────────────────────────────────────────────────────┤
+│  getStatusColors() based on recommendation:         │
+│                                                     │
+│  REJECT →                                           │
+│  ├─ gradient: [red 0.12, red 0.08]                 │
+│  ├─ accentColor: COLORS.red                        │
+│  ├─ statusLabel: 'SUSPICIOUS'                      │
+│  └─ icon: AlertTriangle                            │
+│                                                     │
+│  MANUAL_REVIEW →                                    │
+│  ├─ gradient: [orange 0.12, orange 0.08]           │
+│  ├─ accentColor: COLORS.orange                     │
+│  ├─ statusLabel: 'NEEDS REVIEW'                    │
+│  └─ icon: AlertCircle                              │
+│                                                     │
+│  APPROVE →                                          │
+│  ├─ gradient: [green 0.12, green 0.08]             │
+│  ├─ accentColor: COLORS.green                      │
+│  ├─ statusLabel: 'VERIFIED'                        │
+│  └─ icon: CheckCircle                              │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  Animated.View Renders with Spring Animation       │
+├─────────────────────────────────────────────────────┤
+│  - cardOpacity: 0 → 1 (timing animation)            │
+│  - cardScale: 0.92 → 1 (spring animation)           │
+│  - signalOpacity: 0 → 1 (delayed timing)            │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  UI Renders on Screen                               │
+├─────────────────────────────────────────────────────┤
+│  ┌──────────────────────────────────────────────┐   │
+│  │ 🛡️ GPS Authentication [Status Badge]         │   │
+│  ├──────────────────────────────────────────────┤   │
+│  │ Fraud Score: XX% [Score Circle]              │   │
+│  ├──────────────────────────────────────────────┤   │
+│  │ 📍 Location  ⚡ Accuracy                      │   │
+│  ├──────────────────────────────────────────────┤   │
+│  │ 👁️ Detection Signals (with animations)       │   │
+│  ├──────────────────────────────────────────────┤   │
+│  │ Assessment Box (plain text)                  │   │
+│  ├──────────────────────────────────────────────┤   │
+│  │ [Re-check]  [View Full Report]               │   │
+│  ├──────────────────────────────────────────────┤   │
+│  │ Last checked: HH:MM:SS                       │   │
+│  └──────────────────────────────────────────────┘   │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  User Interaction: Tap "Re-check" Button            │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  onRefresh Callback (performDetection) Triggered    │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────┐
+│  performDetection() Runs Again (Same Flow)          │
+├─────────────────────────────────────────────────────┤
+│  - checkCount incremented                           │
+│  - Scenarios cycle: 1 → 2 → 3 → 4 → 1              │
+│  - New result generated                             │
+│  - State updates                                    │
+│  - UI re-renders                                    │
+│  - Card animates to new state                       │
+└────────────┬────────────────────────────────────────┘
+             │
+             ▼
+        ✨ REPEAT ✨
+
+
+## FILE DEPENDENCIES
+
+```
+HomeScreen.jsx
+    ├── imports useGpsMockDetection from
+    │   └── src/hooks/useGpsMockDetection.js
+    │       └── No dependencies (self-contained)
+    │
+    └── imports GpsSpoofingDetectionCard from
+        └── src/components/GpsSpoofingDetectionCard.jsx
+            ├── imports COLORS from
+            │   └── src/constants/colors.js
+            ├── imports TYPOGRAPHY from
+            │   └── src/constants/colors.js
+            ├── imports SPACING from
+            │   └── src/constants/colors.js
+            ├── imports SHADOWS from
+            │   └── src/constants/colors.js
+            ├── imports RADIUS from
+            │   └── src/constants/colors.js
+            ├── imports LinearGradient from
+            │   └── expo-linear-gradient
+            ├── imports Animated from
+            │   └── react-native-reanimated
+            └── imports icons from
+                └── lucide-react-native
+```
+
+
+## STATE MANAGEMENT FLOW
+
+```
+useGpsMockDetection Hook
+│
+├── State Variables
+│   ├── detectionResult: null → {...} (structured data)
+│   ├── isChecking: false → true → false (loading state)
+│   ├── error: null → error message (if any)
+│   └── checkCount (ref): 0 → 1 → 2 → ... (for cycling)
+│
+├── Functions
+│   ├── performDetection()
+│   │   ├── Sets isChecking = true
+│   │   ├── Delay 1.2 seconds (simulates API)
+│   │   ├── Calls generateMockedDetectionResult()
+│   │   ├── Sets detectionResult = result
+│   │   └── Sets isChecking = false
+│   │
+│   └── generateMockedDetectionResult()
+│       ├── Increments checkCount.current
+│       ├── Calculates scenario = checkCount % 4
+│       ├── Switches on scenario (1/2/3/4)
+│       ├── Returns structured result for that scenario
+│       └── Result includes ALL needed data
+│
+└── Effects
+    └── useEffect (on mount)
+        └── Calls performDetection() once automatically
+
+
+## ANIMATION TIMING
+
+```
+Component Mount
+    │
+    ▼ START: cardOpacity = 0, cardScale = 0.92
+    │
+    │ ─ timing: 500ms ─→ cardOpacity: 0 → 1
+    │ ─ spring: 100ms  ─→ cardScale: 0.92 → 1
+    │
+    ▼ 200ms DELAY... 
+    │
+    ▼ START: signalOpacity = 0
+    │
+    │ ─ timing: 400ms ─→ signalOpacity: 0 → 1
+    │
+    ▼ COMPLETE: Card fully visible with signals
+
+
+## SCENARIO LOOKUP TABLE
+
+```
+checkCount  │  Scenario  │  Fraud Score  │  Recommendation  │  Status
+─────────────┼────────────┼───────────────┼──────────────────┼─────────
+0 % 4 = 0   │ Default/4  │  72%          │  REJECT          │  🔴
+1 % 4 = 1   │ 1          │  85%          │  REJECT          │  🔴
+2 % 4 = 2   │ 2          │  45%          │  MANUAL_REVIEW    │  🟠
+3 % 4 = 3   │ 3          │  12%          │  APPROVE         │  🟢
+4 % 4 = 0   │ Default/4  │  72%          │  REJECT          │  🔴
+5 % 4 = 1   │ 1          │  85%          │  REJECT          │  🔴
+...         │ ...        │  ...          │  ...             │  ...
+```
+
+Each tap of "Re-check" increments checkCount and cycles through scenarios!
+
+
+## COLOR PALETTE MAPPING
+
+```
+Status: APPROVE (Green)
+├─ Gradient: rgba(5, 150, 105, 0.12) → rgba(16, 185, 129, 0.08)
+├─ Accent: #059669
+├─ Badge BG: rgba(5, 150, 105, 0.1)
+└─ Icon: CheckCircle
+
+Status: MANUAL_REVIEW (Orange)
+├─ Gradient: rgba(217, 119, 6, 0.12) → rgba(245, 158, 11, 0.08)
+├─ Accent: #D97706
+├─ Badge BG: rgba(217, 119, 6, 0.1)
+└─ Icon: AlertCircle
+
+Status: REJECT (Red)
+├─ Gradient: rgba(220, 38, 38, 0.12) → rgba(239, 68, 68, 0.08)
+├─ Accent: #DC2626
+├─ Badge BG: rgba(220, 38, 38, 0.1)
+└─ Icon: AlertTriangle
+```
+
+---
+
+This architecture is:
+✅ Clean and modular
+✅ Easy to understand
+✅ Easy to extend
+✅ Production ready
+✅ Performance optimized
+✅ Well animated
+✅ Fully responsive

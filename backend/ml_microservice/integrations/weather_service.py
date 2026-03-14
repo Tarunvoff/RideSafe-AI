@@ -73,3 +73,4 @@ class WeatherService:
             "humidity":    65.0,
             "rainfall":    0.0,
         }
+
