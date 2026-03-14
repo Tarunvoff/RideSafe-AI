@@ -228,7 +228,7 @@ export default function RiskAnalysisScreen({ navigation }) {
         <Text style={styles.syncTitle}>Snapshot Sync</Text>
         <Text style={styles.syncText}>
           {lastSyncStatus
-            ? `Pushed ${lastSyncStatus.pushed} • Pending ${lastSyncStatus.pending}${lastSyncStatus.skipped ? ' • Configure EXPO_PUBLIC_ML_API_URL for backend sync' : ''}`
+            ? `Pushed ${lastSyncStatus.pushed} • Pending ${lastSyncStatus.pending}${lastSyncStatus.skipped ? ' • Fetching Required' : ''}`
             : 'Snapshot queue not synced yet.'}
         </Text>
       </View>
