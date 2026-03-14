@@ -11,8 +11,6 @@ import {
 } from 'lucide-react-native';
 import { MOCK_WORKER, MOCK_RISK_SCORE, MOCK_ALERTS, MOCK_DASHBOARD_STATS } from '../data/mockData';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../constants/colors';
-import { useGpsMockDetection } from '../hooks/useGpsMockDetection';
-import GpsSpoofingDetectionCard from '../components/GpsSpoofingDetectionCard';
 
 const { width } = Dimensions.get('window');
 
@@ -22,9 +20,6 @@ export default function HomeScreen({ navigation }) {
   const slideAnim = useRef(new Animated.Value(24)).current;
   const [currentTime, setCurrentTime] = useState(new Date());
   const activeAlerts = MOCK_ALERTS.filter((a) => a.isActive);
-
-  // GPS Spoofing Detection Hook
-  const { detectionResult, isChecking, performDetection } = useGpsMockDetection();
 
   useEffect(() => {
     Animated.parallel([
@@ -72,11 +67,6 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>₹{MOCK_DASHBOARD_STATS.totalPayoutsReceived.toLocaleString('en-IN')}</Text>
-              <Text style={styles.summaryLabel}>Total Payouts</Text>
-            </View>
-            <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <View style={styles.riskPill}>
                 <Activity size={12} color="#fff" strokeWidth={2.5} />
@@ -132,26 +122,6 @@ export default function HomeScreen({ navigation }) {
           <StatBox icon={AlertTriangle} iconBg="#FEE2E2" iconColor={COLORS.red}
             label="Alerts" value={activeAlerts.length} sub="Active now" subAlert={activeAlerts.length > 0} />
         </View>
-
-        <Text style={styles.sectionTitle}>Weekly Earnings</Text>
-        <WeeklyEarningsCard data={MOCK_DASHBOARD_STATS} />
-
-        {/* GPS Spoofing Detection Card */}
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Security Check</Text>
-          <TouchableOpacity style={styles.seeAllBtn} onPress={performDetection} disabled={isChecking}>
-            <Text style={styles.seeAllText}>{isChecking ? 'Checking...' : 'Re-check'}</Text>
-          </TouchableOpacity>
-        </View>
-        <GpsSpoofingDetectionCard
-          detectionResult={detectionResult}
-          isChecking={isChecking}
-          onRefresh={performDetection}
-          onViewDetails={() => {
-            alert(`GPS Status: ${detectionResult?.recommendation}\nFraud Score: ${detectionResult?.fraudScore}%`);
-          }}
-          compact={false}
-        />
 
         {activeAlerts.length > 0 && (
           <>
@@ -231,38 +201,6 @@ function StatBox({ icon: Icon, iconBg, iconColor, label, value, sub, subPositive
   );
 }
 
-function WeeklyEarningsCard({ data }) {
-  const max = Math.max(...data.weeklyEarningsData);
-  return (
-    <View style={[ecS.card, SHADOWS.card]}>
-      <View style={ecS.bars}>
-        {data.weeklyEarningsData.map((val, i) => {
-          const h = Math.max((val / max) * 100, 8);
-          const isToday = i === 3;
-          return (
-            <View key={i} style={ecS.barCol}>
-              <Text style={ecS.barValue}>{isToday ? `₹${val}` : ''}</Text>
-              <View style={ecS.barTrack}>
-                <LinearGradient colors={isToday ? ['#1D4ED8', '#3B82F6'] : ['#BFDBFE', '#DBEAFE']} style={[ecS.bar, { height: `${h}%` }]} />
-              </View>
-              <Text style={[ecS.barDay, isToday && ecS.barDayActive]}>{data.labels[i]}</Text>
-            </View>
-          );
-        })}
-      </View>
-      <View style={ecS.footer}>
-        <View>
-          <Text style={ecS.footerLabel}>Weekly Total</Text>
-          <Text style={ecS.footerValue}>₹{data.weeklyEarningsData.reduce((a, b) => a + b, 0).toLocaleString('en-IN')}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={ecS.footerLabel}>Protected</Text>
-          <Text style={[ecS.footerValue, { color: COLORS.green }]}>₹{data.protectedEarnings.toLocaleString('en-IN')}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
 
 function HomeAlertPreview({ alert, onPress }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -364,19 +302,6 @@ const sbS = StyleSheet.create({
   value: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
   label: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2, fontWeight: '500' },
   sub: { fontSize: 9, color: COLORS.textMuted, marginTop: 3 },
-});
-const ecS = StyleSheet.create({
-  card: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.bgBorder },
-  bars: { flexDirection: 'row', height: 90, alignItems: 'flex-end', gap: 5 },
-  barCol: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  barValue: { fontSize: 8, color: COLORS.blue, fontWeight: '700', marginBottom: 2 },
-  barTrack: { width: '80%', height: '85%', justifyContent: 'flex-end', borderRadius: 4, overflow: 'hidden' },
-  bar: { width: '100%', borderRadius: 4 },
-  barDay: { fontSize: 10, color: COLORS.textMuted, marginTop: 4 },
-  barDayActive: { color: COLORS.blue, fontWeight: '700' },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.bgBorder },
-  footerLabel: { fontSize: 10, color: COLORS.textMuted },
-  footerValue: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginTop: 2 },
 });
 const apS = StyleSheet.create({
   card: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, flexDirection: 'row', overflow: 'hidden', borderWidth: 1, borderColor: COLORS.bgBorder },
