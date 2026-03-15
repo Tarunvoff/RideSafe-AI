@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d6cf2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101722",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>GigShield KYC Progress</title>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex h-auto min-h-screen w-full max-w-md mx-auto flex-col bg-white dark:bg-background-dark overflow-x-hidden border-x border-slate-200 dark:border-slate-800">
+<!-- Header Section -->
+<div class="flex items-center bg-white dark:bg-background-dark p-4 pb-2 justify-between sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800">
+<div class="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 ml-2">Verification Progress</h2>
+<div class="size-10 shrink-0"></div>
+</div>
+<!-- Progress Overview Card -->
+<div class="flex flex-col gap-3 p-6 bg-primary/5 dark:bg-primary/10 m-4 rounded-xl">
+<div class="flex gap-6 justify-between items-end">
+<div>
+<p class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-none">Overall Progress</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Not started yet</p>
+</div>
+<p class="text-primary text-2xl font-bold leading-none">0%</p>
+</div>
+<div class="rounded-full bg-slate-200 dark:bg-slate-700 h-3 w-full overflow-hidden">
+<div class="h-full rounded-full bg-primary" style="width: 0%;"></div>
+</div>
+</div>
+<!-- Vertical Progress Tracker -->
+<div class="flex flex-col px-6 py-4 flex-grow">
+<!-- Personal Details -->
+<div class="grid grid-cols-[40px_1fr] gap-x-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full border-2 border-primary/20 bg-white dark:bg-slate-800 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">person</span>
+</div>
+<div class="w-[2px] bg-slate-200 dark:bg-slate-700 h-10"></div>
+</div>
+<div class="flex flex-col pt-1 pb-6">
+<p class="text-slate-900 dark:text-slate-100 text-base font-semibold">Personal Details</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Full name, DOB, and contact</p>
+</div>
+</div>
+<!-- Address -->
+<div class="grid grid-cols-[40px_1fr] gap-x-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-xl">location_on</span>
+</div>
+<div class="w-[2px] bg-slate-200 dark:bg-slate-700 h-10"></div>
+</div>
+<div class="flex flex-col pt-1 pb-6">
+<p class="text-slate-900 dark:text-slate-100 text-base font-semibold">Residential Address</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Current proof of residence</p>
+</div>
+</div>
+<!-- Identity Verification -->
+<div class="grid grid-cols-[40px_1fr] gap-x-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-xl">badge</span>
+</div>
+<div class="w-[2px] bg-slate-200 dark:bg-slate-700 h-10"></div>
+</div>
+<div class="flex flex-col pt-1 pb-6">
+<p class="text-slate-900 dark:text-slate-100 text-base font-semibold">Identity Verification</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Passport or Driving License</p>
+</div>
+</div>
+<!-- Selfie -->
+<div class="grid grid-cols-[40px_1fr] gap-x-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-xl">camera_alt</span>
+</div>
+<div class="w-[2px] bg-slate-200 dark:bg-slate-700 h-10"></div>
+</div>
+<div class="flex flex-col pt-1 pb-6">
+<p class="text-slate-900 dark:text-slate-100 text-base font-semibold">Liveness Check</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Take a quick selfie</p>
+</div>
+</div>
+<!-- Payout Setup -->
+<div class="grid grid-cols-[40px_1fr] gap-x-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-xl">account_balance</span>
+</div>
+<div class="w-[2px] bg-slate-200 dark:bg-slate-700 h-10"></div>
+</div>
+<div class="flex flex-col pt-1 pb-6">
+<p class="text-slate-900 dark:text-slate-100 text-base font-semibold">Payout Setup</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Bank account for earnings</p>
+</div>
+</div>
+<!-- Review -->
+<div class="grid grid-cols-[40px_1fr] gap-x-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-xl">assignment_turned_in</span>
+</div>
+</div>
+<div class="flex flex-col pt-1">
+<p class="text-slate-900 dark:text-slate-100 text-base font-semibold">Final Review</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Pending submission</p>
+</div>
+</div>
+</div>
+<!-- Security Microcopy -->
+<div class="px-6 py-4 flex gap-3 items-start bg-slate-50 dark:bg-slate-900/50 mx-4 rounded-lg mb-6">
+<span class="material-symbols-outlined text-primary text-xl">lock</span>
+<p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                Your data is encrypted and stored securely. We only use this information for identity verification purposes and to ensure the safety of the GigShield community.
+            </p>
+</div>
+<!-- Actions -->
+<div class="mt-auto p-4 flex flex-col gap-3 sticky bottom-0 bg-white dark:bg-background-dark border-t border-slate-100 dark:border-slate-800">
+<button class="flex w-full cursor-pointer items-center justify-center rounded-xl h-14 px-5 bg-primary text-white text-base font-bold transition-all hover:bg-primary/90">
+<span>Start Verification</span>
+</button>
+<button class="flex w-full cursor-pointer items-center justify-center rounded-xl h-14 px-5 bg-transparent text-primary text-base font-semibold border-2 border-primary/20 hover:bg-primary/5 transition-all">
+<span>Save and continue later</span>
+</button>
+</div>
+</div>
+</body></html>

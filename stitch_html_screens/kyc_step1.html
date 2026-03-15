@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KYC Flow - Step 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d6cf2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101722",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="max-w-md mx-auto bg-white dark:bg-slate-900 min-h-screen shadow-xl flex flex-col">
+<!-- TopAppBar -->
+<div class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center p-4 justify-between">
+<div class="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight flex-1 text-center pr-10">Step 1 of 3</h2>
+</div>
+<div class="px-6 pb-4">
+<div class="flex justify-between items-center mb-2">
+<span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Basic Information</span>
+<span class="text-primary text-sm font-bold">33%</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
+<div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 33.33%;"></div>
+</div>
+</div>
+</div>
+<!-- Form Content -->
+<div class="flex-1 overflow-y-auto px-6 py-8">
+<header class="mb-8">
+<h1 class="text-3xl font-bold text-slate-900 dark:text-slate-100">Basic Information</h1>
+<p class="text-slate-500 dark:text-slate-400 mt-2">Let's get started with your delivery partner profile.</p>
+</header>
+<div class="space-y-6">
+<!-- Full Name Field -->
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Full Name</label>
+<input class="w-full h-14 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all px-4 text-slate-900 dark:text-slate-100" placeholder="Enter your full name" type="text"/>
+</div>
+<!-- Phone Number (Pre-filled) -->
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Phone Number</label>
+<div class="relative">
+<input class="w-full h-14 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 px-4 cursor-not-allowed" disabled="" type="text" value="+91 98765 43210"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-green-500">verified</span>
+</div>
+</div>
+<!-- City of Operation -->
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">City of Operation</label>
+<div class="relative">
+<select class="w-full h-14 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-2 focus:ring-primary/20 appearance-none px-4 text-slate-900 dark:text-slate-100">
+<option value="">Select your city</option>
+<option value="bangalore">Bangalore</option>
+<option value="mumbai">Mumbai</option>
+<option value="delhi">Delhi NCR</option>
+<option value="hyderabad">Hyderabad</option>
+</select>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-slate-400">expand_more</span>
+</div>
+</div>
+<!-- Platform Selection -->
+<div class="pt-4">
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Select Your Platforms</label>
+<div class="grid grid-cols-2 gap-3">
+<!-- Zepto -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-primary bg-primary/5 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Zepto Logo" data-alt="Zepto delivery platform logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-ggYztGcQulA1IHsUv_A8XFU1dIwk3eRgsdgh7wZvsFePiZxUKDeojfyDKGWb7_ilHyVNd00TJEJ2TOdZDRT4Tge6_KRfpPQz9HOlQ6RaV0jF8d5byMcz54TzC9dTGUTtdin9ckCItIVkeHNY0DxQM3Cpvxj69fHt0C1NS_ZLxzPa7ZtTb_wcua9RzZIRJS6neloKuih7lrWBXa6a6pDzwB_FZ8tzvzD3sIYBInK72dtusToh2m13IOmStpIctvt-a1ApCLlkMkRJ"/>
+</div>
+<span class="text-sm font-bold">Zepto</span>
+</div>
+<!-- Blinkit -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Blinkit Logo" data-alt="Blinkit delivery platform logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-LD2M83JIxISF0xU2SeO1ntWYm-5KRNlaJy_cxGt3tXV19y9WfSTgIZdkoP2nHUkbF8jQJw3-7mZZ-nA44lX_aQOPZ6iydI1-XhybNp2rpe41n_SYCHVdFc07mSF1CVLt_wl90lwVuzvc9mLrIGK4jtJ_oHHLTNM1KwOsLW1dJqEDZ61AqHMVTwA2ptpY_vYTMnidLNCSmn7CnPtvamERep4l7bopt8GVfT3q5KSe6RMsp0hhoAUAmLrQGkTcG0piCKpCyxuHLpie"/>
+</div>
+<span class="text-sm font-bold">Blinkit</span>
+</div>
+<!-- Instamart -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Instamart Logo" data-alt="Swiggy Instamart delivery platform logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJV-vT1003Zp5LqqPoQlE8zOXPi9YyvZnAGBOnRdwUWVrv4oGByULSQstq7CtGbDyoCcSblEXn1se8Ub9XOMmeI2Uunbb2WfqV0HkA8rie31sqHnYxfK41R-i8ZRtIRjXbgk_TBXDwTHbROruj4GmNLtskJq4AewId60pM1a81cQRid98cvpb1WDj9lFQFgU2gchN26Bh2wvs-7D_hAvpYD_htzGOA2ilL0QMKOmvvLhnOxpilgaCPzPxMY2bzdsdoPL0uTbyVLhWD"/>
+</div>
+<span class="text-sm font-bold">Instamart</span>
+</div>
+<!-- Zomato -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Zomato Logo" data-alt="Zomato delivery platform logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaKRya7ay7HyTKCxEpo-j01tw7ltMQpx3ZFl_EkQlbkfkw8OfCSOzyQIJKbSHb2H8NxhgnhyjTjkHP20XBPHF7y_4qj45gGNG_XUICWa0MUJXR3KU-DIJ5HZpdN-cHKV7rCXjsi3OG5J87IFq5uUULUjAGLmee8G3xxtkTfstYxEm5qtjpezyRcXLQYS8L-fuWuLiIohHKzXvWtcWkfJvhFpTCvN2gBoXJgCH3BU2Yss9ZOBg7sJ84It2KHDZEEjWg75BsC-axa1Py"/>
+</div>
+<span class="text-sm font-bold">Zomato</span>
+</div>
+<!-- Amazon -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Amazon Logo" data-alt="Amazon Flex delivery platform logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCG1L2qDA2S-mAQaBg4A_11zTVwD-PJrd3eVS_abPL_oY9qWE-TYc2iTkb1PzriR3TC76oD6lHINKaBkgE5KNhT5dZKEgWlDXVwemjslJlo-eC6heR_DBpQN77G8W6WgWLEhd2EOV2J-7GWwR9Dyyzf0tg4X4ht5ms6Pl8P4EnL1MH3xtnits8qFO_RZC6SMTv5q2unzl4zetYVw17t7YORc2w-mo2RHu276AEs_TswawA1koj5TlXYoXWoR6O1w2JrOW-tF7RwLXl-"/>
+</div>
+<span class="text-sm font-bold">Amazon</span>
+</div>
+<!-- Dunzo -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Dunzo Logo" data-alt="Dunzo delivery platform logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtYDkdP7pY5J6CbvbZ-guE8nUkbjDAfIWjekZ2ki2g5fTG9VkdAxTtGnORVTthgYKG08C1xSsNfTRH9QASRHehZQEa-GfiSEP_wVyDD3X-_W1GnG0q2Mu4hjMwvzZq0y0StZ1TOeK31ljnpR89qnLhUG2JF6dkvPdvAHktCwYP7UJu_N6CGJGwNkUiVgRhKoHNiBl0uxjW1QnXxKgXbsupwIvW7QVn6meQzr3kHFQC-7m6k-ttC6DYLCIkmYvHuInVBGB8mqeZcqLs"/>
+</div>
+<span class="text-sm font-bold">Dunzo</span>
+</div>
+<!-- Flipkart -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Flipkart Logo" data-alt="Flipkart Health plus delivery logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnqOxQXruhHo0OjIEGOBxJ3uf8oHweaqQX6J67OYmy6Z452jEFPmjw5-giHYMW1HPsuvM-HUw3DFb_2GBMVThD4mU77rDqLNQbJXhN514kTo0aqXQPubCk85VIkV9JQiLi4jmyn0XXvcLe5vK8T-k6YARXWwkpZD-kPCYC9nKsGrWaWiytH2sDFtsc5PyAOIo1Oh4lWxwAA2v7CupmfaTpMZ4dBhgG5PkduVQV_1DDwgJ4_pxlt9aPhXWzA7iQYibdotgzvmQ4HS9_"/>
+</div>
+<span class="text-sm font-bold">Flipkart</span>
+</div>
+<!-- Swiggy -->
+<div class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+<img alt="Swiggy Logo" data-alt="Swiggy delivery platform logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBr4ZDpsQ5uRQKbMPWIq_q15CD-Mxm-7ygue28z8heVuofQPuMWJdQOlm2rNcjKaH92SKeZ_ArWB8qQmnz4rzRvX7vqJ8VPqxPt_E1AOt17pM91x3_9q2-0YVh8JuXySmLdc1G_At9ljJBhHYrCU02Xa8UD4ZQpHMIQPthsYkug7TxlOI5V2Clu8Dn4oChR0PxdY9n7lgiwBU-a4S4m7_Hx1UtRpVTE1BjRkMpQJ5nJsFMOl3nF2fsE4hKeLHk_5OF7LKx45ZYT4RAy"/>
+</div>
+<span class="text-sm font-bold">Swiggy</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sticky Bottom CTA -->
+<div class="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                Next
+                <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,138 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DRIVER
+  ADMIN
+}
+
+enum KYCStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum PayoutMethod {
+  UPI
+  BANK
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  phone         String?  @unique
+  passwordHash  String
+  role          Role     @default(DRIVER)
+  isVerified    Boolean  @default(false)
+  otpCode       String?
+  otpExpiresAt  DateTime?
+  refreshToken  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  kycProfile            KYCProfile?
+  kycBasicIdentity      KYCBasicIdentity?
+  kycPersonalDetails    KYCPersonalDetails?
+  kycIdentityVerification KYCIdentityVerification?
+  kycPayoutSetup        KYCPayoutSetup?
+  policies              Policy[]
+
+  @@map("users")
+}
+
+model KYCProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      KYCStatus @default(NOT_STARTED)
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("kyc_profiles")
+}
+
+model KYCBasicIdentity {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String
+  dob       DateTime
+  gender    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kyc_basic_identity")
+}
+
+model KYCPersonalDetails {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address   String
+  city      String
+  state     String
+  pincode   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kyc_personal_details")
+}
+
+model KYCIdentityVerification {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aadhaarNumber  String
+  panNumber      String
+  aadhaarDocUrl  String?
+  panDocUrl      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("kyc_identity_verification")
+}
+
+model KYCPayoutSetup {
+  id              String       @id @default(uuid())
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method          PayoutMethod @default(UPI)
+  upiId           String?
+  accountNumber   String?
+  ifscCode        String?
+  accountHolder   String?
+  bankName        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("kyc_payout_setup")
+}
+
+model Policy {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planType    String
+  status      String   @default("ACTIVE")
+  premium     Float
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("policies")
+}
