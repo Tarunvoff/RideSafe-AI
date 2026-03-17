@@ -56,9 +56,27 @@ export default function AdminDashboardScreen({ navigation }: any) {
       </Modal>
 
       <View style={styles.container}>
-        <Ionicons name="stats-chart" size={80} color={Theme.colors.border} />
-        <Text style={styles.title}>Admin Dashboard Central</Text>
-        <Text style={styles.subtitle}>Welcome to operations. More features coming soon.</Text>
+        <View style={styles.statsOverview}>
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('AdminFraudReview')}
+          >
+            <View style={[styles.cardIcon, { backgroundColor: '#fef3c7' }]}>
+               <Ionicons name="shield" size={32} color={Theme.colors.primary} />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>Fraud Reviews</Text>
+              <Text style={styles.cardSubtitle}>Monitor and manual review GPS spoofing alerts</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={Theme.colors.border} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.emptyState}>
+          <Ionicons name="stats-chart" size={48} color={Theme.colors.border} />
+          <Text style={styles.emptyTitle}>Operational Metrics</Text>
+          <Text style={styles.emptySub}>Detailed analytics and driver reports will appear here as the system gathers more data.</Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -73,9 +91,30 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   avatarContainer: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: `${Theme.colors.primary}33`, overflow: 'hidden' },
   adminAvatarPlaceholder: { flex: 1, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Theme.spacing.xl },
-  title: { ...Theme.typography.h2, color: Theme.colors.text, marginTop: Theme.spacing.lg, marginBottom: Theme.spacing.sm, textAlign: 'center' },
-  subtitle: { ...Theme.typography.body, color: Theme.colors.textSecondary, textAlign: 'center' },
+  container: { flex: 1, padding: Theme.spacing.lg, gap: 20 },
+  statsOverview: { width: '100%' },
+  actionCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 16, 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    borderWidth: 1, 
+    borderColor: Theme.colors.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  cardIcon: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cardContent: { flex: 1, marginLeft: 16 },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
+  cardSubtitle: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Theme.spacing.xl, backgroundColor: '#f9fafb', borderRadius: 24, borderStyle: 'dashed', borderWidth: 2, borderColor: '#e5e7eb', marginTop: 10 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#374151', marginTop: 16 },
+  emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 8, lineHeight: 20 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.1)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: Theme.spacing.lg, paddingTop: 60 },
   profileMenuBox: { backgroundColor: '#fff', borderRadius: Theme.borderRadius.lg, padding: 8, width: 220, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },

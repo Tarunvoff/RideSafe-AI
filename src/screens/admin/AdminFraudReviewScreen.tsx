@@ -1,7 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
+
+const PRIMARY = '#ec5b13';
+const SLATE_900 = '#0f172a';
+const SLATE_500 = '#64748b';
+const SLATE_100 = '#f1f5f9';
 
 interface FraudSubmission {
   analysisId: string;
@@ -24,9 +30,8 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
   const loadSubmissions = async () => {
     setIsLoading(true);
     try {
-      // Note: This would need to be added to fraudApi
-      // For now, we'll show a placeholder
-      setSubmissions([]);
+      const response = await fraudApi.getSubmissions();
+      setSubmissions(response.submissions);
     } catch (error) {
       Alert.alert('Error', 'Failed to load fraud submissions');
     } finally {
@@ -35,9 +40,9 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
   };
 
   const getRiskColor = (score: number) => {
-    if (score < 30) return Theme.colors.success;
+    if (score < 30) return '#10b981';
     if (score < 60) return '#f59e0b';
-    return Theme.colors.error;
+    return '#dc2626';
   };
 
   const renderSubmission = ({ item }: { item: FraudSubmission }) => (
@@ -45,18 +50,23 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
       style={styles.submissionCard}
       onPress={() => navigation.navigate('AdminFraudDetail', { userId: item.userId })}
     >
-      <View style={styles.submissionHeader}>
-        <View style={styles.submissionInfo}>
-          <Text style={styles.submissionEmail}>{item.email}</Text>
-          <Text style={styles.submissionPhone}>{item.phone}</Text>
+      <View style={styles.cardHeader}>
+        <View style={styles.userInfo}>
+          <Text style={styles.userEmail}>{item.email}</Text>
+          <Text style={styles.userPhone}>{item.phone || 'No phone provided'}</Text>
         </View>
-        <View style={[styles.riskBadge, { backgroundColor: getRiskColor(item.riskScore) }]}>
-          <Text style={styles.riskText}>{item.riskScore}%</Text>
+        <View style={[styles.riskBadge, { backgroundColor: `${getRiskColor(item.riskScore)}10` }]}>
+          <Text style={[styles.riskText, { color: getRiskColor(item.riskScore) }]}>{item.riskScore}%</Text>
         </View>
       </View>
-      <View style={styles.submissionFooter}>
-        <Text style={styles.submissionStatus}>{item.status}</Text>
-        <Ionicons name="chevron-forward" size={20} color={Theme.colors.textSecondary} />
+      
+      <View style={styles.cardFooter}>
+        <View style={styles.statusBox}>
+           <View style={[styles.statusDot, { backgroundColor: getRiskColor(item.riskScore) }]} />
+           <Text style={styles.submissionStatus}>{item.status}</Text>
+        </View>
+        <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+        <Ionicons name="chevron-forward" size={16} color={SLATE_500} />
       </View>
     </TouchableOpacity>
   );
@@ -65,21 +75,34 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+          <Ionicons name="arrow-back" size={24} color={SLATE_900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Fraud Reviews</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={loadSubmissions} style={styles.backButton}>
+             <Ionicons name="refresh" size={20} color={SLATE_500} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.banner}>
+        <Text style={styles.bannerText}>
+           {submissions.length} submissions requiring review
+        </Text>
       </View>
 
       {isLoading ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.loadingText}>Loading submissions...</Text>
+          <ActivityIndicator size="large" color={PRIMARY} />
         </View>
       ) : submissions.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Ionicons name="checkmark-circle" size={64} color={Theme.colors.success} />
+          <View style={styles.emptyIconBox}>
+             <Ionicons name="checkmark-circle" size={64} color="#10b981" />
+          </View>
           <Text style={styles.emptyTitle}>All Clear</Text>
           <Text style={styles.emptySubtitle}>No fraud submissions pending review</Text>
+          <TouchableOpacity style={styles.refreshBtn} onPress={loadSubmissions}>
+             <Text style={styles.refreshBtnText}>Check Again</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -87,6 +110,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
           renderItem={renderSubmission}
           keyExtractor={item => item.analysisId}
           contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -94,22 +118,34 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Theme.colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Theme.spacing.md, backgroundColor: Theme.colors.surface, borderBottomWidth: 1, borderBottomColor: Theme.colors.border },
-  backButton: { padding: Theme.spacing.xs },
-  headerTitle: { ...Theme.typography.h3, color: Theme.colors.text },
-  centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Theme.spacing.xl },
-  loadingText: { ...Theme.typography.body, color: Theme.colors.textSecondary },
-  emptyTitle: { ...Theme.typography.h2, color: Theme.colors.text, marginTop: Theme.spacing.lg, marginBottom: Theme.spacing.sm },
-  emptySubtitle: { ...Theme.typography.body, color: Theme.colors.textSecondary },
-  listContainer: { padding: Theme.spacing.lg, gap: Theme.spacing.md },
-  submissionCard: { backgroundColor: Theme.colors.surface, padding: Theme.spacing.md, borderRadius: Theme.borderRadius.lg, borderWidth: 1, borderColor: Theme.colors.border },
-  submissionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Theme.spacing.md },
-  submissionInfo: { flex: 1 },
-  submissionEmail: { ...Theme.typography.body, fontWeight: 'bold' as const, color: Theme.colors.text },
-  submissionPhone: { ...Theme.typography.caption, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
-  riskBadge: { paddingHorizontal: Theme.spacing.md, paddingVertical: Theme.spacing.xs, borderRadius: Theme.borderRadius.full, alignItems: 'center', justifyContent: 'center' },
-  riskText: { ...Theme.typography.caption, fontWeight: 'bold' as const, color: '#fff' },
-  submissionFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: Theme.spacing.md, borderTopWidth: 1, borderTopColor: Theme.colors.border },
-  submissionStatus: { ...Theme.typography.caption, fontWeight: 'bold' as const, color: Theme.colors.primary },
+  safeArea: { flex: 1, backgroundColor: '#f8f6f6' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, height: 56, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: SLATE_900 },
+  
+  banner: { padding: 12, backgroundColor: `${PRIMARY}10`, alignItems: 'center' },
+  bannerText: { fontSize: 12, fontWeight: '700', color: PRIMARY, letterSpacing: 0.5 },
+
+  centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyIconBox: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#ecfdf5', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 22, fontWeight: '800', color: SLATE_900, marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: SLATE_500, textAlign: 'center', lineHeight: 22 },
+  refreshBtn: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: PRIMARY, borderRadius: 12 },
+  refreshBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  listContainer: { padding: 16, gap: 12 },
+  submissionCard: { backgroundColor: '#fff', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  userInfo: { flex: 1 },
+  userEmail: { fontSize: 15, fontWeight: '700', color: SLATE_900 },
+  userPhone: { fontSize: 12, color: SLATE_500, marginTop: 4 },
+  riskBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  riskText: { fontSize: 14, fontWeight: '900' },
+  
+  cardFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  statusBox: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  submissionStatus: { fontSize: 11, fontWeight: '800', color: SLATE_500, letterSpacing: 0.5 },
+  dateText: { fontSize: 11, fontWeight: '600', color: SLATE_500, marginRight: 8 },
 });
+

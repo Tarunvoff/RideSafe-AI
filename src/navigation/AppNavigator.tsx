@@ -3,14 +3,17 @@ import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Theme } from '../theme';
 
+import { useAuth } from '../context/AuthContext';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import AdminFraudReviewScreen from '../screens/admin/AdminFraudReviewScreen';
+import AdminFraudDetailScreen from '../screens/admin/AdminFraudDetailScreen';
+import AdminFraudReportScreen from '../screens/admin/AdminFraudReportScreen';
 import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
 import AdminOTPScreen from '../screens/admin/AdminOTPScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
 
-import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -47,11 +50,13 @@ export default function AppNavigator() {
     );
   }
 
-  // LOGGED IN ADMIN - Show Admin Dashboard
   if (user?.role === 'ADMIN') {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen name="AdminFraudReview" component={AdminFraudReviewScreen} />
+        <Stack.Screen name="AdminFraudDetail" component={AdminFraudDetailScreen} />
+        <Stack.Screen name="AdminFraudReport" component={AdminFraudReportScreen} />
       </Stack.Navigator>
     );
   }

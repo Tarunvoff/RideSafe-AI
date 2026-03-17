@@ -153,4 +153,42 @@ export const fraudApi = {
       velocityCheck?: string;
       analysis: any;
     }>('/fraud/status', {}, true),
+
+  // ── ADMIN ENDPOINTS ──────────────────────────────────────────────────────
+  getSubmissions: () =>
+    request<{
+      total: number;
+      submissions: Array<{
+        analysisId: string;
+        userId: string;
+        email: string;
+        phone: string;
+        riskScore: number;
+        status: string;
+        createdAt: string;
+      }>;
+    }>('/fraud/admin/submissions', {}, true),
+
+  getSubmissionDetails: (userId: string) =>
+    request<{
+      analysis: {
+        id: string;
+        riskScore: number;
+        status: string;
+        gpsLatitude: number;
+        gpsLongitude: number;
+        deviceIntegrity: string | null;
+        networkType: string | null;
+        velocityCheck: string | null;
+        details: any;
+        createdAt: string;
+      };
+      user: { id: string; email: string; phone: string | null };
+    }>(`/fraud/admin/submission/${userId}`, {}, true),
+
+  reviewSubmission: (userId: string, data: { status: 'APPROVED' | 'REJECTED'; reviewNote?: string }) =>
+    request(`/fraud/admin/review/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }, true),
 };
