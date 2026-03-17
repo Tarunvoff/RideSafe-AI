@@ -46,6 +46,7 @@ model User {
   kycPersonalDetails    KYCPersonalDetails?
   kycIdentityVerification KYCIdentityVerification?
   kycPayoutSetup        KYCPayoutSetup?
+  fraudAnalysis         FraudAnalysis?
   policies              Policy[]
 
   @@map("users")
@@ -120,6 +121,26 @@ model KYCPayoutSetup {
   updatedAt       DateTime     @updatedAt
 
   @@map("kyc_payout_setup")
+}
+
+model FraudAnalysis {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gpsLatitude       Float?
+  gpsLongitude      Float?
+  riskScore         Float    @default(0)
+  status            String   @default("PENDING")
+  deviceIntegrity   String?
+  networkType       String?
+  velocityCheck     String?
+  analysisDetails   String?
+  reviewedAt        DateTime?
+  reviewNote        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("fraud_analysis")
 }
 
 model Policy {

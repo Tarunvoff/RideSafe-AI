@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ImageBackground, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme } from '../../theme';
+import React, { useState } from 'react';
+import { Alert, Modal, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { Theme } from '../../theme';
 
 export default function AdminDashboardScreen({ navigation }: any) {
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
   const handleLogout = async () => {
-    setProfileMenuVisible(false);
     try {
+      setProfileMenuVisible(false);
       await logout();
+      // Navigation will happen automatically when isAuthenticated becomes false
     } catch (e) {
+      setProfileMenuVisible(false);
       Alert.alert('Error', 'Failed to log out');
     }
   };

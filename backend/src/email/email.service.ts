@@ -18,6 +18,7 @@ export class EmailService {
   }
 
   async sendOTPEmail(to: string, otp: string, purpose: 'VERIFY' | 'RESET' | 'ADMIN_MFA' = 'VERIFY') {
+    console.log(`[EmailService] Attempting to send ${purpose} OTP to ${to} ...`);
     const subjects = {
       VERIFY: `${process.env.APP_NAME} — Verify your email`,
       RESET: `${process.env.APP_NAME} — Reset your password`,

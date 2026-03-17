@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ImageBackground, Modal, Alert } from 'react-native';
-import { Theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Alert, ImageBackground, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { Theme } from '../../theme';
 // react-native-svg removed — using pure RN ring
 
 export default function HomeScreen({ navigation }: any) {
@@ -10,10 +10,12 @@ export default function HomeScreen({ navigation }: any) {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
   const handleLogout = async () => {
-    setProfileMenuVisible(false);
     try {
+      setProfileMenuVisible(false);
       await logout();
+      // Navigation will happen automatically when isAuthenticated becomes false
     } catch (e) {
+      setProfileMenuVisible(false);
       Alert.alert('Error', 'Failed to log out');
     }
   };

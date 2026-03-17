@@ -1,13 +1,14 @@
-import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
 
-import KYCIntroductionScreen from '../screens/kyc/KYCIntroductionScreen';
 import KYCBasicIdentityScreen from '../screens/kyc/KYCBasicIdentityScreen';
-import KYCPersonalDetailsScreen from '../screens/kyc/KYCPersonalDetailsScreen';
+import KYCFraudDetectionScreen from '../screens/kyc/KYCFraudDetectionScreen';
 import KYCIdentityVerificationScreen from '../screens/kyc/KYCIdentityVerificationScreen';
+import KYCIntroductionScreen from '../screens/kyc/KYCIntroductionScreen';
 import KYCPayoutSetupScreen from '../screens/kyc/KYCPayoutSetupScreen';
-import KYCSubmittedScreen from '../screens/kyc/KYCSubmittedScreen';
+import KYCPersonalDetailsScreen from '../screens/kyc/KYCPersonalDetailsScreen';
 import KYCProgressOverviewScreen from '../screens/kyc/KYCProgressOverviewScreen';
+import KYCSubmittedScreen from '../screens/kyc/KYCSubmittedScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +20,7 @@ export default function KYCNavigator() {
       <Stack.Screen name="KYCPersonalDetails" component={KYCPersonalDetailsScreen} />
       <Stack.Screen name="KYCIdentityVerification" component={KYCIdentityVerificationScreen} />
       <Stack.Screen name="KYCPayoutSetup" component={KYCPayoutSetupScreen} />
+      <Stack.Screen name="KYCFraudDetection" component={KYCFraudDetectionScreen} />
       <Stack.Screen name="KYCSubmitted" component={KYCSubmittedScreen} />
       <Stack.Screen name="KYCProgressOverview" component={KYCProgressOverviewScreen} />
     </Stack.Navigator>

@@ -45,24 +45,15 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already registered');
 
-    // Check if phone is already taken
-    if (dto.phone) {
-      const phoneExists = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
-      if (phoneExists) throw new ConflictException('Phone number already registered');
-    }
-
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const otp = generateOTP();
-    const otpHash = hashOTP(otp);
-
+    
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        phone: dto.phone || null,
+        phone: null, // phone collected later in KYC, not at registration
         passwordHash,
         role: 'DRIVER',
-        otpCode: otpHash,
-        otpExpiresAt: otpExpiresAt(),
+        isVerified: true, // auto-verify on registration, no OTP required
       },
     });
 
@@ -71,8 +62,7 @@ export class AuthService {
       data: { userId: user.id, status: 'NOT_STARTED' },
     });
 
-    await this.email.sendOTPEmail(dto.email, otp, 'VERIFY');
-    return { message: 'Registered successfully. Please check your email for the OTP.' };
+    return { message: 'Registered successfully. You can now log in.' };
   }
 
   // ── VERIFY OTP ──────────────────────────────────────────────────────────

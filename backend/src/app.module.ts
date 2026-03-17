@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { KycModule } from './kyc/kyc.module';
 import { EmailModule } from './email/email.module';
+import { FraudModule } from './fraud/fraud.module';
+import { KycModule } from './kyc/kyc.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { EmailModule } from './email/email.module';
     EmailModule,
     AuthModule,
     KycModule,
+    FraudModule,
   ],
 })
 export class AppModule {}

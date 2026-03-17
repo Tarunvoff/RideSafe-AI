@@ -9,7 +9,7 @@ const getBaseUrl = () => {
     return 'http://localhost:3001/api'; // Web Simulator
   }
   // This allows Android emulator, iOS simulator, and Physical Devices to connect
-  return 'http://192.168.1.9:3001/api'; 
+  return 'http://10.73.162.36:3001/api'; 
 };
 
 const BASE_URL = getBaseUrl();
@@ -127,4 +127,30 @@ export const kycApi = {
 
   submit: () =>
     request('/kyc/submit', { method: 'POST' }, true),
+};
+
+// ── FRAUD ────────────────────────────────────────────────────────────────────
+
+export const fraudApi = {
+  analyze: (data: {
+    gpsLatitude: number;
+    gpsLongitude: number;
+    deviceIntegrity?: string;
+    networkType?: string;
+    velocityCheck?: string;
+  }) =>
+    request<{
+      message: string;
+      data: { id: string; riskScore: number; status: string; analysis: any };
+    }>('/fraud/analyze', { method: 'POST', body: JSON.stringify(data) }, true),
+
+  getStatus: () =>
+    request<{
+      status: string;
+      riskScore: number;
+      deviceIntegrity?: string;
+      networkType?: string;
+      velocityCheck?: string;
+      analysis: any;
+    }>('/fraud/status', {}, true),
 };

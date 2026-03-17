@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme } from '../../theme';
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
-import { kycApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { kycApi } from '../../services/api';
+import { Theme } from '../../theme';
 
 export default function KYCPayoutSetupScreen({ navigation }: any) {
   const [method, setMethod] = useState('UPI');
@@ -34,7 +34,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
         ...(method === 'UPI' ? { upiId } : { accountNumber, ifscCode, accountHolder }),
       });
       await refreshKycStatus();
-      navigation.navigate('KYCSubmitted');
+      navigation.navigate('KYCFraudDetection');
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save payout setup');
     } finally {

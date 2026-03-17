@@ -8,14 +8,14 @@ export class KycService {
 
   // ── GET STATUS ───────────────────────────────────────────────────────────
   async getStatus(userId: string) {
-    const profile = await this.prisma.kYCProfile.findUnique({ where: { userId } });
+    const profile = await (this.prisma as any).kYCProfile.findUnique({ where: { userId } });
     if (!profile) throw new NotFoundException('KYC profile not found. Please register first.');
 
     const [basicIdentity, personalDetails, identityVerification, payoutSetup] = await Promise.all([
-      this.prisma.kYCBasicIdentity.findUnique({ where: { userId } }),
-      this.prisma.kYCPersonalDetails.findUnique({ where: { userId } }),
-      this.prisma.kYCIdentityVerification.findUnique({ where: { userId } }),
-      this.prisma.kYCPayoutSetup.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCBasicIdentity.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPersonalDetails.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCIdentityVerification.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPayoutSetup.findUnique({ where: { userId } }),
     ]);
 
     const steps = {
@@ -45,10 +45,10 @@ export class KycService {
       gender: dto.gender,
     };
 
-    const existing = await this.prisma.kYCBasicIdentity.findUnique({ where: { userId } });
+    const existing = await (this.prisma as any).kYCBasicIdentity.findUnique({ where: { userId } });
     const result = existing
-      ? await this.prisma.kYCBasicIdentity.update({ where: { userId }, data })
-      : await this.prisma.kYCBasicIdentity.create({ data });
+      ? await (this.prisma as any).kYCBasicIdentity.update({ where: { userId }, data })
+      : await (this.prisma as any).kYCBasicIdentity.create({ data });
 
     await this.updateKycStatus(userId);
     return { message: 'Basic identity saved.', data: result };
@@ -57,10 +57,10 @@ export class KycService {
   // ── STEP 2: PERSONAL DETAILS ─────────────────────────────────────────────
   async savePersonalDetails(userId: string, dto: PersonalDetailsDto) {
     const data = { userId, ...dto };
-    const existing = await this.prisma.kYCPersonalDetails.findUnique({ where: { userId } });
+    const existing = await (this.prisma as any).kYCPersonalDetails.findUnique({ where: { userId } });
     const result = existing
-      ? await this.prisma.kYCPersonalDetails.update({ where: { userId }, data })
-      : await this.prisma.kYCPersonalDetails.create({ data });
+      ? await (this.prisma as any).kYCPersonalDetails.update({ where: { userId }, data })
+      : await (this.prisma as any).kYCPersonalDetails.create({ data });
 
     await this.updateKycStatus(userId);
     return { message: 'Personal details saved.', data: result };
@@ -69,10 +69,10 @@ export class KycService {
   // ── STEP 3: IDENTITY VERIFICATION ───────────────────────────────────────
   async saveIdentityVerification(userId: string, dto: IdentityVerificationDto) {
     const data = { userId, ...dto };
-    const existing = await this.prisma.kYCIdentityVerification.findUnique({ where: { userId } });
+    const existing = await (this.prisma as any).kYCIdentityVerification.findUnique({ where: { userId } });
     const result = existing
-      ? await this.prisma.kYCIdentityVerification.update({ where: { userId }, data })
-      : await this.prisma.kYCIdentityVerification.create({ data });
+      ? await (this.prisma as any).kYCIdentityVerification.update({ where: { userId }, data })
+      : await (this.prisma as any).kYCIdentityVerification.create({ data });
 
     await this.updateKycStatus(userId);
     return { message: 'Identity verification saved.', data: result };
@@ -88,10 +88,10 @@ export class KycService {
     }
 
     const data = { userId, ...dto };
-    const existing = await this.prisma.kYCPayoutSetup.findUnique({ where: { userId } });
+    const existing = await (this.prisma as any).kYCPayoutSetup.findUnique({ where: { userId } });
     const result = existing
-      ? await this.prisma.kYCPayoutSetup.update({ where: { userId }, data })
-      : await this.prisma.kYCPayoutSetup.create({ data });
+      ? await (this.prisma as any).kYCPayoutSetup.update({ where: { userId }, data })
+      : await (this.prisma as any).kYCPayoutSetup.create({ data });
 
     await this.updateKycStatus(userId);
     return { message: 'Payout setup saved.', data: result };
@@ -100,17 +100,17 @@ export class KycService {
   // ── SUBMIT KYC ───────────────────────────────────────────────────────────
   async submit(userId: string) {
     const [basicIdentity, personalDetails, identityVerification, payoutSetup] = await Promise.all([
-      this.prisma.kYCBasicIdentity.findUnique({ where: { userId } }),
-      this.prisma.kYCPersonalDetails.findUnique({ where: { userId } }),
-      this.prisma.kYCIdentityVerification.findUnique({ where: { userId } }),
-      this.prisma.kYCPayoutSetup.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCBasicIdentity.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPersonalDetails.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCIdentityVerification.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPayoutSetup.findUnique({ where: { userId } }),
     ]);
 
     if (!basicIdentity || !personalDetails || !identityVerification || !payoutSetup) {
       throw new BadRequestException('Please complete all KYC steps before submitting.');
     }
 
-    const profile = await this.prisma.kYCProfile.update({
+    const profile = await (this.prisma as any).kYCProfile.update({
       where: { userId },
       data: { status: 'SUBMITTED', submittedAt: new Date() },
     });
@@ -120,7 +120,7 @@ export class KycService {
 
   // ── ADMIN: GET ALL SUBMISSIONS ───────────────────────────────────────────
   async getSubmissions() {
-    const submissions = await this.prisma.kYCProfile.findMany({
+    const submissions = await (this.prisma as any).kYCProfile.findMany({
       where: { status: 'SUBMITTED' },
       include: {
         user: {
@@ -146,7 +146,7 @@ export class KycService {
 
   // ── ADMIN: GET SUBMISSION DETAILS ────────────────────────────────────────
   async getSubmissionDetails(userId: string) {
-    const profile = await this.prisma.kYCProfile.findUnique({
+    const profile = await (this.prisma as any).kYCProfile.findUnique({
       where: { userId },
       include: {
         user: {
@@ -158,10 +158,10 @@ export class KycService {
     if (!profile) throw new NotFoundException('KYC profile not found');
 
     const [basicIdentity, personalDetails, identityVerification, payoutSetup] = await Promise.all([
-      this.prisma.kYCBasicIdentity.findUnique({ where: { userId } }),
-      this.prisma.kYCPersonalDetails.findUnique({ where: { userId } }),
-      this.prisma.kYCIdentityVerification.findUnique({ where: { userId } }),
-      this.prisma.kYCPayoutSetup.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCBasicIdentity.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPersonalDetails.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCIdentityVerification.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPayoutSetup.findUnique({ where: { userId } }),
     ]);
 
     return {
@@ -213,7 +213,7 @@ export class KycService {
       throw new BadRequestException('Invalid status. Must be APPROVED or REJECTED.');
     }
 
-    const profile = await this.prisma.kYCProfile.update({
+    const profile = await (this.prisma as any).kYCProfile.update({
       where: { userId },
       data: {
         status: status as any,
@@ -235,9 +235,9 @@ export class KycService {
 
   // ── HELPER: UPDATE KYC STATUS ────────────────────────────────────────────
   private async updateKycStatus(userId: string) {
-    const profile = await this.prisma.kYCProfile.findUnique({ where: { userId } });
+    const profile = await (this.prisma as any).kYCProfile.findUnique({ where: { userId } });
     if (profile?.status === 'NOT_STARTED') {
-      await this.prisma.kYCProfile.update({ where: { userId }, data: { status: 'IN_PROGRESS' } });
+      await (this.prisma as any).kYCProfile.update({ where: { userId }, data: { status: 'IN_PROGRESS' } });
     }
   }
 }

@@ -64,7 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (email: string, password: string, phone?: string) => {
     await authApi.register(email, password, phone);
-    // After registration, OTP is sent - user must verify
+    // Auto-login immediately after registration (no OTP required)
+    await login(email, password);
   };
 
   const verifyOtp = async (email: string, otp: string) => {

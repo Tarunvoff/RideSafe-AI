@@ -7,24 +7,20 @@ import { useAuth } from '../../context/AuthContext';
 const { width } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }: any) {
-  const { login, register, verifyOtp } = useAuth();
+  const { login, register } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [showOtp, setShowOtp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      if (showOtp) {
-        await verifyOtp(email, otp);
-      } else if (isRegistering) {
-        await register(email, password, '9876543210'); // using test phone number
-        setShowOtp(true);
-        Alert.alert('Success', 'Registration successful! Check your email for OTP');
+      if (isRegistering) {
+        await register(email, password);
+        // register() auto-logs in; just close the modal
+        closeResetModal();
       } else {
         await login(email, password);
       }
@@ -38,10 +34,8 @@ export default function LoginScreen({ navigation }: any) {
   const closeResetModal = () => {
     setModalVisible(false);
     setIsRegistering(false);
-    setShowOtp(false);
     setEmail('');
     setPassword('');
-    setOtp('');
   };
 
   return (
@@ -60,7 +54,7 @@ export default function LoginScreen({ navigation }: any) {
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>
-              {showOtp ? 'Enter OTP' : isRegistering ? 'Create Account' : 'Welcome Back'}
+              {isRegistering ? 'Create Account' : 'Welcome Back'}
             </Text>
 
             <TextInput
@@ -70,26 +64,15 @@ export default function LoginScreen({ navigation }: any) {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
-              editable={!showOtp}
             />
 
-            {!showOtp ? (
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            ) : (
-              <TextInput
-                style={styles.input}
-                placeholder="Enter 6-digit test OTP (123456)"
-                keyboardType="numeric"
-                value={otp}
-                onChangeText={setOtp}
-              />
-            )}
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
 
             <TouchableOpacity 
               style={styles.modalButton} 
@@ -100,18 +83,16 @@ export default function LoginScreen({ navigation }: any) {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.modalButtonText}>
-                  {showOtp ? 'Verify OTP' : isRegistering ? 'Register' : 'Login'}
+                  {isRegistering ? 'Register' : 'Login'}
                 </Text>
               )}
             </TouchableOpacity>
 
-            {!showOtp && (
-              <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
+            <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
                 <Text style={styles.switchModeText}>
                   {isRegistering ? 'Already have an account? Login' : "Don't have an account? Register"}
                 </Text>
               </TouchableOpacity>
-            )}
           </View>
         </View>
       </Modal>
