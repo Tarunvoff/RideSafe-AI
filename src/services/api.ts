@@ -5,11 +5,18 @@ import { Platform } from 'react-native';
 // Dynamically set BASE_URL depending on the platform environment
 // Local network IP (192.168.1.9) is used so physical devices scanning Expo Go can connect.
 const getBaseUrl = () => {
-  if (Platform.OS === 'web') {
-    return 'http://localhost:3001/api'; // Web Simulator
+  // Use the API URL from your local .env file first
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
-  // This allows Android emulator, iOS simulator, and Physical Devices to connect
-  return 'http://192.168.1.10:3001/api';
+  
+  // Fallback for Web Simulator if .env is missing
+  if (Platform.OS === 'web') {
+    return 'http://localhost:3001/api';
+  }
+  
+  // Final fallback (Ideally this never happens since we have .env)
+  return 'http://127.0.0.1:3001/api';
 };
 
 const BASE_URL = getBaseUrl();
