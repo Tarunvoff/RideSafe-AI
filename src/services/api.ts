@@ -9,7 +9,7 @@ const getBaseUrl = () => {
     return 'http://localhost:3001/api'; // Web Simulator
   }
   // This allows Android emulator, iOS simulator, and Physical Devices to connect
-  return 'http://172.17.10.114:3001/api'; 
+  return 'http://10.73.162.53:3001/api';
 };
 
 const BASE_URL = getBaseUrl();

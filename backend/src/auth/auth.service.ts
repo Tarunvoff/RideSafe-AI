@@ -1,9 +1,9 @@
 import {
-    BadRequestException,
-    ConflictException,
-    Injectable,
-    NotFoundException,
-    UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -11,13 +11,13 @@ import * as crypto from 'crypto';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-    AdminLoginDto,
-    AdminVerifyOtpDto,
-    ForgotPasswordDto,
-    LoginDto,
-    RegisterDto,
-    ResetPasswordDto,
-    VerifyOtpDto,
+  AdminLoginDto,
+  AdminVerifyOtpDto,
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+  VerifyOtpDto,
 } from './dto/auth.dto';
 
 function generateOTP(): string {
@@ -39,6 +39,45 @@ export class AuthService {
     private jwt: JwtService,
     private email: EmailService,
   ) {}
+
+  private getAdminEnvCreds(): { email: string; password: string } {
+    const email = (process.env.ADMIN_EMAIL ?? '').trim();
+    const password = process.env.ADMIN_PASSWORD ?? '';
+    if (!email || !password) {
+      throw new Error('Missing required env vars: ADMIN_EMAIL and/or ADMIN_PASSWORD');
+    }
+    return { email, password };
+  }
+
+  private async ensureAdminUserExists(email: string, password: string) {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!existing) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      return this.prisma.user.create({
+        data: {
+          email,
+          phone: '+1-admin',
+          passwordHash,
+          role: 'ADMIN',
+          isVerified: true,
+        },
+      });
+    }
+
+    const needsRoleUpdate = existing.role !== 'ADMIN';
+    const needsVerifyUpdate = !existing.isVerified;
+    const passwordMatches = await bcrypt.compare(password, existing.passwordHash);
+
+    if (!needsRoleUpdate && !needsVerifyUpdate && passwordMatches) return existing;
+
+    const data: any = {};
+    if (needsRoleUpdate) data.role = 'ADMIN';
+    if (needsVerifyUpdate) data.isVerified = true;
+    if (!passwordMatches) data.passwordHash = await bcrypt.hash(password, 12);
+
+    return this.prisma.user.update({ where: { id: existing.id }, data });
+  }
 
   // ── DRIVER REGISTER ─────────────────────────────────────────────────────
   async register(dto: RegisterDto) {
@@ -159,13 +198,12 @@ export class AuthService {
 
   // ── ADMIN LOGIN ──────────────────────────────────────────────────────────
   async adminLogin(dto: AdminLoginDto) {
-    const user = await this.prisma.user.findFirst({
-      where: { email: dto.email, role: 'ADMIN' },
-    });
-    if (!user) throw new UnauthorizedException('Invalid admin credentials');
+    const adminCreds = this.getAdminEnvCreds();
+    if (dto.email !== adminCreds.email || dto.password !== adminCreds.password) {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
 
-    const isValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isValid) throw new UnauthorizedException('Invalid admin credentials');
+    const user = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
 
     const otp = generateOTP();
     await this.prisma.user.update({
@@ -173,14 +211,20 @@ export class AuthService {
       data: { otpCode: hashOTP(otp), otpExpiresAt: otpExpiresAt() },
     });
 
-    await this.email.sendOTPEmail(dto.email, otp, 'ADMIN_MFA');
+    // Always deliver admin MFA OTP to the configured admin inbox
+    await this.email.sendOTPEmail(adminCreds.email, otp, 'ADMIN_MFA');
     return { message: 'OTP sent to your admin email. Please verify to complete sign-in.' };
   }
 
   // ── ADMIN VERIFY OTP ─────────────────────────────────────────────────────
   async adminVerifyOtp(dto: AdminVerifyOtpDto) {
+    const adminCreds = this.getAdminEnvCreds();
+    if (dto.email !== adminCreds.email) {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
+
     const user = await this.prisma.user.findFirst({
-      where: { email: dto.email, role: 'ADMIN' },
+      where: { email: adminCreds.email, role: 'ADMIN' },
     });
     if (!user || !user.otpCode || !user.otpExpiresAt) throw new BadRequestException('No OTP requested');
     if (new Date() > user.otpExpiresAt) throw new BadRequestException('OTP has expired');
@@ -200,36 +244,15 @@ export class AuthService {
 
   // ── SEED ADMIN ───────────────────────────────────────────────────────────
   async seedAdmin() {
-    const existingAdmin = await this.prisma.user.findFirst({
-      where: { email: 'suryaravichandran5555@gmail.com' },
-    });
-
-    if (existingAdmin) {
-      return { message: 'Admin already exists', admin: { email: existingAdmin.email, id: existingAdmin.id } };
-    }
-
-    const passwordHash = await bcrypt.hash('surya@100416', 12);
-    const adminUser = await this.prisma.user.create({
-      data: {
-        email: 'suryaravichandran5555@gmail.com',
-        phone: '+1-admin-100416',
-        passwordHash,
-        role: 'ADMIN',
-        isVerified: true,
-      },
-    });
-
-    return { 
-      message: 'Admin seeded successfully!',
+    const adminCreds = this.getAdminEnvCreds();
+    const adminUser = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
+    return {
+      message: 'Admin ensured successfully!',
       admin: {
         id: adminUser.id,
         email: adminUser.email,
         role: adminUser.role,
       },
-      credentials: {
-        email: 'suryaravichandran5555@gmail.com',
-        password: 'surya@100416',
-      }
     };
   }
 
