@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme } from '../../theme';
-import Button from '../../components/Button';
+import React, { useEffect, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AuthCard from '../../components/AuthCard';
+import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
+import { Theme } from '../../theme';
 
 export default function AdminOTPScreen({ navigation, route }: any) {
   const email = route?.params?.email ?? '';
@@ -92,7 +92,7 @@ export default function AdminOTPScreen({ navigation, route }: any) {
             ) : (
               <>
                 <Text style={styles.subtitle}>
-                  Enter the 6-digit verification code sent to your registered admin device.
+                  Enter the 6-digit verification code sent to your admin email.
                 </Text>
 
                 {error ? (

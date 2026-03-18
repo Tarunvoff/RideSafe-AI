@@ -4,12 +4,15 @@ import { ActivityIndicator, View } from 'react-native';
 import { Theme } from '../theme';
 
 import { useAuth } from '../context/AuthContext';
+import AdminClaimsScreen from '../screens/admin/AdminClaimsScreen';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
-import AdminFraudReviewScreen from '../screens/admin/AdminFraudReviewScreen';
 import AdminFraudDetailScreen from '../screens/admin/AdminFraudDetailScreen';
 import AdminFraudReportScreen from '../screens/admin/AdminFraudReportScreen';
+import AdminFraudReviewScreen from '../screens/admin/AdminFraudReviewScreen';
 import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
 import AdminOTPScreen from '../screens/admin/AdminOTPScreen';
+import AdminSetupScreen from '../screens/admin/AdminSetupScreen';
+import AdminWorkersScreen from '../screens/admin/AdminWorkersScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
@@ -54,6 +57,9 @@ export default function AppNavigator() {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen name="AdminWorkers" component={AdminWorkersScreen} />
+        <Stack.Screen name="AdminClaims" component={AdminClaimsScreen} />
+        <Stack.Screen name="AdminSetup" component={AdminSetupScreen} />
         <Stack.Screen name="AdminFraudReview" component={AdminFraudReviewScreen} />
         <Stack.Screen name="AdminFraudDetail" component={AdminFraudDetailScreen} />
         <Stack.Screen name="AdminFraudReport" component={AdminFraudReportScreen} />
