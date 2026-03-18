@@ -1,105 +1,44 @@
-# Environment Variables
-.env
-.env.local
-.env.development
-.env.test
-.env.production
-.env.*.local
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Dependencies
+# dependencies
 node_modules/
-backend/venv/
-backend/env/
-*/venv/
-*/.venv/
-ml_microservice/venv/
-ml_microservice/.venv/
-yarn.lock
-package-lock.json
 
-# Frontend Build Artifacts
-frontend/mobile/.expo/
-frontend/mobile/dist/
-frontend/mobile/build/
-frontend/web/.next/
-frontend/web/out/
-frontend/web/.turbo/
-frontend/web/public/
-
-# Backend Build Artifacts
-backend/*/build/
-backend/*/dist/
-backend/*/__pycache__/
-backend/*/.eggs/
-backend/*/*.egg-info/
-
-# IDE and Editor
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-.DS_Store
-.AppleDouble
-.LSOverride
-*.sublime-project
-*.sublime-workspace
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv
-pip-log.txt
-pip-delete-this-directory.txt
-.pytest_cache/
-htmlcov/
-.coverage
-.tox/
-.eggs/
-*.egg-info/
+# Expo
+.env
+.expo/
 dist/
-build/
+web-build/
+expo-env.d.ts
 
-# Logs
-logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# OS
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
 .DS_Store
-Thumbs.db
-desktop.ini
+*.pem
 
-# Temporary files
-*.tmp
-*.temp
-.cache/
-*.bak
+# local env files
+.env*.local
 
-# OS Files
-.DS_Store
-Thumbs.db
-Desktop.ini
+# typescript
+*.tsbuildinfo
 
-# Logs and databases
-*.log
-*.sqlite3
+app-example
 
-# Models and data
-ml_microservice/ml/*.pkl
-ml_microservice/ml/*.joblib
-ml_microservice/ml/checkpoints/*.h5
-ml_microservice/ml/synthetic_data/
-
-# Backup files
-*.bak
-*.orig
-*~
+# generated native folders
+/ios
+/android

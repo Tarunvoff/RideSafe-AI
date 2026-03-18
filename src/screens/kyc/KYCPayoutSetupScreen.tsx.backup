@@ -1,0 +1,120 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Theme } from '../../theme';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
+
+export default function KYCPayoutSetupScreen({ navigation }: any) {
+  const [upiId, setUpiId] = useState('');
+  const [activeTab, setActiveTab] = useState('upi');
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Quick KYC</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressPercent}>Final Step 3 of 3</Text>
+            <Text style={styles.progressText}>Payout Method</Text>
+          </View>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: '100%' }]} />
+          </View>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Payout Method</Text>
+        <Text style={styles.subtitle}>Add where you want to receive your weekly earnings.</Text>
+
+        <View style={styles.tabsRow}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'upi' && styles.tabActive]}
+            onPress={() => setActiveTab('upi')}
+          >
+            <Text style={[styles.tabText, activeTab === 'upi' && styles.tabTextActive]}>UPI ID</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'bank' && styles.tabActive]}
+            onPress={() => setActiveTab('bank')}
+          >
+            <Text style={[styles.tabText, activeTab === 'bank' && styles.tabTextActive]}>BANK ACCOUNT</Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeTab === 'upi' ? (
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Enter UPI ID</Text>
+              <Input 
+                placeholder="e.g. yourname@gpay" 
+                value={upiId} 
+                onChangeText={setUpiId}
+                containerStyle={{ marginBottom: Theme.spacing.xs }}
+              />
+              <Text style={styles.helperText}>Find it in your GPay, PhonePe, or Paytm app under profile settings.</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.formContainer}>
+            <Text style={styles.helperText}>Bank account setup coming soon.</Text>
+          </View>
+        )}
+
+        <View style={styles.secureNotice}>
+          <Ionicons name="flash" size={20} color={Theme.colors.primary} />
+          <Text style={styles.secureText}>
+            Your payouts are processed instantly securely to this account every Tuesday at 9 AM.
+          </Text>
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Button 
+          title="Finish & Submit" 
+          onPress={() => navigation.navigate('KYCSubmitted')} 
+          disabled={activeTab === 'upi' && !upiId}
+          icon="checkmark"
+        />
+        <Text style={styles.footerDocs}>You can always change your payout destination later</Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: Theme.colors.background },
+  header: { borderBottomWidth: 1, borderBottomColor: Theme.colors.border, backgroundColor: Theme.colors.surface },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Theme.spacing.md },
+  backButton: { padding: Theme.spacing.xs, marginLeft: -8 },
+  headerTitle: { ...Theme.typography.h3, color: Theme.colors.text },
+  progressContainer: { paddingHorizontal: Theme.spacing.lg, paddingBottom: Theme.spacing.lg },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.sm },
+  progressPercent: { ...Theme.typography.caption, fontWeight: 'bold' as const, color: Theme.colors.success },
+  progressText: { ...Theme.typography.caption, fontWeight: 'bold' as const, color: Theme.colors.textSecondary },
+  progressBarBg: { height: 8, backgroundColor: Theme.colors.border, borderRadius: Theme.borderRadius.full },
+  progressBarFill: { height: 8, backgroundColor: Theme.colors.success, borderRadius: Theme.borderRadius.full },
+  container: { padding: Theme.spacing.lg },
+  title: { ...Theme.typography.h1, color: Theme.colors.text, marginBottom: Theme.spacing.xs },
+  subtitle: { ...Theme.typography.body, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.xl },
+  tabsRow: { flexDirection: 'row', backgroundColor: Theme.colors.surface, padding: 4, borderRadius: Theme.borderRadius.md, marginBottom: Theme.spacing.lg },
+  tab: { flex: 1, paddingVertical: Theme.spacing.md, alignItems: 'center', borderRadius: Theme.borderRadius.sm },
+  tabActive: { backgroundColor: Theme.colors.background, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  tabText: { ...Theme.typography.caption, fontWeight: 'bold' as const, color: Theme.colors.textSecondary },
+  tabTextActive: { color: Theme.colors.text },
+  formContainer: { marginBottom: Theme.spacing.xl },
+  inputGroup: { marginBottom: Theme.spacing.md },
+  label: { ...Theme.typography.caption, fontWeight: 'bold' as const, color: Theme.colors.text, marginBottom: Theme.spacing.sm },
+  helperText: { ...Theme.typography.caption, color: Theme.colors.textSecondary },
+  secureNotice: { flexDirection: 'row', backgroundColor: `${Theme.colors.primary}10`, padding: Theme.spacing.md, borderRadius: Theme.borderRadius.md, gap: Theme.spacing.sm },
+  secureText: { flex: 1, ...Theme.typography.caption, color: Theme.colors.textSecondary, lineHeight: 20 },
+  footer: { padding: Theme.spacing.lg, backgroundColor: Theme.colors.surface, borderTopWidth: 1, borderTopColor: Theme.colors.border },
+  footerDocs: { ...Theme.typography.caption, color: Theme.colors.textSecondary, textAlign: 'center', marginTop: Theme.spacing.md },
+});
