@@ -25,7 +25,7 @@ We've included an automated bash script that handles everything perfectly for yo
 - **Windows:**
   Double-click `start.bat` or run:
   ```cmd
-  start.bat
+  ./start.bat
   ```
 
 Once running:
