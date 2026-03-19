@@ -15,14 +15,16 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
   const [accountHolder, setAccountHolder] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { refreshKycStatus } = useAuth();
+  const isUpi = method === 'UPI';
+  const isBank = method === 'BANK';
 
   const handleContinue = async () => {
-    if (method === 'UPI' && !upiId) {
+    if (isUpi && !upiId) {
       Alert.alert('Error', 'Please enter your UPI ID');
       return;
     }
 
-    if (method === 'BANK' && (!accountNumber || !ifscCode || !accountHolder)) {
+    if (isBank && (!accountNumber || !ifscCode || !accountHolder)) {
       Alert.alert('Error', 'Please fill in all bank details');
       return;
     }
@@ -31,7 +33,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
     try {
       await kycApi.savePayoutSetup({
         method: method as 'UPI' | 'BANK',
-        ...(method === 'UPI' ? { upiId } : { accountNumber, ifscCode, accountHolder }),
+        ...(isUpi ? { upiId } : { accountNumber, ifscCode, accountHolder }),
       });
       await refreshKycStatus();
       navigation.navigate('KYCSubmitted');
@@ -67,21 +69,21 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
 
         <View style={styles.tabsRow}>
           <TouchableOpacity
-            style={[styles.tab, method === 'UPI' && styles.tabActive]}
+            style={[styles.tab, isUpi && styles.tabActive]}
             onPress={() => setMethod('UPI')}
           >
-            <Text style={[styles.tabText, method === 'UPI' && styles.tabTextActive]}>UPI</Text>
+            <Text style={[styles.tabText, isUpi && styles.tabTextActive]}>UPI</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, method === 'BANK' && styles.tabActive]}
+            style={[styles.tab, isBank && styles.tabActive]}
             onPress={() => setMethod('BANK')}
           >
-            <Text style={[styles.tabText, method === 'BANK' && styles.tabTextActive]}>BANK</Text>
+            <Text style={[styles.tabText, isBank && styles.tabTextActive]}>BANK</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.form}>
-          {method === 'UPI' ? (
+          {isUpi ? (
             <View>
               <Input
                 label="UPI ID"
@@ -131,7 +133,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
         <Button
           title={isLoading ? 'Saving...' : 'Finish & Submit'}
           onPress={handleContinue}
-          disabled={isLoading || (method === 'UPI' && !upiId) || (method === 'BANK' && (!accountNumber || !ifscCode || !accountHolder))}
+          disabled={isLoading || (isUpi && !upiId) || (isBank && (!accountNumber || !ifscCode || !accountHolder))}
         />
       </View>
     </SafeAreaView>
