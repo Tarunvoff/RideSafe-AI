@@ -1,13 +1,15 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
-import { Theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../components/Card';
+import React from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from '../../components/Button';
+import Card from '../../components/Card';
+import MainTopNavbar from '../../components/MainTopNavbar';
+import { Theme } from '../../theme';
 
 export default function WalletScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <MainTopNavbar />
       <ScrollView contentContainerStyle={styles.container}>
         
         <Card style={styles.balanceCard}>

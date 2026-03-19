@@ -1,13 +1,15 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
-import { Theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../components/Card';
+import React from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Button from '../../components/Button';
+import Card from '../../components/Card';
+import MainTopNavbar from '../../components/MainTopNavbar';
+import { Theme } from '../../theme';
 
 export default function ClaimsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <MainTopNavbar />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Your Claims</Text>

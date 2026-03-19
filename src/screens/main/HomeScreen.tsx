@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Alert, ImageBackground, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 // react-native-svg removed — using pure RN ring
@@ -22,25 +23,7 @@ export default function HomeScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerIconBg}>
-          <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />
-        </View>
-        <Text style={styles.headerTitle}>GigShield</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="notifications-outline" size={24} color={Theme.colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.avatarContainer} onPress={() => setProfileMenuVisible(true)}>
-            <ImageBackground 
-              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }} 
-              style={styles.avatar} 
-              imageStyle={{ borderRadius: 16 }}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
 
       {/* Profile Menu Popup Modal */}
       <Modal visible={profileMenuVisible} transparent animationType="fade" onRequestClose={() => setProfileMenuVisible(false)}>
@@ -187,17 +170,6 @@ export default function HomeScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Theme.colors.surface },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Theme.spacing.lg, paddingTop: Theme.spacing.md, paddingBottom: Theme.spacing.md + 2,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: Theme.colors.border, zIndex: 10
-  },
-  headerIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: `${Theme.colors.primary}15`, alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 14 }] },
-  headerTitle: { flex: 1, marginLeft: 12, ...Theme.typography.h3, color: '#0f172a', fontWeight: '800' as const, transform: [{ translateY: 14 }] },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, transform: [{ translateY: 14 }] },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
-  avatarContainer: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: `${Theme.colors.primary}33`, overflow: 'hidden' },
-  avatar: { width: '100%', height: '100%' },
   container: { paddingBottom: 60 },
   section: { paddingHorizontal: Theme.spacing.lg, paddingTop: Theme.spacing.lg },
 

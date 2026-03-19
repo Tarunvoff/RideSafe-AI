@@ -1,12 +1,12 @@
-import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from 'react';
 import { Theme } from '../theme';
 
+import ClaimsScreen from '../screens/main/ClaimsScreen';
 import HomeScreen from '../screens/main/HomeScreen';
 import PolicyScreen from '../screens/main/PolicyScreen';
 import RiskScreen from '../screens/main/RiskScreen';
-import ClaimsScreen from '../screens/main/ClaimsScreen';
 import WalletScreen from '../screens/main/WalletScreen';
 
 const Tab = createBottomTabNavigator();
@@ -28,13 +28,13 @@ export default function MainTabNavigator() {
         },
         tabBarActiveTintColor: Theme.colors.primary,
         tabBarInactiveTintColor: Theme.colors.textSecondary,
-        headerShown: true,
+        headerShown: false,
         headerTitleAlign: 'center',
       })}
     >
-      <Tab.Screen name="Dashboard" component={HomeScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Risk" component={RiskScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Policy" component={PolicyScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Dashboard" component={HomeScreen} />
+      <Tab.Screen name="Risk" component={RiskScreen} />
+      <Tab.Screen name="Policy" component={PolicyScreen} />
       <Tab.Screen name="Claims" component={ClaimsScreen} />
       <Tab.Screen name="Wallet" component={WalletScreen} />
     </Tab.Navigator>

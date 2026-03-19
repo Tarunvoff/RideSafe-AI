@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ImageBackground, Animated, PanResponder } from 'react-native';
-import { Theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useRef } from 'react';
+import { Animated, ImageBackground, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import MainTopNavbar from '../../components/MainTopNavbar';
+import { Theme } from '../../theme';
 
 export default function PolicyScreen({ navigation }: any) {
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -31,13 +32,7 @@ export default function PolicyScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Activate Policy</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <MainTopNavbar />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
@@ -125,13 +120,6 @@ export default function PolicyScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Theme.spacing.lg, paddingVertical: Theme.spacing.sm,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: Theme.colors.border,
-  },
-  headerIconBtn: { width: 40, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', ...Theme.typography.h3, color: '#0f172a', fontWeight: '800' as const, letterSpacing: -0.5, marginRight: 40 },
   container: { paddingBottom: 32 },
   
   heroSection: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 16, alignItems: 'center' },

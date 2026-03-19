@@ -1,21 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import MainTopNavbar from '../../components/MainTopNavbar';
 import { Theme } from '../../theme';
 // react-native-svg removed — using pure RN ring
 
 export default function RiskScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Risk Assessment</Text>
-        <TouchableOpacity style={styles.headerIconBtn}>
-          <Ionicons name="information-circle-outline" size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-      </View>
+      <MainTopNavbar />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Score Section */}
@@ -110,13 +103,6 @@ export default function RiskScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Theme.colors.surface },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Theme.spacing.lg, paddingVertical: Theme.spacing.md,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: Theme.colors.border,
-  },
-  headerIconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', ...Theme.typography.h3, color: '#0f172a', fontWeight: '800' as const, letterSpacing: -0.5 },
   container: { paddingBottom: 24, backgroundColor: Theme.colors.surface },
   
   heroSection: { padding: 32, alignItems: 'center', backgroundColor: '#fff', marginBottom: 8 },
