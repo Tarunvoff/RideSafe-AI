@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { Theme } from '../theme';
 
+import ChatScreen from '../screens/main/ChatScreen';
 import ClaimsScreen from '../screens/main/ClaimsScreen';
 import HomeScreen from '../screens/main/HomeScreen';
 import PolicyScreen from '../screens/main/PolicyScreen';
@@ -21,6 +22,7 @@ export default function MainTabNavigator() {
           else if (route.name === 'Risk') { iconName = 'scan-outline'; }
           else if (route.name === 'Policy') { iconName = 'document-text-outline'; }
           else if (route.name === 'Claims') { iconName = 'shield-checkmark-outline'; }
+          else if (route.name === 'Chat') { iconName = 'chatbubbles-outline'; }
           else if (route.name === 'Wallet') { iconName = 'wallet-outline'; }
           else { iconName = 'ellipse-outline'; }
 
@@ -36,6 +38,7 @@ export default function MainTabNavigator() {
       <Tab.Screen name="Risk" component={RiskScreen} />
       <Tab.Screen name="Policy" component={PolicyScreen} />
       <Tab.Screen name="Claims" component={ClaimsScreen} />
+      <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Wallet" component={WalletScreen} />
     </Tab.Navigator>
   );
