@@ -1,23 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
+import { ResizeMode, Video } from 'expo-av';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Modal,
-    SafeAreaView,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
 export default function LoginScreen({ navigation }: any) {
   const { login, register } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
+  const [demoVisible, setDemoVisible] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,7 +48,11 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const showDemo = () => {
-    Alert.alert('Watch Demo', 'Demo playback will be connected here.');
+    setDemoVisible(true);
+  };
+
+  const closeDemo = () => {
+    setDemoVisible(false);
   };
 
   const openHelp = () => {
@@ -59,7 +64,26 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <Modal visible={demoVisible} transparent animationType="fade" onRequestClose={closeDemo}>
+        <View style={styles.demoOverlay}>
+          <View style={styles.demoShell}>
+            <TouchableOpacity style={styles.demoClose} onPress={closeDemo}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.demoCard}>
+              <Video
+                style={styles.demoVideo}
+                source={require('../../../assets/videos/demo.mp4')}
+                useNativeControls
+                shouldPlay
+                resizeMode={ResizeMode.CONTAIN}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeAuthModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -118,7 +142,7 @@ export default function LoginScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
         <View style={styles.liveBadgeRow}>
           <View style={styles.liveDot} />
           <Text style={styles.liveBadgeText}>Live Protection Active</Text>
@@ -141,7 +165,7 @@ export default function LoginScreen({ navigation }: any) {
         <View style={styles.quickGrid}>
           <TouchableOpacity style={styles.largeCard} onPress={() => setModalVisible(true)} activeOpacity={0.85}>
             <View style={[styles.cardHeroIconBox, { backgroundColor: `${Theme.colors.primary}15` }]}>
-              <Ionicons name="person" size={54} color={Theme.colors.primary} />
+              <Ionicons name="person" size={52} color={Theme.colors.primary} />
             </View>
             <Text style={styles.cardTitle}>Driver Login</Text>
           </TouchableOpacity>
@@ -152,7 +176,7 @@ export default function LoginScreen({ navigation }: any) {
             activeOpacity={0.85}
           >
             <View style={[styles.cardHeroIconBox, { backgroundColor: '#eef2f7' }]}>
-              <Ionicons name="shield-half" size={54} color="#475569" />
+              <Ionicons name="shield-half" size={52} color="#475569" />
             </View>
             <Text style={styles.cardTitle}>Admin Portal</Text>
           </TouchableOpacity>
@@ -160,7 +184,7 @@ export default function LoginScreen({ navigation }: any) {
           <TouchableOpacity style={styles.wideCard} onPress={() => setModalVisible(true)} activeOpacity={0.85}>
             <View style={styles.wideCardLeft}>
               <View style={styles.wideCardIcon}>
-                <Ionicons name="finger-print" size={22} color={Theme.colors.primary} />
+                <Ionicons name="finger-print" size={20} color={Theme.colors.primary} />
               </View>
               <View>
                 <Text style={styles.wideCardTitle}>Complete KYC</Text>
@@ -169,25 +193,6 @@ export default function LoginScreen({ navigation }: any) {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Theme.colors.textSecondary} />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.valueGrid}>
-          <View style={styles.valueChip}>
-            <Ionicons name="calendar" size={15} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>Weekly Protection</Text>
-          </View>
-          <View style={styles.valueChip}>
-            <Ionicons name="navigate" size={15} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>Hyperlocal Detection</Text>
-          </View>
-          <View style={styles.valueChip}>
-            <Ionicons name="flash" size={15} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>Instant Claims</Text>
-          </View>
-          <View style={styles.valueChip}>
-            <Ionicons name="pulse" size={15} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>AI Monitoring</Text>
-          </View>
         </View>
 
         <TouchableOpacity style={styles.howItWorksStrip} onPress={showDemo} activeOpacity={0.9}>
@@ -206,7 +211,26 @@ export default function LoginScreen({ navigation }: any) {
             <View style={styles.stripLine} />
           </View>
         </TouchableOpacity>
-      </ScrollView>
+
+        <View style={styles.valueGrid}>
+          <View style={styles.valueChip}>
+            <Ionicons name="calendar" size={20} color={Theme.colors.primary} />
+            <Text style={styles.valueChipText}>Weekly Protection</Text>
+          </View>
+          <View style={styles.valueChip}>
+            <Ionicons name="navigate" size={20} color={Theme.colors.primary} />
+            <Text style={styles.valueChipText}>Hyperlocal Detection</Text>
+          </View>
+          <View style={styles.valueChip}>
+            <Ionicons name="flash" size={20} color={Theme.colors.primary} />
+            <Text style={styles.valueChipText}>Instant Claims</Text>
+          </View>
+          <View style={styles.valueChip}>
+            <Ionicons name="pulse" size={20} color={Theme.colors.primary} />
+            <Text style={styles.valueChipText}>AI Monitoring</Text>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -214,14 +238,15 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.sm,
+    paddingTop: Theme.spacing.md,
+    paddingBottom: Theme.spacing.sm,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#edf0f2',
@@ -250,9 +275,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
     paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.xxl,
+    paddingTop: 6,
+    paddingBottom: Theme.spacing.sm,
+    justifyContent: 'space-between',
   },
   liveBadgeRow: {
     alignSelf: 'flex-start',
@@ -263,7 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginBottom: Theme.spacing.lg,
+    marginBottom: 8,
   },
   liveDot: {
     width: 8,
@@ -279,24 +307,24 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroSection: {
-    marginBottom: Theme.spacing.lg,
+    marginBottom: 8,
   },
   heroTitle: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 30,
+    lineHeight: 35,
     fontWeight: '900',
     color: '#0f172a',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   heroSubtitle: {
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 18,
     color: '#64748b',
     maxWidth: 290,
   },
   centerActionWrap: {
     alignItems: 'center',
-    marginBottom: Theme.spacing.xl,
+    marginBottom: 10,
   },
   watchDemoBtn: {
     minWidth: 190,
@@ -318,17 +346,17 @@ const styles = StyleSheet.create({
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: Theme.spacing.xl,
+    gap: 10,
+    marginBottom: 10,
   },
   largeCard: {
     width: '48%',
-    aspectRatio: 1,
+    aspectRatio: 0.8,
     backgroundColor: '#fff',
     borderRadius: Theme.borderRadius.xl,
     borderWidth: 1,
     borderColor: '#edf1f4',
-    padding: 12,
+    padding: 10,
     justifyContent: 'space-between',
   },
   cardHeroIconBox: {
@@ -337,7 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardTitle: {
     fontSize: 13,
@@ -351,7 +379,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#edf1f4',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -362,43 +390,48 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   wideCardIcon: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     backgroundColor: '#dbe8ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   wideCardTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: '#0f172a',
   },
   wideCardSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748b',
     marginTop: 2,
   },
   valueGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: Theme.spacing.xl,
+    gap: 10,
+    minHeight: 176,
+    alignContent: 'space-between',
   },
   valueChip: {
-    width: '48.5%',
+    width: '48.6%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 9,
+    minHeight: 82,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#eef1f3',
+    borderRadius: 12,
+    backgroundColor: '#e9eef2',
+    borderWidth: 1,
+    borderColor: '#dde5ec',
   },
   valueChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#526070',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#445365',
+    flex: 1,
   },
   howItWorksStrip: {
     backgroundColor: '#fff',
@@ -406,14 +439,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#edf1f4',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   stripStepWrap: {
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   stripStepActive: {
     fontSize: 10,
@@ -435,6 +468,38 @@ const styles = StyleSheet.create({
   },
   stripLineActive: {
     backgroundColor: Theme.colors.primary,
+  },
+  demoOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Theme.spacing.lg,
+  },
+  demoShell: {
+    width: '100%',
+    alignItems: 'flex-end',
+  },
+  demoCard: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    maxHeight: '78%',
+    backgroundColor: '#000',
+    borderRadius: Theme.borderRadius.xl,
+    overflow: 'hidden',
+  },
+  demoVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  demoClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   modalOverlay: {
     flex: 1,
