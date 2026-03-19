@@ -189,12 +189,12 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Theme.colors.surface },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Theme.spacing.lg, paddingVertical: Theme.spacing.md,
+    paddingHorizontal: Theme.spacing.lg, paddingTop: Theme.spacing.md, paddingBottom: Theme.spacing.md + 2,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: Theme.colors.border, zIndex: 10
   },
-  headerIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: `${Theme.colors.primary}15`, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, marginLeft: 12, ...Theme.typography.h3, color: '#0f172a', fontWeight: '800' as const },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: `${Theme.colors.primary}15`, alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 14 }] },
+  headerTitle: { flex: 1, marginLeft: 12, ...Theme.typography.h3, color: '#0f172a', fontWeight: '800' as const, transform: [{ translateY: 14 }] },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, transform: [{ translateY: 14 }] },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   avatarContainer: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: `${Theme.colors.primary}33`, overflow: 'hidden' },
   avatar: { width: '100%', height: '100%' },
