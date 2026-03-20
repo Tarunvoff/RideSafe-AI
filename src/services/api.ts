@@ -12,11 +12,11 @@ const getBaseUrl = () => {
   
   // Fallback for Web Simulator if .env is missing
   if (Platform.OS === 'web') {
-    return 'http://localhost:3001/api';
+    return 'https://ridesafe-ai.onrender.com/api';
   }
   
   // Final fallback (Ideally this never happens since we have .env)
-  return 'http://127.0.0.1:3001/api';
+  return 'https://ridesafe-ai.onrender.com/api';
 };
 
 const BASE_URL = getBaseUrl();
