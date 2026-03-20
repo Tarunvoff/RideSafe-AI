@@ -1,0 +1,22 @@
+import { Controller, Get, HttpCode, HttpStatus, Request, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlansService } from './plans.service';
+
+@Controller('plans')
+export class PlansController {
+  constructor(private readonly plansService: PlansService) {}
+
+  @Get('weekly')
+  @HttpCode(HttpStatus.OK)
+  getWeeklyPlans() {
+    return this.plansService.getWeeklyPlans();
+  }
+
+  @Get('me/purchased')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  getPurchased(@Request() req: any) {
+    return this.plansService.getPurchasedPolicies(req.user.id);
+  }
+}
+

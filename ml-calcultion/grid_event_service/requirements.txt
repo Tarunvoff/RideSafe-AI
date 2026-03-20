@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+redis
+h3>=4.1.0
+apscheduler
+pydantic
+pydantic-settings
+requests
