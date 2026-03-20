@@ -14,8 +14,12 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for the mobile app
-  app.enableCors({ origin: '*' });
+  // Enable CORS for the mobile app and web frontend
+  app.enableCors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   // Global prefix
   app.setGlobalPrefix('api');
