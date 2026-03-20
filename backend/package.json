@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "GigShield NestJS backend - Auth + KYC",
   "scripts": {
-    "build": "npx nest build",
-    "start": "npx nest start",
+    "build": "tsc",
+    "start": "node dist/main",
     "start:dev": "npx nest start --watch",
     "start:debug": "npx nest start --debug --watch",
     "start:prod": "node dist/main",
