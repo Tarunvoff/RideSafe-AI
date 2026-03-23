@@ -1,4 +1,4 @@
-# Aegis
+# RideSafe
 
 **AI-Powered Parametric Income Insurance for India's Gig Delivery Workers**
 
@@ -8,9 +8,7 @@ Automatic, trigger-based income protection for Zepto, Blinkit, and Swiggy Instam
 
 ## Demo
 
-**Live Dashboard:** [aegis-alpha-ebon.vercel.app](https://aegis-alpha-ebon.vercel.app)
-
-[![Aegis Demo](https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](#)
+[![RideSafe Demo](https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](#)
 
 > 📹 _Demo video coming soon — end-to-end flow: rider onboarding → zone HALTED → automatic payout disbursed._
 
@@ -80,7 +78,7 @@ The problem is not the absence of insurance — it is the absence of a system th
 
 **Primary Research Findings** — every design decision traces back to what riders told us.
 
-| Pain Point                           | Frequency | Aegis Response                                                                      |
+| Pain Point                           | Frequency | RideSafe Response                                                                    |
 | ------------------------------------ | --------- | ------------------------------------------------------------------------------------ |
 | Zero compensation during disruptions | 9 in 10   | Parametric payout fires automatically at threshold                                   |
 | No advance warning of zone risk      | 8 in 10   | Live zone state visible in app                                                       |
@@ -88,7 +86,7 @@ The problem is not the absence of insurance — it is the absence of a system th
 | Fear of GPS detection hurting income | 6 in 10   | Fraud scoring at mock OAuth onboarding only — silent, never during active operations |
 | Premium affordability                | 9 in 10   | Earnings-proportional — low earners in safe zones pay less                           |
 
-**Key insight:** Riders don't want to file claims. They want the money before the crisis deepens. This is why Aegis is parametric.
+**Key insight:** Riders don't want to file claims. They want the money before the crisis deepens. This is why RideSafe is parametric.
 
 ---
 
@@ -249,7 +247,7 @@ Polyglot microservices — NestJS core for identity/policy/orchestration, Python
 
 Standard geo-boundaries (pincodes, wards) fail for hyper-local insurance — too coarse, irregular shapes, no hierarchy. A Bengaluru pincode covers 3–8 km²; a cloudburst that floods one street and leaves another dry 2 km away would misfire payouts for thousands of riders.
 
-H3 divides the earth into equal-area hexagonal cells. Aegis operates at **resolution 8 (~0.46 km²)** — matching a delivery rider's natural operating cluster.
+H3 divides the earth into equal-area hexagonal cells. RideSafe operates at **resolution 8 (~0.46 km²)** — matching a delivery rider's natural operating cluster.
 
 | H3 Property                                    | What it enables                                                                                         |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -289,7 +287,7 @@ Resolution 8 is what Uber uses in production for surge pricing and driver dispat
 
 ### 1. Worker Onboarding — Zero-Type (Simulated Platform OAuth)
 
-Standard KYC flows have an 85% drop-off rate. Aegis eliminates manual data entry entirely via **simulated platform OAuth** — mocking the Zepto/Blinkit/Swiggy identity and earnings API for the hackathon prototype.
+Standard KYC flows have an 85% drop-off rate. RideSafe eliminates manual data entry entirely via **simulated platform OAuth** — mocking the Zepto/Blinkit/Swiggy identity and earnings API for the hackathon prototype.
 
 ![Worker Onboarding Flow](./docs/kyc-flow.png)
 
@@ -427,7 +425,7 @@ All models versioned via **MLflow**, served via **BentoML**, retrained weekly fr
 ## Adversarial Defense & Anti-Spoofing
 
 > _500 accounts. Coordinated GPS fakes. A liquidity pool draining in real time._
-> _This is how Aegis fights back — and why honest workers are never caught in the crossfire._
+> _This is how RideSafe fights back — and why honest workers are never caught in the crossfire._
 
 A fraud ring doesn't look like one bad actor. It looks like 50–500 accounts sharing the same infrastructure, all clustered in the same H3 cell the moment HALTED triggers, GPS coordinates identical or grid-snapped, payout requests arriving in a synchronised burst. Each account looks clean in isolation. The ring only becomes visible through the graph.
 
@@ -480,7 +478,7 @@ Last H3 ping in Koramangala 8 minutes ago, now claiming Andheri — physically i
 | Volume flooding        | Statistical volume anomaly per H3 cell      | Batch hold, human review          |
 | Bot-speed filing       | Timestamp Poisson test                      | Batch flagged                     |
 
-> **Bottom line:** Defeating Aegis requires simultaneously simulating GPS, physics, H3 zone history, behaviour, and social graph in real time. Not economically viable for a fraud operation targeting weekly payouts.
+> **Bottom line:** Defeating RideSafe requires simultaneously simulating GPS, physics, H3 zone history, behaviour, and social graph in real time. Not economically viable for a fraud operation targeting weekly payouts.
 
 ---
 
@@ -493,7 +491,7 @@ Last H3 ping in Koramangala 8 minutes ago, now claiming Andheri — physically i
 ### Clone
 
 ```bash
-git clone https://github.com/your-username/aegis.git && cd aegis
+git clone https://github.com/your-username/ridesafe.git && cd ridesafe
 ```
 
 ### Environment Variables
@@ -503,8 +501,8 @@ cp backend/.env.example backend/.env
 ```
 
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/aegis"
-MONGODB_URI="mongodb://localhost:27017/aegis"
+DATABASE_URL="postgresql://user:password@localhost:5432/ridesafe"
+MONGODB_URI="mongodb://localhost:27017/ridesafe"
 REDIS_URL="redis://localhost:6379"
 KAFKA_BROKER="localhost:9092"
 JWT_SECRET="your-super-secret-key-min-32-chars"
