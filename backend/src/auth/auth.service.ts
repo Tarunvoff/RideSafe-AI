@@ -143,7 +143,21 @@ export class AuthService {
   }
 
   // ── REFRESH TOKEN ────────────────────────────────────────────────────────
-  async refresh(userId: string, incomingToken: string) {
+  async refresh(incomingToken: string) {
+    // Decode refresh token to get user id.
+    const refreshSecret = process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET;
+    if (!refreshSecret) throw new UnauthorizedException('Missing refresh secret');
+
+    let payload: any;
+    try {
+      payload = await this.jwt.verifyAsync(incomingToken, { secret: refreshSecret });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const userId: string | undefined = payload?.sub;
+    if (!userId) throw new UnauthorizedException('Invalid refresh token');
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user?.refreshToken) throw new UnauthorizedException('No active session');
 

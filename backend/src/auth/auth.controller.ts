@@ -43,9 +43,10 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  refresh(@Request() req: any, @Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(req.user.id, dto.refreshToken);
+  refresh(@Body() dto: RefreshTokenDto) {
+    // Refresh token itself is enough to authenticate this endpoint.
+    // This keeps refresh working even when the access token expires.
+    return this.authService.refresh(dto.refreshToken);
   }
 
   @Post('logout')

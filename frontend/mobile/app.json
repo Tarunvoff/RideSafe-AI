@@ -1,41 +1,52 @@
 {
   "expo": {
-    "entryPoint": "./index.js",
-    "name": "Blink Insurance",
-    "slug": "blink-insurance",
+    "name": "RideSafe",
+    "slug": "aegis",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F0C29"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "icon": "./assets/images/ProductLogo.png",
+    "scheme": "ridesafe",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.blink.insurance"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F0C29"
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/ProductLogo.png"
       },
-      "package": "com.blink.insurance",
-      "softwareKeyboardLayoutMode": "pan"
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sriram018.RideSafe"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "output": "static",
+      "favicon": "./assets/images/ProductLogo.png"
     },
     "plugins": [
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0F0C29",
-          "resizeMode": "contain"
+          "image": "./assets/images/ProductLogo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
         }
       ]
-    ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "00c6b1b6-fdbc-41ec-8d9c-1a7090cf6910"
+      }
+    },
+    "owner": "sriram_vk"
   }
 }

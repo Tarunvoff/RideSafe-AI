@@ -26,13 +26,15 @@ echo.
 
 :: 2. Setup Frontend .env dynamically
 echo 🔧 Updating Mobile App configuration...
-if exist ".env" (
-    findstr /v "EXPO_PUBLIC_API_URL" ".env" > ".env.tmp"
+set "FRONTEND_ENV_FILE=frontend\mobile\.env"
+set "FRONTEND_ENV_TMP_FILE=frontend\mobile\.env.tmp"
+if exist "%FRONTEND_ENV_FILE%" (
+    findstr /v "EXPO_PUBLIC_API_URL" "%FRONTEND_ENV_FILE%" > "%FRONTEND_ENV_TMP_FILE%"
 ) else (
-    echo. > ".env.tmp"
+    echo. > "%FRONTEND_ENV_TMP_FILE%"
 )
-echo EXPO_PUBLIC_API_URL=http://%LOCAL_IP%:3001/api >> ".env.tmp"
-move /y ".env.tmp" ".env" >nul
+echo EXPO_PUBLIC_API_URL=http://%LOCAL_IP%:3001/api >> "%FRONTEND_ENV_TMP_FILE%"
+move /y "%FRONTEND_ENV_TMP_FILE%" "%FRONTEND_ENV_FILE%" >nul
 
 echo ✅ React Native set to connect to: http://%LOCAL_IP%:3001/api
 echo.
@@ -49,6 +51,8 @@ if not exist "node_modules\" (
 echo 🔗 Synchronizing Prisma Database Schema...
 call npx prisma db push --accept-data-loss
 call npx prisma generate
+echo 🌱 Seeding weekly plans and disruption events...
+call npx prisma db seed
 echo ✅ Database is ready!
 echo.
 
@@ -57,12 +61,13 @@ echo 🔥 Starting Backend Servers...
 
 echo 🖥️ Starting NestJS Backend Server in a new window...
 :: Starts backend in a separate terminal window so we can run expo in this one
-start "GigShield NestJS Backend" cmd /c "npm run start:dev"
+start "Aegis NestJS Backend" cmd /c "npm run start:dev"
 
 echo ⏳ Waiting for backend to initialize...
 timeout /t 3 /nobreak >nul
 
 cd ..
+cd frontend\mobile
 
 if not exist "node_modules\" (
     echo 📦 Installing frontend dependencies...

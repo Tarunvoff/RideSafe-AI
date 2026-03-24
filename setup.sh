@@ -40,9 +40,13 @@ cd ../..
 
 echo ""
 echo "🌐 Installing web app (frontend/web)..."
-cd frontend/web
-npm install
-cd ../..
+if [ -d "frontend/web" ]; then
+  cd frontend/web
+  npm install
+  cd ../..
+else
+  echo "⚠️  frontend/web not found; skipping web app install."
+fi
 
 echo ""
 echo "========================================"
@@ -52,12 +56,11 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "1. Configure environment variables:"
-echo "   cp .env.example .env"
+echo "   cd frontend/mobile && cp .env.example .env"
 echo ""
 echo "2. Start development servers:"
-echo "   - Mobile app:  npm run dev:mobile"
-echo "   - Web app:     npm run dev:web"
-echo "   - Both:        npm run dev:all"
+echo "   - Mobile app:  cd frontend/mobile && npm start"
+echo "   - Web app:     (skipped unless you add frontend/web)"
 echo ""
 echo "3. Read WORKSPACE.md for detailed instructions"
 echo ""

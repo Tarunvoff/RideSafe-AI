@@ -48,6 +48,7 @@ model User {
   kycPayoutSetup        KYCPayoutSetup?
   fraudAnalysis         FraudAnalysis?
   policies              Policy[]
+  razorpayOrders       RazorpayOrder[]
 
   @@map("users")
 }
@@ -143,17 +144,107 @@ model FraudAnalysis {
   @@map("fraud_analysis")
 }
 
+model WeeklyPlan {
+  id                     String   @id @default(uuid())
+  key                    String   @unique
+  name                   String
+  price                  Float
+  maxPayout              Float    @default(0)
+  durationDays          Int      @default(7)
+  eligibleDisruptionTypes String[] @default([])
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  policies               Policy[]
+  razorpayOrders         RazorpayOrder[]
+
+  @@map("weekly_plans")
+}
+
+model DisruptionEvent {
+  id           String   @id @default(uuid())
+  type         String
+  title        String
+  expectedLoss Float?
+  expectedPayout Float?
+  occurredAt   DateTime @default(now())
+  expiresAt    DateTime?
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  payouts      Payout[]
+
+  @@map("disruption_events")
+}
+
 model Policy {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planType    String
-  status      String   @default("ACTIVE")
-  premium     Float
-  startDate   DateTime
-  endDate     DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Keeps backward compatibility with any existing UI/data that refers to planType.
+  planType     String
+  status       String   @default("ACTIVE")
+  premium      Float
+  startDate    DateTime
+  endDate      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  weeklyPlanId String?
+  weeklyPlan   WeeklyPlan? @relation(fields: [weeklyPlanId], references: [id], onDelete: SetNull)
+
+  payouts      Payout[]
 
   @@map("policies")
+}
+
+model Payout {
+  id String @id @default(uuid())
+
+  policyId           String
+  disruptionEventId String
+
+  policy            Policy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  disruptionEvent  DisruptionEvent  @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
+
+  status           String  @default("PROCESSING") // PROCESSING | APPROVED | REJECTED
+  estimatedLoss   Float?  @default(0)
+  approvedPayout  Float?  @default(0)
+  transactionId   String?
+  paymentMethod   String?
+  processingTime  String?
+
+  // Optional timeline for UI.
+  timeline         Json?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([policyId, disruptionEventId])
+  @@map("payouts")
+}
+
+model RazorpayOrder {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  weeklyPlanId String
+  weeklyPlan   WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+
+  razorpayOrderId String @unique
+  amount Int
+  currency String @default("INR")
+
+  status String @default("CREATED") // CREATED | SUCCESS | FAILED
+
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("razorpay_orders")
 }

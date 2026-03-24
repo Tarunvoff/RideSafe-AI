@@ -24,7 +24,12 @@ echo -e "${GREEN}🌐 Found Local IP: $LOCAL_IP${NC}\n"
 
 # 2. Setup Frontend .env dynamically
 echo -e "${YELLOW}🔧 Updating Mobile App configuration...${NC}"
-ENV_FILE=".env"
+FRONTEND_DIR="frontend/mobile"
+ENV_FILE="${FRONTEND_DIR}/.env"
+
+if [ ! -d "$FRONTEND_DIR" ]; then
+    mkdir -p "$FRONTEND_DIR"
+fi
 if [ ! -f "$ENV_FILE" ]; then
     touch "$ENV_FILE"
 fi
@@ -74,6 +79,7 @@ sleep 3
 # Go back to root and start frontend in foreground
 cd ..
 
+cd frontend/mobile
 if [ ! -d "node_modules" ]; then
     echo -e "📦 Installing frontend dependencies..."
     npm install

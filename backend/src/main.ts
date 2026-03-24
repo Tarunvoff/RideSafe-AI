@@ -19,6 +19,7 @@ async function bootstrap() {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false,
   });
 
   // Global prefix
@@ -26,7 +27,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
-  console.log(`✅ GigShield NestJS API running on http://0.0.0.0:${port}/api`);
+  console.log(`✅ Aegis NestJS API running on http://0.0.0.0:${port}/api`);
 }
 
 bootstrap();

@@ -37,7 +37,7 @@ export class EmailService {
       html: `
         <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f5f7f8;border-radius:12px">
           <div style="text-align:center;margin-bottom:24px">
-            <span style="font-size:28px;font-weight:900;color:#0d6cf2">GigShield</span>
+            <span style="font-size:28px;font-weight:900;color:#16a34a">Aegis</span>
           </div>
           <div style="background:#fff;border-radius:10px;padding:28px">
             <p style="color:#334155;margin:0 0 16px">${intros[purpose]}</p>
@@ -46,7 +46,7 @@ export class EmailService {
             </div>
             <p style="color:#64748b;font-size:13px;margin:16px 0 0">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
           </div>
-          <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:24px">© ${new Date().getFullYear()} GigShield. All rights reserved.</p>
+          <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:24px">© ${new Date().getFullYear()} Aegis. All rights reserved.</p>
         </div>
       `,
     });

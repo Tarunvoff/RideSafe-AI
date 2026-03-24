@@ -5,6 +5,8 @@ import { EmailModule } from './email/email.module';
 import { FraudModule } from './fraud/fraud.module';
 import { KycModule } from './kyc/kyc.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PlansModule } from './plans/plans.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     KycModule,
     FraudModule,
+    PlansModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
