@@ -25,7 +25,7 @@ import MainTabNavigator from './MainTabNavigator';
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
-  const { user, isLoading, isAuthenticated, kycStatus } = useAuth();
+  const { user, isLoading, isAuthenticated, kycStatus, isNewRegistration } = useAuth();
 
   if (isLoading) {
     return (
@@ -73,7 +73,6 @@ export default function AppNavigator() {
 
   // LOGGED IN DRIVER - Check KYC Status
   if (user?.role === 'DRIVER') {
-    const { isNewRegistration } = useAuth();
     
     // KYC NOT COMPLETED - Show KYC Flow (ONLY for first time people registering!)
     if (isNewRegistration && kycStatus && ['NOT_STARTED', 'IN_PROGRESS'].includes(kycStatus)) {

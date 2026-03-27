@@ -16,7 +16,7 @@ interface AuthContextType {
   kycStatus: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (email: string, password: string, phone?: string) => Promise<void>;
+  register: (email: string, password: string, phone?: string, skipKyc?: boolean) => Promise<void>;
   verifyOtp: (email: string, otp: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   adminVerifyOtp: (email: string, otp: string) => Promise<void>;
@@ -64,9 +64,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const register = async (email: string, password: string, phone?: string) => {
+  const register = async (email: string, password: string, phone?: string, skipKyc = false) => {
     await authApi.register(email, password, phone);
-    setIsNewRegistration(true);
+    setIsNewRegistration(!skipKyc);
     // Auto-login immediately after registration (no OTP required)
     await login(email, password);
   };

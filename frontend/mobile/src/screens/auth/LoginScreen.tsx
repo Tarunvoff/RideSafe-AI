@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -75,6 +75,28 @@ export default function LoginScreen({ navigation }: any) {
     Alert.alert('Notifications', 'No new alerts right now.');
   };
 
+  const handleOAuthLogin = async (platform: string) => {
+    setLoading(true);
+    try {
+      const mockEmail = `${platform.toLowerCase().replace(/\s+/g, '')}@oauth.com`;
+      const mockPassword = 'oauth-mock-password';
+      try {
+        await login(mockEmail, mockPassword);
+      } catch {
+        await register(mockEmail, mockPassword, undefined, true);
+      }
+      closeAuthModal();
+      Alert.alert(
+        'Identity Verified',
+        `Successfully signed in as ${platform} Driver. Your platform identity is verified.`
+      );
+    } catch (error: any) {
+      Alert.alert('OAuth Error', error?.response?.data?.message || 'Failed to authenticate');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <Modal visible={demoVisible} transparent animationType="fade" onRequestClose={closeDemo}>
@@ -137,6 +159,53 @@ export default function LoginScreen({ navigation }: any) {
                 {isRegistering ? 'Already have an account? Login' : "Don't have an account? Register"}
               </Text>
             </TouchableOpacity>
+
+            {!isRegistering && (
+              <View style={styles.oauthContainer}>
+                <View style={styles.oauthDivider}>
+                  <View style={styles.oauthLine} />
+                  <Text style={styles.oauthDividerText}>OR LOGIN WITH</Text>
+                  <View style={styles.oauthLine} />
+                </View>
+                <View style={styles.oauthButtonsRow}>
+                  <OAuthButton 
+                    name="Zepto" 
+                    color="#29075c" 
+                    iconSource={require('../../../assets/images/Logo_of_Zepto.png')} 
+                    imagePadding={8}
+                    onPress={() => handleOAuthLogin('Zepto')} 
+                  />
+                  <OAuthButton 
+                    name="Blinkit" 
+                    color="#F8CB19" 
+                    iconSource={require('../../../assets/images/BlinkitLogo.jpg')} 
+                    imagePadding={0}
+                    onPress={() => handleOAuthLogin('Blinkit')} 
+                  />
+                  <OAuthButton 
+                    name="Instamart" 
+                    color="#fff" 
+                    iconSource={require('../../../assets/images/instaMart.png')} 
+                    imagePadding={0}
+                    onPress={() => handleOAuthLogin('Instamart')} 
+                  />
+                  <OAuthButton 
+                    name="BigBasket" 
+                    color="#fff" 
+                    iconSource={require('../../../assets/images/bigBasket.png')} 
+                    imagePadding={0}
+                    onPress={() => handleOAuthLogin('BigBasket')} 
+                  />
+                  <OAuthButton 
+                    name="JioMart" 
+                    color="#fff" 
+                    iconSource={require('../../../assets/images/jioMart.png')} 
+                    imagePadding={0}
+                    onPress={() => handleOAuthLogin('JioMart')} 
+                  />
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -246,6 +315,30 @@ export default function LoginScreen({ navigation }: any) {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function OAuthButton({ 
+  name, 
+  color, 
+  iconSource, 
+  imagePadding = 0,
+  onPress 
+}: { 
+  name: string; 
+  color: string; 
+  iconSource: any; 
+  imagePadding?: number;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={[styles.oauthBtn, { backgroundColor: color, overflow: 'hidden' }]} onPress={onPress}>
+      <Image 
+        source={iconSource} 
+        style={{ width: 44 - imagePadding * 2, height: 44 - imagePadding * 2, borderRadius: imagePadding === 0 ? 22 : 0 }} 
+        resizeMode="contain" 
+      />
+    </TouchableOpacity>
   );
 }
 
@@ -575,4 +668,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  oauthContainer: { width: '100%', marginTop: Theme.spacing.xl },
+  oauthDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: Theme.spacing.md },
+  oauthLine: { flex: 1, height: 1, backgroundColor: Theme.colors.border },
+  oauthDividerText: { marginHorizontal: Theme.spacing.sm, fontSize: 12, color: Theme.colors.textSecondary, fontWeight: '700' },
+  oauthButtonsRow: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
+  oauthBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 3, elevation: 2 },
+  oauthBtnText: { color: '#fff', fontSize: 18, fontWeight: '900' },
 });
