@@ -1,0 +1,40 @@
+"""
+config.py — Central constants for H3 Feature Aggregation Service.
+Incorporates settings from the existing ml_microservice integrations.
+"""
+
+# ── Cache ──────────────────────────────────────────────────────────────────────
+CACHE_TTL_SECONDS = 600          # 10 minutes — matches data freshness SLA
+
+# ── H3 / Geospatial ───────────────────────────────────────────────────────────
+H3_RESOLUTION = 8
+
+# ── Open-Meteo (weather, no API key required) ─────────────────────────────────
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+WEATHER_TIMEOUT_SEC = 8.0
+
+# ── OpenAQ v3 (AQI — with API key, from existing ml_microservice) ─────────────
+OPENAQ_API_KEY     = "fb82692a1fd60143d77981ad7046fae366ffec526693544714f1ed2c94e5f22d"
+OPENAQ_LOCATIONS   = "https://api.openaq.org/v3/locations"
+OPENAQ_SENSORS_URL = "https://api.openaq.org/v3/sensors/{sensor_id}/measurements"
+AQI_TIMEOUT_SEC    = 8.0
+AQI_SEARCH_RADII   = [10000, 25000, 50000]  # Progressive radius search (metres)
+AQI_MAX_SENSORS_PER_TYPE = 4                 # Cap HTTP calls per parameter type
+
+# ── Civic Alert (News API) ─────────────────────────────────────────────────────
+NEWSAPI_KEY = "demo_key"   # Replace with real key in production
+NEWSAPI_URL = "https://newsapi.org/v2/everything"
+
+# ── Safe defaults (returned when APIs fail AND no cache exists) ───────────────
+DEFAULT_RAINFALL      = 0.0
+DEFAULT_TEMPERATURE   = 30.0
+DEFAULT_HUMIDITY      = 65.0
+DEFAULT_AQI           = 80.0
+DEFAULT_PM25          = 30.0
+DEFAULT_PM10          = 45.0
+DEFAULT_DEMAND_RATIO  = 0.5
+DEFAULT_HISTORICAL_RISK = 0.4
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
+HTTP_CONNECT_TIMEOUT = 5.0
+HTTP_READ_TIMEOUT    = 10.0
