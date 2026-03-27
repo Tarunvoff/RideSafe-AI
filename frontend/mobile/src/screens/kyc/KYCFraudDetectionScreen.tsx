@@ -384,9 +384,13 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={SLATE_900} />
-        </TouchableOpacity>
+        {navigation.canGoBack() ? (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color={SLATE_900} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
         <View>
           <Text style={styles.headerTitle}>Fraud Detection System</Text>
           <Text style={styles.headerSub}>GPS Spoofing Analysis</Text>

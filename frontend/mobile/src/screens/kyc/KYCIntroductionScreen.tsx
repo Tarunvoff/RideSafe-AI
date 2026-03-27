@@ -3,12 +3,24 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } fr
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
 import Button from '../../components/Button';
+import { useAuth } from '../../context/AuthContext';
 
 export default function KYCIntroductionScreen({ navigation }: any) {
+  const { logout } = useAuth();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              logout();
+            }
+          }}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>KYC Verification</Text>
@@ -83,7 +95,7 @@ export default function KYCIntroductionScreen({ navigation }: any) {
           title="Start KYC" 
           onPress={() => navigation.navigate('KYCBasicIdentity')} 
         />
-        <TouchableOpacity style={styles.secondaryButton}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => logout()}>
           <Text style={styles.secondaryButtonText}>Continue later</Text>
         </TouchableOpacity>
       </View>

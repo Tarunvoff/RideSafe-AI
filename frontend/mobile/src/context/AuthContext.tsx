@@ -12,6 +12,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isNewRegistration: boolean;
   kycStatus: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isNewRegistration, setIsNewRegistration] = useState(false);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
 
   // Restore session on app start
@@ -64,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (email: string, password: string, phone?: string) => {
     await authApi.register(email, password, phone);
+    setIsNewRegistration(true);
     // Auto-login immediately after registration (no OTP required)
     await login(email, password);
   };
@@ -82,6 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
+    // For manual logins, reset the new registration flag just in case
+    // setIsNewRegistration(false); // Only set if not already set by register() within this session
     const res = await authApi.login(email, password) as any;
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
@@ -114,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId']);
     setUser(null);
     setKycStatus(null);
+    setIsNewRegistration(false);
   };
 
   const adminLogin = async (email: string, password: string) => {
@@ -154,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
+        isNewRegistration,
         kycStatus,
         login,
         logout,

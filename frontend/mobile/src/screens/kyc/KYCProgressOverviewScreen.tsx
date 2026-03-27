@@ -3,11 +3,14 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } fr
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
 import Button from '../../components/Button';
+import { useAuth } from '../../context/AuthContext';
 
 const STEP_STATUS_CURRENT = 'current' as const;
 const STEP_STATUS_PENDING = 'pending' as const;
 
 export default function KYCProgressOverviewScreen({ navigation }: any) {
+  const { logout } = useAuth();
+
   const steps = [
     { title: 'Personal Details', desc: 'Full name, DOB, and contact', icon: 'person' as const, status: STEP_STATUS_CURRENT },
     { title: 'Residential Address', desc: 'Current proof of residence', icon: 'location' as const, status: 'pending' },
@@ -20,9 +23,15 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
+        {navigation.canGoBack() ? (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => logout()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>Verification Progress</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -82,7 +91,7 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
         <Button 
           title="Save and continue later" 
           variant="outline"
-          onPress={() => navigation.goBack()} 
+          onPress={() => { if (navigation.canGoBack()) navigation.goBack(); else logout(); }} 
           style={{ marginTop: Theme.spacing.sm, borderWidth: 2 }}
         />
       </View>

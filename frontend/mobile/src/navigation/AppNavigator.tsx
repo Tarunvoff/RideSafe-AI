@@ -73,8 +73,10 @@ export default function AppNavigator() {
 
   // LOGGED IN DRIVER - Check KYC Status
   if (user?.role === 'DRIVER') {
-    // KYC NOT COMPLETED - Show KYC Flow  
-    if (kycStatus && ['NOT_STARTED', 'IN_PROGRESS'].includes(kycStatus)) {
+    const { isNewRegistration } = useAuth();
+    
+    // KYC NOT COMPLETED - Show KYC Flow (ONLY for first time people registering!)
+    if (isNewRegistration && kycStatus && ['NOT_STARTED', 'IN_PROGRESS'].includes(kycStatus)) {
       return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen
