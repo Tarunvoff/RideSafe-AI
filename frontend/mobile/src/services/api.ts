@@ -196,6 +196,14 @@ export const fraudApi = {
       analysis: any;
     }>('/fraud/status', {}, true),
 
+  getZoneRisk: (lat: number, lng: number) =>
+    request<{
+      h3_cell: string;
+      state: string;
+      active_riders: number;
+      lf_score: number;
+    }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`, {}, true),
+
   // ── ADMIN ENDPOINTS ──────────────────────────────────────────────────────
   getSubmissions: () =>
     request<{
