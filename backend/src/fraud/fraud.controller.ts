@@ -17,7 +17,7 @@ export class FraudController {
 
   @Post('analyze')
   @HttpCode(HttpStatus.OK)
-  async analyzeFraud(@Request() req: any, @Body() dto: AnalyzeFraudDto) {
+  async analyzeFraud(@Request() req: any, @Body() dto: AnalyzeFraudDto): Promise<any> {
     const result = await this.fraudService.analyzeFraud(req.user.id, dto);
 
     this.kafkaProducerService
