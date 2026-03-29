@@ -11,11 +11,6 @@ def calculate_premium(request: PricingRequest) -> PricingResponse:
     Ct = request.Ct
     M  = request.M
 
-    # ── FIX #3: LightGBM margin back-calculation (exact formula) ─────────────
-    # predicted_premium = model.predict(X)
-    # M = (predicted_premium / (Ew × α × Lf × Ct)) - 1
-    # M = clamp(M, 0.08, 0.15)
-    # ──────────────────────────────────────────────────────────────────────────
     if model_loader.price_model:
         # Use DataFrame to avoid LGBMRegressor warning about valid feature names
         features = pd.DataFrame([{
@@ -30,19 +25,23 @@ def calculate_premium(request: PricingRequest) -> PricingResponse:
             suggested_M = (predicted_premium / base) - 1.0
             M = max(MARGIN_MIN, min(MARGIN_MAX, suggested_M))
 
-    # ── FIX #4: Premium formula + floor logic (exact sequence) ───────────────
+    # Zone Multiplier = f(demand_ratio, zone_volatility)
+    # Higher demand and higher volatility -> higher risk -> higher premium
+    zone_multiplier = 1.0 + (request.demand_ratio - 1.0) * 0.1 + (request.zone_volatility * 0.2)
+    zone_multiplier = max(0.8, min(2.0, zone_multiplier)) # Cap multiplier
+
+    # Premium formula = Ew × 0.015 × Lf × Ct × (1 + M) × zone_multiplier
     # Step 1: compute premium
-    premium = Ew * ALPHA * Lf * Ct * (1.0 + M)
+    premium = Ew * ALPHA * Lf * Ct * (1.0 + M) * zone_multiplier
 
     # Step 2: if below floor → dynamically scale Ct and enforce floor
     if premium < MIN_PREMIUM:
-        denom = Ew * ALPHA * Lf * (1.0 + M)
+        denom = Ew * ALPHA * Lf * (1.0 + M) * zone_multiplier
         if denom > 0:
             Ct = MIN_PREMIUM / denom
         premium = MIN_PREMIUM
 
     # Step 3: hard ceiling cap
     premium = min(premium, MAX_PREMIUM)
-    # ──────────────────────────────────────────────────────────────────────────
 
-    return PricingResponse(premium=round(premium, 2))
+    return PricingResponse(premium=round(premium, 2), zone_multiplier=round(zone_multiplier, 3))

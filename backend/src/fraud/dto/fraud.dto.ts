@@ -1,23 +1,42 @@
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class AnalyzeFraudDto {
+  // ── GPS coordinates (required) ────────────────────────────────────────────
   @IsNumber()
   gpsLatitude: number;
 
   @IsNumber()
   gpsLongitude: number;
 
+  // ── Real-time fields forwarded to Python fraud-feature-service ────────────
   @IsOptional()
   @IsString()
-  deviceIntegrity?: string;
+  deviceId?: string;       // Current device ID from mobile app
 
   @IsOptional()
   @IsString()
-  networkType?: string;
+  upiId?: string;          // Linked UPI / payment identity
+
+  @IsOptional()
+  @IsNumber()
+  claimAmount?: number;    // Claim amount in ₹ (0 if not a claim event)
 
   @IsOptional()
   @IsString()
-  velocityCheck?: string;
+  eventType?: string;      // e.g. ZONE_HALTED, GPS_PING, CLAIM_SUBMITTED
+
+  // ── Legacy device / network fields (kept for heuristic fallback) ──────────
+  @IsOptional()
+  @IsString()
+  deviceIntegrity?: string; // 'Rooted Device' | 'Jailbroken Device' | null
+
+  @IsOptional()
+  @IsString()
+  networkType?: string;     // 'Premium VPN' | 'Proxy' | null
+
+  @IsOptional()
+  @IsString()
+  velocityCheck?: string;   // 'Suspicious' | null
 }
 
 export class ReviewFraudDto {

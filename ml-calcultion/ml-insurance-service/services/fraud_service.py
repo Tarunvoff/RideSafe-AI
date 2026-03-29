@@ -43,6 +43,11 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
         features_if = np.array([[speed, claims_rate, float(mismatch), velocity_z]])
         raw_score   = model_loader.fraud_anomaly_model.decision_function(features_if)[0]
         anomaly_score = _normalize_anomaly_score(raw_score)
+        
+        # H3 Adjustment: adjust anomaly score based on zone consistency
+        h3_consistency = request.gps.h3_zone_consistency if request.gps.h3_zone_consistency is not None else 1.0
+        # Lower consistency means higher anomaly
+        anomaly_score = min(1.0, anomaly_score + (1.0 - h3_consistency) * 0.3)
     else:
         anomaly_score = 0.0
 
@@ -67,6 +72,10 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
 
     if filed > FRAUD_RULE_CLAIM_FLOOD_LIMIT:
         rule_score += 0.2   # Claim flooding pattern
+        
+    # H3 History rule
+    if request.history.has_history_in_zone is False:
+        rule_score += 0.3 # Strong signal: user is claiming in a zone they've never been
 
     rule_score = min(1.0, rule_score)
 
