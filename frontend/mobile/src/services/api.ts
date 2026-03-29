@@ -301,7 +301,7 @@ export type PurchasedPlansResponse = {
 export const plansApi = {
   // Public weekly subscription catalog (timestamp ensures fresh fetch from DB)
   getWeeklyPlans: () =>
-    request<WeeklyPlan[]>(`/plans/weekly?_t=${Date.now()}`, {}),
+    request<WeeklyPlan[]>(`/plans/weekly?_t=${Date.now()}`, {}, true),
 
   // Driver's active bought plans + disruption-based payout eligibility
   getPurchasedPlans: () =>

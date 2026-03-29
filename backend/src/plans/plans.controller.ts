@@ -7,9 +7,10 @@ export class PlansController {
   constructor(private readonly plansService: PlansService) {}
 
   @Get('weekly')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  getWeeklyPlans() {
-    return this.plansService.getWeeklyPlans();
+  getWeeklyPlans(@Request() req: any) {
+    return this.plansService.getWeeklyPlans(req.user.id);
   }
 
   @Get('me/purchased')
