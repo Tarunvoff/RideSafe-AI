@@ -1,17 +1,33 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { AdminGuard, JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { KafkaProducerService } from '../kafka/kafka.producer.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import { FraudService } from './fraud.service';
 
 @Controller('fraud')
 @UseGuards(JwtAuthGuard)
 export class FraudController {
-  constructor(private readonly fraudService: FraudService) {}
+  constructor(
+    private readonly fraudService: FraudService,
+    private readonly kafkaProducerService: KafkaProducerService,
+  ) {}
 
   @Post('analyze')
   @HttpCode(HttpStatus.OK)
-  analyzeFraud(@Request() req: any, @Body() dto: AnalyzeFraudDto) {
-    return this.fraudService.analyzeFraud(req.user.id, dto);
+  async analyzeFraud(@Request() req: any, @Body() dto: AnalyzeFraudDto) {
+    const result = await this.fraudService.analyzeFraud(req.user.id, dto);
+
+    this.kafkaProducerService
+      .publishDriverLocation({
+        rider_id: req.user.id,
+        lat: dto.gpsLatitude,
+        lng: dto.gpsLongitude,
+        timestamp: new Date().toISOString(),
+        platform: 'mobile-app',
+      })
+      .subscribe({ error: () => undefined });
+
+    return result;
   }
 
   @Get('status')
