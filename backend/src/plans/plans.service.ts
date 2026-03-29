@@ -1,15 +1,60 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as h3 from 'h3-js';
 
 @Injectable()
 export class PlansService {
+  private readonly logger = new Logger(PlansService.name);
   constructor(private readonly prisma: PrismaService) {}
 
-  async getWeeklyPlans() {
+  async getWeeklyPlans(userId?: string) {
     const prisma = this.prisma as any;
-    return prisma.weeklyPlan.findMany({
+    const plans = await prisma.weeklyPlan.findMany({
       orderBy: { price: 'asc' },
     });
+
+    try {
+      // 1. Identify User's Risk Baseline
+      let driverRisk = 0.1; // Baseline Safe Form
+      if (userId) {
+        const analysis = await prisma.fraudAnalysis.findUnique({
+          where: { userId },
+          select: { riskScore: true }
+        });
+        if (analysis?.riskScore) driverRisk = analysis.riskScore / 100;
+      }
+
+      // 2. Fetch Live Dynamic Quotes from Python ML Engine
+      for (const plan of plans) {
+        const basePrice = plan.price;
+        const payload = {
+            Ew: 800.0,            // Demo Static Earnings
+            Lf: driverRisk,       // Piped from their Fraud Analysis row
+            Ct: plan.name.includes("Plus") ? 1.0 : 0.8, // Coverage Tier
+            M: 0.10,              // 10% Insurance Margin
+            platform: "uber",     
+            demand_ratio: 1.2,    
+            zone_volatility: 0.5  
+        };
+
+        const res = await fetch("http://localhost:8000/pricing", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(3000)
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            plan.price = data.premium; // Automatically overwritten!
+            (plan as any).multiplier = data.zone_multiplier;
+        }
+      }
+    } catch(err) {
+       this.logger.warn(`ML Pricing Service Unreachable. Using historical base prices.`);
+    }
+
+    return plans;
   }
 
   async getPurchasedPolicies(userId: string) {
@@ -56,10 +101,35 @@ export class PlansService {
       let claimStatus = 'NO_DISRUPTION_ELIGIBLE';
 
       if (latestDisruption && eligibleForLatest) {
-        // Simple rule to make the UI feel "real":
-        // if the disruption happened recently -> PROCESSING, else -> APPROVED.
-        const minutesSinceEvent = (now.getTime() - latestDisruption.occurredAt.getTime()) / 60000;
-        const shouldBeApproved = minutesSinceEvent >= 3;
+        // Hit the Parametric ML Fraud Engine
+        let shouldBeApproved = false;
+        try {
+           const analysis = await prisma.fraudAnalysis.findUnique({
+             where: { userId },
+             select: { gpsLatitude: true, gpsLongitude: true, riskScore: true }
+           });
+           
+           if (analysis && analysis.gpsLatitude && analysis.gpsLongitude) {
+              const h3_cell = h3.latLngToCell(analysis.gpsLatitude, analysis.gpsLongitude, 8);
+              const triggerRes = await fetch("http://localhost:8000/trigger", {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ 
+                    h3_cell, 
+                    fraud_score: (analysis.riskScore || 0) / 100 
+                 }),
+                 signal: AbortSignal.timeout(3000)
+              });
+
+              if (triggerRes.ok) {
+                  const triggerData = await triggerRes.json();
+                  shouldBeApproved = triggerData.decision === "APPROVED";
+                  this.logger.log(`ML Trigger evaluated H3 Cell [${h3_cell}]: ${triggerData.decision}`);
+              }
+           }
+        } catch (err) {
+           this.logger.warn(`ML Trigger Service Unreachable: Evaluator locked.`);
+        }
 
         let existingPayout = await prisma.payout.findFirst({
           where: {
