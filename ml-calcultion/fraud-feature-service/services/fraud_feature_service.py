@@ -56,33 +56,52 @@ async def extract_fraud_features(req: FraudFeatureRequest) -> FraudFeatureRespon
         h3_cell,
     )
 
-    # ── Step 2: Persist incoming event (fire-and-forget style) ────────────────
-    # This keeps the history current for the NEXT request.
-    # Note: we update storage BEFORE computing so that the current ping
-    # counts towards consistency / device tracking immediately.
+    # ── Step 2: Persist incoming event ───────────────────────────────────────
     store.record_gps_ping(req.user_id, req.lat, req.lng, req.timestamp)
     store.record_device(req.user_id, req.device_id, req.timestamp)
     store.record_zone_presence(h3_cell, req.user_id, req.timestamp)
-    
+
     if req.claim_amount > 0:
         store.record_claim(req.user_id, req.claim_amount, req.timestamp)
         store.record_zone_claim(h3_cell)
+
+    # ── Step 2b: Collect multi-layer fraud signals ─────────────────────────────
+    # Layer A — Device Intelligence: flag high-share devices (>3 users)
+    updated_device_record = store.get_device(req.device_id) or {}
+    device_high_share: bool = bool(updated_device_record.get("high_share", False))
+    device_user_count: int = len(updated_device_record.get("users", []))
+
+    # Layer B — H3 Burst Detection: concurrent users in same hex cell
+    h3_burst_info = store.record_h3_active_user(h3_cell, req.user_id, req.timestamp)
+    h3_burst_detected: bool = bool(h3_burst_info["burst_detected"])
+    h3_active_count: int = int(h3_burst_info["active_count"])
+
+    # Layer C — Temporal Behavior: 24-hour claim window
+    claims_last_24h: int = store.get_claims_last_24h(req.user_id, req.timestamp)
 
     # Re-fetch updated records (post-mutation) for accurate feature computation
     user_record = store.get_user(req.user_id)
     device_record = store.get_device(req.device_id)
     zone_record = store.get_zone(h3_cell)
 
-    # ── Step 3: Compute features (synchronous — pure in-memory, no I/O) ──────
-    # run_in_executor adds thread-scheduling overhead with zero benefit for
-    # dict-only operations. Running directly keeps latency in the <10ms range.
+    # ── Step 3: Compute ML features ───────────────────────────────────────────
     identity_features = compute_identity_features(user_record, device_record, req.timestamp)
     location_features = compute_location_features(user_record, zone_record, req.lat, req.lng, req.timestamp)
     behavior_features = compute_behavior_features(user_record, zone_record, req.timestamp)
 
-
-    # ── Step 4: Derive meta ───────────────────────────────────────────────────
-    meta = MetaFeatures(h3_cell=h3_cell, timestamp=req.timestamp)
+    # ── Step 4: Assemble meta with all fraud signals ──────────────────────────
+    meta = MetaFeatures(
+        h3_cell=h3_cell,
+        timestamp=req.timestamp,
+        # Layer A — Device Intelligence
+        device_high_share=device_high_share,
+        device_user_count=device_user_count,
+        # Layer B — H3 Burst Detection
+        h3_burst_detected=h3_burst_detected,
+        h3_active_count=h3_active_count,
+        # Layer C — Temporal Behavior
+        claims_last_24h=claims_last_24h,
+    )
 
     # ── Step 5: Assemble response ─────────────────────────────────────────────
     return FraudFeatureResponse(

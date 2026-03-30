@@ -15,8 +15,11 @@ Data model per user:
   }
 
 Data model per device:
-  device:{device_id} → {"users": [user_id, ...]}
-  
+  device:{device_id} → {
+      "users": [user_id, ...],
+      "high_share": bool,               # True if >3 distinct users on device
+  }
+
 Data model per zone:
   zone_fraud:{h3_cell} → {
       "active_riders": int,
@@ -24,6 +27,12 @@ Data model per zone:
       "burst_detected": bool,
       "recent_users": [{"user_id": str, "timestamp": int}, ...]
   }
+
+Data model per H3 active-users set (burst detection):
+  h3:{h3_cell}:active_users → [
+      {"user_id": str, "timestamp": int}, ...
+  ]
+  Entries expire after 1 hour (pruned on every write).
 """
 
 from __future__ import annotations
@@ -143,22 +152,66 @@ def record_claim(user_id: str, amount: float, ts: int) -> None:
 
 
 def record_device(user_id: str, device_id: str, ts: int) -> None:
-    """Register a device event for a user and update device→users mapping."""
+    """Register a device event for a user and update device→users mapping.
+    
+    Layer A — Device Intelligence:
+      Tracks device:{id} → users list.
+      Sets high_share=True when >3 distinct users share the same device.
+    """
     # User record
     record = get_user(user_id) or _new_user_record(user_id, ts)
     if not any(d["device_id"] == device_id for d in record["devices"]):
         record["devices"].append({"device_id": device_id, "timestamp": ts})
     set_user(user_id, record)
 
-    # Device record
-    dev_record = get_device(device_id) or {"users": []}
+    # Device record — track all users, flag high sharing (>3 users)
+    dev_record = get_device(device_id) or {"users": [], "high_share": False}
     if user_id not in dev_record["users"]:
         dev_record["users"].append(user_id)
+    # Device Intelligence threshold: >3 distinct users → fraud signal
+    dev_record["high_share"] = len(dev_record["users"]) > 3
     set_device(device_id, dev_record)
 
 
+# ── H3 Burst: active_users per cell ──────────────────────────────────────────
+
+def get_h3_active_users(h3_cell: str) -> list:
+    """Return the list of active users in an H3 cell (pruned for staleness)."""
+    key = f"h3:{h3_cell}:active_users"
+    return get(key) or []
+
+
+def record_h3_active_user(h3_cell: str, user_id: str, ts: int) -> dict:
+    """Append user to H3 active-users list and return burst metadata.
+
+    Layer B — H3 Burst Detection:
+      Tracks h3:{cell}:active_users with 1-hour TTL.
+      Returns {active_count, burst_detected, cluster_user_ids} so callers
+      can feed the signal directly into the fraud scorer.
+    """
+    key = f"h3:{h3_cell}:active_users"
+    users: list = get(key) or []
+
+    # Prune entries older than 1 hour
+    users = [u for u in users if ts - u["timestamp"] < 3600]
+
+    # Upsert current user (refresh timestamp)
+    users = [u for u in users if u["user_id"] != user_id]
+    users.append({"user_id": user_id, "timestamp": ts})
+
+    set(key, users)
+
+    # Burst = multiple distinct users in the same cell within the last hour
+    burst_detected = len(users) > 1
+    return {
+        "active_count": len(users),
+        "burst_detected": burst_detected,
+        "cluster_user_ids": [u["user_id"] for u in users],
+    }
+
+
 def record_zone_presence(h3_cell: str, user_id: str, ts: int) -> None:
-    """Track users in a zone for burst detection"""
+    """Track users in a zone for burst detection (legacy zone_fraud key)."""
     record = get_zone(h3_cell) or {"active_riders": 0, "claim_count": 0, "burst_detected": False, "recent_users": []}
     
     # Prune old users (> 1 hr)
@@ -177,11 +230,26 @@ def record_zone_presence(h3_cell: str, user_id: str, ts: int) -> None:
     
     set_zone(h3_cell, record)
 
+
 def record_zone_claim(h3_cell: str) -> None:
     record = get_zone(h3_cell) or {"active_riders": 0, "claim_count": 0, "burst_detected": False, "recent_users": []}
     record["claim_count"] += 1
     # decay/reset would happen in a background task in production
     set_zone(h3_cell, record)
+
+
+# ── Temporal Behavior helpers ─────────────────────────────────────────────────
+
+def get_claims_last_24h(user_id: str, now_ts: int) -> int:
+    """Return count of claims in the last 24 hours for a user.
+    
+    Layer C — Temporal Behavior Signal.
+    """
+    user_record = get_user(user_id)
+    if not user_record:
+        return 0
+    cutoff = now_ts - 86400  # 24 hours
+    return sum(1 for c in user_record.get("claims", []) if c.get("timestamp", 0) >= cutoff)
 
 def _new_user_record(user_id: str, created_at: int) -> dict:
     return {
