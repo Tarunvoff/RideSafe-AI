@@ -22,3 +22,12 @@ services:
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    ports:
+      - "5433:5432" # Mapped to 5433 to avoid crashing your active local Postgres!
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: ridesafe_timeseries
