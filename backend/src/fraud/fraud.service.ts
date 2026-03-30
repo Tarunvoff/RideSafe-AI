@@ -3,7 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 
 // ── Python Fraud Feature Service (port 8002) ──────────────────────────────────
-// Override via FRAUD_FEATURE_SERVICE_URL env var in production.
 const FRAUD_FEATURE_URL =
   process.env.FRAUD_FEATURE_SERVICE_URL ?? 'http://localhost:8002';
 
@@ -11,23 +10,31 @@ const FRAUD_FEATURE_URL =
 interface FraudFeatureResponse {
   identity: {
     account_age_days: number;
-    device_id_uniqueness: number;      // 1 / (n_users_on_device + 1)
-    device_switch_frequency: number;   // distinct devices last 7 days
+    device_id_uniqueness: number;
+    device_switch_frequency: number;
     oauth_token_valid: boolean;
   };
   location: {
-    gps_speed: number;                 // km/h
-    gps_cell_distance: number;         // km between H3 cell centres
-    h3_zone_consistency: number;       // 0–1, fraction in same cell last 24h
+    gps_speed: number;
+    gps_cell_distance: number;
+    h3_zone_consistency: number;
   };
   behavior: {
     claims_last_30d: number;
-    trigger_frequency: number;         // claims / active day
+    trigger_frequency: number;
     earnings_pattern_deviation: number;
   };
   meta: {
     h3_cell: string;
     timestamp: number;
+    // ── Layer A: Device Intelligence ───────────────────────────────────────
+    device_high_share?: boolean;    // >3 users on same device
+    device_user_count?: number;
+    // ── Layer B: H3 Burst Detection ────────────────────────────────────────
+    h3_burst_detected?: boolean;    // multiple users in same H3 cell
+    h3_active_count?: number;
+    // ── Layer C: Temporal Behavior ─────────────────────────────────────────
+    claims_last_24h?: number;
   };
 }
 
@@ -140,29 +147,41 @@ export class FraudService {
     };
   }
 
-  // ── Scoring: ML feature–based ─────────────────────────────────────────────
+  // ── Scoring: ML + rules + graph + H3 signals ──────────────────────────────
   private scoreFromFeatures(
     f: FraudFeatureResponse,
     dto: AnalyzeFraudDto,
   ): number {
     let score = 0;
 
-    // Identity
-    if (f.identity.account_age_days < 7)          score += 20; // brand-new
+    // ── Layer 1: ML / Identity signals ────────────────────────────────────────
+    if (f.identity.account_age_days < 7)          score += 20; // brand-new account
     if (f.identity.device_id_uniqueness < 0.3)    score += 15; // shared device
     if (f.identity.device_switch_frequency > 3)   score += 20; // 3+ switches/week
 
-    // Location
+    // ── Layer 2: Location signals ─────────────────────────────────────────────
     if (f.location.gps_speed > 150)               score += 25; // impossible speed
     if (f.location.h3_zone_consistency < 0.3)     score += 10; // erratic zone
     if (f.location.gps_cell_distance > 50)        score += 15; // giant cell jump
 
-    // Behaviour
+    // ── Layer 3: Behaviour signals ────────────────────────────────────────────
     if (f.behavior.claims_last_30d > 10)           score += 20;
     if (f.behavior.trigger_frequency > 1.0)        score += 15; // > 1 claim/day
     if (f.behavior.earnings_pattern_deviation > 1) score += 10;
 
-    // Legacy device / network heuristics (kept for defence-in-depth)
+    // ── Layer 4: Device Intelligence (Layer A) ────────────────────────────────
+    // device_high_share = True ⟹ >3 distinct users on this hardware → +20
+    if (f.meta.device_high_share)                  score += 20;
+
+    // ── Layer 5: H3 Burst Detection (Layer B) ────────────────────────────────
+    // Multiple users active in the same H3 cell simultaneously → +15
+    if (f.meta.h3_burst_detected)                  score += 15;
+
+    // ── Layer 6: Temporal Behavior (Layer C) ─────────────────────────────────
+    // ≥2 claims in the last 24 hours is a strong short-burst fraud signal → +20
+    if ((f.meta.claims_last_24h ?? 0) >= 2)        score += 20;
+
+    // ── Layer 7: Legacy device / network heuristics (defence-in-depth) ────────
     if (dto.deviceIntegrity === 'Rooted Device')     score += 20;
     if (dto.deviceIntegrity === 'Jailbroken Device') score += 25;
     if (dto.networkType === 'Premium VPN')           score += 15;
@@ -185,7 +204,7 @@ export class FraudService {
     return Math.min(score, 100);
   }
 
-  // ── Build analysis details store in DB ───────────────────────────────────
+  // ── Build analysis details stored in DB ──────────────────────────────────
   private buildDetails(
     dto: AnalyzeFraudDto,
     riskScore: number,
@@ -195,6 +214,7 @@ export class FraudService {
     const riskFactors: string[] = [];
 
     if (features) {
+      // Layer 1–3: ML signals
       if (features.identity.account_age_days < 7)
         riskFactors.push('New account (< 7 days)');
       if (features.identity.device_switch_frequency > 3)
@@ -209,6 +229,18 @@ export class FraudService {
         riskFactors.push('High claim frequency (> 10 in 30 days)');
       if (features.behavior.trigger_frequency > 1.0)
         riskFactors.push('Multiple claims per active day');
+
+      // Layer A: Device Intelligence
+      if (features.meta.device_high_share)
+        riskFactors.push(`Device shared by ${features.meta.device_user_count ?? '?'} users — Device Intelligence alert`);
+
+      // Layer B: H3 Burst Detection
+      if (features.meta.h3_burst_detected)
+        riskFactors.push(`H3 cluster fraud — ${features.meta.h3_active_count ?? '?'} users simultaneously in cell ${features.meta.h3_cell}`);
+
+      // Layer C: Temporal Behavior
+      if ((features.meta.claims_last_24h ?? 0) >= 2)
+        riskFactors.push(`Temporal burst: ${features.meta.claims_last_24h} claims filed in last 24 hours`);
     } else {
       if (riskScore > 60)
         riskFactors.push('GPS signals exhibit inconsistent timing offsets');
