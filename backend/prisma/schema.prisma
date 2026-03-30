@@ -248,3 +248,16 @@ model RazorpayOrder {
 
   @@map("razorpay_orders")
 }
+
+model ZoneTelemetryLog {
+  id        String   @id @default(uuid())
+  h3Cell    String   @map("h3_cell")
+  lfScore   Float    @map("lf_score")
+  weather   String?  // Clear, Heavy Rain, etc.
+  aqi       Int?     // PM2.5 readings
+  timestamp DateTime @default(now())
+
+  // TimescaleDB specifically requires the timestamp column to be indexed
+  @@index([timestamp(sort: Desc)])
+  @@map("zone_telemetry_logs")
+}

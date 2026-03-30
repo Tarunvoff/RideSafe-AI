@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { IngestionModule } from './ingestion/ingestion.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { AuthModule } from './auth/auth.module';
 import { EmailModule } from './email/email.module';
 import { FraudModule } from './fraud/fraud.module';
@@ -18,6 +21,9 @@ import { PaymentsModule } from './payments/payments.module';
     FraudModule,
     PlansModule,
     PaymentsModule,
+    ScheduleModule.forRoot(),
+    IngestionModule,
+    TelemetryModule,
   ],
 })
 export class AppModule {}
