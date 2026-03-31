@@ -16,10 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-import os
-
-USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "True").lower() == "true"
-PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://platform-api:8080/zone-activity")
+from config import USE_MOCK_DATA, PLATFORM_API_URL
 
 async def fetch_platform_activity(zone_seed: str) -> dict:
     """

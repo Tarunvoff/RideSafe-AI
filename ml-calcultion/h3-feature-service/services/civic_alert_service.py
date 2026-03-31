@@ -10,36 +10,32 @@ Returns a boolean: True if civic disruption is ongoing.
 
 import logging
 import httpx
-from config import NEWSAPI_KEY, NEWSAPI_URL
+from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_MOCK_DATA
 
 logger = logging.getLogger(__name__)
-
-import os
-
-USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "True").lower() == "true"
 
 async def check_civic_alert(city: str = "Bangalore") -> bool:
     """
     Returns True if there are ongoing civic alerts affecting gig workers.
-    Based on existing ml_microservice logic.
+    Uses Newsdata.io directly based on the user's platform integration.
 
-    In production: queries NewsAPI for "bandh OR curfew OR protest" in the city.
     Currently: mock implementation (5% chance) toggled via USE_MOCK_DATA.
     """
     try:
-        if USE_MOCK_DATA or NEWSAPI_KEY == "demo_key":
-            # Mock mode — same as original CivicAlertService._check_news_api
+        if USE_MOCK_DATA or NEWSDATA_API_KEY == "demo_key":
+            # Mock mode — safely avoids consuming API keys during local testing
             import random
             return random.random() < 0.05
 
+        # Format matches the NestJS backend ingestion logic perfectly
         params = {
-            "q": f"({city}) AND (bandh OR curfew OR protest OR flood OR disaster)",
-            "sortBy": "publishedAt",
-            "pageSize": 5,
-            "apiKey": NEWSAPI_KEY,
+            "apikey": NEWSDATA_API_KEY,
+            "category": "domestic",
+            "language": "en,ta",
+            "q": f"({city}) AND (strike OR protest OR flood OR curfew OR bandh OR cyclone)"
         }
-        async with httpx.AsyncClient(timeout=6.0) as client:
-            resp = await client.get(NEWSAPI_URL, params=params)
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(NEWSDATA_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
             total = data.get("totalResults", 0)

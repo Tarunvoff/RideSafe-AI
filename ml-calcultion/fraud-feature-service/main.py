@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.fraud_features import router as fraud_features_router
+from routes.risk import router as risk_router
 from storage.store import init_demo_data
 
 logging.basicConfig(
@@ -49,9 +50,10 @@ app = FastAPI(
         "for every incoming insurance event. Output is passed directly to the "
         "Rule Engine and ML Fraud Scoring model. "
         "Sits BEFORE fraud scoring in the pipeline: "
-        "Input → /fraud-features → Rule Engine → ML Fraud Score"
+        "Input → /fraud-features → Rule Engine → ML Fraud Score. "
+        "Exposes GET /api/v1/risk/:userId for Dev 1 bridging."
     ),
-    version="1.0.0",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -68,6 +70,7 @@ app.add_middleware(
 
 # Mount routers
 app.include_router(fraud_features_router)
+app.include_router(risk_router)
 
 
 @app.get("/health", tags=["Health"])
