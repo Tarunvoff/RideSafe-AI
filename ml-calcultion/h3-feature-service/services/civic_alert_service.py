@@ -14,6 +14,9 @@ from config import NEWSAPI_KEY, NEWSAPI_URL
 
 logger = logging.getLogger(__name__)
 
+import os
+
+USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "True").lower() == "true"
 
 async def check_civic_alert(city: str = "Bangalore") -> bool:
     """
@@ -21,10 +24,10 @@ async def check_civic_alert(city: str = "Bangalore") -> bool:
     Based on existing ml_microservice logic.
 
     In production: queries NewsAPI for "bandh OR curfew OR protest" in the city.
-    Currently: mock implementation (5% chance) — same as original.
+    Currently: mock implementation (5% chance) toggled via USE_MOCK_DATA.
     """
     try:
-        if NEWSAPI_KEY == "demo_key":
+        if USE_MOCK_DATA or NEWSAPI_KEY == "demo_key":
             # Mock mode — same as original CivicAlertService._check_news_api
             import random
             return random.random() < 0.05

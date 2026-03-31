@@ -17,7 +17,9 @@ from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
 
 logger = logging.getLogger(__name__)
 
-ML_SERVICE_URL = "http://localhost:8000"
+import os
+
+ML_SERVICE_URL = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000")
 ML_TIMEOUT = 10.0
 
 

@@ -16,6 +16,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+import os
+
+USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "True").lower() == "true"
+PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://platform-api:8080/zone-activity")
+
 async def fetch_platform_activity(zone_seed: str) -> dict:
     """
     Returns {
@@ -25,6 +30,22 @@ async def fetch_platform_activity(zone_seed: str) -> dict:
     }
     Seeded on zone for determinism within a session.
     """
+    if not USE_MOCK_DATA:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(f"{PLATFORM_API_URL}?zone={zone_seed}")
+                resp.raise_for_status()
+                data = resp.json()
+                return {
+                    "platform_orders": data.get("orders", 0),
+                    "active_riders": data.get("riders", 0),
+                    "demand_ratio": data.get("demand_ratio", 1.0),
+                }
+        except Exception as exc:
+            logger.warning("Failed to fetch real platform activity for %s: %s", zone_seed, exc)
+            # Fall through to deterministic mock on failure for resilience
+
     rng = random.Random(hash(zone_seed))
     orders = rng.randint(10, 200)
     riders = max(5, int(orders * rng.uniform(0.3, 0.8)))

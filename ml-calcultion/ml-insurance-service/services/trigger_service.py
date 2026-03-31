@@ -14,7 +14,7 @@ def get_redis():
     if _redis_client is None:
         try:
             import redis  # type: ignore
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+            redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
             _redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
             _redis_client.ping()
         except Exception as exc:

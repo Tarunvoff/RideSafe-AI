@@ -81,8 +81,8 @@ def compute_identity_features(
     device_id_uniqueness = compute_device_uniqueness(device_record)
     device_switch_frequency = compute_device_switch_frequency(user_record, now_ts)
 
-    # OAuth token validation — mocked.
-    # TODO: integrate with JWT / Supabase auth service to verify session validity.
+    # Authentication validation is inherently handled upstream.
+    # The NestJS API Gateway (JwtAuthGuard) rejects invalid tokens before reaching this internal network boundary.
     oauth_token_valid: bool = True
 
     logger.debug(

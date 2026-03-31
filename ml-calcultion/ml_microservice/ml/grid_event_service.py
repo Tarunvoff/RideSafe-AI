@@ -23,7 +23,7 @@ ALLOWED_ZONE_STATES = {"NORMAL", "SLOW", "DANGEROUS", "HALTED"}
 
 
 def _kafka_consumer_config() -> Dict[str, Any]:
-    bootstrap = os.getenv("KAFKA_BROKER_URL", "localhost:9092")
+    bootstrap = os.getenv("KAFKA_BROKER_URL", "kafka:29092")
     return {
         "bootstrap.servers": bootstrap,
         "group.id": "aegis-grid-consumer-group",
@@ -33,12 +33,12 @@ def _kafka_consumer_config() -> Dict[str, Any]:
 
 
 def _kafka_producer_config() -> Dict[str, Any]:
-    bootstrap = os.getenv("KAFKA_BROKER_URL", "localhost:9092")
+    bootstrap = os.getenv("KAFKA_BROKER_URL", "127.0.0.1:9092")
     return {"bootstrap.servers": bootstrap}
 
 
 def _redis_client() -> redis.Redis:
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
     return redis.Redis.from_url(redis_url, decode_responses=True)
 
 
