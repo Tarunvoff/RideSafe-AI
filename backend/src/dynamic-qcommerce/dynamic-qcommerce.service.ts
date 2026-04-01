@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { MockOAuthLoginDto } from './dto/mock-oauth-login.dto';
-import { MockOAuthCallbackDto } from './dto/mock-oauth-callback.dto';
+import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
+import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
 import { QCommerceProvider } from './enums/qcommerce.enums';
 import {
   DriverHistoricalWeekSnapshot,
@@ -17,7 +17,7 @@ import {
   createInternalDriverId,
   decodeInternalDriverId,
   getIsoWeekKey,
-} from './utils/mock-data.factory';
+} from './utils/dynamic-data.factory';
 
 interface OAuthSessionState {
   sessionId: string;
@@ -47,13 +47,13 @@ interface DriverRecord {
 }
 
 @Injectable()
-export class MockQCommerceService {
-  private readonly logger = new Logger(MockQCommerceService.name);
+export class DynamicQCommerceService {
+  private readonly logger = new Logger(DynamicQCommerceService.name);
   private readonly sessions = new Map<string, OAuthSessionState>();
   private readonly driverRecords = new Map<string, DriverRecord>();
   private weekKeyOverride?: string;
 
-  startOAuthLogin(dto: MockOAuthLoginDto) {
+  startOAuthLogin(dto: DynamicOAuthLoginDto) {
     const sessionId = randomUUID();
     const state = randomUUID();
     const authCode = randomUUID().replace(/-/g, '').slice(0, 12);
@@ -72,7 +72,7 @@ export class MockQCommerceService {
 
     return {
       success: true,
-      message: 'Mock OAuth session initiated. Redirect driver to provider.',
+      message: 'Dynamic OAuth session initiated. Redirect driver to provider.',
       provider: dto.provider,
       oauthSession: {
         sessionId,
@@ -80,13 +80,13 @@ export class MockQCommerceService {
         state,
         expiresAt,
         redirectUri: dto.redirectUri ?? `${dto.provider}://callback`,
-        mockAuthorizationUrl: `https://mock.${dto.provider}.oauth/authorize?session=${sessionId}&state=${state}`,
+        dynamicAuthorizationUrl: `https://dynamic.${dto.provider}.oauth/authorize?session=${sessionId}&state=${state}`,
         demoAuthCode: authCode,
       },
     };
   }
 
-  completeOAuthCallback(dto: MockOAuthCallbackDto) {
+  completeOAuthCallback(dto: DynamicOAuthCallbackDto) {
     const session = this.sessions.get(dto.sessionId);
     if (!session || session.provider !== dto.provider) {
       throw new NotFoundException('OAuth session not found or provider mismatch');
@@ -123,7 +123,7 @@ export class MockQCommerceService {
   }
 
   getDriverProfile(driverId: string) {
-    let message = 'Driver profile fetched from mock provider cache';
+    let message = 'Driver profile fetched from dynamic provider cache';
     let record = this.driverRecords.get(driverId);
 
     if (!record) {
@@ -212,9 +212,9 @@ export class MockQCommerceService {
   setWeekKeyOverride(weekKey?: string) {
     this.weekKeyOverride = weekKey?.trim() || undefined;
     if (this.weekKeyOverride) {
-      this.logger.warn(`Mock Q-commerce week override set to ${this.weekKeyOverride}`);
+      this.logger.warn(`Dynamic Q-commerce week override set to ${this.weekKeyOverride}`);
     } else {
-      this.logger.warn('Mock Q-commerce week override cleared');
+      this.logger.warn('Dynamic Q-commerce week override cleared');
     }
     return {
       success: true,

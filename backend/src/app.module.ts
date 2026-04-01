@@ -10,7 +10,7 @@ import { KycModule } from './kyc/kyc.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PlansModule } from './plans/plans.module';
 import { PaymentsModule } from './payments/payments.module';
-import { MockQCommerceModule } from './mock-qcommerce/mock-qcommerce.module';
+import { DynamicQCommerceModule } from './dynamic-qcommerce/dynamic-qcommerce.module';
 
 @Module({
   imports: [
@@ -25,6 +25,7 @@ import { MockQCommerceModule } from './mock-qcommerce/mock-qcommerce.module';
     ScheduleModule.forRoot(),
     IngestionModule,
     TelemetryModule,
+    DynamicQCommerceModule,
   ],
 })
 export class AppModule {}

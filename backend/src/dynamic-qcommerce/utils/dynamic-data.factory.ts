@@ -130,8 +130,8 @@ const getIsoWeekInfo = (date: Date) => {
 };
 
 export const getIsoWeekKey = (inputDate = new Date()): string => {
-  if (process.env.MOCK_QCOMMERCE_WEEK_KEY) {
-    return process.env.MOCK_QCOMMERCE_WEEK_KEY;
+  if (process.env.DYNAMIC_QCOMMERCE_WEEK_KEY) {
+    return process.env.DYNAMIC_QCOMMERCE_WEEK_KEY;
   }
   const { year, week } = getIsoWeekInfo(inputDate);
   return `${year}-${String(week).padStart(2, '0')}`;

@@ -1,7 +1,7 @@
 import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { QCommerceProvider } from '../enums/qcommerce.enums';
 
-export class MockOAuthCallbackDto {
+export class DynamicOAuthCallbackDto {
   @IsEnum(QCommerceProvider)
   provider: QCommerceProvider;
 

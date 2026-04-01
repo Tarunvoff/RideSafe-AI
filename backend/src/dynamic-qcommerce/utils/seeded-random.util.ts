@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 
-// Simple LCG seeded RNG to keep mock data deterministic while still varied
+// Simple LCG seeded RNG to keep dynamic data deterministic while still varied
 export class SeededRandom {
   private state: number;
 
