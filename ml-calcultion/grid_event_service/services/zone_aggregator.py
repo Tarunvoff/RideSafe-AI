@@ -15,9 +15,6 @@ from config import (
     ZONE_HALTED_LF,
     ZONE_DANGEROUS_LF,
     ZONE_SLOW_LF,
-    USE_REDIS,
-    REDIS_URL,
-    ZONE_KEY_TTL_SECONDS,
     KAFKA_BOOTSTRAP_SERVERS,
     KAFKA_TOPIC_ZONE_UPDATES,
 )
@@ -31,21 +28,6 @@ _DEFAULT_LAT = 12.9716
 _DEFAULT_LNG = 77.5946
 
 logger = logging.getLogger(__name__)
-
-# Redis initialization (optional, mirrors fraud-feature-service)
-_redis_client = None
-
-def get_redis():
-    global _redis_client
-    if _redis_client is None and USE_REDIS:
-        try:
-            import redis.asyncio as redis # type: ignore
-            _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-            logger.info(f"Connected to Redis at {REDIS_URL}")
-        except Exception as exc:
-            logger.error(f"Redis connection failed: {exc}")
-            _redis_client = None
-    return _redis_client
 
 
 class ZoneAggregator:
@@ -147,8 +129,6 @@ class ZoneAggregator:
               → Redis zone:{h3}               (consumed by trigger_service)
               → Kafka zone_state_updates      (fan-out to other consumers)
         """
-        redis = get_redis()
-
         while True:
             await asyncio.sleep(FLUSH_INTERVAL_SECONDS)
 
@@ -194,29 +174,7 @@ class ZoneAggregator:
                 new_state = ml_data["zone_state"]
                 old_state = self.zone_states.get(h3_cell, "NORMAL")
 
-                # 3. Write ML-authoritative zone state to Redis (single source of truth)
-                redis_payload = {
-                    "zone_state":         new_state,
-                    "lf_score":           lf_score,
-                    "active_rider_count": rider_count,
-                    "source":             "h3-feature-service",  # provenance tag
-                    "last_updated":       time.time(),
-                }
-                if redis:
-                    try:
-                        await redis.setex(
-                            f"zone:{h3_cell}",
-                            ZONE_KEY_TTL_SECONDS,
-                            json.dumps(redis_payload),
-                        )
-                        logger.info(
-                            "Redis zone:%s → Lf=%.4f state=%s riders=%d (source=h3-feature-service)",
-                            h3_cell, lf_score, new_state, rider_count
-                        )
-                    except Exception as e:
-                        logger.error("Redis write error on zone:%s: %s", h3_cell, e)
-
-                # 4. Publish state-change event to Kafka for downstream consumers
+                # 3. Publish state-change event to Kafka for downstream consumers
                 if new_state != old_state:
                     self.zone_states[h3_cell] = new_state
                     await self._publish_state_change(h3_cell, old_state, new_state, lf_score)

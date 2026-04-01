@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, List
 
 
 class FeatureRequest(BaseModel):
@@ -44,6 +44,16 @@ class FeatureResponse(BaseModel):
     # Historical risk (placeholder — replace with DB lookup)
     historical_risk: float
 
+    # Data quality / freshness
+    feature_timestamp: float
+    feature_age_seconds: Optional[float] = None
+    is_fallback: bool
+    fallback_ratio: float
+    fallback_features: List[str]
+    missing_features: List[str]
+    feature_sources: Dict[str, str]
+    confidence_score: float
+
 
 class PipelineRequest(BaseModel):
     """
@@ -82,6 +92,15 @@ class PipelineResponse(BaseModel):
     Ew:        float
     Ct:        float
     premium:   float           # Final premium in ₹ (clamped ₹15–₹150)
+
+    # Data quality / freshness
+    feature_timestamp: float
+    feature_age_seconds: Optional[float] = None
+    is_fallback: bool
+    fallback_reasons: List[str]
+    fallback_features: List[str]
+    missing_features: List[str]
+    confidence_score: float
 
     # Observability
     trace_id:  Optional[str]   = None   # propagated from pipeline_service for log correlation

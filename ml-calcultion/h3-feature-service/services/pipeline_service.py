@@ -33,6 +33,8 @@ ML_SERVICE_URL    = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000
 ML_TIMEOUT        = float(os.getenv("ML_TIMEOUT_SECONDS",  "5.0"))   # per-call timeout
 PIPELINE_DEADLINE = float(os.getenv("PIPELINE_DEADLINE_SECONDS", "2.5"))  # hard end-to-end cap
 REDIS_ZONE_TTL    = int(os.getenv("ZONE_KEY_TTL_SECONDS", "300"))
+MIN_CONFIDENCE_SCORE = float(os.getenv("MIN_CONFIDENCE_SCORE", "0.5"))
+MAX_FALLBACK_RATIO   = float(os.getenv("MAX_FALLBACK_RATIO", "0.5"))
 
 # Sanity bounds
 _MIN_PREMIUM = 15.0
@@ -215,6 +217,15 @@ async def _execute_pipeline_core(
         trace_id, features.rainfall, features.aqi, features.demand_ratio, features.civic_alert
     )
 
+    if features.fallback_ratio >= MAX_FALLBACK_RATIO or len(features.missing_features) >= 3:
+        raise HTTPException(
+            status_code=424,
+            detail=(
+                f"Insufficient real features for {h3_cell}: "
+                f"fallback_ratio={features.fallback_ratio:.2f}, missing={features.missing_features}"
+            ),
+        )
+
     # ── Step 2.5: Pull avg_speed from Redis (written by kafka_consumer) ──────
     avg_speed = 0.0
     try:
@@ -234,12 +245,14 @@ async def _execute_pipeline_core(
         "historical_disruption_frequency": features.historical_risk,
         "zone_volatility": 0.5,
         "avg_speed_kmh":   avg_speed,
+        "active_riders":   features.active_riders,
     }
 
     Lf: float          = 0.0
     risk_level: str    = "LOW"
     premium: float     = _MIN_PREMIUM
     used_fallback: bool = False
+    fallback_reasons: list[str] = []
 
     if _ml_cb.allow_request():
         try:
@@ -261,10 +274,12 @@ async def _execute_pipeline_core(
                 Lf         = float(fb.get("Lf", 0.0))
                 risk_level = "UNKNOWN"
                 used_fallback = True
+                fallback_reasons.append("redis_zone_fallback")
             else:
                 Lf         = 0.0
                 risk_level = "LOW"
                 used_fallback = True
+                fallback_reasons.append("ml_risk_failed")
     else:
         # CB is OPEN — short-circuit directly
         fb = _fallback_from_redis(h3_cell, trace_id)
@@ -272,6 +287,7 @@ async def _execute_pipeline_core(
             Lf         = float(fb.get("Lf", 0.0))
             risk_level = "UNKNOWN"
             used_fallback = True
+            fallback_reasons.append("redis_zone_fallback")
         logger.warning("[tid=%s] CB OPEN — skipping ML call, Lf=%.4f (fallback)", trace_id, Lf)
 
     # ── Step 4: Lf → /pricing (only if ML is healthy) ───────────────────────
@@ -283,6 +299,8 @@ async def _execute_pipeline_core(
                 "Ct": request.Ct,
                 "M":  request.M,
                 "platform": getattr(request, "platform", None),
+                "demand_ratio": features.demand_ratio,
+                "zone_volatility": 0.5,
             }
             async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
                 pricing_data = await _call_ml_with_retry(
@@ -295,6 +313,7 @@ async def _execute_pipeline_core(
             _ml_cb.record_failure()
             logger.error("[tid=%s] ML /pricing failed: %s — using min premium", trace_id, exc)
             premium = _MIN_PREMIUM
+            fallback_reasons.append("ml_pricing_failed")
     elif used_fallback:
         # Estimate premium from Lf without ML using simplified formula
         Ew    = max(request.Ew, 1.0)
@@ -302,6 +321,7 @@ async def _execute_pipeline_core(
         M     = request.M if request.M else 0.1
         premium = round(min(max(Ew * Lf * Ct * M, _MIN_PREMIUM), _MAX_PREMIUM), 2)
         logger.info("[tid=%s] Estimated fallback premium=₹%.2f (no ML)", trace_id, premium)
+        fallback_reasons.append("pricing_fallback")
 
     # ── Step 4.5: Derive + sanity-check zone_state ───────────────────────────
     zone_state = get_zone_state(features.civic_alert, Lf)
@@ -311,6 +331,9 @@ async def _execute_pipeline_core(
     _write_zone_to_redis(h3_cell, Lf, zone_state, trace_id)
 
     # ── Step 5: Assemble result ───────────────────────────────────────────────
+    if features.is_fallback:
+        fallback_reasons.append("feature_fallbacks")
+
     result = PipelineResponse(
         h3_cell     = h3_cell,
         latitude    = features.latitude,
@@ -326,6 +349,13 @@ async def _execute_pipeline_core(
         Ew          = request.Ew,
         Ct          = request.Ct if request.Ct is not None else 0.6,
         premium     = premium,
+        feature_timestamp = features.feature_timestamp,
+        feature_age_seconds = features.feature_age_seconds,
+        is_fallback = used_fallback or features.is_fallback,
+        fallback_reasons = sorted(set(fallback_reasons)),
+        fallback_features = features.fallback_features,
+        missing_features = features.missing_features,
+        confidence_score = features.confidence_score,
     )
 
     set_cached(cache_key, result.model_dump())
@@ -391,6 +421,13 @@ async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             civic_alert=False, Lf=Lf, risk_level="UNKNOWN",
             zone_state=zone_state, Ew=request.Ew,
             Ct=request.Ct if request.Ct else 0.6, premium=_MIN_PREMIUM,
+            feature_timestamp=time.time(),
+            feature_age_seconds=None,
+            is_fallback=True,
+            fallback_reasons=["pipeline_timeout"],
+            fallback_features=["rainfall", "aqi", "demand_ratio"],
+            missing_features=["rainfall", "aqi", "demand_ratio"],
+            confidence_score=0.0,
         )
         fut.set_result(result)
 

@@ -158,7 +158,7 @@ def _aqi_cache_set(h3_cell: str, data: dict):
 
 async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
     """
-    Returns {"aqi": float, "pm25": float, "pm10": float}.
+    Returns {"aqi": float, "pm25": float, "pm10": float, "is_fallback": bool, "source": str}.
     Strategy: parallel sensor fetches → progressive radius → PM2.5 preferred → CPCB fallback.
     Per-H3-cell cache with 10-minute TTL avoids redundant API calls.
     """
@@ -187,7 +187,7 @@ async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
                         aqi  = _pm25_to_aqi(pm25)
                         pm10 = pm10 if pm10 is not None else round(pm25 * 1.5, 2)
                         logger.info("OpenAQ v3 (r=%dm) PM2.5=%.1f PM10=%.1f AQI=%.1f", radius, pm25, pm10, aqi)
-                        result = {"aqi": aqi, "pm25": pm25, "pm10": pm10}
+                        result = {"aqi": aqi, "pm25": pm25, "pm10": pm10, "is_fallback": False, "source": "openaq"}
                         if h3_cell:
                             _aqi_cache_set(h3_cell, result)
                         return result
@@ -196,7 +196,7 @@ async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
                         aqi  = _pm10_to_aqi(pm10)
                         pm25 = round(pm10 * 0.6, 2)
                         logger.info("OpenAQ v3 (r=%dm) PM10=%.1f (no PM2.5) AQI=%.1f", radius, pm10, aqi)
-                        result = {"aqi": aqi, "pm25": pm25, "pm10": pm10}
+                        result = {"aqi": aqi, "pm25": pm25, "pm10": pm10, "is_fallback": False, "source": "openaq"}
                         if h3_cell:
                             _aqi_cache_set(h3_cell, result)
                         return result
@@ -209,4 +209,4 @@ async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
     except Exception as exc:
         logger.warning("OpenAQ v3 failed: %s. Using CPCB fallback.", exc)
 
-    return {"aqi": DEFAULT_AQI, "pm25": DEFAULT_PM25, "pm10": DEFAULT_PM10}
+    return {"aqi": DEFAULT_AQI, "pm25": DEFAULT_PM25, "pm10": DEFAULT_PM10, "is_fallback": True, "source": "default"}

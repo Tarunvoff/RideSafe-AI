@@ -33,8 +33,10 @@ async def fetch_weather(lat: float, lng: float) -> dict:
         "rainfall": float,     # mm — last full hour or current interval
         "temperature": float,  # °C
         "humidity": float,     # %
+        "is_fallback": bool,
+        "source": str,
     }
-    Falls back to safe defaults on any error — matches original IMD fallback.
+    Falls back to safe defaults on any error and marks fallback explicitly.
     """
     params = {
         "latitude": lat,
@@ -80,6 +82,8 @@ async def fetch_weather(lat: float, lng: float) -> dict:
             "rainfall": round(float(rainfall), 2),
             "temperature": round(float(temperature), 2),
             "humidity": round(float(humidity), 2),
+            "is_fallback": False,
+            "source": "open-meteo",
         }
 
     except Exception as exc:
@@ -88,4 +92,6 @@ async def fetch_weather(lat: float, lng: float) -> dict:
             "rainfall": DEFAULT_RAINFALL,
             "temperature": DEFAULT_TEMPERATURE,
             "humidity": DEFAULT_HUMIDITY,
+            "is_fallback": True,
+            "source": "default",
         }

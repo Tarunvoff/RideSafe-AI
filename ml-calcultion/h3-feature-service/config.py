@@ -4,7 +4,8 @@ Incorporates settings from the existing ml_microservice integrations.
 """
 
 # ── Cache ──────────────────────────────────────────────────────────────────────
-CACHE_TTL_SECONDS = 600          # 10 minutes — matches data freshness SLA
+CACHE_TTL_SECONDS = 300          # 5 minutes — reduce cache dominance
+FEATURE_FRESHNESS_SECONDS = 300  # max expected age for "fresh" features
 
 # ── H3 / Geospatial ───────────────────────────────────────────────────────────
 H3_RESOLUTION = 8

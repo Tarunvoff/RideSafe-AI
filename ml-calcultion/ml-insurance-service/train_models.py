@@ -6,41 +6,37 @@ import lightgbm as lgb
 from sklearn.ensemble import IsolationForest, GradientBoostingClassifier
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+ENABLE_SYNTHETIC_TRAINING = os.getenv("ENABLE_SYNTHETIC_TRAINING", "false").lower() == "true"
 
 def train_and_save():
     os.makedirs(DATA_DIR, exist_ok=True)
     
-    np.random.seed(42)
+    if not ENABLE_SYNTHETIC_TRAINING:
+        print("Synthetic training disabled. Risk and pricing use heuristic models in runtime.")
+    else:
+        np.random.seed(42)
 
-    # 1. XGBoost Risk Model (Multi-output simulation or Multi-event prediction)
-    # Features: rainfall, aqi, temperature, demand_ratio, history_freq, zone_volatility
-    # Outputs probabilities for: [rain_disruption, aqi_disruption, temperature_disruption]
-    print("Training XGBoost Risk Model...")
-    X_risk = np.random.rand(1000, 6)
-    # Binary labels for 3 events
-    y_risk_1 = np.random.randint(0, 2, 1000)
-    y_risk_2 = np.random.randint(0, 2, 1000)
-    y_risk_3 = np.random.randint(0, 2, 1000)
-    
-    model_xgb_rain = xgb.XGBClassifier(n_estimators=10, random_state=42)
-    model_xgb_rain.fit(X_risk, y_risk_1)
-    
-    model_xgb_aqi = xgb.XGBClassifier(n_estimators=10, random_state=42)
-    model_xgb_aqi.fit(X_risk, y_risk_2)
-    
-    model_xgb_temp = xgb.XGBClassifier(n_estimators=10, random_state=42)
-    model_xgb_temp.fit(X_risk, y_risk_3)
+        # 1. XGBoost Risk Model (synthetic) — disabled by default
+        print("Training XGBoost Risk Model (synthetic)...")
+        X_risk = np.random.rand(1000, 6)
+        y_risk_1 = np.random.randint(0, 2, 1000)
+        y_risk_2 = np.random.randint(0, 2, 1000)
+        y_risk_3 = np.random.randint(0, 2, 1000)
+        model_xgb_rain = xgb.XGBClassifier(n_estimators=10, random_state=42)
+        model_xgb_rain.fit(X_risk, y_risk_1)
+        model_xgb_aqi = xgb.XGBClassifier(n_estimators=10, random_state=42)
+        model_xgb_aqi.fit(X_risk, y_risk_2)
+        model_xgb_temp = xgb.XGBClassifier(n_estimators=10, random_state=42)
+        model_xgb_temp.fit(X_risk, y_risk_3)
+        joblib.dump({"rain": model_xgb_rain, "aqi": model_xgb_aqi, "temp": model_xgb_temp}, os.path.join(DATA_DIR, 'risk_xgb_models.pkl'))
 
-    joblib.dump({"rain": model_xgb_rain, "aqi": model_xgb_aqi, "temp": model_xgb_temp}, os.path.join(DATA_DIR, 'risk_xgb_models.pkl'))
-
-    # 2. LightGBM Pricing Model (Optional optimization - but preferred)
-    # Predict optimized markup (M) based on inputs.
-    print("Training LightGBM Pricing Model...")
-    X_price = np.random.rand(1000, 4) # Ew, Lf, Ct, M_base
-    y_price = np.random.uniform(15, 150, 1000)
-    model_lgb = lgb.LGBMRegressor(n_estimators=10, random_state=42)
-    model_lgb.fit(X_price, y_price)
-    joblib.dump(model_lgb, os.path.join(DATA_DIR, 'price_lgb.pkl'))
+        # 2. LightGBM Pricing Model (synthetic) — disabled by default
+        print("Training LightGBM Pricing Model (synthetic)...")
+        X_price = np.random.rand(1000, 4) # Ew, Lf, Ct, M_base
+        y_price = np.random.uniform(15, 150, 1000)
+        model_lgb = lgb.LGBMRegressor(n_estimators=10, random_state=42)
+        model_lgb.fit(X_price, y_price)
+        joblib.dump(model_lgb, os.path.join(DATA_DIR, 'price_lgb.pkl'))
 
     # 3. Isolation Forest (Anomaly Detection for Fraud)
     # Features MUST match fraud_service.py exactly:

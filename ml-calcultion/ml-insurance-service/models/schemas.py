@@ -14,6 +14,8 @@ class RiskScoreRequest(BaseModel):
     # Add optional features since they are needed by the ML model
     historical_disruption_frequency: Optional[float] = 0.5
     zone_volatility: Optional[float] = 0.5
+    avg_speed_kmh: Optional[float] = 0.0
+    active_riders: Optional[int] = 0
 
 class RiskScoreResponse(BaseModel):
     Lf: float

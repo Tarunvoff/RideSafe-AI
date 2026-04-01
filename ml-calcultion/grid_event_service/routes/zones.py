@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+from config import USE_REDIS, REDIS_URL
 
 router = APIRouter()
 
@@ -16,9 +17,14 @@ async def get_zone_state(h3_cell: str):
     This fetches from the Redis single source of truth.
     """
     import json
-    from services.zone_aggregator import get_redis
-    
-    redis = get_redis()
+    redis = None
+    if USE_REDIS:
+        try:
+            import redis.asyncio as redislib  # type: ignore
+            redis = redislib.from_url(REDIS_URL, decode_responses=True)
+        except Exception:
+            redis = None
+
     if redis is None:
         return {"h3_cell": h3_cell, "state": "UNKNOWN", "active_riders": 0, "lf_score": 0.0}
     

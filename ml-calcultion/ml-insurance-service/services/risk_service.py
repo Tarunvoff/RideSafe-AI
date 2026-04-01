@@ -1,6 +1,4 @@
 import os
-import numpy as np
-from utils.model_loader import model_loader
 from models.schemas import RiskScoreRequest, RiskScoreResponse
 from config import (
     SEVERITY_RAIN, SEVERITY_FLOOD, SEVERITY_AQI, SEVERITY_TEMP,
@@ -67,40 +65,58 @@ def _derive_flood_probability(rainfall: float, p_rain: float) -> float:
     return float(min(1.0, rainfall / 100.0))
 
 
+def _scaled(value: float, lo: float, hi: float) -> float:
+    if value <= lo:
+        return 0.0
+    if value >= hi:
+        return 1.0
+    return (value - lo) / (hi - lo)
+
+
 def calculate_risk_score(request: RiskScoreRequest) -> RiskScoreResponse:
-    # Feature vector: [rainfall, aqi, temperature, demand_ratio, historical_freq, zone_volatility]
-    features = np.array([[
-        request.weather.rainfall,
-        request.aqi,
-        request.weather.temperature,
-        request.demand_ratio,
-        request.historical_disruption_frequency,
-        request.zone_volatility
-    ]])
+    rainfall = float(request.weather.rainfall)
+    aqi = float(request.aqi)
+    temperature = float(request.weather.temperature)
+    demand_ratio = float(request.demand_ratio)
+    historical = float(request.historical_disruption_frequency or 0.0)
+    zone_volatility = float(request.zone_volatility or 0.0)
+    avg_speed = float(request.avg_speed_kmh or 0.0)
 
-    models = model_loader.risk_models
-    if not models:
-        raise RuntimeError(
-            "Risk XGBoost models not loaded. Run train_models.py before starting the server."
-        )
+    # Heuristic, real-signal-driven probabilities
+    p_rain = _scaled(rainfall, 5.0, 40.0)
+    p_aqi  = _scaled(aqi, 70.0, 200.0)
+    p_temp = _scaled(temperature, 36.0, 45.0)
 
-    # Pi — disruption probabilities from XGBoost classifiers
-    p_rain = float(models['rain'].predict_proba(features)[0][1])
-    p_aqi  = float(models['aqi'].predict_proba(features)[0][1])
-    p_temp = float(models['temp'].predict_proba(features)[0][1])
+    # Demand pressure: orders per rider; >1 means demand > supply
+    p_demand = _scaled(demand_ratio, 1.0, 2.0)
+
+    # Speed penalty: sustained low speeds imply congestion and delay risk
+    p_speed = _scaled(max(0.0, 25.0 - avg_speed), 5.0, 20.0)
+
+    # Historical disruption and volatility as weak priors
+    p_history = min(1.0, max(0.0, historical))
+    p_volatility = min(1.0, max(0.0, zone_volatility))
 
     # Derive correlated flood probability from rainfall
-    p_flood = _derive_flood_probability(request.weather.rainfall, p_rain)
+    p_flood = _derive_flood_probability(rainfall, p_rain)
 
     # ── Correlation Grouping ────────────────────────────────────────────────
     rain_cluster = max(p_rain * SEVERITY_RAIN, p_flood * SEVERITY_FLOOD)
     aqi_cluster  = p_aqi  * SEVERITY_AQI
     temp_cluster = p_temp * SEVERITY_TEMP
+    demand_cluster = 0.25 * p_demand
+    speed_cluster  = 0.20 * p_speed
+    history_cluster = 0.15 * p_history
+    volatility_cluster = 0.10 * p_volatility
 
     current_Lf = 1.0 - (
         (1.0 - rain_cluster) *
         (1.0 - aqi_cluster)  *
-        (1.0 - temp_cluster)
+        (1.0 - temp_cluster) *
+        (1.0 - demand_cluster) *
+        (1.0 - speed_cluster) *
+        (1.0 - history_cluster) *
+        (1.0 - volatility_cluster)
     )
 
     # ── Lf Smoothing (Redis-backed, survives restarts) ────────────────────────
@@ -119,8 +135,8 @@ def calculate_risk_score(request: RiskScoreRequest) -> RiskScoreResponse:
         risk_level = "HIGH"
 
     logger.info(
-        "Risk score for %s: Lf=%.4f (%s) | rain_cluster=%.3f aqi_cluster=%.3f temp_cluster=%.3f",
-        request.h3_cell, Lf, risk_level, rain_cluster, aqi_cluster, temp_cluster
+        "Risk score for %s: Lf=%.4f (%s) | rain=%.2f aqi=%.2f temp=%.2f demand=%.2f speed=%.2f",
+        request.h3_cell, Lf, risk_level, rain_cluster, aqi_cluster, temp_cluster, demand_cluster, speed_cluster
     )
 
     return RiskScoreResponse(

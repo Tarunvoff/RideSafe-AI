@@ -52,16 +52,16 @@ async def _reverse_geocode_city(lat: float, lng: float, h3_cell: str) -> str:
         return "Bangalore"
 
 
-async def check_civic_alert(city: str = "Bangalore") -> bool:
+async def check_civic_alert(city: str = "Bangalore") -> dict:
     """
-    Returns True if there are ongoing civic alerts affecting gig workers.
+    Returns {"civic_alert": bool, "is_fallback": bool, "source": str}.
     Uses Newsdata.io directly based on the user's platform integration.
     City is derived dynamically (passed from feature_service via _reverse_geocode_city).
     """
     try:
         if USE_MOCK_DATA or NEWSDATA_API_KEY == "demo_key":
             import random
-            return random.random() < 0.05
+            return {"civic_alert": random.random() < 0.05, "is_fallback": True, "source": "mock"}
 
         params = {
             "apikey": NEWSDATA_API_KEY,
@@ -76,9 +76,9 @@ async def check_civic_alert(city: str = "Bangalore") -> bool:
             total = data.get("totalResults", 0)
             if total > 0:
                 logger.info("Civic alert detected for %s: %d results", city, total)
-                return True
-            return False
+                return {"civic_alert": True, "is_fallback": False, "source": "newsdata"}
+            return {"civic_alert": False, "is_fallback": False, "source": "newsdata"}
 
     except Exception as exc:
         logger.warning("Civic alert check failed for %s: %s", city, exc)
-        return False
+        return {"civic_alert": False, "is_fallback": True, "source": "default"}

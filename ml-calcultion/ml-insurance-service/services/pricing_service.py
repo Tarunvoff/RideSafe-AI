@@ -1,7 +1,4 @@
-import numpy as np
-import pandas as pd
 from models.schemas import PricingRequest, PricingResponse
-from utils.model_loader import model_loader
 from config import ALPHA, MIN_PREMIUM, MAX_PREMIUM, MARGIN_MIN, MARGIN_MAX
 import logging
 
@@ -56,19 +53,7 @@ def calculate_premium(request: PricingRequest) -> PricingResponse:
         Ew, Lf, Ct, M, getattr(request, 'platform', 'N/A')
     )
 
-    if model_loader.price_model:
-        # Use DataFrame to avoid LGBMRegressor warning about valid feature names
-        features = pd.DataFrame([{
-            'zone_base_earnings': Ew,
-            'risk_fraction': Lf,
-            'coverage_tier': Ct,
-            'profit_margin': M
-        }])
-        predicted_premium = float(model_loader.price_model.predict(features)[0])
-        base = Ew * ALPHA * Lf * Ct
-        if base > 0:
-            suggested_M = (predicted_premium / base) - 1.0
-            M = max(MARGIN_MIN, min(MARGIN_MAX, suggested_M))
+    # Pricing is rule-based; do not rely on trained synthetic models.
 
     # Zone Multiplier = f(demand_ratio, zone_volatility)
     zone_multiplier = 1.0 + (request.demand_ratio - 1.0) * 0.1 + (request.zone_volatility * 0.2)
