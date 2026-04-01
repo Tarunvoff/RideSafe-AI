@@ -177,6 +177,31 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  // ── UPDATE DRIVER NAME ─────────────────────────────────────────────────────
+  async updateDriverName(userId: string, driverName: string) {
+    const trimmedName = driverName.trim();
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.prisma.$transaction(async tx => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { driverName: trimmedName },
+      });
+
+      const basicIdentity = await tx.kYCBasicIdentity.findUnique({ where: { userId } });
+      if (basicIdentity) {
+        // Keep the KYC display name in sync so profile screens show the latest value after re-login.
+        await tx.kYCBasicIdentity.update({
+          where: { userId },
+          data: { fullName: trimmedName },
+        });
+      }
+    });
+
+    return { message: 'Driver name updated successfully', driverName: trimmedName };
+  }
+
   // ── FORGOT PASSWORD ──────────────────────────────────────────────────────
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });

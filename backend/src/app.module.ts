@@ -10,6 +10,7 @@ import { KycModule } from './kyc/kyc.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PlansModule } from './plans/plans.module';
 import { PaymentsModule } from './payments/payments.module';
+import { MockQCommerceModule } from './mock-qcommerce/mock-qcommerce.module';
 
 @Module({
   imports: [

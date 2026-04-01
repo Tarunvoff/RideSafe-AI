@@ -6,6 +6,7 @@ interface AuthUser {
   id?: string;
   email: string;
   role: 'DRIVER' | 'ADMIN';
+  driverName?: string;
 }
 
 interface AuthContextType {
@@ -22,6 +23,7 @@ interface AuthContextType {
   adminVerifyOtp: (email: string, otp: string) => Promise<void>;
   checkKycStatus: () => Promise<string | null>;
   refreshKycStatus: () => Promise<void>;
+  updateDriverName: (name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -42,7 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const role = await AsyncStorage.getItem('userRole') as 'DRIVER' | 'ADMIN' | null;
         
         if (token && email && role) {
-          setUser({ id: userId || undefined, email, role });
+          const savedName = await AsyncStorage.getItem('driverName');
+          setUser({ id: userId || undefined, email, role, driverName: savedName || undefined });
           
           // Check KYC status if driver
           if (role === 'DRIVER') {
@@ -73,6 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyOtp = async (email: string, otp: string) => {
     const res = await authApi.verifyOtp(email, otp) as any;
+    
+    // Get saved driver name from local storage
+    const savedName = await AsyncStorage.getItem('driverName');
+    
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
@@ -80,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', 'DRIVER'],
       ['userId', email], // Use email as user ID for now
     ]);
-    setUser({ email, role: 'DRIVER' });
+    setUser({ email, role: 'DRIVER', driverName: savedName || undefined });
     setKycStatus('NOT_STARTED');
   };
 
@@ -88,6 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // For manual logins, reset the new registration flag just in case
     // setIsNewRegistration(false); // Only set if not already set by register() within this session
     const res = await authApi.login(email, password) as any;
+    
+    // Get saved driver name from local storage
+    const savedName = await AsyncStorage.getItem('driverName');
+    
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
@@ -95,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', res.role || 'DRIVER'],
       ['userId', email],
     ]);
-    setUser({ email, role: res.role || 'DRIVER' });
+    setUser({ email, role: res.role || 'DRIVER', driverName: savedName || undefined });
     
     // Check KYC status for drivers
     if (res.role === 'DRIVER') {
@@ -116,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // We still want to clear the local session regardless of backend success
       console.log('Backend logout failed or token expired, proceeding with local logout');
     }
-    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId']);
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId', 'driverName']);
     setUser(null);
     setKycStatus(null);
     setIsNewRegistration(false);
@@ -128,6 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const adminVerifyOtp = async (email: string, otp: string) => {
     const res = await authApi.adminVerifyOtp(email, otp) as any;
+    
+    // Get saved driver name from local storage
+    const savedName = await AsyncStorage.getItem('driverName');
+    
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
@@ -135,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', 'ADMIN'],
       ['userId', email],
     ]);
-    setUser({ email, role: 'ADMIN' });
+    setUser({ email, role: 'ADMIN', driverName: savedName || undefined });
   };
 
   const checkKycStatus = useCallback(async () => {
@@ -154,6 +169,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await checkKycStatus();
   }, [checkKycStatus]);
 
+  const updateDriverName = async (name: string) => {
+    try {
+      // Call API to update name in database
+      await authApi.updateDriverName(name);
+      
+      // Save to local storage as fallback
+      await AsyncStorage.setItem('driverName', name);
+      setUser(prev => prev ? { ...prev, driverName: name } : prev);
+    } catch (error) {
+      console.error('Error updating driver name:', error);
+      // Still save locally as fallback
+      await AsyncStorage.setItem('driverName', name);
+      setUser(prev => prev ? { ...prev, driverName: name } : prev);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -170,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminVerifyOtp,
         checkKycStatus,
         refreshKycStatus,
+        updateDriverName,
       }}
     >
       {children}

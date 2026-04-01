@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../theme';
 
 export type DriverBottomNavKey = 'home' | 'risk' | 'activity' | 'plans' | 'profile';
@@ -12,11 +13,12 @@ type DriverBottomNavbarProps = {
 
 export default function DriverBottomNavbar({ navigation, activeKey }: DriverBottomNavbarProps) {
   const rootNav = navigation?.getParent?.() ?? navigation;
+  const insets = useSafeAreaInsets();
 
   const bottomItems = [
     { key: 'home' as const, label: 'Home', icon: 'home-outline' as const },
     { key: 'risk' as const, label: 'Live Risk', icon: 'pulse' as const },
-    { key: 'activity' as const, label: 'Activity', icon: 'stats-chart-outline' as const },
+    { key: 'activity' as const, label: 'Work Pulse', icon: 'stats-chart-outline' as const },
     { key: 'plans' as const, label: 'Plans', icon: 'card-outline' as const },
     { key: 'profile' as const, label: 'Profile', icon: 'person-outline' as const },
   ];
@@ -30,7 +32,7 @@ export default function DriverBottomNavbar({ navigation, activeKey }: DriverBott
   };
 
   return (
-    <View style={styles.bottomBar}>
+    <View style={[styles.bottomBar, { bottom: insets.bottom + Theme.spacing.md }]}>
       {bottomItems.map((item) => {
         const isActive = item.key === activeKey;
         return (
@@ -56,7 +58,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Theme.spacing.lg,
     right: Theme.spacing.lg,
-    bottom: Theme.spacing.md,
     height: 72,
     backgroundColor: '#ffffff',
     borderRadius: Theme.borderRadius.lg,

@@ -136,6 +136,12 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, otp }),
     }),
+
+  updateDriverName: (driverName: string) =>
+    request<{ message: string; driverName: string }>('/auth/update-driver-name', {
+      method: 'PATCH',
+      body: JSON.stringify({ driverName }),
+    }, true),
 };
 
 // ── KYC ──────────────────────────────────────────────────────────────────────
@@ -169,6 +175,17 @@ export const kycApi = {
 
   submit: () =>
     request('/kyc/submit', { method: 'POST' }, true),
+
+  getDetails: () =>
+    request<{
+      status: string;
+      submittedAt: string | null;
+      reviewedAt: string | null;
+      basicIdentity: { fullName: string; dob: string; gender: string } | null;
+      personalDetails: { address: string; city: string; state: string; pincode: string } | null;
+      identityVerification: { aadhaarNumber: string; panNumber: string } | null;
+      payoutSetup: { method: string; upiId?: string; accountHolder?: string; bankName?: string } | null;
+    }>('/kyc/details', {}, true),
 };
 
 // ── FRAUD ────────────────────────────────────────────────────────────────────

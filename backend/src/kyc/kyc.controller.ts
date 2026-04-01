@@ -13,6 +13,11 @@ export class KycController {
     return this.kycService.getStatus(req.user.id);
   }
 
+  @Get('details')
+  getDetails(@Request() req: any) {
+    return this.kycService.getDriverDetails(req.user.id);
+  }
+
   @Post('basic-identity')
   @HttpCode(HttpStatus.OK)
   saveBasicIdentity(@Request() req: any, @Body() dto: BasicIdentityDto) {

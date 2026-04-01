@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../theme';
 
 export type AdminBottomNavKey = 'dash' | 'workers' | 'claims' | 'setup';
@@ -14,6 +15,7 @@ const PRIMARY_GREEN = '#16a34a';
 
 export default function AdminBottomNavbar({ navigation, activeKey }: AdminBottomNavbarProps) {
   const rootNav = navigation?.getParent?.() ?? navigation;
+  const insets = useSafeAreaInsets();
 
   const items = useMemo(
     () =>
@@ -31,7 +33,7 @@ export default function AdminBottomNavbar({ navigation, activeKey }: AdminBottom
   };
 
   return (
-    <View style={styles.bottomBar}>
+    <View style={[styles.bottomBar, { bottom: insets.bottom + Theme.spacing.md }]}>
       {items.map((item) => {
         const isActive = item.key === activeKey;
         return (
@@ -57,7 +59,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Theme.spacing.lg,
     right: Theme.spacing.lg,
-    bottom: Theme.spacing.md,
     height: 72,
     backgroundColor: '#ffffff',
     borderRadius: Theme.borderRadius.lg,
