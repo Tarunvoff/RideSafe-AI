@@ -91,9 +91,15 @@ export class RedisStateService {
     const redis = await this.getRedis();
     if (!redis) return;
     const setKey = `zone:${h3Cell}:drivers`;
+    const driverZoneKey = `driver:${driverId}:zone`;
     try {
+      const previousZone = await redis.get(driverZoneKey);
+      if (previousZone && previousZone !== h3Cell) {
+        await redis.sRem(`zone:${previousZone}:drivers`, driverId);
+      }
       await redis.sAdd(setKey, driverId);
       await redis.expire(setKey, ZONE_DRIVER_TTL);
+      await redis.setEx(driverZoneKey, ZONE_DRIVER_TTL, h3Cell);
     } catch (err) {
       this.logger.warn(`[Redis state] zone set update failed for ${h3Cell}: ${err}`);
     }
