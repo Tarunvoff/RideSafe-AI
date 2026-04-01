@@ -49,6 +49,7 @@ const TEST_DATA = {
 
 const SHARED_STATE = {
   h3Cell: null,
+  driverId: null,
 };
 
 const TIMEOUT = 30000; // 30 seconds per request
@@ -651,10 +652,121 @@ async function phase8_EndToEndIntegration(authToken) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PHASE 9: Parametric Insurance Orchestration
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function phase9_ParametricInsurance() {
+  logPhaseHeader(9, 'PARAMETRIC INSURANCE', 'Premium, trigger, payout, and orchestration');
+
+  try {
+    console.log('\n[9.1] Seed Dynamic Q-commerce Driver');
+    const seedRes = await makeRequest(
+      `${API_ENDPOINTS.NESTJS_API}/dynamic-qcommerce/drivers/seed`,
+      'POST',
+      { provider: 'zepto', count: 1 }
+    );
+
+    let driverId = null;
+    if (seedRes.ok && seedRes.body?.driverIds?.length) {
+      driverId = seedRes.body.driverIds[0];
+      SHARED_STATE.driverId = driverId;
+      recordTest('Insurance', 'Seed Driver', 'PASS', `Driver: ${driverId}`);
+    } else {
+      recordTest('Insurance', 'Seed Driver', 'FAIL', `Status ${seedRes.status}`);
+      return;
+    }
+
+    console.log('\n[9.2] Weekly Premium Calculation');
+    const premiumRes = await makeRequest(
+      `${API_ENDPOINTS.NESTJS_API}/premium/weekly`,
+      'POST',
+      { driverId }
+    );
+
+    if (premiumRes.ok && premiumRes.body?.premium != null) {
+      recordTest('Insurance', 'Weekly Premium', 'PASS', `Premium: ₹${premiumRes.body.premium}`);
+    } else {
+      recordTest('Insurance', 'Weekly Premium', 'FAIL', `Status ${premiumRes.status}`);
+    }
+
+    console.log('\n[9.3] Trigger Evaluation');
+    const triggerRes = await makeRequest(
+      `${API_ENDPOINTS.NESTJS_API}/trigger/evaluate`,
+      'POST',
+      {
+        driverId,
+        lat: TEST_DATA.testLat,
+        lng: TEST_DATA.testLng,
+      }
+    );
+
+    if (triggerRes.ok && triggerRes.body?.decision) {
+      recordTest('Insurance', 'Trigger Evaluation', 'PASS', `Decision: ${triggerRes.body.decision}`);
+    } else {
+      recordTest('Insurance', 'Trigger Evaluation', 'FAIL', `Status ${triggerRes.status}`);
+    }
+
+    console.log('\n[9.4] Payout Calculation');
+    const payoutCalcRes = await makeRequest(
+      `${API_ENDPOINTS.NESTJS_API}/payout/calculate`,
+      'POST',
+      { driverId }
+    );
+
+    if (payoutCalcRes.ok && payoutCalcRes.body?.payoutAmount != null) {
+      recordTest('Insurance', 'Payout Calculation', 'PASS', `Payout: ₹${payoutCalcRes.body.payoutAmount}`);
+    } else {
+      recordTest('Insurance', 'Payout Calculation', 'FAIL', `Status ${payoutCalcRes.status}`);
+    }
+
+    console.log('\n[9.5] Insurance Orchestrator');
+    const insuranceRes = await makeRequest(
+      `${API_ENDPOINTS.NESTJS_API}/insurance/process/${driverId}`,
+      'POST',
+      {
+        lat: TEST_DATA.testLat,
+        lng: TEST_DATA.testLng,
+        deviceId: TEST_DATA.deviceId,
+        eventType: 'ZONE_HALTED',
+      }
+    );
+
+    if (insuranceRes.ok && insuranceRes.body?.decision) {
+      recordTest('Insurance', 'Insurance Orchestrator', 'PASS', `Decision: ${insuranceRes.body.decision}`);
+    } else {
+      recordTest('Insurance', 'Insurance Orchestrator', 'FAIL', `Status ${insuranceRes.status}`);
+    }
+
+    console.log('\n[9.6] Payout Processing (optional)');
+    const payoutProcessRes = await makeRequest(
+      `${API_ENDPOINTS.NESTJS_API}/payout/process`,
+      'POST',
+      {
+        driverId,
+        payoutAmount: payoutCalcRes.body?.payoutAmount ?? 0,
+        h3Cell: SHARED_STATE.h3Cell ?? undefined,
+        disruptionType: 'HALTED',
+      }
+    );
+
+    if (payoutProcessRes.ok && payoutProcessRes.body?.success) {
+      recordTest('Insurance', 'Payout Process', 'PASS', `Txn: ${payoutProcessRes.body.transactionId ?? 'n/a'}`);
+    } else if (payoutProcessRes.status === 404 || payoutProcessRes.status === 400) {
+      recordTest('Insurance', 'Payout Process', 'SKIP', 'No active policy yet');
+    } else {
+      recordTest('Insurance', 'Payout Process', 'FAIL', `Status ${payoutProcessRes.status}`);
+    }
+
+  } catch (error) {
+    recordTest('Insurance', 'Parametric Insurance', 'FAIL', error.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PHASE 9: Performance & Load Testing
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function phase9_PerformanceMetrics(authToken) {
+async function phase10_PerformanceMetrics(authToken) {
   if (QUICK_MODE) {
     console.log('\n⏭️  Skipping performance tests in --quick mode');
     return;
@@ -713,8 +825,8 @@ async function phase9_PerformanceMetrics(authToken) {
 // PHASE 10: Error Handling & Edge Cases
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function phase10_ErrorHandling(authToken) {
-  logPhaseHeader(10, 'ERROR HANDLING & EDGE CASES', 'Test error scenarios and boundary conditions');
+async function phase11_ErrorHandling(authToken) {
+  logPhaseHeader(11, 'ERROR HANDLING & EDGE CASES', 'Test error scenarios and boundary conditions');
 
   try {
     console.log('\n[10.1] Invalid GPS Coordinates');
@@ -845,8 +957,9 @@ async function runAllTests() {
     // Phase 7-10: Integration & Performance
     await phase7_BackendFraudAnalysis(auth.token);
     await phase8_EndToEndIntegration(auth.token);
-    await phase9_PerformanceMetrics(auth.token);
-    await phase10_ErrorHandling(auth.token);
+    await phase9_ParametricInsurance();
+    await phase10_PerformanceMetrics(auth.token);
+    await phase11_ErrorHandling(auth.token);
 
     printSummary();
 

@@ -22,7 +22,7 @@ export class FraudController {
 
     this.kafkaProducerService
       .publishDriverLocation({
-        rider_id: req.user.id,
+        driverId: req.user.id,
         lat: dto.gpsLatitude,
         lng: dto.gpsLongitude,
         timestamp: Math.floor(Date.now() / 1000),

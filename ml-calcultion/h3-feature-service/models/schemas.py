@@ -27,10 +27,13 @@ class FeatureResponse(BaseModel):
     pm25: float               # µg/m³
     pm10: float               # µg/m³
 
-    # Platform Activity (ported from ml_microservice PlatformActivityService)
-    platform_orders: int
+    # Platform Activity (ported from mock platform activity service)
+    active_orders: int
     active_riders: int
-    demand_ratio: float       # riders / orders
+    demand_ratio: float       # orders / riders
+    order_density: float
+    sla_breach_rate: float
+    avg_delivery_delay_min: float
 
     # Civic disruption (ported from ml_microservice CivicAlertService)
     civic_alert: bool

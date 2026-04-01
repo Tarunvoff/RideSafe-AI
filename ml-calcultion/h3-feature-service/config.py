@@ -33,7 +33,11 @@ NEWSDATA_URL = "https://newsdata.io/api/1/latest"
 
 # ── Mocking ───────────────────────────────────────────────────────────────────
 USE_MOCK_DATA = False
-PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:8080/zone-activity")
+PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:3001/api/platform/activity")
+PLATFORM_TIMEOUT_SEC = float(os.getenv("PLATFORM_TIMEOUT_SECONDS", "6.0"))
+
+# ── Strict realtime mode (no fallbacks) ──────────────────────────────────────
+STRICT_REALTIME = os.getenv("STRICT_REALTIME", "false").lower() == "true"
 
 # ── Safe defaults (returned when APIs fail AND no cache exists) ───────────────
 DEFAULT_RAINFALL      = 0.0

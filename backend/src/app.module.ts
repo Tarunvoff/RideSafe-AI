@@ -11,6 +11,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PlansModule } from './plans/plans.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DynamicQCommerceModule } from './dynamic-qcommerce/dynamic-qcommerce.module';
+import { PremiumModule } from './premium/premium.module';
+import { TriggerModule } from './trigger/trigger.module';
+import { PayoutModule } from './payout/payout.module';
+import { InsuranceModule } from './insurance/insurance.module';
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { DynamicQCommerceModule } from './dynamic-qcommerce/dynamic-qcommerce.mo
     IngestionModule,
     TelemetryModule,
     DynamicQCommerceModule,
+    PremiumModule,
+    TriggerModule,
+    PayoutModule,
+    InsuranceModule,
   ],
 })
 export class AppModule {}

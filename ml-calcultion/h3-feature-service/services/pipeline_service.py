@@ -22,7 +22,7 @@ import uuid
 import httpx
 import h3 as h3lib
 from fastapi import HTTPException
-from config import H3_RESOLUTION
+from config import H3_RESOLUTION, STRICT_REALTIME
 from services.feature_service import get_features
 from services.circuit_breaker import get_breaker
 from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
@@ -30,8 +30,8 @@ from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
 logger = logging.getLogger(__name__)
 
 ML_SERVICE_URL    = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000")
-ML_TIMEOUT        = float(os.getenv("ML_TIMEOUT_SECONDS",  "5.0"))   # per-call timeout
-PIPELINE_DEADLINE = float(os.getenv("PIPELINE_DEADLINE_SECONDS", "2.5"))  # hard end-to-end cap
+ML_TIMEOUT        = float(os.getenv("ML_TIMEOUT_SECONDS",  "10.0"))   # per-call timeout
+PIPELINE_DEADLINE = float(os.getenv("PIPELINE_DEADLINE_SECONDS", "10.0"))  # hard end-to-end cap
 REDIS_ZONE_TTL    = int(os.getenv("ZONE_KEY_TTL_SECONDS", "300"))
 MIN_CONFIDENCE_SCORE = float(os.getenv("MIN_CONFIDENCE_SCORE", "0.5"))
 MAX_FALLBACK_RATIO   = float(os.getenv("MAX_FALLBACK_RATIO", "0.5"))
@@ -217,7 +217,17 @@ async def _execute_pipeline_core(
         trace_id, features.rainfall, features.aqi, features.demand_ratio, features.civic_alert
     )
 
-    if features.fallback_ratio >= MAX_FALLBACK_RATIO or len(features.missing_features) >= 3:
+    if STRICT_REALTIME and (features.is_fallback or features.fallback_ratio > 0 or features.missing_features):
+        raise HTTPException(
+            status_code=424,
+            detail=(
+                f"Realtime-only mode: fallbacks={features.fallback_features} "
+                f"missing={features.missing_features}"
+            ),
+        )
+
+    has_platform_signal = features.active_orders > 0 and features.active_riders > 0
+    if (features.fallback_ratio >= MAX_FALLBACK_RATIO or len(features.missing_features) >= 3) and not has_platform_signal:
         raise HTTPException(
             status_code=424,
             detail=(
@@ -237,13 +247,16 @@ async def _execute_pipeline_core(
         pass
 
     # ── Step 3: Features → /risk-score (circuit breaker guarded) ─────────────
+    historical_freq = min(1.0, max(0.0, features.avg_delivery_delay_min / 60.0))
+    zone_volatility = min(1.0, max(0.0, features.sla_breach_rate))
+
     risk_payload = {
         "h3_cell":   h3_cell,
         "weather":   {"rainfall": features.rainfall, "temperature": features.temperature},
         "aqi":       features.aqi,
         "demand_ratio": features.demand_ratio,
-        "historical_disruption_frequency": features.historical_risk,
-        "zone_volatility": 0.5,
+        "historical_disruption_frequency": historical_freq,
+        "zone_volatility": zone_volatility,
         "avg_speed_kmh":   avg_speed,
         "active_riders":   features.active_riders,
     }
@@ -268,6 +281,11 @@ async def _execute_pipeline_core(
         except Exception as exc:
             _ml_cb.record_failure()
             logger.error("[tid=%s] ML /risk-score failed: %s — circuit_breaker=%s", trace_id, exc, _ml_cb.state)
+            if STRICT_REALTIME:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Realtime-only mode: ML risk service unavailable",
+                )
             # Fallback: last known zone state from Redis
             fb = _fallback_from_redis(h3_cell, trace_id)
             if fb:
@@ -282,6 +300,11 @@ async def _execute_pipeline_core(
                 fallback_reasons.append("ml_risk_failed")
     else:
         # CB is OPEN — short-circuit directly
+        if STRICT_REALTIME:
+            raise HTTPException(
+                status_code=503,
+                detail="Realtime-only mode: ML risk service unavailable",
+            )
         fb = _fallback_from_redis(h3_cell, trace_id)
         if fb:
             Lf         = float(fb.get("Lf", 0.0))
@@ -300,7 +323,7 @@ async def _execute_pipeline_core(
                 "M":  request.M,
                 "platform": getattr(request, "platform", None),
                 "demand_ratio": features.demand_ratio,
-                "zone_volatility": 0.5,
+                "zone_volatility": zone_volatility,
             }
             async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
                 pricing_data = await _call_ml_with_retry(
@@ -312,10 +335,20 @@ async def _execute_pipeline_core(
         except Exception as exc:
             _ml_cb.record_failure()
             logger.error("[tid=%s] ML /pricing failed: %s — using min premium", trace_id, exc)
+            if STRICT_REALTIME:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Realtime-only mode: ML pricing service unavailable",
+                )
             premium = _MIN_PREMIUM
             fallback_reasons.append("ml_pricing_failed")
     elif used_fallback:
         # Estimate premium from Lf without ML using simplified formula
+        if STRICT_REALTIME:
+            raise HTTPException(
+                status_code=503,
+                detail="Realtime-only mode: ML pricing service unavailable",
+            )
         Ew    = max(request.Ew, 1.0)
         Ct    = request.Ct if request.Ct else 0.6
         M     = request.M if request.M else 0.1

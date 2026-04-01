@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
+import { GpsTelemetryDto } from './dto/gps-telemetry.dto';
 
 @Controller('telemetry')
 export class TelemetryController {
@@ -15,6 +16,17 @@ export class TelemetryController {
     return {
       message: 'TimescaleDB Data Warehouse Successfully Committed Pipeline Events.',
       archived: result.count
+    };
+  }
+
+  @Post('gps')
+  @HttpCode(HttpStatus.OK)
+  ingestGps(@Body() dto: GpsTelemetryDto) {
+    this.telemetryService.publishGpsTelemetry(dto).subscribe({ error: () => undefined });
+    return {
+      status: 'accepted',
+      driverId: dto.driverId,
+      timestamp: dto.timestamp ?? Math.floor(Date.now() / 1000),
     };
   }
 }

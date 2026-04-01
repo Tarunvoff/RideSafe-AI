@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import * as h3 from 'h3-js';
+import { KafkaReliableProducerService } from '../kafka/kafka-reliable-producer.service';
 import { randomUUID } from 'crypto';
 import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
 import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
-import { QCommerceProvider } from './enums/qcommerce.enums';
+import { DriverStatus, QCommerceProvider } from './enums/qcommerce.enums';
 import {
   DriverHistoricalWeekSnapshot,
   DriverProfilePayload,
@@ -46,12 +48,21 @@ interface DriverRecord {
   previousWeeksHistory: DriverHistoricalWeekRecord[];
 }
 
+interface DriverPosition {
+  lat: number;
+  lng: number;
+  timestamp: number;
+}
+
 @Injectable()
 export class DynamicQCommerceService {
   private readonly logger = new Logger(DynamicQCommerceService.name);
   private readonly sessions = new Map<string, OAuthSessionState>();
   private readonly driverRecords = new Map<string, DriverRecord>();
+  private readonly driverPositions = new Map<string, DriverPosition>();
   private weekKeyOverride?: string;
+
+  constructor(private readonly kafkaProducer: KafkaReliableProducerService) {}
 
   startOAuthLogin(dto: DynamicOAuthLoginDto) {
     const sessionId = randomUUID();
@@ -144,6 +155,167 @@ export class DynamicQCommerceService {
       success: true,
       message,
       driverProfile: this.composeProfile(record),
+    };
+  }
+
+  seedDrivers(provider: QCommerceProvider, identifiers?: string[], prefix?: string, count?: number) {
+    const normalized = (identifiers ?? []).map((id) => id.trim()).filter(Boolean);
+    const desiredCount = count && count > 0 ? count : 10;
+    const seedPrefix = (prefix ?? provider).trim() || provider;
+
+    const generatedIds: string[] = [];
+    const sourceIds = normalized.length
+      ? normalized
+      : Array.from({ length: desiredCount }, (_, i) => `${seedPrefix}_${i + 1}`);
+
+    for (const identifier of sourceIds) {
+      const internalDriverId = createInternalDriverId(provider, identifier);
+      this.ensureDriverRecord(provider, identifier, internalDriverId);
+      generatedIds.push(internalDriverId);
+    }
+
+    return {
+      success: true,
+      provider,
+      seeded: generatedIds.length,
+      driverIds: generatedIds,
+    };
+  }
+
+  getZoneActivity(zone: string) {
+    const rawZone = zone.trim();
+    const zoneKey = rawZone.toLowerCase();
+    const records = Array.from(this.driverRecords.values());
+
+    if (!records.length) {
+      this.seedDrivers(QCommerceProvider.ZEPTO, undefined, 'auto', 12);
+      return this.getZoneActivity(zone);
+    }
+
+    const zoneLabel = (value?: string) =>
+      (value ?? '').split(',')[0].trim().toLowerCase();
+
+    const isH3Like = /^[0-9a-f]+$/i.test(zoneKey) && zoneKey.length >= 10;
+    let mappedZone = zoneKey;
+    if (isH3Like) {
+      const allZones = Array.from(
+        new Set(records.flatMap((r) => r.cityContext.serviceZones.map(zoneLabel))),
+      );
+      if (allZones.length) {
+        let hash = 0;
+        for (let i = 0; i < zoneKey.length; i += 1) {
+          hash = (hash * 31 + zoneKey.charCodeAt(i)) % allZones.length;
+        }
+        mappedZone = allZones[hash];
+      }
+    }
+
+    let activeRiders = 0;
+    let activeOrders = 0;
+    let totalDelayMinutes = 0;
+    let delayCount = 0;
+    let slaBreaches = 0;
+
+    for (const record of records) {
+      this.refreshWeekIfNeeded(record);
+      const identity = record.staticProfile.identity;
+      const driverZone = zoneLabel(identity.primaryServiceZone);
+
+      if (identity.currentStatus === DriverStatus.ACTIVE && driverZone === mappedZone) {
+        activeRiders += 1;
+      }
+
+      const history = record.currentSnapshot?.orderHistory ?? [];
+      for (const order of history) {
+        const pickupZone = zoneLabel(order.pickupZone);
+        const deliveryZone = zoneLabel(order.deliveryZone);
+        if (pickupZone !== mappedZone && deliveryZone !== mappedZone) {
+          continue;
+        }
+
+        activeOrders += 1;
+
+        if (order.assignedAt && order.deliveredAt) {
+          const assigned = new Date(order.assignedAt).getTime();
+          const delivered = new Date(order.deliveredAt).getTime();
+          if (Number.isFinite(assigned) && Number.isFinite(delivered) && delivered >= assigned) {
+            const delayMin = (delivered - assigned) / 60000;
+            totalDelayMinutes += delayMin;
+            delayCount += 1;
+            if (delayMin > 30) {
+              slaBreaches += 1;
+            }
+          }
+        }
+      }
+    }
+
+    const demandRatio = activeOrders / Math.max(activeRiders, 1);
+    const avgDelay = delayCount ? totalDelayMinutes / delayCount : 0;
+    const slaBreachRate = delayCount ? slaBreaches / delayCount : 0;
+
+    const response: Record<string, unknown> = {
+      zone,
+      mapped_zone: mappedZone !== zoneKey ? mappedZone : undefined,
+      active_riders: activeRiders,
+      active_orders: activeOrders,
+      demand_ratio: Number(demandRatio.toFixed(3)),
+      order_density: Number((activeOrders / Math.max(activeRiders, 1)).toFixed(3)),
+      sla_breach_rate: Number(slaBreachRate.toFixed(3)),
+      avg_delivery_delay_min: Number(avgDelay.toFixed(2)),
+      source: 'dynamic-qcommerce',
+    };
+
+    if (!response.mapped_zone) {
+      delete response.mapped_zone;
+    }
+
+    return response;
+  }
+
+  publishLiveTelemetry(zone: string, provider: QCommerceProvider, count = 6) {
+    const rawZone = zone.trim();
+    const zoneKey = rawZone.toLowerCase();
+    const isH3Like = /^[0-9a-f]+$/i.test(zoneKey) && zoneKey.length >= 10;
+    const center = isH3Like ? h3.cellToLatLng(zoneKey) : [12.9716, 77.5946];
+    const [baseLat, baseLng] = center as [number, number];
+
+    if (!this.driverRecords.size) {
+      this.seedDrivers(provider, undefined, 'auto', Math.max(12, count));
+    }
+
+    const driverIds = Array.from(this.driverRecords.values())
+      .filter((record) => record.provider === provider)
+      .map((record) => record.internalDriverId);
+
+    const selected = driverIds.length ? driverIds.slice(0, count) : [];
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const published: string[] = [];
+    for (const driverId of selected) {
+      const prev = this.driverPositions.get(driverId);
+      const jitterLat = (Math.random() - 0.5) * 0.002;
+      const jitterLng = (Math.random() - 0.5) * 0.002;
+      const nextLat = (prev?.lat ?? baseLat) + jitterLat;
+      const nextLng = (prev?.lng ?? baseLng) + jitterLng;
+
+      this.driverPositions.set(driverId, { lat: nextLat, lng: nextLng, timestamp });
+      this.kafkaProducer.publishDriverLocation({
+        driverId,
+        lat: nextLat,
+        lng: nextLng,
+        timestamp,
+        platform: provider,
+      });
+      published.push(driverId);
+    }
+
+    return {
+      zone,
+      provider,
+      published: published.length,
+      driverIds: published,
+      base: { lat: baseLat, lng: baseLng },
     };
   }
 

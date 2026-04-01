@@ -12,6 +12,7 @@ TOPIC = "driver_telemetry"
 FRAUD_URL = "http://localhost:8002/fraud-features"
 TRIGGER_URL = "http://localhost:8000/trigger"
 GRID_URL = "http://localhost:8003/zones"
+PLATFORM_LIVE_GPS_URL = "http://localhost:3001/api/platform/live-gps"
 
 # Simulating a location (e.g., somewhere in Bangalore)
 TEST_LAT = 12.9352
@@ -22,9 +23,10 @@ TEST_H3 = h3.latlng_to_cell(TEST_LAT, TEST_LNG, 8)
 async def produce_telemetry(producer, user_id):
     """Simulate the NestJS backend publishing a GPS ping to Kafka."""
     payload = {
-        "rider_id": user_id,
+        "driverId": user_id,
         "lat": TEST_LAT,
         "lng": TEST_LNG,
+        "speed": 28.5,
         "timestamp": int(time.time()),
         "platform": "uber",
         "h3_cell": TEST_H3
@@ -41,25 +43,32 @@ async def main():
     print(f"🚀 INITIATING RIDESAFE-AI E2E H3 PIPELINE TEST\n{'-'*60}")
     
     # ── 1. Publish Telemetry (Async Flow) ──────────────────────────────────
-    producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
-    await producer.start()
-    
-    try:
-        # We simulate a "BURST FRAUD" event by dropping 6 unique users
-        # into the exact same H3 cell within 10 seconds.
-        print("\n📡 STEP 1: Simulating NestJS GPS Telemetry stream into Kafka...")
-        users = ["u_test_1", "u_test_2", "u_test_3", "u_test_4", "u_test_5", "u_test_burst"]
-        for u in users:
-            await produce_telemetry(producer, u)
-        
-        # Grid Event Service aggregates every 10 seconds. We must wait for the flush.
-        print("\n⏳ Waiting 12 seconds for the Grid Event Service to aggregate and flush to Redis...")
-        for i in range(12, 0, -1):
-            print(f"   {i}s...", end="\r")
-            await asyncio.sleep(1)
-            
-    finally:
-        await producer.stop()
+    print("\n📡 STEP 1: Simulating NestJS GPS Telemetry stream into Kafka...")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(
+                PLATFORM_LIVE_GPS_URL,
+                params={"zone": TEST_H3, "provider": "zepto", "count": 6},
+            )
+            resp.raise_for_status()
+            live = resp.json()
+            print(f"   ✓ Live GPS published: {live.get('published', 0)} drivers")
+        except Exception as exc:
+            print(f"   ⚠️ Live GPS endpoint failed: {exc} — falling back to direct Kafka publish")
+            producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
+            await producer.start()
+            try:
+                users = ["u_test_1", "u_test_2", "u_test_3", "u_test_4", "u_test_5", "u_test_burst"]
+                for u in users:
+                    await produce_telemetry(producer, u)
+            finally:
+                await producer.stop()
+
+    # Grid Event Service aggregates every 10 seconds. We must wait for the flush.
+    print("\n⏳ Waiting 12 seconds for the Grid Event Service to aggregate and flush to Redis...")
+    for i in range(12, 0, -1):
+        print(f"   {i}s...", end="\r")
+        await asyncio.sleep(1)
 
 
     # ── 2. Check Grid Service (Redis SSOT) ──────────────────────────────────

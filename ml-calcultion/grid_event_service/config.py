@@ -16,7 +16,7 @@ KAFKA_TOPIC_TELEMETRY: str = "driver_telemetry"
 KAFKA_TOPIC_ZONE_UPDATES: str = "zone_state_updates"
 
 # ── Redis (zone state store) ──────────────────────────────────────────────────
-USE_REDIS: bool = os.getenv("USE_REDIS", "False").lower() == "true"
+USE_REDIS: bool = os.getenv("USE_REDIS", "True").lower() == "true"
 REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 ZONE_KEY_TTL_SECONDS: int = 300   # 5-minute TTL on zone:{h3} keys
 

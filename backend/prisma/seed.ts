@@ -7,7 +7,7 @@ async function main() {
   // Weekly plans (values taken from your existing frontend mock UI)
   const weeklyPlans = [
     {
-      key: 'basic',
+      key: 'BASIC',
       name: 'Basic Shield',
       price: 39,
       maxPayout: 1800,
@@ -15,16 +15,16 @@ async function main() {
       eligibleDisruptionTypes: ['RAIN'],
     },
     {
-      key: 'pro',
-      name: 'Pro Guard',
+      key: 'STANDARD',
+      name: 'Standard Guard',
       price: 79,
       maxPayout: 3600,
       durationDays: 7,
       eligibleDisruptionTypes: ['RAIN', 'AQI'],
     },
     {
-      key: 'elite',
-      name: 'Elite Armor',
+      key: 'PREMIUM',
+      name: 'Premium Armor',
       price: 129,
       maxPayout: 6500,
       durationDays: 7,

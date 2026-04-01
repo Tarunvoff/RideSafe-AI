@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as h3 from 'h3-js';
+import { ctForPlan } from '../insurance/policy-tiers';
 
 @Injectable()
 export class PlansService {
@@ -13,45 +14,9 @@ export class PlansService {
       orderBy: { price: 'asc' },
     });
 
-    try {
-      // 1. Identify User's Risk Baseline
-      let driverRisk = 0.1; // Baseline Safe Form
-      if (userId) {
-        const analysis = await prisma.fraudAnalysis.findUnique({
-          where: { userId },
-          select: { riskScore: true }
-        });
-        if (analysis?.riskScore) driverRisk = analysis.riskScore / 100;
-      }
-
-      // 2. Fetch Live Dynamic Quotes from Python ML Engine
-      for (const plan of plans) {
-        const basePrice = plan.price;
-        const payload = {
-            Ew: 800.0,            // Demo Static Earnings
-            Lf: driverRisk,       // Piped from their Fraud Analysis row
-            Ct: plan.name.includes("Plus") ? 1.0 : 0.8, // Coverage Tier
-            M: 0.10,              // 10% Insurance Margin
-            platform: "uber",     
-            demand_ratio: 1.2,    
-            zone_volatility: 0.5  
-        };
-
-        const res = await fetch("http://localhost:8000/pricing", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(3000)
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            plan.price = data.premium; // Automatically overwritten!
-            (plan as any).multiplier = data.zone_multiplier;
-        }
-      }
-    } catch(err) {
-       this.logger.warn(`ML Pricing Service Unreachable. Using historical base prices.`);
+    for (const plan of plans) {
+      const Ct = ctForPlan(plan.key ?? null);
+      (plan as any).Ct = Ct;
     }
 
     return plans;

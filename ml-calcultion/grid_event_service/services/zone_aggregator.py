@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 class ZoneAggregator:
     def __init__(self):
-        # State: { h3_cell: Set[rider_id] }
+        # State: { h3_cell: Set[driver_id] }
         self.zone_riders: Dict[str, Set[str]] = {}
         # Cached state to detect transitions
         self.zone_states: Dict[str, str] = {}
@@ -47,11 +47,11 @@ class ZoneAggregator:
              await self.kafka_producer.start()
         return self.kafka_producer
 
-    async def process_ping(self, h3_cell: str, rider_id: str, ts: float):
+    async def process_ping(self, h3_cell: str, driver_id: str, ts: float):
         """Called for every incoming ping from Kafka."""
         if h3_cell not in self.zone_riders:
             self.zone_riders[h3_cell] = set()
-        self.zone_riders[h3_cell].add(rider_id)
+        self.zone_riders[h3_cell].add(driver_id)
 
     @staticmethod
     def _determine_state(lf: float) -> str:

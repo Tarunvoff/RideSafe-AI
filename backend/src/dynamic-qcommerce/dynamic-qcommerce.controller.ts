@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestj
 import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
 import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
 import { WeekKeyOverrideDto } from './dto/week-key-override.dto';
+import { SeedDriversDto } from './dto/seed-drivers.dto';
 import { DynamicQCommerceService } from './dynamic-qcommerce.service';
 
 @Controller('dynamic-qcommerce')
@@ -30,5 +31,11 @@ export class DynamicQCommerceController {
   @HttpCode(HttpStatus.OK)
   setWeekKeyOverride(@Body() dto: WeekKeyOverrideDto) {
     return this.dynamicQCommerceService.setWeekKeyOverride(dto.weekKey);
+  }
+
+  @Post('drivers/seed')
+  @HttpCode(HttpStatus.OK)
+  seedDrivers(@Body() dto: SeedDriversDto) {
+    return this.dynamicQCommerceService.seedDrivers(dto.provider, dto.identifiers, dto.prefix, dto.count);
   }
 }

@@ -106,7 +106,35 @@ export class FraudService {
     const status = riskScore > 60 ? 'INCONCLUSIVE' : 'APPROVED';
 
     // 3. Persist / upsert to DB
-    const existing = await (this.prisma as any).fraudAnalysis.findUnique({
+    const prisma = this.prisma as any;
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!existingUser) {
+      const analysisDetails = JSON.stringify(
+        this.buildDetails(dto, riskScore, features, featureSource),
+      );
+
+      this.logger.warn(
+        `User ${userId} not found; skipping fraudAnalysis persistence for live telemetry`,
+      );
+
+      return {
+        message: 'Fraud analysis completed (not persisted)',
+        data: {
+          id: null,
+          riskScore,
+          status,
+          featureSource,
+          features: features ?? null,
+          analysis: JSON.parse(analysisDetails),
+        },
+      };
+    }
+
+    const existing = await prisma.fraudAnalysis.findUnique({
       where: { userId },
     });
 
@@ -126,11 +154,11 @@ export class FraudService {
     };
 
     const result = existing
-      ? await (this.prisma as any).fraudAnalysis.update({
+      ? await prisma.fraudAnalysis.update({
           where: { userId },
           data:  dbData,
         })
-      : await (this.prisma as any).fraudAnalysis.create({
+      : await prisma.fraudAnalysis.create({
           data: { userId, ...dbData },
         });
 

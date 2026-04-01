@@ -1,11 +1,15 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { KafkaProducerService } from '../kafka/kafka.producer.service';
 
 @Injectable()
 export class TelemetryService implements OnModuleInit {
   private readonly logger = new Logger(TelemetryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly kafkaProducer: KafkaProducerService,
+  ) {}
 
   async onModuleInit() {
     this.logger.log('Initializing Postgres / TimescaleDB Engine...');
@@ -50,5 +54,25 @@ export class TelemetryService implements OnModuleInit {
           this.logger.error('TimescaleDB Bulk Write Phase Failed', e);
           throw e;
       }
+  }
+
+  publishGpsTelemetry(payload: {
+    driverId: string;
+    lat: number;
+    lng: number;
+    speed?: number;
+    timestamp?: number;
+    platform?: string;
+  }) {
+    const timestamp = payload.timestamp ?? Math.floor(Date.now() / 1000);
+    const platform = payload.platform ?? 'mobile-app';
+    return this.kafkaProducer.publishDriverLocation({
+      driverId: payload.driverId,
+      lat: payload.lat,
+      lng: payload.lng,
+      speed: payload.speed,
+      timestamp,
+      platform,
+    });
   }
 }

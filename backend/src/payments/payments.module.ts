@@ -8,6 +8,6 @@ import { PayoutIdempotencyService } from './payout-idempotency.service';
   imports: [PrismaModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, PayoutIdempotencyService],
-  exports: [PayoutIdempotencyService],
+  exports: [PaymentsService, PayoutIdempotencyService],
 })
 export class PaymentsModule {}

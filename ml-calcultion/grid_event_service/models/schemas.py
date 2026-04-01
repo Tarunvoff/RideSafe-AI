@@ -3,9 +3,10 @@ from typing import Optional
 
 
 class DriverLocationPayload(BaseModel):
-    rider_id: str
+    driverId: str
     lat: float
     lng: float
+    speed: Optional[float] = None
     timestamp: float
     platform: str
     h3_cell: Optional[str] = None  # Populated by Kafka producer

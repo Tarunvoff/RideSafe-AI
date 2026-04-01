@@ -41,19 +41,20 @@ async def run_kafka_consumer(aggregator: ZoneAggregator):
             try:
                 # payload expected:
                 # {
-                #   "rider_id": "u123",
+                #   "driverId": "u123",
                 #   "lat": 12.34,
                 #   "lng": 56.78,
+                #   "speed": 32.5,
                 #   "timestamp": 1234567890.1,
                 #   "platform": "RideSafe",
                 #   "h3_cell": "8860144b61fffff"
                 # }
                 payload = json.loads(msg.value)
                 h3_cell = payload.get("h3_cell")
-                rider_id = payload.get("rider_id")
+                driver_id = payload.get("driverId")
                 
-                if h3_cell and rider_id:
-                     await aggregator.process_ping(h3_cell, rider_id, payload.get("timestamp"))
+                if h3_cell and driver_id:
+                    await aggregator.process_ping(h3_cell, driver_id, payload.get("timestamp"))
 
             except json.JSONDecodeError:
                 logger.error(f"Malformed JSON in Kafka message: {msg.value}")
