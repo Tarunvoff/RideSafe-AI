@@ -118,6 +118,44 @@ export class KycService {
     return { message: 'KYC submitted successfully! Our team will review it within 1-2 business days.', profile };
   }
 
+  // ── DRIVER: GET OWN KYC DETAILS ─────────────────────────────────────────
+  async getDriverDetails(userId: string) {
+    const [profile, basicIdentity, personalDetails, identityVerification, payoutSetup] = await Promise.all([
+      (this.prisma as any).kYCProfile.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCBasicIdentity.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPersonalDetails.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCIdentityVerification.findUnique({ where: { userId } }),
+      (this.prisma as any).kYCPayoutSetup.findUnique({ where: { userId } }),
+    ]);
+
+    return {
+      status: profile?.status ?? 'NOT_STARTED',
+      submittedAt: profile?.submittedAt ?? null,
+      reviewedAt: profile?.reviewedAt ?? null,
+      basicIdentity: basicIdentity ? {
+        fullName: basicIdentity.fullName,
+        dob: basicIdentity.dob,
+        gender: basicIdentity.gender,
+      } : null,
+      personalDetails: personalDetails ? {
+        address: personalDetails.address,
+        city: personalDetails.city,
+        state: personalDetails.state,
+        pincode: personalDetails.pincode,
+      } : null,
+      identityVerification: identityVerification ? {
+        aadhaarNumber: identityVerification.aadhaarNumber,
+        panNumber: identityVerification.panNumber,
+      } : null,
+      payoutSetup: payoutSetup ? {
+        method: payoutSetup.method,
+        upiId: payoutSetup.upiId,
+        accountHolder: payoutSetup.accountHolder,
+        bankName: payoutSetup.bankName,
+      } : null,
+    };
+  }
+
   // ── ADMIN: GET ALL SUBMISSIONS ───────────────────────────────────────────
   async getSubmissions() {
     const submissions = await (this.prisma as any).kYCProfile.findMany({

@@ -5,6 +5,7 @@ import {
     Post,
     Request,
     UseGuards,
+    Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
@@ -14,6 +15,7 @@ import {
     RegisterDto,
     ResetPasswordDto,
     VerifyOtpDto,
+    UpdateDriverNameDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -54,6 +56,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   logout(@Request() req: any) {
     return this.authService.logout(req.user.id);
+  }
+
+  @Patch('update-driver-name')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  updateDriverName(@Request() req: any, @Body() dto: UpdateDriverNameDto) {
+    return this.authService.updateDriverName(req.user.id, dto.driverName);
   }
 
   @Post('forgot-password')

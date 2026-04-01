@@ -1,98 +1,71 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import MainTopNavbar from '../../components/MainTopNavbar';
-import DriverLogoutMenu from '../../components/DriverLogoutMenu';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
-import { Theme } from '../../theme';
+import DriverLogoutMenu from '../../components/DriverLogoutMenu';
+import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
+import { Theme } from '../../theme';
 
-type ActivityItem = {
-  id: string;
-  label: string;
-  icon: string;
-  time: string;
-  description: string;
-  bucket: 'ALL' | 'PINGS' | 'VALIDATION' | 'RISK_UPDATES';
+const palette = {
+  background: '#f6f7f5',
+  card: '#ffffff',
+  mutedCard: '#eff6ef',
+  accent: Theme.colors.primary, // same green used in plans
+  accentSoft: '#dffbe8',
+  text: '#1f1f1f',
+  mutedText: '#4b4b4b',
+  softBorder: '#d7e6d5',
 };
 
-const MOCK_ACTIVITY: ActivityItem[] = [
-  {
-    id: 'a1',
-    label: 'Ping Received',
-    icon: 'satellite' as any,
-    time: '10:45 AM',
-    description: 'System successfully received backend heartbeat',
-    bucket: 'PINGS',
-  },
-  {
-    id: 'a2',
-    label: 'Location Validated',
-    icon: 'location_on' as any,
-    time: '10:43 AM',
-    description: 'GPS coordinates mapped to active cell',
-    bucket: 'VALIDATION',
-  },
-  {
-    id: 'a3',
-    label: 'Grid Mapping Updated',
-    icon: 'grid_view' as any,
-    time: '10:40 AM',
-    description: 'Driver successfully mapped to H3 grid cell',
-    bucket: 'VALIDATION',
-  },
-  {
-    id: 'a4',
-    label: 'Risk Level Increased',
-    icon: 'warning' as any,
-    time: '09:15 AM',
-    description: 'Risk level changed to MEDIUM due to nearby precipitation',
-    bucket: 'RISK_UPDATES',
-  },
-  {
-    id: 'a5',
-    label: 'Duplicate Ping Ignored',
-    icon: 'error_outline' as any,
-    time: '08:45 AM',
-    description: 'Duplicate backend signal discarded',
-    bucket: 'PINGS',
-  },
+const STORE_PROFILE = {
+  platform: 'Blinkit 24x7',
+  storeName: 'Koramangala Dark Store',
+  h3Cell: 'H3 8F5B2C',
+  supervisor: 'Lead Anjali',
+  shift: '7 PM – 3 AM',
+  rating: 4.9,
+};
+
+const WEEKLY_SUMMARY = {
+  completed: 186,
+  rejected: 6,
+  earnings: 7850,
+  lastWeekEarnings: 7260,
+  surgeBonus: 920,
+  hours: 42,
+};
+
+const DAILY_EARNINGS = [
+  { day: 'Mon', amount: 1180 },
+  { day: 'Tue', amount: 980 },
+  { day: 'Wed', amount: 1340 },
+  { day: 'Thu', amount: 1260 },
+  { day: 'Fri', amount: 1450 },
+  { day: 'Sat', amount: 1380 },
+  { day: 'Sun', amount: 1260 },
 ];
 
 export default function DriverActivityScreen({ navigation }: any) {
   const { logout, user } = useAuth();
-  const [activeFilter, setActiveFilter] = React.useState<
-    ActivityItem['bucket']
-  >('ALL');
   const [profileMenuVisible, setProfileMenuVisible] = React.useState(false);
 
   const handleLogout = async () => {
     try {
       setProfileMenuVisible(false);
       await logout();
-    } catch (e) {
+    } catch (error) {
       setProfileMenuVisible(false);
     }
   };
 
-  const filtered = React.useMemo(() => {
-    if (activeFilter === 'ALL') return MOCK_ACTIVITY;
-    return MOCK_ACTIVITY.filter((x) => x.bucket === activeFilter);
-  }, [activeFilter]);
-
-  const filters: Array<{ key: ActivityItem['bucket']; label: string }> = [
-    { key: 'ALL', label: 'All' },
-    { key: 'PINGS', label: 'Pings' },
-    { key: 'VALIDATION', label: 'Validation' },
-    { key: 'RISK_UPDATES', label: 'Risk Updates' },
-  ];
+  const totalOrders = WEEKLY_SUMMARY.completed + WEEKLY_SUMMARY.rejected;
+  const successRate = Math.round((WEEKLY_SUMMARY.completed / totalOrders) * 100);
+  const earningsDelta = WEEKLY_SUMMARY.earnings - WEEKLY_SUMMARY.lastWeekEarnings;
+  const earningsDeltaPct = Math.round(
+    (earningsDelta / WEEKLY_SUMMARY.lastWeekEarnings) * 100,
+  );
+  const maxDaily = Math.max(...DAILY_EARNINGS.map((d) => d.amount));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -107,92 +80,88 @@ export default function DriverActivityScreen({ navigation }: any) {
         }}
       />
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTop}>
-            <View>
-              <Text style={styles.summaryOverline}>
-                Today's Total Pings
-              </Text>
-              <Text style={styles.summaryBig}>142</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.pageHeader}>
+          <Text style={styles.pageTitle}>Work Pulse</Text>
+          <Text style={styles.pageSubtitle}>
+            Week view for {user?.driverName ?? 'you'}
+          </Text>
+        </View>
+
+        <View style={styles.profileCard}>
+          <View style={styles.profileLeft}>
+            <Text style={styles.sectionLabel}>Store</Text>
+            <Text style={styles.profileName}>{STORE_PROFILE.storeName}</Text>
+            <View style={styles.profileMetaRow}>
+              <Text style={styles.profileMeta}>{STORE_PROFILE.platform}</Text>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.profileMeta}>{STORE_PROFILE.shift}</Text>
             </View>
-            <View style={styles.lowRiskPill}>
-              <View style={styles.lowRiskDot} />
-              <Text style={styles.lowRiskText}>Low Risk</Text>
+            <View style={styles.profileMetaRow}>
+              <Text style={styles.profileMeta}>{STORE_PROFILE.supervisor}</Text>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.profileMeta}>{STORE_PROFILE.h3Cell}</Text>
             </View>
           </View>
-
-          <View style={styles.summaryBottomRow}>
-            <Ionicons
-              name={'history' as any}
-              size={14}
-              color="#16a34a"
-            />
-            <Text style={styles.summaryBottomText}>
-              Last Update: 2 min ago
-            </Text>
+          <View style={styles.profileRating}>
+            <Ionicons name="star" size={26} color={palette.accent} />
+            <Text style={styles.profileRatingValue}>{STORE_PROFILE.rating.toFixed(1)}</Text>
+            <Text style={styles.profileRatingLabel}>Score</Text>
           </View>
         </View>
 
-        {/* Filter Tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersRow}
-        >
-          {filters.map((f) => {
-            const isActive = f.key === activeFilter;
+        <View style={styles.statGrid}>
+          <View style={[styles.statCard, styles.statCardAccent]}>
+            <Text style={styles.statLabel}>Orders Accepted</Text>
+            <Text style={styles.statValue}>{WEEKLY_SUMMARY.completed}</Text>
+            <Text style={styles.statHint}>Week</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Orders Skipped</Text>
+            <Text style={styles.statValue}>{WEEKLY_SUMMARY.rejected}</Text>
+            <Text style={styles.statHint}>Manual</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>On-time Delivered</Text>
+            <Text style={styles.statValue}>{successRate}%</Text>
+            <Text style={styles.statHint}>Done</Text>
+          </View>
+        </View>
+
+        <View style={styles.earningsCard}>
+          <Text style={styles.sectionLabel}>Weekly earnings</Text>
+          <View style={styles.earningsRow}>
+            <Text style={styles.earningsValue}>₹{WEEKLY_SUMMARY.earnings.toLocaleString('en-IN')}</Text>
+            <View style={styles.trendPill}>
+              <Ionicons
+                name={earningsDelta >= 0 ? 'arrow-up' : 'arrow-down'}
+                size={18}
+                color={palette.accent}
+              />
+              <Text style={styles.trendText}>{earningsDelta >= 0 ? '+' : ''}{earningsDeltaPct}%</Text>
+            </View>
+          </View>
+          <Text style={styles.earningsMeta}>Bonus ₹{WEEKLY_SUMMARY.surgeBonus} · {WEEKLY_SUMMARY.hours} hrs</Text>
+          <Text style={styles.earningsMeta}>Prev ₹{WEEKLY_SUMMARY.lastWeekEarnings.toLocaleString('en-IN')}</Text>
+        </View>
+
+        <View style={styles.dailyCard}>
+          <Text style={styles.sectionLabel}>Week strip</Text>
+          {DAILY_EARNINGS.map((item) => {
+            const widthPct = Math.max(20, Math.round((item.amount / maxDaily) * 100));
             return (
-              <TouchableOpacity
-                key={f.key}
-                activeOpacity={0.9}
-                onPress={() => setActiveFilter(f.key)}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    isActive && styles.filterChipTextActive,
-                  ]}
-                >
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
+              <View key={item.day} style={styles.dailyRow}>
+                <Text style={styles.dailyDay}>{item.day}</Text>
+                <View style={styles.dailyBarTrack}>
+                  <View style={[styles.dailyBarFill, { width: `${widthPct}%` }]} />
+                </View>
+                <Text style={styles.dailyAmount}>₹{item.amount}</Text>
+              </View>
             );
           })}
-        </ScrollView>
-
-        {/* Activity Timeline */}
-        <View style={styles.timelineWrap}>
-          <View style={styles.timelineLine} />
-          {filtered.map((item, idx) => (
-            <View key={item.id} style={styles.timelineItemRow}>
-              <View style={styles.timelineIconCol}>
-                <View style={styles.timelineIconCircle}>
-                  <Ionicons
-                    name={item.icon as any}
-                    size={18}
-                    color="#16a34a"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.timelineContent}>
-                <View style={styles.timelineTitleRow}>
-                  <Text style={styles.timelineTitle}>{item.label}</Text>
-                  <Text style={styles.timelineTime}>{item.time}</Text>
-                </View>
-                <Text style={styles.timelineDesc}>{item.description}</Text>
-              </View>
-            </View>
-          ))}
         </View>
 
-        <View style={{ height: 24 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
 
       <DriverBottomNavbar navigation={navigation} activeKey="activity" />
@@ -201,163 +170,201 @@ export default function DriverActivityScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
+  safeArea: { flex: 1, backgroundColor: palette.background },
   content: {
     paddingHorizontal: Theme.spacing.lg,
     paddingTop: Theme.spacing.lg,
     paddingBottom: 120,
+    gap: Theme.spacing.lg,
   },
-
-  summaryCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: Theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: Theme.spacing.lg,
-    marginBottom: Theme.spacing.lg,
-  },
-  summaryTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  summaryOverline: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    color: '#6b7280',
-    marginBottom: 6,
-  },
-  summaryBig: {
-    fontSize: 40,
+  pageHeader: { gap: 6 },
+  pageTitle: {
+    fontSize: 34,
     fontWeight: '900',
-    color: '#0f172a',
-    lineHeight: 42,
+    color: palette.text,
   },
-  lowRiskPill: {
+  pageSubtitle: {
+    fontSize: 16,
+    color: palette.mutedText,
+    fontWeight: '600',
+  },
+  sectionLabel: {
+    fontSize: 14,
+    color: palette.mutedText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '700',
+  },
+  profileCard: {
+    backgroundColor: palette.card,
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.md,
+    borderWidth: 1,
+    borderColor: palette.softBorder,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(220,252,231,0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(22,163,74,0.25)',
-    marginTop: 4,
+    gap: Theme.spacing.md,
   },
-  lowRiskDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#16a34a',
-    marginRight: 6,
-  },
-  lowRiskText: {
-    fontSize: 10,
+  profileLeft: { flex: 1, gap: 4 },
+  profileName: {
+    fontSize: 22,
     fontWeight: '900',
-    textTransform: 'uppercase',
-    color: '#166534',
+    color: palette.text,
   },
-  summaryBottomRow: {
-    marginTop: Theme.spacing.md,
+  profileMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  summaryBottomText: {
-    fontSize: 12,
+  bullet: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#6b7280',
+    color: palette.mutedText,
   },
-
-  filtersRow: {
-    gap: 10,
-    paddingBottom: 10,
-    marginBottom: Theme.spacing.lg,
+  profileMeta: {
+    fontSize: 15,
+    color: palette.mutedText,
+    fontWeight: '600',
   },
-  filterChip: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  filterChipActive: {
-    backgroundColor: 'rgba(22,163,74,0.95)',
-    borderColor: 'rgba(22,163,74,0.95)',
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#6b7280',
-  },
-  filterChipTextActive: {
-    color: '#ffffff',
-  },
-
-  timelineWrap: {
-    position: 'relative',
-    paddingLeft: 8,
-    paddingRight: 4,
-    paddingBottom: 12,
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 30,
-    top: 6,
-    bottom: 6,
-    width: 2,
-    backgroundColor: 'rgba(107,114,128,0.25)',
-    borderRadius: 1,
-  },
-  timelineItemRow: {
-    flexDirection: 'row',
-    gap: 14,
-    marginBottom: 22,
-    alignItems: 'flex-start',
-    position: 'relative',
-    zIndex: 1,
-  },
-  timelineIconCol: {
-    width: 46,
-    alignItems: 'center',
-  },
-  timelineIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  profileRating: {
+    width: 90,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: palette.mutedCard,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: Theme.spacing.md,
+    borderWidth: 1,
+    borderColor: palette.softBorder,
   },
-  timelineContent: { flex: 1, paddingTop: 4 },
-  timelineTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 6,
-  },
-  timelineTitle: {
-    fontSize: 14,
+  profileRatingValue: {
+    fontSize: 36,
     fontWeight: '900',
-    color: '#0f172a',
-    flex: 1,
-    marginRight: 10,
+    color: palette.text,
   },
-  timelineTime: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6b7280',
-  },
-  timelineDesc: {
+  profileRatingLabel: {
     fontSize: 12,
-    color: '#6b7280',
-    lineHeight: 18,
+    color: palette.mutedText,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  statGrid: {
+    flexDirection: 'row',
+    gap: Theme.spacing.md,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: Theme.borderRadius.md,
+    paddingVertical: Theme.spacing.sm,
+    paddingHorizontal: Theme.spacing.md,
+    borderWidth: 1,
+    borderColor: palette.softBorder,
+    backgroundColor: palette.card,
+    gap: 4,
+  },
+  statCardAccent: {
+    backgroundColor: palette.mutedCard,
+  },
+  statLabel: {
+    fontSize: 13,
+    color: palette.mutedText,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: palette.text,
+  },
+  statHint: {
+    fontSize: 14,
+    color: palette.mutedText,
+  },
+  earningsCard: {
+    backgroundColor: palette.card,
+    borderRadius: Theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: palette.softBorder,
+    padding: Theme.spacing.lg,
+    gap: 10,
+  },
+  earningsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  earningsValue: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: palette.text,
+  },
+  trendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: palette.mutedCard,
+  },
+  trendText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  earningsMeta: {
+    fontSize: 15,
+    color: palette.mutedText,
+    fontWeight: '600',
+  },
+  dailyCard: {
+    backgroundColor: palette.card,
+    borderRadius: Theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: palette.softBorder,
+    padding: Theme.spacing.lg,
+    gap: 12,
+  },
+  dailyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dailyDay: {
+    width: 40,
+    fontSize: 18,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  dailyBarTrack: {
+    flex: 1,
+    height: 20,
+    borderRadius: 999,
+    backgroundColor: '#e7dfd3',
+    overflow: 'hidden',
+  },
+  dailyBarFill: {
+    height: '100%',
+    backgroundColor: palette.accent,
+  },
+  dailyAmount: {
+    width: 90,
+    textAlign: 'right',
+    fontSize: 18,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  contextCard: {
+    backgroundColor: palette.card,
+    borderRadius: Theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: palette.softBorder,
+    padding: Theme.spacing.lg,
+    gap: 8,
+  },
+  contextLine: {
+    fontSize: 16,
+    color: palette.mutedText,
     fontWeight: '600',
   },
 });
