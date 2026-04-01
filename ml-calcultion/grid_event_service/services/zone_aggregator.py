@@ -24,7 +24,7 @@ from config import (
 
 # h3-feature-service is the SINGLE authority for Lf and zone_state.
 # grid_event_service forwards aggregated rider_count here to trigger the ML pipeline.
-H3_FEATURE_SERVICE_URL = os.getenv("H3_FEATURE_SERVICE_URL", "http://127.0.0.1:8001")
+H3_FEATURE_SERVICE_URL = os.getenv("H3_FEATURE_SERVICE_URL", "http://127.0.0.1:8004")
 
 # Default coordinates used when h3-cell centroid cannot be resolved (fallback only).
 _DEFAULT_LAT = 12.9716
