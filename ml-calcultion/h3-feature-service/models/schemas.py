@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, List
 
 
 class FeatureRequest(BaseModel):
@@ -44,17 +44,28 @@ class FeatureResponse(BaseModel):
     # Historical risk (placeholder — replace with DB lookup)
     historical_risk: float
 
+    # Data quality / freshness
+    feature_timestamp: float
+    feature_age_seconds: Optional[float] = None
+    is_fallback: bool
+    fallback_ratio: float
+    fallback_features: List[str]
+    missing_features: List[str]
+    feature_sources: Dict[str, str]
+    confidence_score: float
+
 
 class PipelineRequest(BaseModel):
     """
     Input for the full end-to-end pipeline:
       GPS → H3 → /features → /risk-score → /pricing
     """
-    lat: float = Field(..., description="GPS latitude", example=12.9352)
-    lng: float = Field(..., description="GPS longitude", example=77.6245)
-    Ew: float  = Field(..., description="Weekly earnings in ₹", example=8000.0)
-    Ct: float  = Field(0.6, description="Coverage tier (0.4 / 0.6 / 0.8)", example=0.6)
-    M: float   = Field(0.1, description="Margin hint (0.08–0.15, ML may override)", example=0.1)
+    lat:      float           = Field(..., description="GPS latitude", example=12.9352)
+    lng:      float           = Field(..., description="GPS longitude", example=77.6245)
+    Ew:       float           = Field(..., description="Weekly earnings in ₹", example=8000.0)
+    Ct:       Optional[float] = Field(None,  description="Coverage tier (0.4/0.6/0.8) — auto-resolved from platform if omitted")
+    M:        float           = Field(0.1,   description="Margin hint (0.08–0.15)")
+    platform: Optional[str]   = Field(None,  description="Platform name for Ct auto-resolution: zepto/blinkit/swiggy/zomato/ola/uber")
 
 
 class PipelineResponse(BaseModel):
@@ -78,6 +89,18 @@ class PipelineResponse(BaseModel):
     zone_state: str          # NORMAL / SLOW / DANGEROUS / HALTED
 
     # Pricing
-    Ew: float
-    Ct: float
-    premium: float           # Final premium in ₹ (clamped ₹15–₹150)
+    Ew:        float
+    Ct:        float
+    premium:   float           # Final premium in ₹ (clamped ₹15–₹150)
+
+    # Data quality / freshness
+    feature_timestamp: float
+    feature_age_seconds: Optional[float] = None
+    is_fallback: bool
+    fallback_reasons: List[str]
+    fallback_features: List[str]
+    missing_features: List[str]
+    confidence_score: float
+
+    # Observability
+    trace_id:  Optional[str]   = None   # propagated from pipeline_service for log correlation

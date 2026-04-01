@@ -8,13 +8,14 @@ Strategy (identical to original):
   1. Progressive radius search: 10km → 25km → 50km
   2. Discover nearby sensor IDs via /v3/locations
   3. Fetch latest measurements from each sensor via /v3/sensors/{id}/measurements
-  4. Average PM2.5 values → convert to US EPA AQI
+  4. Average PM2.5 values → convert to US EPA AQI (PARALLELISED with asyncio.gather)
   5. If no PM2.5 → fall back to PM10 → convert to AQI
   6. CPCB fallback if everything fails
 
 Includes the exact EPA linear interpolation functions from the original.
 """
 
+import asyncio
 import math
 import logging
 import httpx
@@ -126,42 +127,86 @@ async def _get_latest_value(client: httpx.AsyncClient, sensor_id: int) -> float 
 
 
 async def _avg_sensor_type(client: httpx.AsyncClient, sensor_ids: list) -> float | None:
-    """Average the latest values across up to N sensors of one type."""
-    values = []
-    for sid in sensor_ids[:AQI_MAX_SENSORS_PER_TYPE]:
-        v = await _get_latest_value(client, sid)
-        if v is not None:
-            values.append(v)
+    """Fetch latest values for up to N sensors IN PARALLEL using asyncio.gather."""
+    limited = sensor_ids[:AQI_MAX_SENSORS_PER_TYPE]
+    if not limited:
+        return None
+    results = await asyncio.gather(
+        *[_get_latest_value(client, sid) for sid in limited],
+        return_exceptions=True,
+    )
+    values = [v for v in results if isinstance(v, float)]
     return round(sum(values) / len(values), 2) if values else None
 
 
-async def fetch_aqi(lat: float, lng: float) -> dict:
+# ── Per-H3-cell AQI cache (in-memory, 10-minute TTL) ─────────────────────────
+import time as _time
+_aqi_cache: dict = {}   # {"h3_cell": {"data": dict, "expires": float}}
+_AQI_CACHE_TTL = 600    # 10 minutes
+
+
+def _aqi_cache_get(h3_cell: str) -> dict | None:
+    entry = _aqi_cache.get(h3_cell)
+    if entry and entry["expires"] > _time.time():
+        return entry["data"]
+    return None
+
+
+def _aqi_cache_set(h3_cell: str, data: dict):
+    _aqi_cache[h3_cell] = {"data": data, "expires": _time.time() + _AQI_CACHE_TTL}
+
+
+async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
     """
-    Returns {"aqi": float, "pm25": float, "pm10": float}.
-    Uses progressive radius search → PM2.5 preferred → PM10 fallback → CPCB default.
+    Returns {"aqi": float, "pm25": float, "pm10": float, "is_fallback": bool, "source": str}.
+    Strategy: parallel sensor fetches → progressive radius → PM2.5 preferred → CPCB fallback.
+    Per-H3-cell cache with 10-minute TTL avoids redundant API calls.
     """
+    # Check cell-level cache first
+    if h3_cell:
+        cached = _aqi_cache_get(h3_cell)
+        if cached:
+            logger.debug("AQI cache hit for H3 cell %s", h3_cell)
+            return cached
+
     try:
         async with httpx.AsyncClient(timeout=AQI_TIMEOUT_SEC) as client:
             for radius in AQI_SEARCH_RADII:
-                ids = await _get_sensor_ids(client, lat, lng, radius)
+                try:
+                    ids = await _get_sensor_ids(client, lat, lng, radius)
 
-                pm25 = await _avg_sensor_type(client, ids["pm25"]) if ids["pm25"] else None
-                pm10 = await _avg_sensor_type(client, ids["pm10"]) if ids["pm10"] else None
+                    # Fetch PM2.5 and PM10 sensors IN PARALLEL across the radius
+                    async def _none_coro(): return None
+                    pm25_task = _avg_sensor_type(client, ids["pm25"]) if ids["pm25"] else _none_coro()
+                    pm10_task = _avg_sensor_type(client, ids["pm10"]) if ids["pm10"] else _none_coro()
+                    pm25, pm10 = await asyncio.gather(pm25_task, pm10_task, return_exceptions=True)
+                    pm25 = pm25 if isinstance(pm25, float) else None
+                    pm10 = pm10 if isinstance(pm10, float) else None
 
-                if pm25 is not None:
-                    aqi = _pm25_to_aqi(pm25)
-                    pm10 = pm10 if pm10 is not None else round(pm25 * 1.5, 2)
-                    logger.info(f"OpenAQ v3 (r={radius}m) PM2.5={pm25} PM10={pm10} AQI={aqi}")
-                    return {"aqi": aqi, "pm25": pm25, "pm10": pm10}
+                    if pm25 is not None:
+                        aqi  = _pm25_to_aqi(pm25)
+                        pm10 = pm10 if pm10 is not None else round(pm25 * 1.5, 2)
+                        logger.info("OpenAQ v3 (r=%dm) PM2.5=%.1f PM10=%.1f AQI=%.1f", radius, pm25, pm10, aqi)
+                        result = {"aqi": aqi, "pm25": pm25, "pm10": pm10, "is_fallback": False, "source": "openaq"}
+                        if h3_cell:
+                            _aqi_cache_set(h3_cell, result)
+                        return result
 
-                if pm10 is not None:
-                    aqi = _pm10_to_aqi(pm10)
-                    pm25 = round(pm10 * 0.6, 2)
-                    logger.info(f"OpenAQ v3 (r={radius}m) PM10={pm10} (no PM2.5) AQI={aqi}")
-                    return {"aqi": aqi, "pm25": pm25, "pm10": pm10}
+                    if pm10 is not None:
+                        aqi  = _pm10_to_aqi(pm10)
+                        pm25 = round(pm10 * 0.6, 2)
+                        logger.info("OpenAQ v3 (r=%dm) PM10=%.1f (no PM2.5) AQI=%.1f", radius, pm10, aqi)
+                        result = {"aqi": aqi, "pm25": pm25, "pm10": pm10, "is_fallback": False, "source": "openaq"}
+                        if h3_cell:
+                            _aqi_cache_set(h3_cell, result)
+                        return result
+
+                except asyncio.TimeoutError:
+                    logger.warning("AQI timeout at radius=%dm — trying next radius", radius)
+                    continue
 
         logger.warning("OpenAQ v3: no live readings found — using CPCB fallback.")
     except Exception as exc:
-        logger.warning(f"OpenAQ v3 failed: {exc}. Using CPCB fallback.")
+        logger.warning("OpenAQ v3 failed: %s. Using CPCB fallback.", exc)
 
-    return {"aqi": DEFAULT_AQI, "pm25": DEFAULT_PM25, "pm10": DEFAULT_PM10}
+    return {"aqi": DEFAULT_AQI, "pm25": DEFAULT_PM25, "pm10": DEFAULT_PM10, "is_fallback": True, "source": "default"}

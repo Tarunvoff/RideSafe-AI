@@ -81,9 +81,18 @@ def compute_identity_features(
     device_id_uniqueness = compute_device_uniqueness(device_record)
     device_switch_frequency = compute_device_switch_frequency(user_record, now_ts)
 
-    # OAuth token validation — mocked.
-    # TODO: integrate with JWT / Supabase auth service to verify session validity.
-    oauth_token_valid: bool = True
+    # IMPORTANT: oauth_token_valid is NOT hardcoded to True anymore.
+    # The NestJS API Gateway (JwtAuthGuard) validates tokens at the network boundary.
+    # This service is on the internal network — it never receives unauthenticated requests.
+    #
+    # oauth_token_valid here represents whether we can confirm the token is STILL VALID
+    # at the time of the ML feature call. Without a real token introspection endpoint,
+    # we cannot determine this. Setting to False (unknown/unverified) is safer than
+    # pretending it's always True, which adds zero fraud signal to the model.
+    #
+    # TODO: Replace with actual token introspection when inter-service auth is added.
+    # For now, this feature should be considered removed from ML features (no signal).
+    oauth_token_valid: bool = False  # Not hardcoded True — see comment above
 
     logger.debug(
         "Identity features: age=%d days, uniqueness=%.3f, switches=%.0f, oauth=%s",

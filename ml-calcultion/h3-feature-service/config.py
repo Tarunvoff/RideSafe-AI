@@ -4,7 +4,8 @@ Incorporates settings from the existing ml_microservice integrations.
 """
 
 # ── Cache ──────────────────────────────────────────────────────────────────────
-CACHE_TTL_SECONDS = 600          # 10 minutes — matches data freshness SLA
+CACHE_TTL_SECONDS = 300          # 5 minutes — reduce cache dominance
+FEATURE_FRESHNESS_SECONDS = 300  # max expected age for "fresh" features
 
 # ── H3 / Geospatial ───────────────────────────────────────────────────────────
 H3_RESOLUTION = 8
@@ -21,9 +22,18 @@ AQI_TIMEOUT_SEC    = 8.0
 AQI_SEARCH_RADII   = [10000, 25000, 50000]  # Progressive radius search (metres)
 AQI_MAX_SENSORS_PER_TYPE = 4                 # Cap HTTP calls per parameter type
 
-# ── Civic Alert (News API) ─────────────────────────────────────────────────────
-NEWSAPI_KEY = "demo_key"   # Replace with real key in production
-NEWSAPI_URL = "https://newsapi.org/v2/everything"
+import os
+
+# ── Kafka ─────────────────────────────────────────────────────────────────────
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+
+# ── Civic Alert (Newsdata.io API) ─────────────────────────────────────────────
+NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "pub_f7c6f2303cfa44ffa6652c2762aea3be")
+NEWSDATA_URL = "https://newsdata.io/api/1/latest"
+
+# ── Mocking ───────────────────────────────────────────────────────────────────
+USE_MOCK_DATA = False
+PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:8080/zone-activity")
 
 # ── Safe defaults (returned when APIs fail AND no cache exists) ───────────────
 DEFAULT_RAINFALL      = 0.0

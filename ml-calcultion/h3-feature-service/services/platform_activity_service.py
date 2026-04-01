@@ -16,15 +16,37 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+from config import USE_MOCK_DATA, PLATFORM_API_URL
+
 async def fetch_platform_activity(zone_seed: str) -> dict:
     """
     Returns {
         "platform_orders": int,
         "active_riders": int,
-        "demand_ratio": float,   # riders / orders — lower means higher demand
+        "demand_ratio": float,   # orders / riders — higher means higher demand
+        "is_fallback": bool,
+        "source": str,
     }
     Seeded on zone for determinism within a session.
     """
+    if not USE_MOCK_DATA:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(f"{PLATFORM_API_URL}?zone={zone_seed}")
+                resp.raise_for_status()
+                data = resp.json()
+                return {
+                    "platform_orders": data.get("orders", 0),
+                    "active_riders": data.get("riders", 0),
+                    "demand_ratio": data.get("demand_ratio", 1.0),
+                    "is_fallback": False,
+                    "source": "platform_api",
+                }
+        except Exception as exc:
+            logger.warning("Failed to fetch real platform activity for %s: %s", zone_seed, exc)
+            # Fall through to deterministic mock on failure for resilience
+
     rng = random.Random(hash(zone_seed))
     orders = rng.randint(10, 200)
     riders = max(5, int(orders * rng.uniform(0.3, 0.8)))
@@ -35,4 +57,6 @@ async def fetch_platform_activity(zone_seed: str) -> dict:
         "platform_orders": orders,
         "active_riders": riders,
         "demand_ratio": demand_ratio,
+        "is_fallback": True,
+        "source": "mock",
     }

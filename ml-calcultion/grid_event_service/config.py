@@ -10,14 +10,14 @@ import os
 H3_RESOLUTION: int = 8
 
 # ── Kafka ─────────────────────────────────────────────────────────────────────
-KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
 KAFKA_CONSUMER_GROUP: str = "grid-event-service"
 KAFKA_TOPIC_TELEMETRY: str = "driver_telemetry"
 KAFKA_TOPIC_ZONE_UPDATES: str = "zone_state_updates"
 
 # ── Redis (zone state store) ──────────────────────────────────────────────────
 USE_REDIS: bool = os.getenv("USE_REDIS", "False").lower() == "true"
-REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 ZONE_KEY_TTL_SECONDS: int = 300   # 5-minute TTL on zone:{h3} keys
 
 # ── Aggregation window ────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ AGGREGATION_WINDOW_SECONDS: int = 60    # Roll-up window for per-cell ping count
 FLUSH_INTERVAL_SECONDS: float = 10.0   # How often the aggregator flushes to ML + Redis
 
 # ── ML Service ────────────────────────────────────────────────────────────────
-ML_SERVICE_URL: str = os.getenv("ML_SERVICE_URL", "http://localhost:8000")
+ML_SERVICE_URL: str = os.getenv("ML_SERVICE_URL", "http://127.0.0.1:8000")
 ML_TIMEOUT: float = 8.0
 
 # ── Zone state thresholds (mirrors pipeline_service.py in h3-feature-service) ─

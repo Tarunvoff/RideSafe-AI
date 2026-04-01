@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 from typing import Dict, Set
 
@@ -14,29 +15,19 @@ from config import (
     ZONE_HALTED_LF,
     ZONE_DANGEROUS_LF,
     ZONE_SLOW_LF,
-    USE_REDIS,
-    REDIS_URL,
-    ZONE_KEY_TTL_SECONDS,
     KAFKA_BOOTSTRAP_SERVERS,
     KAFKA_TOPIC_ZONE_UPDATES,
 )
 
+# h3-feature-service is the SINGLE authority for Lf and zone_state.
+# grid_event_service forwards aggregated rider_count here to trigger the ML pipeline.
+H3_FEATURE_SERVICE_URL = os.getenv("H3_FEATURE_SERVICE_URL", "http://127.0.0.1:8004")
+
+# Default coordinates used when h3-cell centroid cannot be resolved (fallback only).
+_DEFAULT_LAT = 12.9716
+_DEFAULT_LNG = 77.5946
+
 logger = logging.getLogger(__name__)
-
-# Redis initialization (optional, mirrors fraud-feature-service)
-_redis_client = None
-
-def get_redis():
-    global _redis_client
-    if _redis_client is None and USE_REDIS:
-        try:
-            import redis.asyncio as redis # type: ignore
-            _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-            logger.info(f"Connected to Redis at {REDIS_URL}")
-        except Exception as exc:
-            logger.error(f"Redis connection failed: {exc}")
-            _redis_client = None
-    return _redis_client
 
 
 class ZoneAggregator:
@@ -62,11 +53,51 @@ class ZoneAggregator:
             self.zone_riders[h3_cell] = set()
         self.zone_riders[h3_cell].add(rider_id)
 
-    def _determine_state(self, lf: float) -> str:
-        if lf > ZONE_HALTED_LF: return "HALTED"
+    @staticmethod
+    def _determine_state(lf: float) -> str:
+        """Mirror of pipeline_service.get_zone_state thresholds (civic_alert excluded here)."""
+        if lf > ZONE_HALTED_LF:    return "HALTED"
         if lf > ZONE_DANGEROUS_LF: return "DANGEROUS"
-        if lf > ZONE_SLOW_LF: return "SLOW"
+        if lf > ZONE_SLOW_LF:      return "SLOW"
         return "NORMAL"
+
+    async def _get_ml_zone_data(self, client: httpx.AsyncClient, h3_cell: str, rider_count: int) -> dict | None:
+        """
+        Call h3-feature-service /pipeline to get ML-computed Lf and zone_state.
+        Converts h3_cell → centroid lat/lng, then POST to /pipeline.
+        Returns {"Lf": float, "zone_state": str} or None on failure.
+        """
+        try:
+            import h3 as h3lib
+            lat, lng = h3lib.cell_to_latlng(h3_cell)
+        except Exception:
+            lat, lng = _DEFAULT_LAT, _DEFAULT_LNG
+
+        payload = {
+            "lat": lat,
+            "lng": lng,
+            # Use sensible defaults for earnings/pricing params —
+            # grid_event_service only cares about Lf and zone_state.
+            "Ew": 8000.0,
+            "Ct": 0.6,
+            "M": 0.1,
+        }
+        try:
+            resp = await client.post(
+                f"{H3_FEATURE_SERVICE_URL}/pipeline",
+                json=payload,
+                timeout=ML_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            lf   = float(data.get("Lf", 0.0))
+            # Validate schema fields are present
+            if "zone_state" not in data:
+                logger.warning("h3-feature-service response missing zone_state for %s", h3_cell)
+            return {"Lf": lf, "zone_state": data.get("zone_state", "NORMAL")}
+        except Exception as exc:
+            logger.warning("h3-feature-service call failed for %s: %s", h3_cell, exc)
+            return None
 
     async def _publish_state_change(self, h3_cell: str, old_state: str, new_state: str, lf: float):
         producer = await self._get_producer()
@@ -88,63 +119,64 @@ class ZoneAggregator:
             logger.error(f"Failed to publish zone state change: {e}")
 
     async def _periodic_flush(self):
-        """Flushes aggregated counts to ML service and writes state back to Redis & Kafka."""
-        redis = get_redis()
-        
+        """
+        Flushes aggregated telemetry counts to h3-feature-service (ML pipeline),
+        then writes the authoritative zone state to Redis and Kafka.
+
+        Architecture:
+          grid_event_service (telemetry aggregator)
+              → h3-feature-service /pipeline  (ML risk scoring — SINGLE Lf authority)
+              → Redis zone:{h3}               (consumed by trigger_service)
+              → Kafka zone_state_updates      (fan-out to other consumers)
+        """
         while True:
             await asyncio.sleep(FLUSH_INTERVAL_SECONDS)
-            
+
             # 1. Snapshot and clear active windows to avoid race conditions
             snapshot = self.zone_riders
             self.zone_riders = {}
-            
+
             if not snapshot:
                 continue
-                
-            logger.info(f"Flushing aggregates for {len(snapshot)} H3 zones...")
 
-            # 2. Parallel ML calls per active zone
+            logger.info(f"Flushing telemetry aggregates for {len(snapshot)} H3 zones → h3-feature-service")
+
+            # 2. Call h3-feature-service IN PARALLEL for all zones
+            # ⚠️ v1 BUG: individual awaits inside dict comprehension = sequential.
+            # v2 FIX: gather all coroutines in one asyncio.gather call.
+            flush_t0 = time.time()
             async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
-                for h3_cell, riders in snapshot.items():
-                    rider_count = len(riders)
-                    
-                    # We need rainfall, aqi etc. For simplicity in the async engine, 
-                    # we call h3-feature-service, BUT it calls ML internally.
-                    # Alternatively, if we call ML directly, we need weather data.
-                    # For this architectural pass, we will write to Redis directly
-                    # assuming a placeholder risk score or relying on h3-feature-service 
-                    # to do the heavy lifting.
-                    
-                    # In a fully integrated system, Grid Event Service calls H3 Feature Service
-                    # to get the enriched vector, then ML Service to score. 
-                    
-                    # (Simplified for the demonstration - generating a dummy Lf based on density)
-                    # High density -> high demand -> likely higher risk of disruption
-                    lf_score = min(0.9, 0.1 * rider_count) 
-                    
-                    new_state = self._determine_state(lf_score)
-                    old_state = self.zone_states.get(h3_cell, "NORMAL")
+                h3_cells       = list(snapshot.keys())
+                coros          = [
+                    self._get_ml_zone_data(client, cell, len(snapshot[cell]))
+                    for cell in h3_cells
+                ]
+                ml_results     = await asyncio.gather(*coros, return_exceptions=True)
+                results        = dict(zip(h3_cells, ml_results))
+            flush_elapsed = time.time() - flush_t0
+            logger.info(
+                "Flush ML calls complete in %.2fs for %d zones",
+                flush_elapsed, len(h3_cells)
+            )
 
-                    # 3. Write H3 Single Source of Truth to Redis
-                    redis_payload = {
-                        "zone_state": new_state,
-                        "lf_score": lf_score,
-                        "active_rider_count": rider_count,
-                        "last_updated": time.time()
-                    }
-                    if redis:
-                        try:
-                            await redis.setex(
-                                f"zone:{h3_cell}", 
-                                ZONE_KEY_TTL_SECONDS, 
-                                json.dumps(redis_payload)
-                            )
-                        except Exception as e:
-                             logger.error(f"Redis write error on zone:{h3_cell}: {e}")
+            for h3_cell, ml_data in results.items():
+                rider_count = len(snapshot.get(h3_cell, set()))
 
-                    # 4. State Change Event (Kafka)
-                    if new_state != old_state:
-                        self.zone_states[h3_cell] = new_state
-                        await self._publish_state_change(h3_cell, old_state, new_state, lf_score)
-                        
-            logger.info(f"Flush complete.")
+                # Skip failed or exception results
+                if ml_data is None or isinstance(ml_data, Exception):
+                    logger.warning(
+                        "Skipping Redis write for %s: ML pipeline unavailable (%s)",
+                        h3_cell, ml_data if isinstance(ml_data, Exception) else "None"
+                    )
+                    continue
+
+                lf_score  = ml_data["Lf"]
+                new_state = ml_data["zone_state"]
+                old_state = self.zone_states.get(h3_cell, "NORMAL")
+
+                # 3. Publish state-change event to Kafka for downstream consumers
+                if new_state != old_state:
+                    self.zone_states[h3_cell] = new_state
+                    await self._publish_state_change(h3_cell, old_state, new_state, lf_score)
+
+            logger.info("Flush complete.")
