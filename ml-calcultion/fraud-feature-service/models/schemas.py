@@ -59,9 +59,35 @@ class BehaviorFeatures(BaseModel):
 
 
 class MetaFeatures(BaseModel):
-    """Request-level metadata attached for traceability."""
+    """Request-level metadata and multi-layer fraud signals."""
     h3_cell: str = Field(..., description="H3 cell at resolution 8 for (lat, lng)")
     timestamp: int = Field(..., description="Echo of the incoming event timestamp")
+
+    # ── Layer A: Device Intelligence ────────────────────────────────────────────
+    device_high_share: bool = Field(
+        False,
+        description="True when >3 distinct users are registered on this device ID",
+    )
+    device_user_count: int = Field(
+        0,
+        description="Total distinct users seen on this device",
+    )
+
+    # ── Layer B: H3 Burst Detection ─────────────────────────────────────────────
+    h3_burst_detected: bool = Field(
+        False,
+        description="True when multiple users are active in the same H3 cell within 1 hour",
+    )
+    h3_active_count: int = Field(
+        0,
+        description="Count of distinct users active in this H3 cell right now",
+    )
+
+    # ── Layer C: Temporal Behavior ───────────────────────────────────────────────
+    claims_last_24h: int = Field(
+        0,
+        description="Number of claims submitted by this user in the last 24 hours",
+    )
 
 
 # ── Response ──────────────────────────────────────────────────────────────────

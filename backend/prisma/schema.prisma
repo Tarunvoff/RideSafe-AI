@@ -249,3 +249,57 @@ model RazorpayOrder {
 
   @@map("razorpay_orders")
 }
+
+model ZoneTelemetryLog {
+  id        String   @id @default(uuid())
+  h3Cell    String   @map("h3_cell")
+  lfScore   Float    @map("lf_score")
+  weather   String?  // Clear, Heavy Rain, etc.
+  aqi       Int?     // PM2.5 readings
+  timestamp DateTime @default(now())
+
+  // TimescaleDB specifically requires the timestamp column to be indexed
+  @@index([timestamp(sort: Desc)])
+  @@map("zone_telemetry_logs")
+}
+
+// ── Parametric Payout Idempotency ─────────────────────────────────────────────
+// Prevents double-payment: one record per (user, h3_cell, event_timestamp).
+// The UNIQUE constraint makes any duplicate INSERT a no-op at DB level.
+model PayoutIdempotencyKey {
+  id             String   @id @default(uuid())
+  userId         String
+  h3Cell         String   @map("h3_cell")
+  eventTimestamp Int      @map("event_timestamp")   // unix epoch seconds
+
+  // Payout lifecycle: PENDING → PROCESSING → SUCCESS | FAILED
+  payoutState    String   @default("PENDING") @map("payout_state")
+  payoutId       String?  @map("payout_id")          // filled when SUCCESS
+  errorMessage   String?  @map("error_message")       // filled when FAILED
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Enforce exactly-once semantics at DB level
+  @@unique([userId, h3Cell, eventTimestamp])
+  @@index([userId])
+  @@map("payout_idempotency_keys")
+}
+
+// ── Kafka Dead Letter Queue (DB fallback) ─────────────────────────────────────
+// When Kafka is unavailable, events are stored here and replayed when broker recovers.
+model KafkaDLQ {
+  id          String   @id @default(uuid())
+  topic       String                          // original Kafka topic
+  eventKey    String?  @map("event_key")      // Kafka message key (rider_id)
+  payload     String                          // JSON-serialised message body
+  error       String?                         // reason for DLQ / failure
+  retryCount  Int      @default(0) @map("retry_count")
+  status      String   @default("PENDING")    // PENDING | RETRYING | DEAD
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([topic, status])
+  @@index([createdAt])
+  @@map("kafka_dlq")
+}
