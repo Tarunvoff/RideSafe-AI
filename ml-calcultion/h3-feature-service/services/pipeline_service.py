@@ -1,132 +1,431 @@
 """
-services/pipeline_service.py
+services/pipeline_service.py  [v2 — Production-Ready + Simulation-Ready]
 
 End-to-end pipeline:
   GPS (lat, lng) → H3 cell → /features → /risk-score → /pricing
 
-All service calls are async. The ML microservice (port 8000) is called
-directly via httpx. This service acts as the single pipeline orchestrator.
+v2 Additions over v1:
+  [CB]  Circuit breaker for ml-insurance-service calls
+  [TO]  Hard 2.5s external API timeout + fallback to last known Redis zone state
+  [TID] Per-request trace_id for structured log correlation
+  [SC]  Sanity checks: Lf ∈ [0,1], premium ∈ [₹15,₹150], zone_state consistency
+  [KA]  Event-driven Kafka trigger: Kafka telemetry can fire a pipeline run
+  [RD]  Request deduplication: inflight coalescing per H3 cell (prevents thundering herd)
 """
 
+import asyncio
+import json
 import logging
+import os
+import time
+import uuid
 import httpx
 import h3 as h3lib
+from fastapi import HTTPException
 from config import H3_RESOLUTION
 from services.feature_service import get_features
+from services.circuit_breaker import get_breaker
 from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
 
 logger = logging.getLogger(__name__)
 
-import os
+ML_SERVICE_URL    = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000")
+ML_TIMEOUT        = float(os.getenv("ML_TIMEOUT_SECONDS",  "5.0"))   # per-call timeout
+PIPELINE_DEADLINE = float(os.getenv("PIPELINE_DEADLINE_SECONDS", "2.5"))  # hard end-to-end cap
+REDIS_ZONE_TTL    = int(os.getenv("ZONE_KEY_TTL_SECONDS", "300"))
 
-ML_SERVICE_URL = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000")
-ML_TIMEOUT = 10.0
+# Sanity bounds
+_MIN_PREMIUM = 15.0
+_MAX_PREMIUM = 150.0
+_LF_MIN      = 0.0
+_LF_MAX      = 1.0
+
+# Circuit breaker singleton for ml-insurance-service
+_ml_cb = get_breaker("ml-insurance-service")
+
+# ── Redis (lazy init) ─────────────────────────────────────────────────────────
+_redis_client = None
+
+def _get_redis():
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+    try:
+        import redis as redislib
+        redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+        _redis_client = redislib.Redis.from_url(redis_url, decode_responses=True)
+        _redis_client.ping()
+        logger.info("pipeline_service connected to Redis at %s", redis_url)
+    except Exception as exc:
+        logger.warning("Redis unavailable for zone state write: %s", exc)
+        _redis_client = None
+    return _redis_client
+
+
+# ── Request Deduplication (inflight coalescing) ───────────────────────────────
+# Prevents thundering herd: if N Kafka events all fire pipeline for the same cell
+# simultaneously, only one actual ML call is made; others await the same future.
+_inflight: dict[str, asyncio.Future] = {}
 
 
 def get_zone_state(civic_alert: bool, Lf: float) -> str:
     """
-    Determine the real-time state of the zone for routing decisions.
+    Canonical zone-state thresholds. Single definition, mirrored nowhere else.
+    Sanity: zone_state must be consistent with Lf after this function.
     """
     if civic_alert:
         return "HALTED"
-    
     if Lf > 0.75:
         return "HALTED"
-    elif Lf > 0.6:
+    elif Lf > 0.60:
         return "DANGEROUS"
-    elif Lf > 0.4:
+    elif Lf > 0.40:
         return "SLOW"
+    return "NORMAL"
+
+
+def _sanity_check(Lf: float, premium: float, zone_state: str, trace_id: str) -> tuple[float, float, str]:
+    """
+    Enforce invariants after ML output.
+    Returns corrected (Lf, premium, zone_state).
+    Logs a WARNING for every correction so issues are visible in dashboards.
+    """
+    issues = []
+
+    # [SC1] Lf bounds
+    if not (_LF_MIN <= Lf <= _LF_MAX):
+        issues.append(f"Lf={Lf:.4f} out of [0,1] → clamped")
+        Lf = max(_LF_MIN, min(_LF_MAX, Lf))
+
+    # [SC2] Premium bounds
+    if not (_MIN_PREMIUM <= premium <= _MAX_PREMIUM):
+        issues.append(f"premium={premium:.2f} out of [₹{_MIN_PREMIUM},₹{_MAX_PREMIUM}] → clamped")
+        premium = max(_MIN_PREMIUM, min(_MAX_PREMIUM, premium))
+
+    # [SC3] zone_state ↔ Lf consistency
+    # Re-derive expected state (no civic_alert context here, use Lf only)
+    expected_state = get_zone_state(False, Lf)
+    if zone_state != expected_state and zone_state != "HALTED":
+        issues.append(f"zone_state={zone_state} inconsistent with Lf={Lf:.4f} → overridden to {expected_state}")
+        zone_state = expected_state
+
+    if issues:
+        logger.warning("[tid=%s] Sanity corrections: %s", trace_id, " | ".join(issues))
+
+    return Lf, premium, zone_state
+
+
+def _write_zone_to_redis(h3_cell: str, Lf: float, zone_state: str, trace_id: str):
+    """
+    Write the ML-authoritative zone state to Redis.
+    Schema: { Lf, lf_score (compat alias), zone_state, source, timestamp, trace_id }
+    TTL: REDIS_ZONE_TTL seconds (env: ZONE_KEY_TTL_SECONDS)
+    """
+    r = _get_redis()
+    if r is None:
+        return
+    payload = {
+        "Lf":         Lf,
+        "lf_score":   Lf,           # compat alias for grid_event_service reader
+        "zone_state": zone_state,
+        "source":     "h3-feature-service",
+        "timestamp":  time.time(),
+        "trace_id":   trace_id,     # for log correlation
+    }
+    try:
+        r.setex(f"zone:{h3_cell}", REDIS_ZONE_TTL, json.dumps(payload))
+        logger.debug(
+            "[tid=%s] Redis zone:%s → Lf=%.4f state=%s (TTL=%ds)",
+            trace_id, h3_cell, Lf, zone_state, REDIS_ZONE_TTL
+        )
+    except Exception as exc:
+        logger.error("[tid=%s] Redis zone write failed for %s: %s", trace_id, h3_cell, exc)
+
+
+def _fallback_from_redis(h3_cell: str, trace_id: str) -> dict | None:
+    """
+    Read last known zone state from Redis as circuit-breaker fallback.
+    Returns dict with Lf + zone_state, or None if no cached state.
+    """
+    r = _get_redis()
+    if r is None:
+        return None
+    try:
+        raw = r.get(f"zone:{h3_cell}")
+        if raw:
+            data = json.loads(raw)
+            logger.warning(
+                "[tid=%s] ML service unavailable — using Redis fallback for %s: Lf=%.4f state=%s",
+                trace_id, h3_cell, data.get("Lf", 0.0), data.get("zone_state", "NORMAL")
+            )
+            return data
+    except Exception as exc:
+        logger.error("[tid=%s] Redis fallback read failed for %s: %s", trace_id, h3_cell, exc)
+    return None
+
+
+async def _call_ml_with_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    payload: dict,
+    trace_id: str,
+    retries: int = 2,
+) -> dict:
+    """POST to ML service with simple retry on transient failures."""
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            resp = await client.post(url, json=payload, timeout=ML_TIMEOUT)
+            resp.raise_for_status()
+            return resp.json()
+        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+            last_exc = exc
+            if attempt < retries:
+                logger.warning(
+                    "[tid=%s] ML call %s failed (attempt %d/%d): %s — retrying",
+                    trace_id, url, attempt + 1, retries + 1, exc
+                )
+        except httpx.HTTPStatusError:
+            raise
+    raise last_exc  # type: ignore[misc]
+
+
+async def _execute_pipeline_core(
+    request: PipelineRequest,
+    h3_cell: str,
+    trace_id: str,
+) -> PipelineResponse:
+    """
+    Core pipeline logic — wrapped for deduplication.
+    Called only once per unique h3_cell when multiple requests coalesce.
+    """
+    from cache.store import get_cached, set_cached
+
+    # ── Step 1.5: Short-circuit pipeline cache ───────────────────────────────
+    cache_key = f"{h3_cell}_{request.Ew}_{request.Ct}_{request.M}"
+    cached_pipeline = get_cached(cache_key)
+    if cached_pipeline:
+        logger.info("[tid=%s] Pipeline cache hit: %s", trace_id, cache_key)
+        return PipelineResponse(**cached_pipeline["features"])
+
+    # ── Step 2: H3 → Feature vector (with per-API timeouts) ─────────────────
+    features: FeatureResponse = await get_features(h3_cell)
+    logger.info(
+        "[tid=%s] Features: rainfall=%.1f aqi=%.1f demand=%.3f civic=%s",
+        trace_id, features.rainfall, features.aqi, features.demand_ratio, features.civic_alert
+    )
+
+    # ── Step 2.5: Pull avg_speed from Redis (written by kafka_consumer) ──────
+    avg_speed = 0.0
+    try:
+        from services.kafka_consumer import get_avg_speed
+        avg_speed = await get_avg_speed(h3_cell)
+        if avg_speed <= 0.0:
+            logger.debug("[tid=%s] avg_speed missing for %s — using 0.0", trace_id, h3_cell)
+    except Exception:
+        pass
+
+    # ── Step 3: Features → /risk-score (circuit breaker guarded) ─────────────
+    risk_payload = {
+        "h3_cell":   h3_cell,
+        "weather":   {"rainfall": features.rainfall, "temperature": features.temperature},
+        "aqi":       features.aqi,
+        "demand_ratio": features.demand_ratio,
+        "historical_disruption_frequency": features.historical_risk,
+        "zone_volatility": 0.5,
+        "avg_speed_kmh":   avg_speed,
+    }
+
+    Lf: float          = 0.0
+    risk_level: str    = "LOW"
+    premium: float     = _MIN_PREMIUM
+    used_fallback: bool = False
+
+    if _ml_cb.allow_request():
+        try:
+            async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
+                risk_data = await _call_ml_with_retry(
+                    client, f"{ML_SERVICE_URL}/risk-score", risk_payload, trace_id
+                )
+            Lf         = risk_data["Lf"]
+            risk_level = risk_data["risk_level"]
+            _ml_cb.record_success()
+            logger.info("[tid=%s] ML Risk → Lf=%.4f level=%s", trace_id, Lf, risk_level)
+
+        except Exception as exc:
+            _ml_cb.record_failure()
+            logger.error("[tid=%s] ML /risk-score failed: %s — circuit_breaker=%s", trace_id, exc, _ml_cb.state)
+            # Fallback: last known zone state from Redis
+            fb = _fallback_from_redis(h3_cell, trace_id)
+            if fb:
+                Lf         = float(fb.get("Lf", 0.0))
+                risk_level = "UNKNOWN"
+                used_fallback = True
+            else:
+                Lf         = 0.0
+                risk_level = "LOW"
+                used_fallback = True
     else:
-        return "NORMAL"
+        # CB is OPEN — short-circuit directly
+        fb = _fallback_from_redis(h3_cell, trace_id)
+        if fb:
+            Lf         = float(fb.get("Lf", 0.0))
+            risk_level = "UNKNOWN"
+            used_fallback = True
+        logger.warning("[tid=%s] CB OPEN — skipping ML call, Lf=%.4f (fallback)", trace_id, Lf)
+
+    # ── Step 4: Lf → /pricing (only if ML is healthy) ───────────────────────
+    if not used_fallback and _ml_cb.allow_request():
+        try:
+            pricing_payload = {
+                "Ew": request.Ew,
+                "Lf": Lf,
+                "Ct": request.Ct,
+                "M":  request.M,
+                "platform": getattr(request, "platform", None),
+            }
+            async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
+                pricing_data = await _call_ml_with_retry(
+                    client, f"{ML_SERVICE_URL}/pricing", pricing_payload, trace_id
+                )
+            premium = pricing_data["premium"]
+            _ml_cb.record_success()
+            logger.info("[tid=%s] ML Pricing → premium=₹%.2f", trace_id, premium)
+        except Exception as exc:
+            _ml_cb.record_failure()
+            logger.error("[tid=%s] ML /pricing failed: %s — using min premium", trace_id, exc)
+            premium = _MIN_PREMIUM
+    elif used_fallback:
+        # Estimate premium from Lf without ML using simplified formula
+        Ew    = max(request.Ew, 1.0)
+        Ct    = request.Ct if request.Ct else 0.6
+        M     = request.M if request.M else 0.1
+        premium = round(min(max(Ew * Lf * Ct * M, _MIN_PREMIUM), _MAX_PREMIUM), 2)
+        logger.info("[tid=%s] Estimated fallback premium=₹%.2f (no ML)", trace_id, premium)
+
+    # ── Step 4.5: Derive + sanity-check zone_state ───────────────────────────
+    zone_state = get_zone_state(features.civic_alert, Lf)
+    Lf, premium, zone_state = _sanity_check(Lf, premium, zone_state, trace_id)
+
+    # ── Step 4.9: Write ML-authoritative zone state to Redis ─────────────────
+    _write_zone_to_redis(h3_cell, Lf, zone_state, trace_id)
+
+    # ── Step 5: Assemble result ───────────────────────────────────────────────
+    result = PipelineResponse(
+        h3_cell     = h3_cell,
+        latitude    = features.latitude,
+        longitude   = features.longitude,
+        rainfall    = features.rainfall,
+        temperature = features.temperature,
+        aqi         = features.aqi,
+        demand_ratio= features.demand_ratio,
+        civic_alert = features.civic_alert,
+        Lf          = Lf,
+        risk_level  = risk_level,
+        zone_state  = zone_state,
+        Ew          = request.Ew,
+        Ct          = request.Ct if request.Ct is not None else 0.6,
+        premium     = premium,
+    )
+
+    set_cached(cache_key, result.model_dump())
+    return result
 
 
 async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
-    # ── Step 1: GPS → H3 cell ─────────────────────────────────────────────────
+    # Generate trace ID for this request — propagates through all logs
+    trace_id = str(uuid.uuid4())[:8]
+    pipeline_start = time.time()
+
+    # ── Step 0: Input validation ─────────────────────────────────────────────
+    if not (-90.0 <= request.lat <= 90.0):
+        raise HTTPException(422, f"lat={request.lat} out of range [-90, 90]")
+    if not (-180.0 <= request.lng <= 180.0):
+        raise HTTPException(422, f"lng={request.lng} out of range [-180, 180]")
+
+    # ── Step 1: GPS → H3 cell ────────────────────────────────────────────────
     h3_cell = h3lib.latlng_to_cell(request.lat, request.lng, H3_RESOLUTION)
-    logger.info(f"GPS ({request.lat},{request.lng}) → H3 cell: {h3_cell}")
-
-    # ── Step 1.5: Check Full Pipeline Cache ───────────────────────────────────
-    # If the feature vector for this cell is cached, we can bypass the ML calls
-    # as long as Ew, Ct, M haven't changed. To simplify, we cache the whole response
-    # keyed by (h3_cell, Ew, Ct, M).
-    cache_key = f"{h3_cell}_{request.Ew}_{request.Ct}_{request.M}"
-    from cache.store import get_cached, set_cached
-    cached_pipeline = get_cached(cache_key)
-    if cached_pipeline:
-        logger.info(f"Full pipeline cache hit for {cache_key}")
-        return PipelineResponse(**cached_pipeline["features"])
-
-    # ── Step 2: H3 → Feature vector (this service, port 8001) ────────────────
-    features: FeatureResponse = await get_features(h3_cell)
-    logger.info(f"Features fetched for {h3_cell}: rainfall={features.rainfall}, aqi={features.aqi}")
-
-    # ── Step 3: Features → /risk-score (ML service, port 8000) ───────────────
-    risk_payload = {
-        "h3_cell": h3_cell,
-        "weather": {
-            "rainfall": features.rainfall,
-            "temperature": features.temperature,
-        },
-        "aqi": features.aqi,
-        "demand_ratio": features.demand_ratio,
-        "historical_disruption_frequency": features.historical_risk,
-        "zone_volatility": 0.5,  # future: derive from zone DB
-    }
-
-    async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
-        risk_resp = await client.post(f"{ML_SERVICE_URL}/risk-score", json=risk_payload)
-        risk_resp.raise_for_status()
-        risk_data = risk_resp.json()
-
-    Lf = risk_data["Lf"]
-    risk_level = risk_data["risk_level"]
-    logger.info(f"Risk score: Lf={Lf}, level={risk_level}")
-
-    # ── Step 4: Lf → /pricing (ML service, port 8000) ────────────────────────
-    pricing_payload = {
-        "Ew": request.Ew,
-        "Lf": Lf,
-        "Ct": request.Ct,
-        "M": request.M,
-    }
-
-    async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:
-        pricing_resp = await client.post(f"{ML_SERVICE_URL}/pricing", json=pricing_payload)
-        pricing_resp.raise_for_status()
-        pricing_data = pricing_resp.json()
-
-    premium = pricing_data["premium"]
-    logger.info(f"Premium: ₹{premium}")
-
-    premium = pricing_data["premium"]
-    logger.info(f"Premium: ₹{premium}")
-
-    # ── Step 4.5: Derive zone_state ──────────────────────────────────────────
-    zone_state = get_zone_state(features.civic_alert, Lf)
-    logger.info(f"Zone State calculated: {zone_state}")
-
-    # ── Step 5: Return full pipeline result (and cache it) ────────────────────
-    result = PipelineResponse(
-        h3_cell=h3_cell,
-        latitude=features.latitude,
-        longitude=features.longitude,
-        # Environment
-        rainfall=features.rainfall,
-        temperature=features.temperature,
-        aqi=features.aqi,
-        demand_ratio=features.demand_ratio,
-        civic_alert=features.civic_alert,
-        # Risk
-        Lf=Lf,
-        risk_level=risk_level,
-        zone_state=zone_state,
-        # Pricing
-        Ew=request.Ew,
-        Ct=request.Ct,
-        premium=premium,
+    logger.info(
+        "[tid=%s] Pipeline START GPS=(%.6f,%.6f) → H3=%s",
+        trace_id, request.lat, request.lng, h3_cell
     )
 
-    # Store in TTLCache
-    set_cached(cache_key, result.model_dump())
-    
+    # ── Request Deduplication (coalescing) ───────────────────────────────────
+    # If an identical pipeline call for this cell is already inflight, await it.
+    coalesce_key = f"{h3_cell}_{request.Ew}_{request.Ct}_{request.M}"
+    if coalesce_key in _inflight:
+        logger.debug("[tid=%s] Coalescing with inflight request for %s", trace_id, h3_cell)
+        try:
+            result = await _inflight[coalesce_key]
+            elapsed = time.time() - pipeline_start
+            logger.info("[tid=%s] Pipeline COALESCED in %.3fs", trace_id, elapsed)
+            return result
+        except Exception:
+            pass  # inflight failed — re-run
+
+    # Create a future so concurrent requests for same cell can wait on this one
+    loop = asyncio.get_event_loop()
+    fut: asyncio.Future = loop.create_future()
+    _inflight[coalesce_key] = fut
+
+    try:
+        # ── Hard end-to-end deadline ──────────────────────────────────────────
+        result = await asyncio.wait_for(
+            _execute_pipeline_core(request, h3_cell, trace_id),
+            timeout=PIPELINE_DEADLINE,
+        )
+        fut.set_result(result)
+
+    except asyncio.TimeoutError:
+        # Pipeline exceeded deadline — return last known state from Redis
+        logger.error(
+            "[tid=%s] Pipeline TIMEOUT (>%.1fs) for %s — falling back to Redis",
+            trace_id, PIPELINE_DEADLINE, h3_cell
+        )
+        fb = _fallback_from_redis(h3_cell, trace_id)
+        Lf         = float(fb.get("Lf", 0.0)) if fb else 0.0
+        zone_state = fb.get("zone_state", "NORMAL") if fb else "NORMAL"
+        result = PipelineResponse(
+            h3_cell=h3_cell, latitude=request.lat, longitude=request.lng,
+            rainfall=0.0, temperature=25.0, aqi=50.0, demand_ratio=1.0,
+            civic_alert=False, Lf=Lf, risk_level="UNKNOWN",
+            zone_state=zone_state, Ew=request.Ew,
+            Ct=request.Ct if request.Ct else 0.6, premium=_MIN_PREMIUM,
+        )
+        fut.set_result(result)
+
+    except Exception as exc:
+        fut.set_exception(exc)
+        raise
+
+    finally:
+        _inflight.pop(coalesce_key, None)
+
+    elapsed = time.time() - pipeline_start
+    logger.info(
+        "[tid=%s] Pipeline DONE in %.3fs — Lf=%.4f state=%s premium=₹%.2f cb=%s",
+        trace_id, elapsed, result.Lf, result.zone_state, result.premium, _ml_cb.state
+    )
     return result
+
+
+async def run_pipeline_from_kafka(h3_cell: str, lat: float, lng: float,
+                                  Ew: float = 8000.0, Ct: float = 0.6, M: float = 0.1):
+    """
+    Event-driven pipeline trigger — called by Kafka consumer when a new telemetry
+    batch arrives. Fires the pipeline without a HTTP round-trip.
+
+    This enables: Kafka → ML Pipeline → Redis (without polling /pipeline via HTTP).
+    grid_event_service can also use this as a direct fast-path.
+    """
+    req = PipelineRequest(lat=lat, lng=lng, Ew=Ew, Ct=Ct, M=M)
+    try:
+        result = await run_pipeline(req)
+        logger.info(
+            "Kafka-triggered pipeline for H3=%s → Lf=%.4f state=%s",
+            h3_cell, result.Lf, result.zone_state
+        )
+        return result
+    except Exception as exc:
+        logger.error("Kafka-triggered pipeline failed for %s: %s", h3_cell, exc)
+        return None

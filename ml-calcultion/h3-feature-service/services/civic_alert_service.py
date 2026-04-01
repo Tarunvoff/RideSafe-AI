@@ -4,7 +4,8 @@ services/civic_alert_service.py
 Async civic alert detection (bandh, curfew, protests, disasters).
 Ported from: ml_microservice/integrations/civic_alert_service.py
 
-Uses NewsAPI to search for disruption-related news in the reverse-geocoded city.
+Uses Newsdata.io to search for disruption-related news in the reverse-geocoded city.
+City is derived dynamically from H3 cell centroid via reverse geocoding.
 Returns a boolean: True if civic disruption is ongoing.
 """
 
@@ -14,20 +15,54 @@ from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_MOCK_DATA
 
 logger = logging.getLogger(__name__)
 
+# ── City lookup from lat/lng via Nominatim (OpenStreetMap, free, no API key) ──
+_city_cache: dict[str, str] = {}  # h3_cell → city name
+
+async def _reverse_geocode_city(lat: float, lng: float, h3_cell: str) -> str:
+    """
+    Reverse-geocode lat/lng → city name using OSM Nominatim.
+    Caches result per h3_cell (stable centroid → stable city).
+    Falls back to 'Bangalore' on any failure.
+    """
+    if h3_cell in _city_cache:
+        return _city_cache[h3_cell]
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"lat": lat, "lon": lng, "format": "json"},
+                headers={"User-Agent": "RideSafe-AI/1.0"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            addr = data.get("address", {})
+            # Prefer city > town > county > state
+            city = (
+                addr.get("city")
+                or addr.get("town")
+                or addr.get("county")
+                or addr.get("state")
+                or "Bangalore"
+            )
+            _city_cache[h3_cell] = city
+            logger.info("Reverse geocoded H3 %s → city=%s", h3_cell, city)
+            return city
+    except Exception as exc:
+        logger.warning("Reverse geocoding failed for %s: %s — defaulting to Bangalore", h3_cell, exc)
+        return "Bangalore"
+
+
 async def check_civic_alert(city: str = "Bangalore") -> bool:
     """
     Returns True if there are ongoing civic alerts affecting gig workers.
     Uses Newsdata.io directly based on the user's platform integration.
-
-    Currently: mock implementation (5% chance) toggled via USE_MOCK_DATA.
+    City is derived dynamically (passed from feature_service via _reverse_geocode_city).
     """
     try:
         if USE_MOCK_DATA or NEWSDATA_API_KEY == "demo_key":
-            # Mock mode — safely avoids consuming API keys during local testing
             import random
             return random.random() < 0.05
 
-        # Format matches the NestJS backend ingestion logic perfectly
         params = {
             "apikey": NEWSDATA_API_KEY,
             "category": "domestic",
@@ -40,10 +75,10 @@ async def check_civic_alert(city: str = "Bangalore") -> bool:
             data = resp.json()
             total = data.get("totalResults", 0)
             if total > 0:
-                logger.info(f"Civic alert detected for {city}: {total} results")
+                logger.info("Civic alert detected for %s: %d results", city, total)
                 return True
             return False
 
     except Exception as exc:
-        logger.warning(f"Civic alert check failed: {exc}")
+        logger.warning("Civic alert check failed for %s: %s", city, exc)
         return False

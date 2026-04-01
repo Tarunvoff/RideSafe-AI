@@ -24,6 +24,7 @@ Pipeline:
 import asyncio
 import random
 import logging
+import time
 from datetime import datetime
 from fastapi import HTTPException
 
@@ -71,28 +72,59 @@ def _generate_historical_risk(h3_cell: str) -> float:
 
 
 async def get_features(h3_cell: str) -> FeatureResponse:
-    # ── Step 1: Validate ──────────────────────────────────────────────────────
+    # ── Step 1: Validate ─────────────────────────────────────────────────────
     if not validate_h3_cell(h3_cell):
         raise HTTPException(status_code=422, detail=f"Invalid H3 cell ID: '{h3_cell}'")
 
-    # ── Step 2: Cache hit ─────────────────────────────────────────────────────
+    # ── Step 2: Cache hit ───────────────────────────────────────────────────
     cached = get_cached(h3_cell)
     if cached:
         return FeatureResponse(**cached["features"])
 
-    # ── Step 3: H3 → lat/lng ──────────────────────────────────────────────────
+    # ── Step 3: H3 → lat/lng ────────────────────────────────────────────────
     lat, lng = h3_to_latlng(h3_cell)
 
-    # ── Step 4: Parallel async API calls (all 4 in one gather) ────────────────
+    # ── Step 3.5: Resolve city from H3 centroid (for dynamic civic alert) ──────
+    from services.civic_alert_service import _reverse_geocode_city
+    city = await _reverse_geocode_city(lat, lng, h3_cell)
+
+    # ── Step 4: Parallel async API calls with per-gather timeout ────────────────
+    # Hard cap: 2.0s. If any API hangs, we fall back to defaults rather than
+    # blocking the pipeline past its deadline.
+    t0 = time.time()
     try:
-        weather_data, aqi_data, civic_alert, platform_data = await asyncio.gather(
-            fetch_weather(lat, lng),
-            fetch_aqi(lat, lng),
-            check_civic_alert(),  # default city = Bangalore
-            fetch_platform_activity(h3_cell),
+        weather_data, aqi_data, civic_alert, platform_data = await asyncio.wait_for(
+            asyncio.gather(
+                fetch_weather(lat, lng),
+                fetch_aqi(lat, lng, h3_cell=h3_cell),
+                check_civic_alert(city=city),
+                fetch_platform_activity(h3_cell),
+            ),
+            timeout=2.0,
+        )
+        logger.debug(
+            "Feature APIs for %s done in %.2fs (weather+aqi+civic+platform)",
+            h3_cell, time.time() - t0
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Feature API gather timed out (>2s) for %s — using defaults", h3_cell
+        )
+        now = datetime.utcnow()
+        return FeatureResponse(
+            h3_cell=h3_cell, latitude=lat, longitude=lng,
+            rainfall=DEFAULT_RAINFALL, temperature=DEFAULT_TEMPERATURE,
+            humidity=DEFAULT_HUMIDITY,
+            aqi=DEFAULT_AQI, pm25=DEFAULT_PM25, pm10=DEFAULT_PM10,
+            platform_orders=0, active_riders=0,
+            demand_ratio=DEFAULT_DEMAND_RATIO,
+            civic_alert=False,
+            hour_of_day=now.hour, day_of_week=now.weekday(),
+            month=now.month, season=_get_season(now.month),
+            historical_risk=DEFAULT_HISTORICAL_RISK,
         )
     except Exception as exc:
-        logger.error(f"Parallel fetch failed for {h3_cell}: {exc}")
+        logger.error("Parallel fetch failed for %s: %s", h3_cell, exc)
         now = datetime.utcnow()
         return FeatureResponse(
             h3_cell=h3_cell, latitude=lat, longitude=lng,
@@ -124,21 +156,30 @@ async def get_features(h3_cell: str) -> FeatureResponse:
         "longitude": round(lng, 6),
 
         # Weather
-        "rainfall": weather_data.get("rainfall", DEFAULT_RAINFALL),
+        "rainfall":    weather_data.get("rainfall",    DEFAULT_RAINFALL),
         "temperature": weather_data.get("temperature", DEFAULT_TEMPERATURE),
-        "humidity": weather_data.get("humidity", DEFAULT_HUMIDITY),
+        "humidity":    weather_data.get("humidity",    DEFAULT_HUMIDITY),
 
         # AQI
-        "aqi": aqi_data.get("aqi", DEFAULT_AQI),
+        "aqi":  aqi_data.get("aqi",  DEFAULT_AQI),
         "pm25": aqi_data.get("pm25", DEFAULT_PM25),
         "pm10": aqi_data.get("pm10", DEFAULT_PM10),
 
-        # Platform
+        # Platform — live rider count from Redis (via Kafka consumer) takes priority
+        # over platform_data mock when available; compute demand_ratio = orders / riders
         "platform_orders": platform_data.get("platform_orders", 0),
-        "active_riders": platform_data.get("active_riders", 0),
-        "demand_ratio": platform_data.get("demand_ratio", DEFAULT_DEMAND_RATIO),
+        "active_riders":   platform_data.get("active_riders", 0),
+        "demand_ratio": (
+            round(
+                platform_data.get("platform_orders", 1) /
+                max(platform_data.get("active_riders", 1), 1),
+                4
+            )
+            if platform_data.get("active_riders", 0) > 0
+            else DEFAULT_DEMAND_RATIO
+        ),
 
-        # Civic
+        # Civic — uses dynamically resolved city
         "civic_alert": civic_alert,
 
         # Temporal

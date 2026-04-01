@@ -23,6 +23,9 @@ AQI_MAX_SENSORS_PER_TYPE = 4                 # Cap HTTP calls per parameter type
 
 import os
 
+# ── Kafka ─────────────────────────────────────────────────────────────────────
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+
 # ── Civic Alert (Newsdata.io API) ─────────────────────────────────────────────
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "pub_f7c6f2303cfa44ffa6652c2762aea3be")
 NEWSDATA_URL = "https://newsdata.io/api/1/latest"
