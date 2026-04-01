@@ -1,75 +1,24 @@
-# Aegis ML Microservice
+# ML Insurance Service (FastAPI)
 
-This is the production-ready ML microservice for Aegis: the AI-powered parametric insurance system for gig workers. It uses FastAPI for serving predictions related to Risk Scoring, Premium Pricing, Fraud Scoring, and Parametric Trigger Decisions.
+This service provides the risk score (Lf) and premium pricing models used by the H3 pipeline. It does **not** decide payouts; the backend enforces policy + HALTED rules.
 
-## Folder Structure
-
-```text
-ml-insurance-service/
-├── Dockerfile
-├── requirements.txt
-├── train_models.py (Generates standard initial weights & saves .pkl singletons)
-├── main.py
-├── data/ (Contains generated .pkl model files)
-├── models/
-│   ├── __init__.py
-│   └── schemas.py (Pydantic validation schemas)
-├── services/
-│   ├── __init__.py
-│   ├── risk_service.py
-│   ├── pricing_service.py
-│   ├── fraud_service.py
-│   └── trigger_service.py
-├── routes/
-│   ├── __init__.py
-│   ├── risk.py
-│   ├── pricing.py
-│   ├── fraud.py
-│   └── trigger.py
-└── utils/
-    ├── __init__.py
-    └── model_loader.py (Singleton to keep model prediction latency low)
-```
-
-## How To Run Locally
-
-1. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Train initial synthetic models (required first time):
-   ```bash
-   python train_models.py
-   ```
-3. Run the fastAPI server:
-   ```bash
-   uvicorn main:app --reload
-   ```
-
-## How To Run via Docker
-```bash
-docker build -t aegis-ml-service .
-docker run -p 8000:8000 aegis-ml-service
-```
-
-## Example API Requests and Responses
-
-### 1. Risk Score: `POST /risk-score`
-Calculates Loss Fraction (Lf) using `XGBoost`.
-**Request:**
+## Endpoints
+### POST /risk-score
+Calculates Loss Fraction (Lf) and risk_level.
+Request:
 ```json
 {
   "h3_cell": "89283082803ffff",
-  "weather": {
-    "rainfall": 0.5,
-    "temperature": 32.0
-  },
+  "weather": {"rainfall": 0.5, "temperature": 32.0},
   "aqi": 150,
-  "demand_ratio": 1.2
+  "demand_ratio": 1.2,
+  "historical_disruption_frequency": 0.2,
+  "zone_volatility": 0.1,
+  "avg_speed_kmh": 28.0,
+  "active_riders": 14
 }
 ```
-
-**Response:**
+Response:
 ```json
 {
   "Lf": 0.63,
@@ -77,9 +26,9 @@ Calculates Loss Fraction (Lf) using `XGBoost`.
 }
 ```
 
-### 2. Pricing: `POST /pricing`
-Calculates Final Premium dynamically checking boundaries Constraints.
-**Request:**
+### POST /pricing
+Calculates premium using Pr = Ew * 0.015 * Lf * Ct * (1 + M).
+Request:
 ```json
 {
   "Ew": 8000,
@@ -88,57 +37,34 @@ Calculates Final Premium dynamically checking boundaries Constraints.
   "M": 0.1
 }
 ```
-
-**Response:**
+Response:
 ```json
 {
   "premium": 31.68
 }
 ```
 
-### 3. Fraud Score: `POST /fraud-score`
-Outputs an isolation forest anomaly check coupled with supervised historical gradient boosting + rules engine check.
-**Request:**
+### POST /trigger
+Returns an ML trigger decision. Backend flow ignores this for payouts and uses zone_state == HALTED.
+Request:
 ```json
 {
-  "gps": {
-    "latitude": 12.3,
-    "longitude": 45.6,
-    "speed": 80.0
-  },
-  "device": {
-    "id": "device_xyz123",
-    "mismatch": false
-  },
-  "history": {
-    "claims_filed": 2,
-    "claims_rejected": 0
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "score": 0.32,
-  "label": "MEDIUM"
-}
-```
-
-### 4. Trigger logic: `POST /trigger`
-Calculates rule-based event thresholds.
-**Request:**
-```json
-{
-  "Lf": 0.8,
-  "zone_state": "HALTED",
+  "h3_cell": "89283082803ffff",
   "fraud_score": 0.2
 }
 ```
 
-**Response:**
-```json
-{
-  "decision": "APPROVED"
-}
+## Config Constants
+From config.py:
+- ALPHA = 0.015
+- MIN_PREMIUM = 15
+- MAX_PREMIUM = 150
+- TRIGGER_ZONE_HALT_STATE = "HALTED"
+
+## Run
+```bash
+cd ml-calcultion/ml-insurance-service
+pip install -r requirements.txt
+python train_models.py
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
