@@ -37,6 +37,7 @@ class FeatureResponse(BaseModel):
 
     # Civic disruption (ported from ml_microservice CivicAlertService)
     civic_alert: bool
+    is_gridlock: bool = False
 
     # Temporal features (from ml_microservice FeatureEngineering)
     hour_of_day: int
@@ -85,6 +86,7 @@ class PipelineResponse(BaseModel):
     aqi: float
     demand_ratio: float
     civic_alert: bool
+    is_gridlock: bool = False
 
     # Risk scoring
     Lf: float
