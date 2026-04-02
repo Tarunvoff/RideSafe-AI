@@ -41,6 +41,33 @@ export class RedisStateService {
     }
   }
 
+  async getAllHaltedZones(): Promise<{ h3Cell: string; state: any }[]> {
+    const redis = await this.getRedis();
+    if (!redis) return [];
+    try {
+      // Find all zone keys
+      const keys = await redis.keys('zone:*');
+      // A zone key should be exactly "zone:cell". If there are more parts (e.g. zone:cell:drivers), ignore.
+      const zoneKeys = keys.filter(k => k.split(':').length === 2);
+      
+      const haltedZones: { h3Cell: string; state: any }[] = [];
+      for (const key of zoneKeys) {
+        const raw = await redis.get(key);
+        if (raw) {
+          const state = JSON.parse(raw);
+          if (state.zone_state === 'HALTED' || state.state === 'HALTED') {
+            const h3Cell = key.replace('zone:', '');
+            haltedZones.push({ h3Cell, state });
+          }
+        }
+      }
+      return haltedZones;
+    } catch (err) {
+      this.logger.warn(`[Redis state] failed to get halted zones: ${err}`);
+      return [];
+    }
+  }
+
   async setDriverState(driverId: string, payload: Record<string, any>) {
     const redis = await this.getRedis();
     if (!redis) return;

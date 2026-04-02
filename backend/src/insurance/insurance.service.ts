@@ -252,7 +252,9 @@ export class InsuranceService {
       };
     }
 
+    const existingPolicyState = await this.redisState.getPolicyState(activePolicy.id) ?? {};
     await this.redisState.setPolicyState(activePolicy.id, {
+      ...existingPolicyState,
       Ct,
       active: true,
       updatedAt: new Date().toISOString(),

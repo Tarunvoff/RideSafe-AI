@@ -8,6 +8,7 @@ import { InsuranceController } from './insurance.controller';
 import { InsuranceService } from './insurance.service';
 import { PolicyController } from './policy.controller';
 import { ClaimsController } from './claims.controller';
+import { ClaimOrchestratorService } from './claim-orchestrator.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { ClaimsController } from './claims.controller';
     PayoutModule,
   ],
   controllers: [InsuranceController, PolicyController, ClaimsController],
-  providers: [InsuranceService],
+  providers: [InsuranceService, ClaimOrchestratorService],
 })
 export class InsuranceModule {}
