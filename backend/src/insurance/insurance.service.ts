@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import * as h3 from 'h3-js';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -136,6 +136,14 @@ export class InsuranceService {
           status: 'NOT_STARTED',
         },
       });
+    }
+
+    const kycProfile = await (this.prisma as any).kYCProfile.findUnique({
+      where: { userId: dto.driverId },
+    });
+
+    if (!kycProfile || kycProfile.status !== 'APPROVED') {
+      throw new ForbiddenException('KYC registration is incomplete. Please complete KYC and get approved before purchasing a policy.');
     }
 
     const profile = (await this.dynamicQCommerce.getDriverProfile(dto.driverId)).driverProfile;
@@ -369,6 +377,83 @@ export class InsuranceService {
       payout: payoutAmount,
       decision,
       transactionId,
+    };
+  }
+
+  async cancelPolicy(dto: { driverId: string; reason?: string }) {
+    const activePolicy = await (this.prisma as any).policy.findFirst({
+      where: { userId: dto.driverId, status: 'ACTIVE', endDate: { gt: new Date() } },
+    });
+
+    if (!activePolicy) {
+      throw new BadRequestException('No active policy found to cancel');
+    }
+
+    const now = new Date();
+    await (this.prisma as any).policy.update({
+      where: { id: activePolicy.id },
+      data: { status: 'CANCELLED', endDate: now },
+    });
+
+    await this.redisState.setPolicyState(activePolicy.id, {
+      active: false,
+      updatedAt: now.toISOString(),
+      cancelReason: dto.reason ?? 'User initiated cancellation',
+    });
+
+    return { 
+      success: true, 
+      message: 'Policy cancelled successfully', 
+      policyId: activePolicy.id, 
+      cancelledAt: now 
+    };
+  }
+
+  async renewPolicy(dto: { driverId: string }) {
+    const latestPolicy = await (this.prisma as any).policy.findFirst({
+      where: { userId: dto.driverId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!latestPolicy) {
+      throw new BadRequestException('No existing policy to renew. Please use /enroll.');
+    }
+
+    const now = new Date();
+    // Allow renewal only if EXPIRED, CANCELLED, or within 24 hours of expiration
+    if (latestPolicy.status === 'ACTIVE' && latestPolicy.endDate.getTime() > now.getTime() + 24 * 60 * 60 * 1000) {
+      throw new BadRequestException('Current policy is active and not soon-to-expire. Cannot hold two active policies simultaneously.');
+    }
+
+    // Reuse enroll flow to create new policy, calculate dynamic premium, and terminate old policy safely
+    return this.enrollPolicy({
+      driverId: dto.driverId,
+      plan: latestPolicy.planType
+    });
+  }
+
+  async getPolicyStatus(driverId: string) {
+    const policy = await (this.prisma as any).policy.findFirst({
+      where: { userId: driverId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        payouts: true
+      }
+    });
+
+    if (!policy) {
+      throw new BadRequestException('No policy found for driver');
+    }
+
+    return {
+      success: true,
+      policyId: policy.id,
+      status: policy.status,
+      planType: policy.planType,
+      premium: policy.premium,
+      startDate: policy.startDate,
+      endDate: policy.endDate,
+      payoutHistory: policy.payouts
     };
   }
 }
