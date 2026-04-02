@@ -20,5 +20,6 @@ import { ClaimOrchestratorService } from './claim-orchestrator.service';
   ],
   controllers: [InsuranceController, PolicyController, ClaimsController],
   providers: [InsuranceService, ClaimOrchestratorService],
+  exports: [ClaimOrchestratorService],
 })
 export class InsuranceModule {}

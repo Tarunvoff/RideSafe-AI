@@ -328,6 +328,7 @@ export class InsuranceService {
     let payoutAmount = 0;
     let transactionId: string | null = null;
     let decision: 'APPROVED' | 'HOLD' | 'REJECT' | 'NO_TRIGGER' = 'HOLD';
+    const eventTimestamp = dto.eventTimestamp ?? Math.floor(Date.now() / 1000);
 
     const policyState = await this.redisState.getPolicyState(activePolicy.id);
     const policyZone = policyState?.zone ?? null;
@@ -357,7 +358,7 @@ export class InsuranceService {
         driverId,
         payoutAmount,
         h3Cell: h3Cell ?? undefined,
-        eventTimestamp: Math.floor(Date.now() / 1000),
+        eventTimestamp,
         policyId: activePolicy.id,
         disruptionType: zoneState,
       });

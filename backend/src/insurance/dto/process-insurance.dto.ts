@@ -24,4 +24,8 @@ export class ProcessInsuranceRequestDto {
   @IsOptional()
   @IsString()
   eventType?: string;
+
+  @IsOptional()
+  @IsNumber()
+  eventTimestamp?: number;
 }

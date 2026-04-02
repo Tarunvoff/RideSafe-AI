@@ -5,6 +5,7 @@ import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StateModule } from '../state/state.module';
+import { InsuranceModule } from '../insurance/insurance.module';
 
 import { KafkaProducerService } from './kafka.producer.service';           // kept for backward compat
 import { KafkaReliableProducerService } from './kafka-reliable-producer.service';
@@ -21,6 +22,7 @@ import { ZoneMonitoringService } from './zone-monitoring.service';
   imports: [
     PrismaModule,
     StateModule,
+    InsuranceModule,
     ClientsModule.register([
       {
         name: 'KAFKA_SERVICE',

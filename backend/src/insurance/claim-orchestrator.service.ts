@@ -23,29 +23,36 @@ export class ClaimOrchestratorService {
       }
 
       for (const zone of haltedZones) {
-        this.logger.log(`Processing auto-claims for HALTED zone: ${zone.h3Cell}`);
-        const driversInZone = await this.redisState.getZoneDrivers(zone.h3Cell);
-
-        if (driversInZone.length === 0) {
-          this.logger.debug(`No drivers found in zone ${zone.h3Cell}`);
-          continue;
-        }
-
-        for (const driverId of driversInZone) {
-          try {
-            this.logger.log(`Evaluating auto-payout for driver ${driverId} in zone ${zone.h3Cell}...`);
-            const result = await this.insuranceService.processInsurance(driverId, {
-              eventType: 'AUTO_EVAL',
-            });
-            this.logger.log(`Result for ${driverId}: payout=${result.payout}, decision=${result.decision}`);
-          } catch (err: any) {
-            this.logger.error(`Auto-claim evaluation failed for driver ${driverId}: ${err.message}`, err.stack);
-          }
-        }
+        await this.orchestrateZoneClaims(zone.h3Cell);
       }
       this.logger.log('Zero-touch claim orchestration scan completed.');
     } catch (err: any) {
       this.logger.error(`Error during claim orchestration: ${err.message}`, err.stack);
+    }
+  }
+
+  async orchestrateZoneClaims(h3Cell: string, eventTimestamp?: number) {
+    this.logger.log(`Processing auto-claims for HALTED zone: ${h3Cell}`);
+    const driversInZone = await this.redisState.getZoneDrivers(h3Cell);
+
+    if (driversInZone.length === 0) {
+      this.logger.debug(`No drivers found in zone ${h3Cell}`);
+      return;
+    }
+
+    const timestamp = eventTimestamp ?? Math.floor(Date.now() / 1000);
+
+    for (const driverId of driversInZone) {
+      try {
+        this.logger.log(`Evaluating auto-payout for driver ${driverId} in zone ${h3Cell}...`);
+        const result = await this.insuranceService.processInsurance(driverId, {
+          eventType: 'AUTO_EVAL',
+          eventTimestamp: timestamp,
+        });
+        this.logger.log(`Result for ${driverId}: payout=${result.payout}, decision=${result.decision}`);
+      } catch (err: any) {
+        this.logger.error(`Auto-claim evaluation failed for driver ${driverId}: ${err.message}`, err.stack);
+      }
     }
   }
 }
