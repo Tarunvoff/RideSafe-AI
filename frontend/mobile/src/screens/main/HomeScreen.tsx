@@ -116,12 +116,12 @@ export default function HomeScreen({ navigation }: any) {
       onPress: () => Alert.alert('Lead Anjali', 'Calling your lead...'),
     },
     {
-      key: 'wallet',
-      label: 'Wallet',
-      icon: 'wallet-outline' as const,
-      bg: '#fef9c3',
-      color: '#92400e',
-      onPress: () => navigation.navigate('Wallet'),
+      key: 'policy',
+      label: 'Policy',
+      icon: 'shield-checkmark-outline' as const,
+      bg: '#dcfce7',
+      color: '#15803d',
+      onPress: () => navigation.navigate('Policy'),
     },
   ];
 

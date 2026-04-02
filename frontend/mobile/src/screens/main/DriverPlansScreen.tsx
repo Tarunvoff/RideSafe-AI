@@ -385,9 +385,18 @@ export default function DriverPlansScreen({ navigation }: any) {
             <Ionicons name="card-outline" size={20} color="#16a34a" />
             <Text style={styles.title}>Plans</Text>
           </View>
-          <View style={styles.subTag}>
-            <Text style={styles.subTagText}>Weekly protection + auto payouts</Text>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.managePolicyBtn}
+            onPress={() => navigation.navigate('Policy')}
+          >
+            <Ionicons name="shield-checkmark-outline" size={14} color="#15803d" />
+            <Text style={styles.managePolicyBtnText}>Manage Policy</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.subTag}>
+          <Text style={styles.subTagText}>Weekly protection + auto payouts</Text>
         </View>
 
         <View style={styles.tabsRow}>
@@ -664,6 +673,16 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Theme.spacing.md },
   titleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 22, fontWeight: '900', color: '#111827' },
+  managePolicyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DCFCE7',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  managePolicyBtnText: { color: '#15803d', fontWeight: '900', fontSize: 12 },
   subTag: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   subTagText: { color: '#15803d', fontWeight: '800', fontSize: 12 },
 

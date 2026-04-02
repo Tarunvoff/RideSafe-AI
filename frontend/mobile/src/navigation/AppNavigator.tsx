@@ -18,6 +18,7 @@ import DriverActivityScreen from '../screens/main/DriverActivityScreen';
 import DriverLiveRiskMapboxScreen from '../screens/main/DriverLiveRiskMapboxScreen';
 import DriverPlansScreen from '../screens/main/DriverPlansScreen';
 import DriverProfileScreen from '../screens/main/DriverProfileScreen';
+import PolicyScreen from '../screens/main/PolicyScreen';
 import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
 
@@ -100,6 +101,10 @@ export default function AppNavigator() {
         <Stack.Screen
           name="DriverProfile"
           component={DriverProfileScreen}
+        />
+        <Stack.Screen
+          name="Policy"
+          component={PolicyScreen}
         />
         <Stack.Screen
           name="KYC"
