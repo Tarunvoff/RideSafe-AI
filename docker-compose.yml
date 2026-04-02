@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   zookeeper:
     image: wurstmeister/zookeeper
     ports:
@@ -11,9 +12,14 @@ services:
     ports:
       - "9092:9092"
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "driver_telemetry:1:1,zone_state_updates:1:1"
+
+      # ✅ FIXED CONFIG
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
     depends_on:
       - zookeeper
 
@@ -26,8 +32,8 @@ services:
   timescaledb:
     image: timescale/timescaledb:latest-pg15
     ports:
-      - "5433:5432" # Mapped to 5433 to avoid crashing your active local Postgres!
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your_password
-      POSTGRES_DB: ridesafe_timeseries
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: RideSafe_AI

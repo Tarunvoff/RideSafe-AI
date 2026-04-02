@@ -13,7 +13,7 @@ echo -e "${BLUE}=======================================${NC}\n"
 
 # 1. Dynamically find the local IP address (macOS)
 echo -e "${YELLOW}🔍 Detecting your local Wi-Fi IP address...${NC}"
-LOCAL_IP=$(ipconfig getifaddr en0)
+LOCAL_IP=$(ip route get 1 | awk '{print $7}')
 
 if [ -z "$LOCAL_IP" ]; then
     echo -e "${RED}❌ Could not determine your local IP address. Make sure you are connected to Wi-Fi.${NC}"
