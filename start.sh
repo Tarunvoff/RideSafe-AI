@@ -92,17 +92,30 @@ echo -e "${YELLOW}🔥 Starting Backend & Frontend Servers...${NC}"
 # Function to kill backend when we exit the script
 cleanup() {
     echo -e "\n${RED}🛑 Shutting down both servers... Goodbye!${NC}"
-    kill $BACKEND_PID 2>/dev/null
+    if [ -n "${BACKEND_PID:-}" ] && [ "${BACKEND_STARTED_BY_SCRIPT:-0}" -eq 1 ]; then
+        kill "$BACKEND_PID" 2>/dev/null || true
+    fi
     exit
 }
 
 # Catch Ctrl+C and run cleanup
 trap cleanup INT
 
-# Start backend in the background
-echo -e "🖥️ Starting NestJS Backend Server (Background)..."
-npm run start:dev &
-BACKEND_PID=$!
+# Start backend in the background only if port 3001 is free.
+# This avoids duplicate backend processes and EADDRINUSE crashes.
+BACKEND_STARTED_BY_SCRIPT=0
+BACKEND_PID=""
+
+EXISTING_BACKEND_PIDS=$(lsof -tiTCP:3001 -sTCP:LISTEN 2>/dev/null || true)
+if [ -n "$EXISTING_BACKEND_PIDS" ]; then
+    echo -e "${YELLOW}⚠ Port 3001 is already in use by PID(s): $EXISTING_BACKEND_PIDS${NC}"
+    echo -e "${YELLOW}↪ Reusing existing backend process. Skipping new backend start.${NC}"
+else
+    echo -e "🖥️ Starting NestJS Backend Server (Background)..."
+    npm run start:dev &
+    BACKEND_PID=$!
+    BACKEND_STARTED_BY_SCRIPT=1
+fi
 
 # Wait a couple of seconds so the backend can initialize
 sleep 3
@@ -118,4 +131,4 @@ fi
 
 echo -e "📱 Starting Expo Go Server... (Scan the QR Code below!)"
 echo -e "${BLUE}=======================================${NC}"
-npx expo start -c
+npx expo start --offline -c
