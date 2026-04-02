@@ -221,6 +221,13 @@ export const fraudApi = {
       lf_score: number;
     }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`, {}, true),
 
+  getZoneNeighbors: (lat: number, lng: number, radius = 1) =>
+    request<{ center: any; neighbors: any[] }>(
+      `/fraud/zone-neighbors?lat=${lat}&lng=${lng}&radius=${radius}`,
+      {},
+      true,
+    ),
+
   // ── ADMIN ENDPOINTS ──────────────────────────────────────────────────────
   getSubmissions: () =>
     request<{
@@ -258,6 +265,153 @@ export const fraudApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }, true),
+};
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────
+
+export const adminApi = {
+  getDashboard: () =>
+    request<{
+      totalWorkers: number;
+      activePlans: number;
+      activeAlerts: number;
+      claimsToday: number;
+      highRiskWorkers: number;
+      simulatedPayout: number;
+      recentAlerts: Array<{ id: string; type: string; title: string; occurredAt: string; expectedPayout: number | null }>;
+      recentClaims: Array<{
+        payoutId: string;
+        status: string;
+        estimatedLoss: number | null;
+        approvedPayout: number | null;
+        createdAt: string;
+        policyId: string;
+        userEmail: string | null;
+        disruption: { type: string | null; title: string | null };
+      }>;
+    }>('/admin/dashboard', {}, true),
+
+  getWorkers: () =>
+    request<Array<{
+      profileId: string;
+      userId: string;
+      email: string;
+      phone: string | null;
+      status: string;
+      submittedAt: string;
+      userCreatedAt: string;
+    }>>('/admin/workers', {}, true),
+
+  getClaims: () =>
+    request<{
+      total: number;
+      pendingReview: number;
+      totalPayout: number;
+      claims: Array<{
+        payoutId: string;
+        status: string;
+        estimatedLoss: number | null;
+        approvedPayout: number | null;
+        createdAt: string;
+        policyId: string;
+        userEmail: string | null;
+        disruption: { type: string | null; title: string | null };
+      }>;
+    }>('/admin/claims', {}, true),
+};
+
+// ── DRIVER / DASHBOARD ─────────────────────────────────────────────────────
+
+export const driverApi = {
+  getProfile: (driverId: string) =>
+    request<{ success: boolean; message: string; driverProfile: any }>(
+      `/dynamic-qcommerce/drivers/${driverId}/profile`,
+    ),
+};
+
+// ── PREMIUM / INSURANCE ────────────────────────────────────────────────────
+
+export const premiumApi = {
+  calculateWeekly: (driverId: string) =>
+    request<{
+      driverId: string;
+      Ew: number;
+      Lf: number;
+      Ct: number | null;
+      active_days: number;
+      scaling_factor: number;
+      premium: number;
+    }>('/premium/weekly', {
+      method: 'POST',
+      body: JSON.stringify({ driverId }),
+    }),
+};
+
+export const insuranceApi = {
+  process: (driverId: string, data: {
+    lat?: number;
+    lng?: number;
+    deviceId?: string;
+    upiId?: string;
+    claimAmount?: number;
+    eventType?: string;
+  }) =>
+    request<{
+      plan: string | null;
+      Ct: number | null;
+      premium: number;
+      payout: number;
+      decision: string;
+      transactionId: string | null;
+    }>(`/insurance/process/${driverId}`, {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    }),
+};
+
+// ── CLAIMS / PAYOUTS ───────────────────────────────────────────────────────
+
+export type ClaimRecord = {
+  claimId: string;
+  status: string;
+  amount: number;
+  trigger: string;
+  createdAt?: string;
+};
+
+export type PayoutRecord = {
+  payoutId: string;
+  amount: number;
+  status: string;
+  transactionId: string | null;
+  createdAt?: string;
+};
+
+export const claimsApi = {
+  list: (driverId: string) =>
+    request<ClaimRecord[]>(`/claims/${driverId}`),
+};
+
+export const payoutsApi = {
+  list: (driverId: string) =>
+    request<PayoutRecord[]>(`/payouts/${driverId}`),
+};
+
+// ── TELEMETRY ─────────────────────────────────────────────────────────────
+
+export const telemetryApi = {
+  sendGps: (data: {
+    driverId: string;
+    lat: number;
+    lng: number;
+    speed?: number;
+    timestamp?: number;
+    platform?: string;
+  }) =>
+    request('/telemetry/gps', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ── PLANS / PAYMENTS ──────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
 import { Theme } from '../../theme';
-import { ADMIN_TEST_CLAIMS_RESPONSE } from './adminMockData';
+import { adminApi } from '../../services/api';
 
 export default function AdminClaimsScreen({ navigation }: any) {
   // Profile/logout handled globally by AdminShell
@@ -19,8 +19,27 @@ export default function AdminClaimsScreen({ navigation }: any) {
     else navigation.navigate('AdminDashboard');
   };
 
-  const [claimsRes] = useState(ADMIN_TEST_CLAIMS_RESPONSE);
-  const claims = claimsRes.claims;
+  const [claimsRes, setClaimsRes] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadClaims = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await adminApi.getClaims();
+      setClaimsRes(res ?? null);
+    } catch {
+      setClaimsRes(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadClaims();
+  }, [loadClaims]);
+
+  const claims = claimsRes?.claims ?? [];
+  const summary = claimsRes ?? { total: 0, pendingReview: 0, totalPayout: 0, claims: [] };
 
   const formatINR = useMemo(
     () => (value: number) => `₹${Math.round(value ?? 0).toLocaleString('en-IN')}`,
@@ -59,9 +78,9 @@ export default function AdminClaimsScreen({ navigation }: any) {
 
         {/* Summary */}
         <View style={styles.summaryStrip}>
-          <SummaryCell label="Total Claims" value={String(claimsRes.total)} isRightBorder />
-          <SummaryCell label="Pending Review" value={String(claimsRes.pendingReview)} isRightBorder />
-          <SummaryCell label="Total Payout" value={formatINR(claimsRes.totalPayout)} />
+          <SummaryCell label="Total Claims" value={String(summary.total)} isRightBorder />
+          <SummaryCell label="Pending Review" value={String(summary.pendingReview)} isRightBorder />
+          <SummaryCell label="Total Payout" value={formatINR(summary.totalPayout)} />
         </View>
 
         {claims.length ? (

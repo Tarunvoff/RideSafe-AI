@@ -1,11 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, ImageBackground, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MainTopNavbar from '../../components/MainTopNavbar';
+import { plansApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function PolicyScreen({ navigation }: any) {
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [policy, setPolicy] = useState<any | null>(null);
+
+  const loadPolicy = useCallback(async () => {
+    try {
+      const res = await plansApi.getPurchasedPlans();
+      const purchased = res?.purchasedPolicies ?? [];
+      setPolicy(purchased[0] ?? null);
+    } catch {
+      setPolicy(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPolicy();
+  }, [loadPolicy]);
 
   // Simple slide to activate logic
   const panResponder = useRef(
@@ -48,13 +64,13 @@ export default function PolicyScreen({ navigation }: any) {
             />
             <View style={styles.planContent}>
               <View style={styles.planBadge}>
-                <Text style={styles.planBadgeText}>PRO TIER</Text>
+                <Text style={styles.planBadgeText}>{policy?.plan?.key ?? 'NO PLAN'}</Text>
               </View>
-              <Text style={styles.planTitle}>Premium Aegis Plan</Text>
+              <Text style={styles.planTitle}>{policy?.plan?.name ?? 'No active plan'}</Text>
               
               <View style={styles.planPriceBox}>
-                <Text style={styles.planPrice}>$15.00 <Text style={styles.planPricePeriod}>/ month</Text></Text>
-                <Text style={styles.planDesc}>Comprehensive coverage for all platform work including Uber, DoorDash, and Upwork.</Text>
+                <Text style={styles.planPrice}>₹{Number(policy?.plan?.price ?? 0).toLocaleString('en-IN')} <Text style={styles.planPricePeriod}>/ week</Text></Text>
+                <Text style={styles.planDesc}>Weekly protection with auto-claim payouts during verified disruptions.</Text>
               </View>
             </View>
           </View>
@@ -68,7 +84,7 @@ export default function PolicyScreen({ navigation }: any) {
               <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />
               <Text style={styles.summaryLabel}>Coverage Limit</Text>
             </View>
-            <Text style={styles.summaryValue}>$50,000</Text>
+            <Text style={styles.summaryValue}>₹{Number(policy?.plan?.maxPayout ?? 0).toLocaleString('en-IN')}</Text>
           </View>
           
           <View style={styles.summaryRow}>
@@ -76,7 +92,7 @@ export default function PolicyScreen({ navigation }: any) {
               <Ionicons name="wallet" size={20} color={Theme.colors.primary} />
               <Text style={styles.summaryLabel}>Deductible</Text>
             </View>
-            <Text style={styles.summaryValue}>$250</Text>
+            <Text style={styles.summaryValue}>₹0</Text>
           </View>
           
           <View style={styles.summaryRow}>
@@ -84,7 +100,7 @@ export default function PolicyScreen({ navigation }: any) {
               <Ionicons name="calendar" size={20} color={Theme.colors.primary} />
               <Text style={styles.summaryLabel}>Next Billing</Text>
             </View>
-            <Text style={styles.summaryValue}>Oct 24, 2023</Text>
+            <Text style={styles.summaryValue}>{policy?.endDate ? new Date(policy.endDate).toLocaleDateString() : '—'}</Text>
           </View>
         </View>
 

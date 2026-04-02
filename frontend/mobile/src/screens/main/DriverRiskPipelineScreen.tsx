@@ -1,15 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
+import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
+import { getDeviceLocation } from '../../utils/location';
+
+const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 export default function DriverRiskPipelineScreen({ navigation }: any) {
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [zoneRisk, setZoneRisk] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [deviceCoords, setDeviceCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const driverId = user?.id ?? user?.email ?? null;
 
   const handleLogout = async () => {
     try {
@@ -25,6 +36,60 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const minute = new Date().getMinutes();
   const greetingIndex = minute % greetingOptions.length;
   const greetingMessage = greetingOptions[greetingIndex];
+
+  const derivedCoords = useMemo(() => {
+    const candidateLat = deviceCoords?.lat ?? profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
+    const candidateLng = deviceCoords?.lng ?? profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
+    const lat = Number(candidateLat ?? DEFAULT_COORDS.lat);
+    const lng = Number(candidateLng ?? DEFAULT_COORDS.lng);
+    return { lat, lng };
+  }, [deviceCoords, profile]);
+
+  const loadDashboard = useCallback(async () => {
+    if (!driverId) return;
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const profileRes = await driverApi.getProfile(driverId);
+      const driverProfile = profileRes?.driverProfile ?? null;
+      setProfile(driverProfile);
+
+      const device = await getDeviceLocation();
+      if (device) {
+        setDeviceCoords(device);
+        await telemetryApi.sendGps({
+          driverId,
+          lat: device.lat,
+          lng: device.lng,
+          platform: 'mobile-app',
+        });
+      }
+
+      const coords = device ?? derivedCoords;
+
+      if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+        const zone = await fraudApi.getZoneRisk(coords.lat, coords.lng);
+        setZoneRisk(zone ?? null);
+      } else {
+        setZoneRisk(null);
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  }, [driverId, derivedCoords]);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
+
+  const lfScore = Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5);
+  const zoneState = zoneRisk?.zone_state ?? zoneRisk?.state ?? 'UNKNOWN';
+  const riskScore = Math.round(lfScore * 100);
+  const riskLabel = zoneState === 'HALTED' ? 'HIGH' : lfScore >= 0.6 ? 'MEDIUM' : 'LOW';
+  const earnings = profile?.currentWeek?.weeklyEarningsTotal ?? profile?.workSummary?.averageWeeklyEarnings ?? 0;
+  const h3Cell = zoneRisk?.h3_cell ?? profile?.lastKnownPosition?.h3_cell ?? '—';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,9 +107,9 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       <View style={styles.container}>
         <View style={styles.greetingWrap}>
           <Text style={styles.greetingTop}>{greetingMessage}</Text>
-          <TouchableOpacity style={styles.refreshBtnTop} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.refreshBtnTop} activeOpacity={0.9} onPress={() => void loadDashboard()}>
             <Ionicons name="refresh" size={16} color="#ffffff" />
-            <Text style={styles.refreshTextTop}>Refresh</Text>
+            <Text style={styles.refreshTextTop}>{loading ? 'Loading...' : 'Refresh'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -53,13 +118,13 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
             <View>
               <Text style={styles.cardOverline}>Current Risk Level</Text>
               <View style={styles.riskRow}>
-                <Text style={styles.riskLabel}>LOW</Text>
+                <Text style={styles.riskLabel}>{riskLabel}</Text>
                 <View style={styles.liveDot} />
               </View>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.cardOverline}>Risk Score</Text>
-              <Text style={styles.scoreText}>12/100</Text>
+              <Text style={styles.scoreText}>{riskScore}/100</Text>
             </View>
           </View>
 
@@ -67,11 +132,15 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
 
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>H3 Cell ID</Text>
-            <Text style={styles.metaValue}>8928308280fffff</Text>
+            <Text style={styles.metaValue}>{h3Cell}</Text>
           </View>
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>Last Ping Time</Text>
-            <Text style={styles.metaValue}>2 mins ago</Text>
+            <Text style={styles.metaValue}>just now</Text>
+          </View>
+          <View style={styles.metaRow}>
+            <Text style={styles.metaLabel}>Weekly Earnings</Text>
+            <Text style={styles.metaValue}>₹{Number(earnings || 0).toLocaleString('en-IN')}</Text>
           </View>
         </View>
 
@@ -90,11 +159,11 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           <View style={styles.coordsGrid}>
             <View style={styles.coordBox}>
               <Text style={styles.coordLabel}>Latitude</Text>
-              <Text style={styles.coordValue}>40.7128° N</Text>
+              <Text style={styles.coordValue}>{derivedCoords.lat.toFixed(4)}°</Text>
             </View>
             <View style={styles.coordBox}>
               <Text style={styles.coordLabel}>Longitude</Text>
-              <Text style={styles.coordValue}>74.0060° W</Text>
+              <Text style={styles.coordValue}>{derivedCoords.lng.toFixed(4)}°</Text>
             </View>
           </View>
 
@@ -107,23 +176,23 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           <View style={styles.envGrid}>
             <View style={styles.envCell}>
               <Text style={styles.envLabel}>Rain</Text>
-              <Text style={styles.envValue}>0%</Text>
+              <Text style={styles.envValue}>{zoneRisk?.rainfall ?? 0}%</Text>
             </View>
             <View style={styles.envCell}>
               <Text style={styles.envLabel}>AQI</Text>
-              <Text style={styles.envValue}>42</Text>
+              <Text style={styles.envValue}>{zoneRisk?.aqi ?? zoneRisk?.aqi_index ?? '—'}</Text>
             </View>
             <View style={styles.envCell}>
               <Text style={styles.envLabel}>Disruption</Text>
-              <Text style={styles.envValue}>0.05</Text>
+              <Text style={styles.envValue}>{lfScore.toFixed(2)}</Text>
             </View>
             <View style={styles.envCell}>
               <Text style={styles.envLabel}>Flood</Text>
-              <Text style={styles.envValue}>Low</Text>
+              <Text style={styles.envValue}>{zoneState === 'HALTED' ? 'High' : 'Low'}</Text>
             </View>
             <View style={styles.envCellWide}>
               <Text style={styles.envLabel}>Traffic Status</Text>
-              <Text style={styles.envValue}>Stable Flow</Text>
+              <Text style={styles.envValue}>{zoneRisk?.traffic ?? 'Stable Flow'}</Text>
             </View>
           </View>
         </View>
@@ -131,7 +200,9 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
         <View style={styles.infoChipWrap}>
           <View style={styles.infoChip}>
             <Ionicons name="checkmark-circle" size={14} color="#111827" />
-            <Text style={styles.infoChipText}>No disruption detected</Text>
+            <Text style={styles.infoChipText}>
+              {errorMsg ? errorMsg : zoneState === 'HALTED' ? 'Zone HALTED: trigger active' : 'No disruption detected'}
+            </Text>
           </View>
         </View>
       </View>

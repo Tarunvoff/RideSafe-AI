@@ -1,42 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
+import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
+import { getDeviceLocation } from '../../utils/location';
 
-const SHIFT_SUMMARY = {
-  store: 'Koramangala Dark Store',
-  supervisor: 'Lead Anjali',
-  shift: '7 PM – 3 AM',
-  slotsLeft: '2 drops left',
-};
-
-const METRIC_BLOCKS = [
-  { key: 'pay', label: 'Today Pay', value: '₹1,280', hint: 'Bonus +₹220' },
-  { key: 'rides', label: 'Trips Done', value: '18', hint: 'Goal 20' },
-  { key: 'score', label: 'Safety Score', value: '4.9', hint: 'Keep steady' },
-  { key: 'break', label: 'Break Time', value: '12 min', hint: 'Last 1h ago' },
-];
-
-const ROUTE_STEPS = [
-  { key: 'pickup', place: 'Store Pickup', detail: 'Packed · 6:55 PM' },
-  { key: 'drop1', place: 'HSR BLK 3', detail: 'Drop 1 · 7:25 PM' },
-  { key: 'drop2', place: 'HSR 27th Main', detail: 'Drop 2 · 8:05 PM' },
-  { key: 'pending', place: 'BTM Signal', detail: '2 drops waiting' },
-];
-
-const SAFETY_CARD = {
-  level: 'Low rain alert',
-  zone: 'HSR Layout · Sector 7',
-  note: 'Slow near 27th Main signal',
-  updated: 'Updated 2 min ago',
-};
+const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 export default function HomeScreen({ navigation }: any) {
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [zoneRisk, setZoneRisk] = useState<any | null>(null);
+  const [coords, setCoords] = useState(DEFAULT_COORDS);
+
+  const driverId = user?.id ?? user?.email ?? null;
 
   const handleLogout = async () => {
     try {
@@ -47,6 +28,64 @@ export default function HomeScreen({ navigation }: any) {
       Alert.alert('Error', 'Failed to log out');
     }
   };
+
+  const loadHome = useCallback(async () => {
+    if (!driverId) return;
+    try {
+      const profileRes = await driverApi.getProfile(driverId);
+      setProfile(profileRes?.driverProfile ?? null);
+      const deviceCoords = (await getDeviceLocation()) ?? DEFAULT_COORDS;
+      setCoords(deviceCoords);
+      await telemetryApi.sendGps({
+        driverId,
+        lat: deviceCoords.lat,
+        lng: deviceCoords.lng,
+        platform: 'mobile-app',
+      });
+      const zone = await fraudApi.getZoneRisk(deviceCoords.lat, deviceCoords.lng);
+      setZoneRisk(zone ?? null);
+    } catch {
+      setProfile(null);
+      setZoneRisk(null);
+    }
+  }, [driverId]);
+
+  useEffect(() => {
+    void loadHome();
+  }, [loadHome]);
+
+  const today = profile?.currentWeek?.dailyBreakdown?.[profile?.currentWeek?.dailyBreakdown?.length - 1];
+  const todayPay = Number(today?.totalEarnings ?? 0);
+  const todayTrips = Number(today?.completedDeliveries ?? 0);
+  const rating = Number(profile?.identity?.rating ?? 0);
+  const hoursWorked = Number(today?.hoursWorked ?? 0);
+
+  const metricBlocks = useMemo(
+    () => [
+      { key: 'pay', label: 'Today Pay', value: `₹${todayPay.toLocaleString('en-IN')}`, hint: `Orders ${todayTrips}` },
+      { key: 'rides', label: 'Trips Done', value: `${todayTrips}`, hint: `Week ${profile?.currentWeek?.totalCompletedDeliveries ?? 0}` },
+      { key: 'score', label: 'Safety Score', value: rating ? rating.toFixed(1) : '—', hint: zoneRisk?.state ?? '—' },
+      { key: 'hours', label: 'Hours Worked', value: `${hoursWorked} hrs`, hint: profile?.workSummary?.preferredWorkingHours ?? '—' },
+    ],
+    [todayPay, todayTrips, rating, hoursWorked, profile, zoneRisk],
+  );
+
+  const routeSteps = useMemo(() => {
+    const history = profile?.orderHistory ?? [];
+    const recent = history.slice(0, 4);
+    return recent.map((order: any) => ({
+      key: order.orderId,
+      place: order.deliveryZone ?? order.pickupZone ?? 'Order',
+      detail: order.deliveredAt ? `Delivered · ${new Date(order.deliveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'In progress',
+    }));
+  }, [profile]);
+
+  const safetyCard = useMemo(() => ({
+    level: zoneRisk?.state === 'HALTED' ? 'Zone HALTED' : 'Risk stable',
+    zone: profile?.identity?.primaryServiceZone ?? 'Zone',
+    note: zoneRisk?.state === 'HALTED' ? 'Auto-claim trigger active' : 'No disruption detected',
+    updated: 'Updated just now',
+  }), [profile, zoneRisk]);
 
   const quickActions = [
     {
@@ -116,16 +155,16 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.heroCard}>
           <Text style={styles.heroGreeting}>Hi {user?.driverName ?? 'Driver'} 👋</Text>
           <Text style={styles.heroTitle}>Night shift is live</Text>
-          <Text style={styles.heroSubtitle}>{SHIFT_SUMMARY.store}</Text>
+          <Text style={styles.heroSubtitle}>{profile?.identity?.primaryDarkStore ?? 'Active zone'}</Text>
 
           <View style={styles.heroChipRow}>
             <View style={styles.heroChip}>
               <Ionicons name="time-outline" size={22} color={Theme.colors.primary} />
-              <Text style={styles.heroChipText}>{SHIFT_SUMMARY.shift}</Text>
+              <Text style={styles.heroChipText}>{profile?.identity?.employmentType ?? 'Shift active'}</Text>
             </View>
             <View style={styles.heroChip}>
               <Ionicons name="people-outline" size={22} color={Theme.colors.primary} />
-              <Text style={styles.heroChipText}>{SHIFT_SUMMARY.supervisor}</Text>
+              <Text style={styles.heroChipText}>{profile?.identity?.provider ?? 'Platform'}</Text>
             </View>
           </View>
 
@@ -140,7 +179,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         <View style={styles.metricSection}>
-          {METRIC_BLOCKS.map((item) => (
+          {metricBlocks.map((item) => (
             <View key={item.key} style={styles.metricCard}>
               <Text style={styles.metricValue}>{item.value}</Text>
               <Text style={styles.metricLabel}>{item.label}</Text>
@@ -170,18 +209,20 @@ export default function HomeScreen({ navigation }: any) {
 
         <View style={styles.routeCard}>
           <Text style={styles.sectionTitle}>Today route</Text>
-          {ROUTE_STEPS.map((step, index) => (
+          {routeSteps.length ? routeSteps.map((step: any, index: number) => (
             <View key={step.key} style={styles.routeRow}>
               <View style={styles.routeBulletColumn}>
                 <View style={styles.routeBullet} />
-                {index !== ROUTE_STEPS.length - 1 && <View style={styles.routeLine} />}
+                {index !== routeSteps.length - 1 && <View style={styles.routeLine} />}
               </View>
               <View style={styles.routeInfo}>
                 <Text style={styles.routePlace}>{step.place}</Text>
                 <Text style={styles.routeDetail}>{step.detail}</Text>
               </View>
             </View>
-          ))}
+          )) : (
+            <Text style={styles.routeDetail}>No recent orders yet.</Text>
+          )}
           <TouchableOpacity
             style={styles.routeButton}
             onPress={() => navigation.navigate('DriverLiveRisk')}
@@ -194,11 +235,11 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.safetyCard}>
           <View style={styles.safetyHeader}>
             <Ionicons name="shield-checkmark" size={26} color={Theme.colors.primary} />
-            <Text style={styles.safetyLabel}>{SAFETY_CARD.level}</Text>
+            <Text style={styles.safetyLabel}>{safetyCard.level}</Text>
           </View>
-          <Text style={styles.safetyZone}>{SAFETY_CARD.zone}</Text>
-          <Text style={styles.safetyNote}>{SAFETY_CARD.note}</Text>
-          <Text style={styles.safetyTime}>{SAFETY_CARD.updated}</Text>
+          <Text style={styles.safetyZone}>{safetyCard.zone}</Text>
+          <Text style={styles.safetyNote}>{safetyCard.note}</Text>
+          <Text style={styles.safetyTime}>{safetyCard.updated}</Text>
           <TouchableOpacity
             style={styles.safetyButton}
             onPress={() => navigation.navigate('DriverLiveRisk')}

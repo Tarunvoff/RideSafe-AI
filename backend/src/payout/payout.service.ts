@@ -167,4 +167,36 @@ export class PayoutService {
       };
     }
   }
+
+  async listPayouts(driverId: string) {
+    const payouts = await (this.prisma as any).payout.findMany({
+      where: { policy: { userId: driverId } },
+      include: { disruptionEvent: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return payouts.map((p: any) => ({
+      payoutId: p.id,
+      amount: p.approvedPayout ?? p.estimatedLoss ?? 0,
+      status: p.status,
+      transactionId: p.transactionId ?? null,
+      createdAt: p.createdAt,
+    }));
+  }
+
+  async listClaims(driverId: string) {
+    const payouts = await (this.prisma as any).payout.findMany({
+      where: { policy: { userId: driverId } },
+      include: { disruptionEvent: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return payouts.map((p: any) => ({
+      claimId: p.id,
+      status: p.status,
+      amount: p.approvedPayout ?? p.estimatedLoss ?? 0,
+      trigger: p.disruptionEvent?.type ?? 'UNKNOWN',
+      createdAt: p.createdAt,
+    }));
+  }
 }

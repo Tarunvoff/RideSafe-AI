@@ -1,11 +1,45 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MainTopNavbar from '../../components/MainTopNavbar';
+import { fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
+import { getDeviceLocation } from '../../utils/location';
 // react-native-svg removed — using pure RN ring
 
+const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
+
 export default function RiskScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const [zoneRisk, setZoneRisk] = useState<any | null>(null);
+
+  const loadRisk = useCallback(async () => {
+    try {
+      const device = (await getDeviceLocation()) ?? DEFAULT_COORDS;
+      await telemetryApi.sendGps({
+        driverId: user?.id ?? user?.email ?? 'anonymous',
+        lat: device.lat,
+        lng: device.lng,
+        platform: 'mobile-app',
+      });
+      const res = await fraudApi.getZoneRisk(device.lat, device.lng);
+      setZoneRisk(res ?? null);
+    } catch {
+      setZoneRisk(null);
+    }
+  }, [user?.email, user?.id]);
+
+  useEffect(() => {
+    void loadRisk();
+  }, [loadRisk]);
+
+  const riskScore = Math.round(Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5) * 100);
+  const riskLabel = riskScore >= 70 ? 'HIGH RISK' : riskScore >= 40 ? 'MODERATE RISK' : 'LOW RISK';
+  const weatherSafe = Math.max(0, 100 - Math.round(Number(zoneRisk?.rainfall ?? 0)));
+  const densitySafe = Math.max(0, 100 - Math.round(Number(zoneRisk?.active_riders ?? 0)));
+  const platformSafe = Math.max(0, 100 - Math.round(riskScore / 2));
+  const premiumHint = Math.round((riskScore / 100) * 100) / 100;
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
@@ -17,14 +51,14 @@ export default function RiskScreen({ navigation }: any) {
             {/* Outer decorative ring */}
             <View style={styles.ringOuter}>
               <View style={styles.ringInner}>
-                <Text style={styles.scoreValue}>72</Text>
+                <Text style={styles.scoreValue}>{riskScore}</Text>
                 <Text style={styles.scoreLabel}>out of 100</Text>
               </View>
             </View>
           </View>
           
           <View style={styles.riskBadge}>
-            <Text style={styles.riskBadgeText}>MODERATE RISK</Text>
+            <Text style={styles.riskBadgeText}>{riskLabel}</Text>
           </View>
 
           <Text style={styles.heroDesc}>
@@ -43,12 +77,12 @@ export default function RiskScreen({ navigation }: any) {
                 <Ionicons name="partly-sunny" size={20} color={Theme.colors.primary} />
                 <Text style={styles.factorTitle}>Historical Weather</Text>
               </View>
-              <Text style={styles.factorScore}>85% Safe</Text>
+              <Text style={styles.factorScore}>{weatherSafe}% Safe</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '85%' }]} />
+              <View style={[styles.progressBarFill, { width: `${weatherSafe}%` }]} />
             </View>
-            <Text style={styles.factorDesc}>Based on average precipitation and road conditions in your primary zones.</Text>
+            <Text style={styles.factorDesc}>Based on recent rainfall and road conditions in your active zone.</Text>
           </View>
 
           {/* Factor 2 */}
@@ -58,12 +92,12 @@ export default function RiskScreen({ navigation }: any) {
                 <Ionicons name="git-network-outline" size={20} color={Theme.colors.primary} />
                 <Text style={styles.factorTitle}>Zone Density</Text>
               </View>
-              <Text style={styles.factorScore}>62% Safe</Text>
+              <Text style={styles.factorScore}>{densitySafe}% Safe</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '62%' }]} />
+              <View style={[styles.progressBarFill, { width: `${densitySafe}%` }]} />
             </View>
-            <Text style={styles.factorDesc}>High traffic congestion detected in Downtown and Eastside hubs.</Text>
+            <Text style={styles.factorDesc}>Zone density and congestion signals from active riders.</Text>
           </View>
 
           {/* Factor 3 */}
@@ -73,12 +107,12 @@ export default function RiskScreen({ navigation }: any) {
                 <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />
                 <Text style={styles.factorTitle}>Platform Reliability</Text>
               </View>
-              <Text style={styles.factorScore}>94% Safe</Text>
+              <Text style={styles.factorScore}>{platformSafe}% Safe</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '94%' }]} />
+              <View style={[styles.progressBarFill, { width: `${platformSafe}%` }]} />
             </View>
-            <Text style={styles.factorDesc}>Your delivery completion rate and app stability are excellent.</Text>
+            <Text style={styles.factorDesc}>Derived from platform stability and real-time risk signals.</Text>
           </View>
         </View>
 
@@ -90,7 +124,7 @@ export default function RiskScreen({ navigation }: any) {
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.premiumTitle}>Impact on Premium</Text>
                 <Text style={styles.premiumDesc}>
-                  Since your risk score is <Text style={{ fontWeight: 'bold', color: Theme.colors.primary }}>72</Text>, your weekly premium is adjusted to <Text style={{ fontWeight: 'bold', color: Theme.colors.text }}>$18.50</Text>. By avoiding high-density zones during peak hours, you can increase your score and lower next week's cost!
+                  Since your risk score is <Text style={{ fontWeight: 'bold', color: Theme.colors.primary }}>{riskScore}</Text>, your risk multiplier is <Text style={{ fontWeight: 'bold', color: Theme.colors.text }}>{premiumHint}</Text>. Staying in stable zones keeps your premium lower.
                 </Text>
               </View>
             </View>

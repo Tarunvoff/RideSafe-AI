@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -10,14 +10,32 @@ import {
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
 import { Theme } from '../../theme';
-import { ADMIN_TEST_WORKERS } from './adminMockData';
+import { adminApi } from '../../services/api';
 
 export default function AdminWorkersScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
+  const [workers, setWorkers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadWorkers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await adminApi.getWorkers();
+      setWorkers(Array.isArray(res) ? res : []);
+    } catch {
+      setWorkers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadWorkers();
+  }, [loadWorkers]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return ADMIN_TEST_WORKERS;
-    return ADMIN_TEST_WORKERS.filter((s) => {
+    if (!q) return workers;
+    return workers.filter((s) => {
       const email = (s.email ?? '').toLowerCase();
       const phone = (s.phone ?? '').toLowerCase();
       const status = (s.status ?? '').toLowerCase();
@@ -68,9 +86,9 @@ export default function AdminWorkersScreen({ navigation }: any) {
 
           {/* Worker Summary Strip */}
           <View style={styles.summaryStrip}>
-            <SummaryCell label="Total Workers" value={String(ADMIN_TEST_WORKERS.length)} isRightBorder />
-            <SummaryCell label="High Risk" value="2" isRightBorder />
-            <SummaryCell label="Active Plans" value="5" />
+            <SummaryCell label="Total Workers" value={String(workers.length)} isRightBorder />
+            <SummaryCell label="High Risk" value={String(workers.filter((w) => String(w.status).includes('REVIEW')).length)} isRightBorder />
+            <SummaryCell label="Active Plans" value="—" />
           </View>
 
           {/* Worker List */}
@@ -85,7 +103,7 @@ export default function AdminWorkersScreen({ navigation }: any) {
                     </View>
                   </View>
                   <Text style={styles.workerMeta}>
-                    {s.phone ?? 'No phone'} • {new Date(s.submittedAt).toLocaleString([], { hour: '2-digit', minute: '2-digit' })} • Submitted
+                    {s.phone ?? 'No phone'} • {new Date(s.submittedAt).toLocaleString([], { hour: '2-digit', minute: '2-digit' })} • {s.status}
                   </Text>
                 </View>
               ))}

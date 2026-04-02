@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
+import { driverApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 const palette = {
@@ -18,37 +19,12 @@ const palette = {
   softBorder: '#d7e6d5',
 };
 
-const STORE_PROFILE = {
-  platform: 'Blinkit 24x7',
-  storeName: 'Koramangala Dark Store',
-  h3Cell: 'H3 8F5B2C',
-  supervisor: 'Lead Anjali',
-  shift: '7 PM – 3 AM',
-  rating: 4.9,
-};
-
-const WEEKLY_SUMMARY = {
-  completed: 186,
-  rejected: 6,
-  earnings: 7850,
-  lastWeekEarnings: 7260,
-  surgeBonus: 920,
-  hours: 42,
-};
-
-const DAILY_EARNINGS = [
-  { day: 'Mon', amount: 1180 },
-  { day: 'Tue', amount: 980 },
-  { day: 'Wed', amount: 1340 },
-  { day: 'Thu', amount: 1260 },
-  { day: 'Fri', amount: 1450 },
-  { day: 'Sat', amount: 1380 },
-  { day: 'Sun', amount: 1260 },
-];
-
 export default function DriverActivityScreen({ navigation }: any) {
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = React.useState(false);
+  const [profile, setProfile] = useState<any | null>(null);
+
+  const driverId = user?.id ?? user?.email ?? null;
 
   const handleLogout = async () => {
     try {
@@ -59,13 +35,40 @@ export default function DriverActivityScreen({ navigation }: any) {
     }
   };
 
-  const totalOrders = WEEKLY_SUMMARY.completed + WEEKLY_SUMMARY.rejected;
-  const successRate = Math.round((WEEKLY_SUMMARY.completed / totalOrders) * 100);
-  const earningsDelta = WEEKLY_SUMMARY.earnings - WEEKLY_SUMMARY.lastWeekEarnings;
-  const earningsDeltaPct = Math.round(
-    (earningsDelta / WEEKLY_SUMMARY.lastWeekEarnings) * 100,
-  );
-  const maxDaily = Math.max(...DAILY_EARNINGS.map((d) => d.amount));
+  const loadProfile = useCallback(async () => {
+    if (!driverId) return;
+    try {
+      const res = await driverApi.getProfile(driverId);
+      setProfile(res?.driverProfile ?? null);
+    } catch {
+      setProfile(null);
+    }
+  }, [driverId]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  const week = profile?.currentWeek ?? {};
+  const summary = profile?.workSummary ?? {};
+  const totalOrders = Number(week.totalOrdersAssigned ?? (week.totalCompletedDeliveries ?? 0) + (week.totalOrdersRejected ?? 0));
+  const completed = Number(week.totalCompletedDeliveries ?? 0);
+  const rejected = Number(week.totalOrdersRejected ?? 0);
+  const successRate = totalOrders ? Math.round((completed / totalOrders) * 100) : 0;
+  const weeklyEarnings = Number(week.weeklyEarningsTotal ?? 0);
+  const lastWeek = Number(summary.averageWeeklyEarnings ?? 0);
+  const earningsDelta = weeklyEarnings - lastWeek;
+  const earningsDeltaPct = lastWeek ? Math.round((earningsDelta / lastWeek) * 100) : 0;
+
+  const dailyEarnings = useMemo(() => {
+    const daily = week.dailyBreakdown ?? [];
+    return daily.map((day: any) => ({
+      day: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      amount: Number(day.totalEarnings ?? 0),
+    }));
+  }, [week.dailyBreakdown]);
+
+  const maxDaily = dailyEarnings.length ? Math.max(...dailyEarnings.map((d: any) => d.amount)) : 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -91,21 +94,21 @@ export default function DriverActivityScreen({ navigation }: any) {
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
             <Text style={styles.sectionLabel}>Store</Text>
-            <Text style={styles.profileName}>{STORE_PROFILE.storeName}</Text>
+            <Text style={styles.profileName}>{profile?.identity?.primaryDarkStore ?? '—'}</Text>
             <View style={styles.profileMetaRow}>
-              <Text style={styles.profileMeta}>{STORE_PROFILE.platform}</Text>
+              <Text style={styles.profileMeta}>{profile?.identity?.provider ?? '—'}</Text>
               <Text style={styles.bullet}>•</Text>
-              <Text style={styles.profileMeta}>{STORE_PROFILE.shift}</Text>
+              <Text style={styles.profileMeta}>{profile?.identity?.employmentType ?? '—'}</Text>
             </View>
             <View style={styles.profileMetaRow}>
-              <Text style={styles.profileMeta}>{STORE_PROFILE.supervisor}</Text>
+              <Text style={styles.profileMeta}>{profile?.identity?.primaryServiceZone ?? '—'}</Text>
               <Text style={styles.bullet}>•</Text>
-              <Text style={styles.profileMeta}>{STORE_PROFILE.h3Cell}</Text>
+              <Text style={styles.profileMeta}>{profile?.identity?.primaryDarkStore ?? '—'}</Text>
             </View>
           </View>
           <View style={styles.profileRating}>
             <Ionicons name="star" size={26} color={palette.accent} />
-            <Text style={styles.profileRatingValue}>{STORE_PROFILE.rating.toFixed(1)}</Text>
+            <Text style={styles.profileRatingValue}>{Number(profile?.identity?.rating ?? 0).toFixed(1)}</Text>
             <Text style={styles.profileRatingLabel}>Score</Text>
           </View>
         </View>
@@ -113,12 +116,12 @@ export default function DriverActivityScreen({ navigation }: any) {
         <View style={styles.statGrid}>
           <View style={[styles.statCard, styles.statCardAccent]}>
             <Text style={styles.statLabel}>Orders Accepted</Text>
-            <Text style={styles.statValue}>{WEEKLY_SUMMARY.completed}</Text>
+            <Text style={styles.statValue}>{completed}</Text>
             <Text style={styles.statHint}>Week</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Orders Skipped</Text>
-            <Text style={styles.statValue}>{WEEKLY_SUMMARY.rejected}</Text>
+            <Text style={styles.statValue}>{rejected}</Text>
             <Text style={styles.statHint}>Manual</Text>
           </View>
           <View style={styles.statCard}>
@@ -131,7 +134,7 @@ export default function DriverActivityScreen({ navigation }: any) {
         <View style={styles.earningsCard}>
           <Text style={styles.sectionLabel}>Weekly earnings</Text>
           <View style={styles.earningsRow}>
-            <Text style={styles.earningsValue}>₹{WEEKLY_SUMMARY.earnings.toLocaleString('en-IN')}</Text>
+            <Text style={styles.earningsValue}>₹{weeklyEarnings.toLocaleString('en-IN')}</Text>
             <View style={styles.trendPill}>
               <Ionicons
                 name={earningsDelta >= 0 ? 'arrow-up' : 'arrow-down'}
@@ -141,14 +144,14 @@ export default function DriverActivityScreen({ navigation }: any) {
               <Text style={styles.trendText}>{earningsDelta >= 0 ? '+' : ''}{earningsDeltaPct}%</Text>
             </View>
           </View>
-          <Text style={styles.earningsMeta}>Bonus ₹{WEEKLY_SUMMARY.surgeBonus} · {WEEKLY_SUMMARY.hours} hrs</Text>
-          <Text style={styles.earningsMeta}>Prev ₹{WEEKLY_SUMMARY.lastWeekEarnings.toLocaleString('en-IN')}</Text>
+          <Text style={styles.earningsMeta}>Bonus ₹{Number(summary.incentiveEarnings ?? 0).toLocaleString('en-IN')} · {Number(summary.totalWorkingHours ?? 0)} hrs</Text>
+          <Text style={styles.earningsMeta}>Prev ₹{lastWeek.toLocaleString('en-IN')}</Text>
         </View>
 
         <View style={styles.dailyCard}>
           <Text style={styles.sectionLabel}>Week strip</Text>
-          {DAILY_EARNINGS.map((item) => {
-            const widthPct = Math.max(20, Math.round((item.amount / maxDaily) * 100));
+          {dailyEarnings.map((item: any) => {
+            const widthPct = maxDaily ? Math.max(20, Math.round((item.amount / maxDaily) * 100)) : 20;
             return (
               <View key={item.day} style={styles.dailyRow}>
                 <Text style={styles.dailyDay}>{item.day}</Text>

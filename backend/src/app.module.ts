@@ -15,6 +15,7 @@ import { PremiumModule } from './premium/premium.module';
 import { TriggerModule } from './trigger/trigger.module';
 import { PayoutModule } from './payout/payout.module';
 import { InsuranceModule } from './insurance/insurance.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { InsuranceModule } from './insurance/insurance.module';
     TriggerModule,
     PayoutModule,
     InsuranceModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

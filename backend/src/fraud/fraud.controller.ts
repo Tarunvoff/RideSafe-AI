@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query,
 import { AdminGuard, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KafkaProducerService } from '../kafka/kafka.producer.service';
 import { ZoneMonitoringService } from '../kafka/zone-monitoring.service';
+import { RedisStateService } from '../state/redis-state.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import { FraudService } from './fraud.service';
 import * as h3 from 'h3-js';
@@ -13,6 +14,7 @@ export class FraudController {
     private readonly fraudService: FraudService,
     private readonly kafkaProducerService: KafkaProducerService,
     private readonly zoneMonitoringService: ZoneMonitoringService,
+    private readonly redisState: RedisStateService,
   ) {}
 
   @Post('analyze')
@@ -55,6 +57,29 @@ export class FraudController {
     const resolution = 8;
     const h3_cell = h3.latLngToCell(Number(lat), Number(lng), resolution);
     return this.zoneMonitoringService.getZoneState(h3_cell);
+  }
+
+  @Get('zone-neighbors')
+  async getZoneNeighbors(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number,
+    @Query('radius') radius = 1,
+  ) {
+    if (!lat || !lng) return { center: null, neighbors: [] };
+    const resolution = 8;
+    const h3Cell = h3.latLngToCell(Number(lat), Number(lng), resolution);
+    const ringFn = (h3 as any).gridDisk ?? (h3 as any).kRing;
+    const ring = ringFn ? ringFn(h3Cell, Number(radius)) : [h3Cell];
+    const entries = await Promise.all(
+      ring.map(async (cell) => ({
+        h3_cell: cell,
+        ...(await this.redisState.getZoneState(cell)),
+      })),
+    );
+
+    const center = entries.find((entry) => entry.h3_cell === h3Cell) ?? { h3_cell: h3Cell };
+    const neighbors = entries.filter((entry) => entry.h3_cell !== h3Cell);
+    return { center, neighbors };
   }
 
   // ── ADMIN ENDPOINTS ──────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -9,10 +9,38 @@ import {
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
 import { Theme } from '../../theme';
-import { ADMIN_TEST_DASHBOARD_SUMMARY } from './adminMockData';
+import { adminApi } from '../../services/api';
 
 export default function AdminDashboardScreen({ navigation }: any) {
-  const [summary] = useState(ADMIN_TEST_DASHBOARD_SUMMARY);
+  const [summary, setSummary] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadSummary = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await adminApi.getDashboard();
+      setSummary(res ?? null);
+    } catch {
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
+
+  const safeSummary = summary ?? {
+    totalWorkers: 0,
+    activePlans: 0,
+    activeAlerts: 0,
+    claimsToday: 0,
+    highRiskWorkers: 0,
+    simulatedPayout: 0,
+    recentAlerts: [],
+    recentClaims: [],
+  };
 
   const formatINR = useMemo(
     () => (value: number) => `₹${Math.round(value ?? 0).toLocaleString('en-IN')}`,
@@ -33,14 +61,14 @@ export default function AdminDashboardScreen({ navigation }: any) {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Overview Grid */}
           <View style={styles.overviewGrid}>
-            <OverviewCell label="Total Workers" value={String(summary.totalWorkers)} />
-            <OverviewCell label="Active Plans" value={String(summary.activePlans)} isRight />
-            <OverviewCell label="Active Alerts" value={String(summary.activeAlerts)} isTop />
-            <OverviewCell label="Claims Today" value={String(summary.claimsToday)} isTop isRight />
-            <OverviewCell label="High Risk Workers" value={String(summary.highRiskWorkers)} isTop />
+            <OverviewCell label="Total Workers" value={String(safeSummary.totalWorkers)} />
+            <OverviewCell label="Active Plans" value={String(safeSummary.activePlans)} isRight />
+            <OverviewCell label="Active Alerts" value={String(safeSummary.activeAlerts)} isTop />
+            <OverviewCell label="Claims Today" value={String(safeSummary.claimsToday)} isTop isRight />
+            <OverviewCell label="High Risk Workers" value={String(safeSummary.highRiskWorkers)} isTop />
             <OverviewCell
               label="Simulated Payout"
-              value={formatINR(summary.simulatedPayout)}
+              value={formatINR(safeSummary.simulatedPayout)}
               isTop
               isRight
             />
@@ -87,7 +115,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <Text style={styles.viewAll}>VIEW ALL</Text>
             </View>
             <View style={styles.simpleList}>
-              {summary.recentAlerts.map((a) => (
+              {safeSummary.recentAlerts.map((a: any) => (
                 <View key={a.id} style={styles.simpleListRow}>
                   <View style={styles.greenDot} />
                   <View style={{ flex: 1 }}>
@@ -111,7 +139,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <Text style={styles.viewAll}>VIEW ALL</Text>
             </View>
             <View style={styles.simpleList}>
-              {summary.recentClaims.map((c) => (
+              {safeSummary.recentClaims.map((c: any) => (
                 <View key={c.payoutId} style={styles.simpleListRow}>
                   <View
                     style={[

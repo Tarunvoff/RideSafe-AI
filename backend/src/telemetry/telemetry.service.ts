@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import * as h3 from 'h3-js';
 import { PrismaService } from '../prisma/prisma.service';
 import { KafkaProducerService } from '../kafka/kafka.producer.service';
+import { RedisStateService } from '../state/redis-state.service';
 
 @Injectable()
 export class TelemetryService implements OnModuleInit {
@@ -9,6 +11,7 @@ export class TelemetryService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly kafkaProducer: KafkaProducerService,
+    private readonly redisState: RedisStateService,
   ) {}
 
   async onModuleInit() {
@@ -66,6 +69,25 @@ export class TelemetryService implements OnModuleInit {
   }) {
     const timestamp = payload.timestamp ?? Math.floor(Date.now() / 1000);
     const platform = payload.platform ?? 'mobile-app';
+
+    try {
+      const h3Cell = h3.latLngToCell(payload.lat, payload.lng, 8);
+      void this.redisState.setDriverState(payload.driverId, {
+        last_location: {
+          lat: payload.lat,
+          lng: payload.lng,
+          h3_cell: h3Cell,
+          speed: payload.speed ?? null,
+          timestamp,
+        },
+        updatedAt: new Date().toISOString(),
+        platform,
+      });
+      void this.redisState.addDriverToZone(h3Cell, payload.driverId);
+    } catch (e) {
+      this.logger.warn(`Failed to cache driver location: ${e}`);
+    }
+
     return this.kafkaProducer.publishDriverLocation({
       driverId: payload.driverId,
       lat: payload.lat,

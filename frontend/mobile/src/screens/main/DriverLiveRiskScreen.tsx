@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -12,6 +12,11 @@ import {
 import Svg, { Circle, Polygon } from 'react-native-svg';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
+import { useAuth } from '../../context/AuthContext';
+import { fraudApi, telemetryApi } from '../../services/api';
+import { getDeviceLocation } from '../../utils/location';
+
+const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -68,111 +73,66 @@ function riskColors(level: RiskLevel) {
 
 export default function DriverLiveRiskScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
+  const { user } = useAuth();
+
+  const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState<string>('c0');
+  const [coords, setCoords] = useState(DEFAULT_COORDS);
 
   // Fixed map size for stable tap targets across devices.
   const mapW = clamp(width - 48, 320, 380);
   const mapH = 260;
   const hexR = 26;
 
-  const cells = useMemo(() => {
-    // Center + 6 neighbors around it (pointy-top axial coordinates).
-    // This is a UI simulation; later we will map these to real H3 neighbors.
-    const base: Omit<CellRisk, 'id' | 'h3Id'> = {
-      rainPct: 0,
-      aqi: 42,
-      floodChance: 'Low',
-      disruptionScore: 0.05,
-      trafficStatus: 'Stable Flow',
-      riskScore: 12,
-      riskLevel: 'LOW',
+  const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
+    const lf = Number(raw?.Lf ?? raw?.lf_score ?? 0.5);
+    const riskScore = Math.round(lf * 100);
+    const state = raw?.zone_state ?? raw?.state ?? 'STABLE';
+    return {
+      id,
+      h3Id: raw?.h3_cell ?? '—',
+      rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
+      aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
+      floodChance: riskScore >= 70 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low',
+      disruptionScore: Number(lf.toFixed(2)),
+      trafficStatus: state === 'HALTED' ? 'Halt' : state === 'SLOW' ? 'Slow Traffic' : 'Stable Flow',
+      riskScore,
+      riskLevel: riskLevelFromScore(riskScore),
     };
-
-    const current: CellRisk = {
-      id: 'c0',
-      h3Id: '8928308280fffff',
-      ...base,
-      riskScore: 12,
-      riskLevel: riskLevelFromScore(12),
-      rainPct: 0,
-      aqi: 42,
-      floodChance: 'Low',
-      disruptionScore: 0.05,
-      trafficStatus: 'Stable Flow',
-    };
-
-    const neighbors: CellRisk[] = [
-      {
-        id: 'n1',
-        h3Id: '8928308280fffe0',
-        rainPct: 18,
-        aqi: 66,
-        floodChance: 'Low',
-        disruptionScore: 0.16,
-        trafficStatus: 'Slow Traffic',
-        riskScore: 34,
-        riskLevel: riskLevelFromScore(34),
-      },
-      {
-        id: 'n2',
-        h3Id: '8928308280fffdc',
-        rainPct: 6,
-        aqi: 95,
-        floodChance: 'Medium',
-        disruptionScore: 0.33,
-        trafficStatus: 'Slow Traffic',
-        riskScore: 48,
-        riskLevel: riskLevelFromScore(48),
-      },
-      {
-        id: 'n3',
-        h3Id: '8928308280fffc8',
-        rainPct: 0,
-        aqi: 122,
-        floodChance: 'Medium',
-        disruptionScore: 0.4,
-        trafficStatus: 'Stable Flow',
-        riskScore: 55,
-        riskLevel: riskLevelFromScore(55),
-      },
-      {
-        id: 'n4',
-        h3Id: '8928308280fffb4',
-        rainPct: 22,
-        aqi: 152,
-        floodChance: 'High',
-        disruptionScore: 0.7,
-        trafficStatus: 'Halt',
-        riskScore: 78,
-        riskLevel: riskLevelFromScore(78),
-      },
-      {
-        id: 'n5',
-        h3Id: '8928308280fffa0',
-        rainPct: 14,
-        aqi: 88,
-        floodChance: 'Medium',
-        disruptionScore: 0.28,
-        trafficStatus: 'Slow Traffic',
-        riskScore: 44,
-        riskLevel: riskLevelFromScore(44),
-      },
-      {
-        id: 'n6',
-        h3Id: '8928308280ffefc',
-        rainPct: 2,
-        aqi: 50,
-        floodChance: 'Low',
-        disruptionScore: 0.1,
-        trafficStatus: 'Stable Flow',
-        riskScore: 21,
-        riskLevel: riskLevelFromScore(21),
-      },
-    ];
-
-    return { current, neighbors: neighbors };
   }, []);
 
-  const [selectedCellId, setSelectedCellId] = useState<string>('c0');
+  const loadZones = useCallback(async () => {
+    try {
+      const device = (await getDeviceLocation()) ?? DEFAULT_COORDS;
+      setCoords(device);
+      await telemetryApi.sendGps({
+        driverId: user?.id ?? user?.email ?? 'anonymous',
+        lat: device.lat,
+        lng: device.lng,
+        platform: 'mobile-app',
+      });
+      const res = await fraudApi.getZoneNeighbors(device.lat, device.lng, 1);
+      const center = toCellRisk(res?.center ?? {}, 'c0');
+      const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors.slice(0, 6) : [];
+      const neighbors = neighborsRaw.map((entry: any, idx: number) => toCellRisk(entry, `n${idx + 1}`));
+      while (neighbors.length < 6) {
+        neighbors.push({ ...center, id: `n${neighbors.length + 1}` });
+      }
+      setCellData({ current: center, neighbors });
+    } catch {
+      const fallback = toCellRisk({}, 'c0');
+      setCellData({ current: fallback, neighbors: Array.from({ length: 6 }, (_, i) => ({ ...fallback, id: `n${i + 1}` })) });
+    }
+  }, [toCellRisk, user?.email, user?.id]);
+
+  useEffect(() => {
+    void loadZones();
+  }, [loadZones]);
+
+  const cells = useMemo(() => cellData ?? {
+    current: toCellRisk({}, 'c0'),
+    neighbors: Array.from({ length: 6 }, (_, i) => ({ ...toCellRisk({}, 'c0'), id: `n${i + 1}` })),
+  }, [cellData, toCellRisk]);
 
   const selectedCell: CellRisk = useMemo(() => {
     if (selectedCellId === cells.current.id) return cells.current;
@@ -239,9 +199,9 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     return hexes;
   }, [center.x, center.y, hexR]);
 
-  const driverLat = '40.7128° N';
-  const driverLon = '74.0060° W';
-  const lastPing = '10:45 AM';
+  const driverLat = `${coords.lat.toFixed(4)}° N`;
+  const driverLon = `${coords.lng.toFixed(4)}° W`;
+  const lastPing = 'just now';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -255,7 +215,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         <View style={styles.statusStrip}>
           <View style={styles.statusCol}>
             <Text style={styles.stripLabel}>Driver ID</Text>
-            <Text style={styles.stripValue}>GS-8821</Text>
+            <Text style={styles.stripValue}>{user?.id ?? user?.email ?? '—'}</Text>
           </View>
           <View style={styles.stripDivider} />
           <View style={styles.statusCol}>

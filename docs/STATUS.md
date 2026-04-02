@@ -22,3 +22,14 @@
 
 ## Tests Run
 - test_parametric_insurance.js (enroll + premium + payout flow)
+
+## Frontend ↔ Backend Mapping (Demo)
+- Auth: POST /auth/register, POST /auth/login
+- Driver profile: GET /dynamic-qcommerce/drivers/:driverId/profile
+- Zone + risk: GET /fraud/zone-risk?lat=&lng=
+- Premium breakdown: POST /premium/weekly
+- Policy enroll: POST /policy/enroll
+- Trigger claim: POST /insurance/process/:driverId
+- Claims history: GET /claims/:driverId
+- Payout history: GET /payouts/:driverId
+- Admin fraud review: GET /fraud/admin/submissions, PATCH /fraud/admin/review/:userId

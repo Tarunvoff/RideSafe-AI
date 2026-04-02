@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdminShell from '../../components/AdminShell';
+import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 const PRIMARY = Theme.colors.primary;
@@ -19,35 +20,30 @@ interface FraudSubmission {
   createdAt: string;
 }
 
-const MOCK_FRAUD_SUBMISSIONS: FraudSubmission[] = [
-  {
-    analysisId: 'fa1',
-    userId: 'u1',
-    email: 'test1@gmail.com',
-    phone: '+91 9000000001',
-    riskScore: 78,
-    status: 'INCONCLUSIVE',
-    createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-  },
-  {
-    analysisId: 'fa2',
-    userId: 'u2',
-    email: 'test2@gmail.com',
-    phone: '+91 9000000002',
-    riskScore: 64,
-    status: 'INCONCLUSIVE',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-  },
-];
-
 export default function AdminFraudReviewScreen({ navigation }: any) {
+  const [submissions, setSubmissions] = useState<FraudSubmission[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   const getRiskColor = (_score: number) => {
     // Keep the admin UI strictly on black/white/green. Risk is shown with the same accent.
     return PRIMARY;
   };
 
-  const submissions = MOCK_FRAUD_SUBMISSIONS;
-  const isLoading = false;
+  const loadSubmissions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fraudApi.getSubmissions();
+      setSubmissions(res?.submissions ?? []);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to load submissions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSubmissions();
+  }, [loadSubmissions]);
 
   const renderSubmission = ({ item }: { item: FraudSubmission }) => (
     <TouchableOpacity
@@ -82,7 +78,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={SLATE_900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Fraud Reviews</Text>
-        <TouchableOpacity onPress={() => {}} style={styles.backButton}>
+           <TouchableOpacity onPress={() => void loadSubmissions()} style={styles.backButton}>
              <Ionicons name="refresh" size={20} color={SLATE_500} />
         </TouchableOpacity>
       </View>
@@ -104,7 +100,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
           </View>
           <Text style={styles.emptyTitle}>All Clear</Text>
           <Text style={styles.emptySubtitle}>No fraud submissions pending review</Text>
-          <TouchableOpacity style={styles.refreshBtn} onPress={() => {}}>
+           <TouchableOpacity style={styles.refreshBtn} onPress={() => void loadSubmissions()}>
              <Text style={styles.refreshBtnText}>Check Again</Text>
           </TouchableOpacity>
         </View>

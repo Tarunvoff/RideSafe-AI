@@ -9,7 +9,7 @@ import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
-import { plansApi, type PurchasedPolicy, type WeeklyPlan } from '../../services/api';
+import { plansApi, premiumApi, type PurchasedPolicy, type WeeklyPlan } from '../../services/api';
 
 type PlansTabKey = 'available' | 'purchased';
 
@@ -170,6 +170,9 @@ export default function DriverPlansScreen({ navigation }: any) {
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [purchasedPolicies, setPurchasedPolicies] = useState<any[]>([]);
   const [latestDisruption, setLatestDisruption] = useState<any | null>(null);
+  const [premiumPreview, setPremiumPreview] = useState<any | null>(null);
+
+  const driverId = user?.id ?? user?.email ?? null;
 
   const [checkout, setCheckout] = useState<null | {
     keyId: string;
@@ -198,10 +201,24 @@ export default function DriverPlansScreen({ navigation }: any) {
     await savePurchasedToStorage(user?.email, merged);
   }, [user?.email]);
 
+  const fetchPremiumPreview = useCallback(async () => {
+    if (!driverId) return;
+    try {
+      const res = await premiumApi.calculateWeekly(driverId);
+      setPremiumPreview(res ?? null);
+    } catch {
+      setPremiumPreview(null);
+    }
+  }, [driverId]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [catalog] = await Promise.all([plansApi.getWeeklyPlans(), fetchPurchased()]);
+      const [catalog] = await Promise.all([
+        plansApi.getWeeklyPlans(),
+        fetchPurchased(),
+        fetchPremiumPreview(),
+      ]);
       setAvailablePlans(Array.isArray(catalog) ? catalog : []);
     } catch (e: any) {
       const msg = e?.message ?? 'Failed to load plans.';
@@ -212,11 +229,11 @@ export default function DriverPlansScreen({ navigation }: any) {
       }
       Alert.alert('Error', msg);
       // Still try to load purchased (may have local fallback)
-      await fetchPurchased();
+      await Promise.all([fetchPurchased(), fetchPremiumPreview()]);
     } finally {
       setLoading(false);
     }
-  }, [fetchPurchased]);
+  }, [fetchPremiumPreview, fetchPurchased]);
 
   // Refetch plans from DB every time this screen gains focus (e.g. tapping Plans tab)
   useFocusEffect(
@@ -442,6 +459,26 @@ export default function DriverPlansScreen({ navigation }: any) {
           </View>
         ) : (
           <View style={{ gap: 12 }}>
+            <View style={styles.premiumPreviewCard}>
+              <Text style={styles.premiumPreviewTitle}>Weekly Premium Breakdown</Text>
+              <View style={styles.premiumPreviewRow}>
+                <Text style={styles.premiumPreviewLabel}>Ew</Text>
+                <Text style={styles.premiumPreviewValue}>₹{Number(premiumPreview?.Ew ?? 0).toLocaleString('en-IN')}</Text>
+              </View>
+              <View style={styles.premiumPreviewRow}>
+                <Text style={styles.premiumPreviewLabel}>Lf</Text>
+                <Text style={styles.premiumPreviewValue}>{Number(premiumPreview?.Lf ?? 0).toFixed(2)}</Text>
+              </View>
+              <View style={styles.premiumPreviewRow}>
+                <Text style={styles.premiumPreviewLabel}>Ct</Text>
+                <Text style={styles.premiumPreviewValue}>{premiumPreview?.Ct ?? '—'}</Text>
+              </View>
+              <View style={styles.premiumPreviewRow}>
+                <Text style={styles.premiumPreviewLabel}>Premium</Text>
+                <Text style={styles.premiumPreviewValue}>₹{Number(premiumPreview?.premium ?? 0).toLocaleString('en-IN')}</Text>
+              </View>
+            </View>
+
             {!latestDisruption ? (
               <View style={styles.disruptionBanner}>
                 <View style={styles.disruptionDot} />
@@ -680,6 +717,19 @@ const styles = StyleSheet.create({
   emptyState: { paddingVertical: 44, alignItems: 'center', gap: 8 },
   emptyTitle: { fontWeight: '900', fontSize: 16, color: '#111827' },
   emptySub: { fontWeight: '700', fontSize: 12, color: '#6b7280', textAlign: 'center', maxWidth: 260 },
+
+  premiumPreviewCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    gap: 8,
+  },
+  premiumPreviewTitle: { fontSize: 12, fontWeight: '900', color: '#e2e8f0', letterSpacing: 0.8, textTransform: 'uppercase' },
+  premiumPreviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  premiumPreviewLabel: { fontSize: 12, fontWeight: '700', color: '#94a3b8' },
+  premiumPreviewValue: { fontSize: 14, fontWeight: '900', color: '#f8fafc' },
 
   disruptionBanner: {
     backgroundColor: '#ffffff',
