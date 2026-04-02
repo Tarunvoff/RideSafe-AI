@@ -54,6 +54,7 @@ echo "[3/8] Starting ML Insurance Service (8000)..."
 gnome-terminal -- bash -c "
 cd ml-calcultion &&
 source .venv/bin/activate &&
+export REDIS_URL=redis://127.0.0.1:6379/0 &&
 cd ml-insurance-service &&
 echo 'ML-INSURANCE-8000' &&
 uvicorn main:app --host 0.0.0.0 --port 8000;
@@ -66,6 +67,7 @@ gnome-terminal -- bash -c "
 cd ml-calcultion &&
 source .venv/bin/activate &&
 cd fraud-feature-service &&
+export REDIS_URL=redis://127.0.0.1:6379/0 &&
 export USE_REDIS=True &&
 echo 'FRAUD-EXTRACTOR-8002' &&
 uvicorn main:app --host 0.0.0.0 --port 8002 --reload;
@@ -78,6 +80,10 @@ gnome-terminal -- bash -c "
 cd ml-calcultion &&
 source .venv/bin/activate &&
 cd grid_event_service &&
+export KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 &&
+export REDIS_URL=redis://127.0.0.1:6379/0 &&
+export ML_SERVICE_URL=http://127.0.0.1:8000 &&
+export H3_FEATURE_SERVICE_URL=http://127.0.0.1:8004 &&
 export USE_REDIS=True &&
 echo 'GRID-EVENT-8003' &&
 uvicorn main:app --host 0.0.0.0 --port 8003 --reload;
@@ -90,6 +96,9 @@ gnome-terminal -- bash -c "
 cd ml-calcultion &&
 source .venv/bin/activate &&
 cd h3-feature-service &&
+export KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 &&
+export REDIS_URL=redis://127.0.0.1:6379/0 &&
+export ML_INSURANCE_SERVICE_URL=http://127.0.0.1:8000 &&
 export STRICT_REALTIME=true &&
 echo 'H3-FEATURE-8004' &&
 uvicorn main:app --host 0.0.0.0 --port 8004 --reload;
