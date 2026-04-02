@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { authApi, kycApi } from '../services/api';
+import { authApi, dynamicQCommerceApi, kycApi } from '../services/api';
 
 interface AuthUser {
   id?: string;
@@ -41,11 +41,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = await AsyncStorage.getItem('accessToken');
         const email = await AsyncStorage.getItem('userEmail');
         const userId = await AsyncStorage.getItem('userId');
+        const driverId = await AsyncStorage.getItem('driverId');
         const role = await AsyncStorage.getItem('userRole') as 'DRIVER' | 'ADMIN' | null;
         
         if (token && email && role) {
           const savedName = await AsyncStorage.getItem('driverName');
-          setUser({ id: userId || undefined, email, role, driverName: savedName || undefined });
+          let resolvedId = role === 'DRIVER' ? (driverId || userId || undefined) : (userId || undefined);
+
+          if (role === 'DRIVER' && !driverId) {
+            try {
+              const created = await dynamicQCommerceApi.createDriver('BLINKIT', email);
+              resolvedId = created?.driverId ?? resolvedId;
+              if (created?.driverId) {
+                await AsyncStorage.setItem('driverId', created.driverId);
+              }
+            } catch {
+              // Ignore and keep fallback id.
+            }
+          }
+
+          setUser({ id: resolvedId, email, role, driverName: savedName || undefined });
           
           // Check KYC status if driver
           if (role === 'DRIVER') {
@@ -106,7 +121,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', res.role || 'DRIVER'],
       ['userId', email],
     ]);
-    setUser({ email, role: res.role || 'DRIVER', driverName: savedName || undefined });
+    let driverId: string | null = null;
+    if ((res.role || 'DRIVER') === 'DRIVER') {
+      try {
+        const driverRes = await dynamicQCommerceApi.createDriver('BLINKIT', email);
+        driverId = driverRes?.driverId ?? null;
+        if (driverId) {
+          await AsyncStorage.setItem('driverId', driverId);
+        }
+      } catch {
+        driverId = null;
+      }
+    }
+    setUser({ id: driverId || email, email, role: res.role || 'DRIVER', driverName: savedName || undefined });
     
     // Check KYC status for drivers
     if (res.role === 'DRIVER') {
@@ -150,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', 'ADMIN'],
       ['userId', email],
     ]);
-    setUser({ email, role: 'ADMIN', driverName: savedName || undefined });
+    setUser({ id: email, email, role: 'ADMIN', driverName: savedName || undefined });
   };
 
   const checkKycStatus = useCallback(async () => {

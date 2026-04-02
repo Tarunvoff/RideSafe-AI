@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
 import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
+import { CreateDriverDto } from './dto/create-driver.dto';
 import { WeekKeyOverrideDto } from './dto/week-key-override.dto';
 import { SeedDriversDto } from './dto/seed-drivers.dto';
 import { DynamicQCommerceService } from './dynamic-qcommerce.service';
@@ -37,5 +38,11 @@ export class DynamicQCommerceController {
   @HttpCode(HttpStatus.OK)
   seedDrivers(@Body() dto: SeedDriversDto) {
     return this.dynamicQCommerceService.seedDrivers(dto.provider, dto.identifiers, dto.prefix, dto.count);
+  }
+
+  @Post('drivers/create')
+  @HttpCode(HttpStatus.OK)
+  createDriver(@Body() dto: CreateDriverDto) {
+    return this.dynamicQCommerceService.createDriver(dto.provider, dto.identifier);
   }
 }

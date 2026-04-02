@@ -182,6 +182,17 @@ export class DynamicQCommerceService {
     };
   }
 
+  createDriver(provider: QCommerceProvider, identifier: string) {
+    const trimmed = identifier.trim();
+    const internalDriverId = createInternalDriverId(provider, trimmed);
+    const record = this.ensureDriverRecord(provider, trimmed, internalDriverId);
+    return {
+      success: true,
+      driverId: internalDriverId,
+      driverProfile: this.composeProfile(record),
+    };
+  }
+
   getZoneActivity(zone: string) {
     const rawZone = zone.trim();
     const zoneKey = rawZone.toLowerCase();

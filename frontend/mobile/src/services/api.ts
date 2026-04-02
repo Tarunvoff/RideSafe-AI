@@ -219,13 +219,12 @@ export const fraudApi = {
       state: string;
       active_riders: number;
       lf_score: number;
-    }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`, {}, true),
+    }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`),
 
   getZoneNeighbors: (lat: number, lng: number, radius = 1) =>
     request<{ center: any; neighbors: any[] }>(
       `/fraud/zone-neighbors?lat=${lat}&lng=${lng}&radius=${radius}`,
       {},
-      true,
     ),
 
   // ── ADMIN ENDPOINTS ──────────────────────────────────────────────────────
@@ -326,6 +325,17 @@ export const driverApi = {
   getProfile: (driverId: string) =>
     request<{ success: boolean; message: string; driverProfile: any }>(
       `/dynamic-qcommerce/drivers/${driverId}/profile`,
+    ),
+};
+
+export const dynamicQCommerceApi = {
+  createDriver: (provider: 'BLINKIT' | 'ZEPTO' | 'INSTAMART' | 'BIGBASKET' | 'JIOMART', identifier: string) =>
+    request<{ success: boolean; driverId: string; driverProfile: any }>(
+      '/dynamic-qcommerce/drivers/create',
+      {
+        method: 'POST',
+        body: JSON.stringify({ provider, identifier }),
+      },
     ),
 };
 
@@ -472,7 +482,7 @@ export type PurchasedPlansResponse = {
 export const plansApi = {
   // Public weekly subscription catalog (timestamp ensures fresh fetch from DB)
   getWeeklyPlans: () =>
-    request<WeeklyPlan[]>(`/plans/weekly?_t=${Date.now()}`, {}, true),
+    request<WeeklyPlan[]>(`/plans/weekly?_t=${Date.now()}`),
 
   // Driver's active bought plans + disruption-based payout eligibility
   getPurchasedPlans: () =>

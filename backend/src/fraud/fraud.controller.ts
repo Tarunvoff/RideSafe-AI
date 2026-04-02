@@ -8,7 +8,6 @@ import { FraudService } from './fraud.service';
 import * as h3 from 'h3-js';
 
 @Controller('fraud')
-@UseGuards(JwtAuthGuard)
 export class FraudController {
   constructor(
     private readonly fraudService: FraudService,
@@ -18,6 +17,7 @@ export class FraudController {
   ) {}
 
   @Post('analyze')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async analyzeFraud(@Request() req: any, @Body() dto: AnalyzeFraudDto): Promise<any> {
     const result = await this.fraudService.analyzeFraud(req.user.id, dto);
@@ -47,6 +47,7 @@ export class FraudController {
   }
 
   @Get('status')
+  @UseGuards(JwtAuthGuard)
   getStatus(@Request() req: any) {
     return this.fraudService.getStatus(req.user.id);
   }
