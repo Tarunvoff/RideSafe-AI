@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { kycApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -58,6 +59,7 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LoadingOverlay visible={isLoading} message="Saving basic identity..." />
       <View style={styles.header}>
         {navigation.canGoBack() ? (
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
@@ -14,6 +15,7 @@ export default function HomeScreen({ navigation }: any) {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profile, setProfile] = useState<any | null>(null);
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const driverId = user?.id ?? user?.email ?? null;
 
@@ -29,6 +31,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadHome = useCallback(async () => {
     if (!driverId) return;
+    setLoading(true);
     try {
       const profileRes = await driverApi.getProfile(driverId);
       setProfile(profileRes?.driverProfile ?? null);
@@ -45,6 +48,8 @@ export default function HomeScreen({ navigation }: any) {
     } catch {
       setProfile(null);
       setZoneRisk(null);
+    } finally {
+      setLoading(false);
     }
   }, [driverId, location.latitude, location.longitude]);
 
@@ -123,6 +128,7 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <LoadingOverlay visible={loading} message="Loading dashboard intelligence..." />
 
       <Modal
         visible={profileMenuVisible}

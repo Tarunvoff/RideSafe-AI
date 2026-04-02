@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
@@ -99,6 +100,7 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <LoadingOverlay visible={loading} message="Authenticating your account..." />
       <Modal visible={demoVisible} transparent animationType="fade" onRequestClose={closeDemo}>
         <View style={styles.demoOverlay}>
           <View style={styles.demoShell}>

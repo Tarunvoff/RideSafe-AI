@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { payoutsApi, type PayoutRecord } from '../../services/api';
@@ -37,6 +38,7 @@ export default function WalletScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
+      <LoadingOverlay visible={loading} message="Syncing wallet transactions..." />
       <ScrollView contentContainerStyle={styles.container}>
         
         <Card style={styles.balanceCard}>

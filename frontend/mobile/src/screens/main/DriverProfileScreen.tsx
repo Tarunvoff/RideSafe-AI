@@ -17,6 +17,7 @@ import {
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { kycApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -414,6 +415,7 @@ export default function DriverProfileScreen({ navigation }: any) {
   // KYC data
   const [kycData, setKycData] = useState<KYCDetails | null>(null);
   const [kycLoading, setKycLoading] = useState(false);
+  const [nameSaving, setNameSaving] = useState(false);
 
   // Derive display name: user.driverName → KYC name → email prefix
   const displayName =
@@ -478,8 +480,13 @@ export default function DriverProfileScreen({ navigation }: any) {
       Alert.alert('Invalid Name', 'Name cannot be empty.');
       return;
     }
-    await updateDriverName(trimmed);
-    setEditingName(false);
+    try {
+      setNameSaving(true);
+      await updateDriverName(trimmed);
+      setEditingName(false);
+    } finally {
+      setNameSaving(false);
+    }
   };
 
   const cancelNameEdit = () => setEditingName(false);
@@ -494,6 +501,10 @@ export default function DriverProfileScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <LoadingOverlay
+        visible={kycLoading || nameSaving}
+        message={nameSaving ? 'Updating your profile name...' : 'Loading profile and KYC details...'}
+      />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}

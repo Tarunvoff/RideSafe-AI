@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import Button from '../../components/Button';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -382,6 +383,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LoadingOverlay visible={isLoading} message="Running fraud signal analysis..." />
       {/* Header */}
       <View style={styles.header}>
         {navigation.canGoBack() ? (

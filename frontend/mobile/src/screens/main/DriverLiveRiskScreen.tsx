@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Svg, { Circle, Polygon } from 'react-native-svg';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
@@ -75,6 +76,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const { location, refreshLocation } = useLocation();
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
+  const [loading, setLoading] = useState(false);
   const [selectedCellId, setSelectedCellId] = useState<string>('c0');
   const coords = useMemo(
     () => ({ lat: location.latitude, lng: location.longitude }),
@@ -106,6 +108,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const loadZones = useCallback(async () => {
     try {
       if (location.loading) return;
+      setLoading(true);
       await telemetryApi.sendGps({
         driverId: user?.id ?? user?.email ?? 'anonymous',
         lat: coords.lat,
@@ -123,6 +126,8 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     } catch {
       const fallback = toCellRisk({}, 'c0');
       setCellData({ current: fallback, neighbors: Array.from({ length: 6 }, (_, i) => ({ ...fallback, id: `n${i + 1}` })) });
+    } finally {
+      setLoading(false);
     }
   }, [coords.lat, coords.lng, location.loading, toCellRisk, user?.email, user?.id]);
 
@@ -213,6 +218,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
+      <LoadingOverlay visible={loading} message="Refreshing live hex-risk map..." />
 
       <ScrollView
         contentContainerStyle={styles.container}

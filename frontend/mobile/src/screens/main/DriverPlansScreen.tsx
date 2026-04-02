@@ -7,6 +7,7 @@ import { WebView } from 'react-native-webview';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 import { plansApi, premiumApi, type PurchasedPolicy, type WeeklyPlan } from '../../services/api';
@@ -359,6 +360,7 @@ export default function DriverPlansScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <LoadingOverlay visible={loading} message="Syncing plans and checkout..." />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}

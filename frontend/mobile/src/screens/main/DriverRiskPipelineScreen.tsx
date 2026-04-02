@@ -4,6 +4,7 @@ import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'r
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { driverApi, fraudApi, telemetryApi } from '../../services/api';
@@ -90,6 +91,7 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <LoadingOverlay visible={loading} message="Running live risk pipeline..." />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdminShell from '../../components/AdminShell';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
@@ -73,6 +74,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
 
   return (
     <AdminShell navigation={navigation} activeKey="dash">
+      <LoadingOverlay visible={isLoading} message="Loading fraud submissions..." />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={SLATE_900} />
@@ -89,11 +91,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
         </Text>
       </View>
 
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-        </View>
-      ) : submissions.length === 0 ? (
+      {!isLoading && submissions.length === 0 ? (
         <View style={styles.centerContainer}>
           <View style={styles.emptyIconBox}>
              <Ionicons name="checkmark-circle" size={64} color={PRIMARY} />
@@ -104,7 +102,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
              <Text style={styles.refreshBtnText}>Check Again</Text>
           </TouchableOpacity>
         </View>
-      ) : (
+      ) : !isLoading ? (
         <FlatList
           data={submissions}
           renderItem={renderSubmission}
@@ -112,7 +110,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
         />
-      )}
+      ) : null}
     </AdminShell>
   );
 }

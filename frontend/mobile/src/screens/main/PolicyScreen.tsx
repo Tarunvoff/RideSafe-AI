@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, ImageBackground, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { plansApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -8,14 +9,18 @@ import { Theme } from '../../theme';
 export default function PolicyScreen({ navigation }: any) {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [policy, setPolicy] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const loadPolicy = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await plansApi.getPurchasedPlans();
       const purchased = res?.purchasedPolicies ?? [];
       setPolicy(purchased[0] ?? null);
     } catch {
       setPolicy(null);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -49,6 +54,7 @@ export default function PolicyScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
+      <LoadingOverlay visible={loading} message="Loading policy details..." />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>

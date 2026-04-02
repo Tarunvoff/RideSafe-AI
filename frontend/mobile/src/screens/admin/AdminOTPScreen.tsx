@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AuthCard from '../../components/AuthCard';
 import Button from '../../components/Button';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
@@ -70,6 +71,7 @@ export default function AdminOTPScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LoadingOverlay visible={loading} message="Verifying admin access..." />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} disabled={success || loading}>
           <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />

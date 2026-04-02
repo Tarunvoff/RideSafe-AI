@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { driverApi } from '../../services/api';
@@ -23,6 +24,7 @@ export default function DriverActivityScreen({ navigation }: any) {
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = React.useState(false);
   const [profile, setProfile] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const driverId = user?.id ?? user?.email ?? null;
 
@@ -37,11 +39,14 @@ export default function DriverActivityScreen({ navigation }: any) {
 
   const loadProfile = useCallback(async () => {
     if (!driverId) return;
+    setLoading(true);
     try {
       const res = await driverApi.getProfile(driverId);
       setProfile(res?.driverProfile ?? null);
     } catch {
       setProfile(null);
+    } finally {
+      setLoading(false);
     }
   }, [driverId]);
 
@@ -73,6 +78,7 @@ export default function DriverActivityScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <LoadingOverlay visible={loading} message="Loading work pulse..." />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}

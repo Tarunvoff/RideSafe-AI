@@ -8,6 +8,7 @@ import {
     View,
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { Theme } from '../../theme';
 import { adminApi } from '../../services/api';
 
@@ -49,6 +50,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
   return (
     <AdminShell navigation={navigation} activeKey="dash">
+      <LoadingOverlay visible={loading} message="Loading admin dashboard..." />
       <View style={styles.root}>
         {/* Page title section (top navbar lives above and stays sticky) */}
         <View style={styles.header}>

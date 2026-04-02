@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { claimsApi, insuranceApi, type ClaimRecord } from '../../services/api';
@@ -56,7 +57,7 @@ export default function ClaimsScreen() {
     }
   };
 
-  const renderStatusStyle = (status: string) =>
+  const renderStatusStyle = (status: string): [ViewStyle, TextStyle] =>
     status === 'APPROVED'
       ? [styles.claimStatusResolved, styles.claimStatusTextResolved]
       : [styles.claimStatusPending, styles.claimStatusTextPending];
@@ -64,6 +65,7 @@ export default function ClaimsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
+      <LoadingOverlay visible={loading} message="Fetching claims timeline..." />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Your Claims</Text>

@@ -8,6 +8,7 @@ import {
     View,
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import { Theme } from '../../theme';
 import { adminApi } from '../../services/api';
 
@@ -48,6 +49,7 @@ export default function AdminClaimsScreen({ navigation }: any) {
 
   return (
     <AdminShell navigation={navigation} activeKey="claims">
+      <LoadingOverlay visible={loading} message="Loading claims and payouts..." />
       <View style={styles.root}>
         {/* Header (page-specific) */}
         <View style={styles.header}>

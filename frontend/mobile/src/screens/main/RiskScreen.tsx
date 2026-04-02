@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -13,8 +14,10 @@ const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 export default function RiskScreen({ navigation }: any) {
   const { user } = useAuth();
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const loadRisk = useCallback(async () => {
+    setLoading(true);
     try {
       const device = (await getDeviceLocation()) ?? DEFAULT_COORDS;
       await telemetryApi.sendGps({
@@ -27,6 +30,8 @@ export default function RiskScreen({ navigation }: any) {
       setZoneRisk(res ?? null);
     } catch {
       setZoneRisk(null);
+    } finally {
+      setLoading(false);
     }
   }, [user?.email, user?.id]);
 
@@ -43,6 +48,7 @@ export default function RiskScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
+      <LoadingOverlay visible={loading} message="Analyzing zone risk..." />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Hero Score Section */}

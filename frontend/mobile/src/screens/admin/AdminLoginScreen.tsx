@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AuthCard from '../../components/AuthCard';
 import Button from '../../components/Button';
+import LoadingOverlay from '../../components/LoadingOverlay';
 import Input from '../../components/Input';
 import { authApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -38,6 +39,7 @@ export default function AdminLoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LoadingOverlay visible={loading} message="Authenticating admin..." />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}

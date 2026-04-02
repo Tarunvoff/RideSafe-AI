@@ -9,6 +9,7 @@ import {
     View,
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
+  import LoadingOverlay from '../../components/LoadingOverlay';
 import { Theme } from '../../theme';
 import { adminApi } from '../../services/api';
 
@@ -45,6 +46,7 @@ export default function AdminWorkersScreen({ navigation }: any) {
 
   return (
     <AdminShell navigation={navigation} activeKey="workers">
+      <LoadingOverlay visible={loading} message="Fetching workers list..." />
       <View style={styles.root}>
         {/* Main Header */}
         <View style={styles.header}>
