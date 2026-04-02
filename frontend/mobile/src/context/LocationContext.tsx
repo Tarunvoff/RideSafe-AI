@@ -5,6 +5,7 @@ export type LocationState = {
   longitude: number;
   accuracy: number | null;
   isMock: boolean;
+  fetchedAt: Date | null;
   loading: boolean;
   error: string | null;
 };
@@ -33,6 +34,7 @@ const LocationContext = createContext<LocationContextType | null>(null);
 export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useState<LocationState>({
     ...MOCK_LOCATION,
+    fetchedAt: null,
     loading: true,
     error: null,
   });
@@ -40,6 +42,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const setMock = useCallback((reason: string) => {
     setLocation({
       ...MOCK_LOCATION,
+      fetchedAt: new Date(),
       loading: false,
       error: reason,
     });
@@ -81,6 +84,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         longitude: coords.longitude,
         accuracy: Number.isFinite(coords.accuracy) ? coords.accuracy : null,
         isMock: false,
+        fetchedAt: new Date(),
         loading: false,
         error: null,
       });

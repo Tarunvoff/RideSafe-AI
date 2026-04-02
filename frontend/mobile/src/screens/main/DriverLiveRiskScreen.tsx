@@ -9,7 +9,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import Svg, { Circle, Polygon } from 'react-native-svg';
+import MapView, { Marker } from 'react-native-maps';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
@@ -41,23 +41,6 @@ function riskLevelFromScore(score: number): RiskLevel {
   return 'LOW';
 }
 
-function hexPoints(
-  cx: number,
-  cy: number,
-  r: number,
-  // pointy-top hex
-  startAngleDeg = -30
-) {
-  const pts: string[] = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = ((startAngleDeg + i * 60) * Math.PI) / 180;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-  }
-  return pts.join(' ');
-}
-
 function riskColors(level: RiskLevel) {
   switch (level) {
     case 'HIGH':
@@ -74,10 +57,10 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
   const { user } = useAuth();
   const { location, refreshLocation } = useLocation();
+  const mapRef = React.useRef<MapView | null>(null);
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedCellId, setSelectedCellId] = useState<string>('c0');
   const coords = useMemo(
     () => ({ lat: location.latitude, lng: location.longitude }),
     [location.latitude, location.longitude],
@@ -86,7 +69,6 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   // Fixed map size for stable tap targets across devices.
   const mapW = clamp(width - 48, 320, 380);
   const mapH = 260;
-  const hexR = 26;
 
   const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
     const lf = Number(raw?.Lf ?? raw?.lf_score ?? 0.5);
@@ -140,80 +122,55 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     neighbors: Array.from({ length: 6 }, (_, i) => ({ ...toCellRisk({}, 'c0'), id: `n${i + 1}` })),
   }, [cellData, toCellRisk]);
 
-  const selectedCell: CellRisk = useMemo(() => {
-    if (selectedCellId === cells.current.id) return cells.current;
-    return cells.neighbors.find((n) => n.id === selectedCellId) ?? cells.current;
-  }, [cells.current, cells.neighbors, selectedCellId]);
+  const selectedCell: CellRisk = useMemo(() => cells.current, [cells.current]);
 
   const risk = useMemo(() => riskColors(selectedCell.riskLevel), [selectedCell.riskLevel]);
 
-  const center = useMemo(() => ({ x: mapW / 2, y: mapH / 2 + 8 }), [mapW]);
-
-  const hexPositions = useMemo(() => {
-    // pointy-top axial coords:
-    // directions: (1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)
-    // Convert axial -> pixel:
-    // x = r * sqrt(3) * (q + r/2); y = r * 3/2 * r.
-    const r = hexR;
-    const SQRT3 = Math.sqrt(3);
-    const dx = r * SQRT3;
-    const dy = r * 1.5;
-
-    const centerAx = { q: 0, a: 0 };
-
-    const toPx = (q: number, a: number) => ({
-      x: center.x + dx * (q + a / 2),
-      y: center.y + dy * a,
-    });
-
-    const neighborCoords = [
-      { id: cells.neighbors[0].id, q: 1, a: 0 },
-      { id: cells.neighbors[1].id, q: 1, a: -1 },
-      { id: cells.neighbors[2].id, q: 0, a: -1 },
-      { id: cells.neighbors[3].id, q: -1, a: 0 },
-      { id: cells.neighbors[4].id, q: -1, a: 1 },
-      { id: cells.neighbors[5].id, q: 0, a: 1 },
-    ];
-
-    return {
-      center: {
-        id: cells.current.id,
-        ...toPx(centerAx.q, centerAx.a),
-      },
-      neighbors: neighborCoords.map((c) => ({ ...c, ...toPx(c.q, c.a) })),
-    };
-  }, [cells.current.id, cells.neighbors, center.x, center.y, hexR]);
-
-  const backgroundHexes = useMemo(() => {
-    // Generate a subtle background grid for the map.
-    const hexes: Array<{ cx: number; cy: number; key: string }> = [];
-    const r = hexR;
-    const SQRT3 = Math.sqrt(3);
-    const dx = r * SQRT3;
-    const dy = r * 1.5;
-    const baseX = center.x - dx * 1.2;
-    const baseY = center.y - dy * 1.2;
-    const cols = 4;
-    const rows = 4;
-    for (let yi = 0; yi < rows; yi++) {
-      for (let xi = 0; xi < cols; xi++) {
-        const cx = baseX + dx * xi + (dx / 2) * (yi % 2);
-        const cy = baseY + dy * yi;
-        hexes.push({ cx, cy, key: `bg-${xi}-${yi}` });
-      }
-    }
-    return hexes;
-  }, [center.x, center.y, hexR]);
-
-  const driverLat = coords.lat.toFixed(4);
-  const driverLon = coords.lng.toFixed(4);
+  const driverLat = coords.lat;
+  const driverLon = coords.lng;
   const accuracyLabel = location.accuracy != null ? `${Math.round(location.accuracy)} m` : '—';
-  const lastPing = 'just now';
+  const lastPing = location.fetchedAt
+    ? location.fetchedAt.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      })
+    : '—';
   const locationSource = location.loading
     ? 'Fetching your location…'
     : location.isMock
       ? 'Mock Location'
       : 'Live GPS';
+
+  const mapRegion = useMemo(
+    () => ({
+      latitude: coords.lat,
+      longitude: coords.lng,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }),
+    [coords.lat, coords.lng],
+  );
+
+  const formatCoords = (lat: number, lng: number) => {
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lngDir = lng >= 0 ? 'E' : 'W';
+    return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`;
+  };
+
+  const handleRecenter = () => {
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(mapRegion, 600);
+    }
+    void refreshLocation();
+  };
+
+  useEffect(() => {
+    if (mapRef.current && !location.loading) {
+      mapRef.current.animateToRegion(mapRegion, 600);
+    }
+  }, [location.loading, mapRegion]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -226,88 +183,25 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       >
         {/* Status Strip */}
         <View style={styles.statusStrip}>
-          <View style={styles.statusCol}>
-            <Text style={styles.stripLabel}>Driver ID</Text>
-            <Text style={styles.stripValue}>{user?.id ?? user?.email ?? '—'}</Text>
-          </View>
-          <View style={styles.stripDivider} />
-          <View style={styles.statusCol}>
-            <Text style={styles.stripLabel}>Risk Score</Text>
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreValue}>{selectedCell.riskScore}</Text>
-              <Text style={styles.stripMinor}>/100</Text>
-            </View>
-          </View>
-          <View style={styles.stripDivider} />
-          <View style={styles.statusColEnd}>
-            <View style={styles.riskPillRow}>
-              <View style={styles.pingDotWrap}>
-                <View style={[styles.pingDot, { backgroundColor: risk.fill }]} />
-              </View>
-              <Text style={[styles.riskPillText, { color: risk.label }]}>
-                {selectedCell.riskLevel === 'LOW'
-                  ? 'Low Risk'
-                  : selectedCell.riskLevel === 'MEDIUM'
-                    ? 'Medium Risk'
-                    : 'High Risk'}
-              </Text>
-            </View>
-            <Text style={styles.stripMinor}>Ping: 2m ago</Text>
-          </View>
-        </View>
-
-        {/* Hero Map */}
-        <View style={styles.mapHero}>
-          <View style={styles.mapGridOverlay} />
-
-          <Svg width={mapW} height={mapH} style={styles.mapSvg}>
-            {/* background hex outlines */}
-            {backgroundHexes.map((h) => (
-              <Polygon
-                key={h.key}
-                points={hexPoints(h.cx, h.cy, hexR)}
-                fill="transparent"
-                stroke="#16a34a"
-                strokeOpacity={0.12}
-                strokeWidth={1}
+          {/* Hero Map */}
+          <View style={styles.mapHero}>
+            <MapView
+              ref={mapRef}
+              style={[styles.mapView, { width: mapW, height: mapH }]}
+              initialRegion={mapRegion}
+            >
+              <Marker
+                coordinate={{ latitude: coords.lat, longitude: coords.lng }}
+                title={location.isMock ? 'Mock Location' : 'You are here'}
+                pinColor={location.isMock ? '#f59e0b' : '#16a34a'}
               />
-            ))}
+            </MapView>
 
-            {/* driver marker */}
-            <Circle
-              cx={hexPositions.center.x}
-              cy={hexPositions.center.y}
-              r={6}
-              fill="#16a34a"
-            />
-            <Circle
-              cx={hexPositions.center.x}
-              cy={hexPositions.center.y}
-              r={14}
-              fill="#16a34a"
-              opacity={0.12}
-            />
-
-            {/* cells */}
-            {(() => {
-              const current = cells.current;
-              const currentCol = riskColors(current.riskLevel);
-              const centerSelected = selectedCellId === current.id;
-              return (
-                <Polygon
-                  points={hexPoints(
-                    hexPositions.center.x,
-                    hexPositions.center.y,
-                    hexR
-                  )}
-                  fill={
-                    centerSelected
-                      ? currentCol.fill
-                      : 'rgba(22, 163, 74, 0.20)'
-                  }
-                  stroke={centerSelected ? currentCol.stroke : currentCol.stroke}
-                  strokeWidth={centerSelected ? 3 : 2.5}
-                  onPress={() => setSelectedCellId(current.id)}
+            {location.isMock ? (
+              <View style={styles.mockMarkerBadge}>
+                <Text style={styles.mockMarkerText}>Mock</Text>
+              </View>
+            ) : null}
                 />
               );
             })()}
@@ -410,22 +304,23 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
           <View style={styles.validationRow}>
             <View style={styles.validationLeft}>
-                <Text style={styles.validationTitleText}>Realtime Location</Text>
-              <View style={styles.validationChip}>
-                <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                <Text style={styles.validationChipText}>Valid</Text>
-              </View>
-              <Text style={styles.validationMeta}>
-                  Lat: {driverLat} | Lon: {driverLon}
-              </Text>
-                <Text style={styles.validationMetaSecondary}>
-                  Accuracy: {accuracyLabel} • {lastPing}
+              <Text style={styles.validationTitleText}>Realtime Location</Text>
+              <View style={[styles.validationChip, location.isMock ? styles.validationChipMock : styles.validationChipLive]}>
+                <Ionicons name="checkmark-circle" size={14} color={location.isMock ? '#f59e0b' : '#16a34a'} />
+                <Text style={[styles.validationChipText, location.isMock ? styles.validationChipTextMock : styles.validationChipTextLive]}>
+                  {location.loading ? 'Fetching location' : location.isMock ? 'Mock location active' : 'Valid location confirmed'}
                 </Text>
-                <View style={[styles.sourceBadge, location.isMock ? styles.sourceBadgeMock : styles.sourceBadgeLive]}>
-                  <Text style={[styles.sourceBadgeText, location.isMock ? styles.sourceBadgeTextMock : styles.sourceBadgeTextLive]}>
-                    {locationSource}
-                  </Text>
-                </View>
+              </View>
+              <Text style={styles.validationMeta}>{formatCoords(driverLat, driverLon)}</Text>
+              <Text style={styles.validationMetaSecondary}>
+                {location.isMock ? `Mock • Last set at ${lastPing}` : `Fetched at ${lastPing}`}
+              </Text>
+              <Text style={styles.validationMetaSecondary}>Accuracy: {accuracyLabel}</Text>
+              <View style={[styles.sourceBadge, location.isMock ? styles.sourceBadgeMock : styles.sourceBadgeLive]}>
+                <Text style={[styles.sourceBadgeText, location.isMock ? styles.sourceBadgeTextMock : styles.sourceBadgeTextLive]}>
+                  {locationSource}
+                </Text>
+              </View>
             </View>
             <Ionicons name="share-outline" size={20} color="#6b7280" />
           </View>
@@ -433,7 +328,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
         {/* CTA Cluster */}
         <View style={styles.ctaCluster}>
-          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9} onPress={() => void refreshLocation()}>
+          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9} onPress={handleRecenter}>
             <Ionicons name="refresh" size={18} color="#ffffff" />
             <Text style={styles.primaryBtnText}>Recheck Location</Text>
           </TouchableOpacity>
@@ -504,35 +399,21 @@ const styles = StyleSheet.create({
     position: 'relative' as const,
     marginBottom: 12,
   },
-  mapGridOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#f3f4f6',
-    opacity: 0.35,
+  mapView: {
+    borderRadius: 20,
   },
-  mapSvg: {
+  mockMarkerBadge: {
     position: 'absolute' as const,
-    left: 0,
-    top: 0,
-  },
-  userMarker: {
-    position: 'absolute' as const,
-    left: '50%',
-    top: '50%',
-    transform: [{ translateX: -40 }, { translateY: -34 }],
-    alignItems: 'center',
-    gap: 6,
-  },
-  userMarkerLabel: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 12,
+    top: 12,
+    right: 12,
+    backgroundColor: '#fef3c7',
+    borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
+    borderColor: '#f59e0b',
   },
-  userMarkerText: { fontSize: 10, fontWeight: '900', color: '#0f172a', textTransform: 'uppercase' },
-  userMarkerCoords: { fontSize: 10, fontWeight: '600', color: '#6b7280', marginTop: 2 },
+  mockMarkerText: { fontSize: 10, fontWeight: '900', color: '#b45309', textTransform: 'uppercase' },
 
   legend: {
     position: 'absolute' as const,
@@ -644,14 +525,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#dcfce7',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
     alignSelf: 'flex-start',
     marginTop: 8,
   },
-  validationChipText: { fontSize: 10, fontWeight: '900', color: '#166534' },
+  validationChipLive: { backgroundColor: '#dcfce7' },
+  validationChipMock: { backgroundColor: '#fef3c7' },
+  validationChipText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  validationChipTextLive: { color: '#166534' },
+  validationChipTextMock: { color: '#b45309' },
   validationMeta: { marginTop: 6, fontSize: 12, color: '#6b7280', fontWeight: '600', fontFamily: 'monospace' },
   validationMetaSecondary: { marginTop: 4, fontSize: 11, color: '#9ca3af', fontWeight: '600', fontFamily: 'monospace' },
   sourceBadge: {

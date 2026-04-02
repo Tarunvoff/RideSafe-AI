@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
+import { Theme } from '../../theme';
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 type FloodChance = 'Low' | 'Medium' | 'High';
@@ -37,12 +39,28 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   const webRef = useRef<WebView>(null);
   const webFullRef = useRef<WebView>(null);
 
-  // For now, driver coordinates are placeholders. The UI + binding structure is ready
-  // to be connected to your real ping/validation/H3 mapping pipeline later.
-  const [driverLat] = useState<number>(40.7128);
-  const [driverLon] = useState<number>(-74.006);
-  const [lastPing] = useState<string>('2m ago');
-  const [validationText] = useState<string>('Valid location confirmed');
+  const { location, refreshLocation } = useLocation();
+  const driverLat = location.latitude;
+  const driverLon = location.longitude;
+  const lastPing = location.fetchedAt
+    ? location.fetchedAt.toLocaleTimeString('en-IN', { 
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      })
+    : '—';
+  
+  const formatCoords = (lat: number, lon: number) => {
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lonDir = lon >= 0 ? 'E' : 'W';
+    return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
+  };
+
+  const handleRecenter = () => {
+    void refreshLocation();
+    sendToWebView({ type: 'RECENTER' });
+  };
 
   const [h3Resolution, setH3Resolution] = useState<(typeof H3_RESOLUTIONS)[number]>(9);
   const [driverH3, setDriverH3] = useState<string>('—');
@@ -74,7 +92,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     // Mapbox + H3 are loaded in the web layer so we can render true hex polygons and
     // interactive Mapbox GL features without adding native Mapbox dependencies.
     const token = mapboxToken ? mapboxToken : '';
-    const driver = { lat: driverLat, lon: driverLon };
+    const driver = { lat: driverLat, lon: driverLon, isMock: location.isMock };
     const res = h3Resolution;
 
     return `<!doctype html>
@@ -169,6 +187,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
       let selectedH3 = null;
       let cells = [];
       let currentFC = null;
+      let driverMarker = null;
 
       // Placeholder for backend binding:
       // RN can inject a real riskMap keyed by H3 index later.
@@ -338,7 +357,9 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         map.addControl(new mapboxgl.NavigationControl({ showCompass: false, showZoom: true }), 'top-right');
         map.on('load', () => {
           // Emphasize driver location with a marker.
-          new mapboxgl.Marker({ color: '#16a34a' }).setLngLat([driver.lon, driver.lat]).addTo(map);
+          driverMarker = new mapboxgl.Marker({ color: driver.isMock ? '#f59e0b' : '#16a34a' })
+            .setLngLat([driver.lon, driver.lat])
+            .addTo(map);
           const fc = buildGeoJSON();
           map.addSource('h3cells', { type: 'geojson', data: fc });
 
@@ -490,11 +511,35 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         if (selectedFeat) post('SELECT_CELL', { cell: selectedFeat.properties });
       }
 
+      function setDriver(nextLat, nextLon, nextIsMock) {
+        if (!map) return;
+        driver.lat = nextLat;
+        driver.lon = nextLon;
+        driver.isMock = Boolean(nextIsMock);
+        if (driverMarker) {
+          driverMarker.remove();
+          driverMarker = new mapboxgl.Marker({ color: driver.isMock ? '#f59e0b' : '#16a34a' })
+            .setLngLat([driver.lon, driver.lat])
+            .addTo(map);
+        } else {
+          driverMarker = new mapboxgl.Marker({ color: driver.isMock ? '#f59e0b' : '#16a34a' })
+            .setLngLat([driver.lon, driver.lat])
+            .addTo(map);
+        }
+        map.easeTo({ center: [driver.lon, driver.lat], duration: 400 });
+        rebuildGrid(resolution);
+      }
+
       window.__RN_HANDLE__ = function(payload) {
         try {
           if (!payload || !payload.type) return;
           if (payload.type === 'SET_RESOLUTION') {
             rebuildGrid(payload.resolution);
+          }
+          if (payload.type === 'SET_DRIVER') {
+            if (typeof payload.lat === 'number' && typeof payload.lon === 'number') {
+              setDriver(payload.lat, payload.lon, payload.isMock);
+            }
           }
           if (payload.type === 'RECENTER') {
             if (!map) return;
@@ -516,7 +561,17 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     </script>
   </body>
 </html>`;
-  }, [driverLat, driverLon, h3Resolution, mapboxToken]);
+  }, [driverLat, driverLon, h3Resolution, mapboxToken, location.isMock]);
+
+  useEffect(() => {
+    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon)) return;
+    sendToWebView({
+      type: 'SET_DRIVER',
+      lat: driverLat,
+      lon: driverLon,
+      isMock: location.isMock,
+    });
+  }, [driverLat, driverLon, location.isMock, viewMode]);
 
   const onWebMessage = (e: any) => {
     try {
@@ -613,16 +668,6 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
           <View style={styles.stripDivider} />
 
-          <View style={styles.stripCol}>
-            <Text style={styles.stripLabel}>Risk Score</Text>
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreValue}>{selectedCell?.riskScore ?? 0}</Text>
-              <Text style={styles.scoreMinor}>/100</Text>
-            </View>
-          </View>
-
-          <View style={styles.stripDivider} />
-
           <View style={styles.stripEnd}>
             <View style={styles.livePill}>
               <View style={[styles.liveDot, { backgroundColor: '#16a34a' }]} />
@@ -634,6 +679,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
         <View style={styles.mapHero}>
           <WebView
+            key={`mobile-${driverLat}-${driverLon}-${h3Resolution}`}
             ref={webRef}
             originWhitelist={['*']}
             source={{ html }}
@@ -663,9 +709,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.recenterBtn}
               activeOpacity={0.9}
-              onPress={() =>
-                sendToWebView({ type: 'RECENTER' })
-              }
+              onPress={handleRecenter}
             >
               <Ionicons name="locate" size={16} color="#ffffff" />
               <Text style={styles.recenterText}>Recenter</Text>
@@ -748,12 +792,15 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           <View style={styles.validationRow}>
             <View style={styles.validationLeft}>
               <Text style={styles.validationTitle}>Validation</Text>
-              <View style={styles.validationChip}>
-                <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                <Text style={styles.validationChipText}>{validationText}</Text>
+              <View style={[styles.validationChip, location.isMock ? styles.validationChipMock : styles.validationChipLive]}>
+                <Ionicons name="checkmark-circle" size={14} color={location.isMock ? '#f59e0b' : Theme.colors.primary} />
+                <Text style={[styles.validationChipText, location.isMock ? styles.validationChipTextMock : styles.validationChipTextLive]}>
+                  {location.loading ? 'Fetching location' : location.isMock ? 'Mock location active' : 'Valid location confirmed'}
+                </Text>
               </View>
-              <Text style={styles.validationMeta}>
-                {driverLat.toFixed(4)}° N, {Math.abs(driverLon).toFixed(4)}° W • Ping {lastPing}
+              <Text style={styles.validationMeta}>{formatCoords(driverLat, driverLon)}</Text>
+              <Text style={styles.validationMetaSecondary}>
+                {location.isMock ? `Mock • Last set at ${lastPing}` : `Fetched at ${lastPing}`}
               </Text>
             </View>
           </View>
@@ -763,11 +810,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.primaryBtn}
             activeOpacity={0.9}
-            onPress={() => {
-              // Recenter + keep current selection. Ping->validation->H3->risk binding
-              // will hook here later.
-              sendToWebView({ type: 'RECENTER' });
-            }}
+            onPress={handleRecenter}
           >
             <Ionicons name="refresh" size={16} color="#ffffff" />
             <Text style={styles.primaryBtnText}>Recheck Location</Text>
@@ -786,6 +829,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
       ) : (
         <View style={styles.webOnlyContainer}>
           <WebView
+            key={`web-${driverLat}-${driverLon}-${h3Resolution}`}
             ref={webFullRef}
             originWhitelist={['*']}
             source={{ html }}
@@ -1028,14 +1072,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#dcfce7',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
     alignSelf: 'flex-start',
   },
-  validationChipText: { fontSize: 10, fontWeight: '900', color: '#166534' },
-  validationMeta: { marginTop: 8, fontSize: 12, fontWeight: '700', color: '#6b7280' },
+  validationChipLive: { backgroundColor: '#dcfce7' },
+  validationChipMock: { backgroundColor: '#fef3c7' },
+  validationChipText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  validationChipTextLive: { color: '#166534' },
+  validationChipTextMock: { color: '#b45309' },
+  validationMeta: { marginTop: 8, fontSize: 12, fontWeight: '700', color: '#6b7280', fontFamily: 'monospace' },
+  validationMetaSecondary: { marginTop: 4, fontSize: 11, fontWeight: '600', color: '#9ca3af', fontFamily: 'monospace' },
 
   ctaCluster: {
     flexDirection: 'row',
