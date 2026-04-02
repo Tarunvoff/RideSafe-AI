@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DynamicQCommerceModule } from '../dynamic-qcommerce/dynamic-qcommerce.module';
 import { StateModule } from '../state/state.module';
@@ -13,7 +13,7 @@ import { ClaimOrchestratorService } from './claim-orchestrator.service';
 @Module({
   imports: [
     PrismaModule,
-    DynamicQCommerceModule,
+    forwardRef(() => DynamicQCommerceModule),
     StateModule,
     FraudIntegrationModule,
     PayoutModule,
