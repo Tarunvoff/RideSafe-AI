@@ -122,45 +122,53 @@ export class PaymentsService {
     const plan = razorpayOrder.weeklyPlan;
     if (!plan) throw new BadRequestException('Weekly plan not found for order');
 
-    // Keep "Purchased Plans" clean: expire any other active policies.
-    await prisma.policy.updateMany({
-      where: {
-        userId,
-        status: 'ACTIVE',
-        endDate: { gt: now },
-      },
-      data: {
-        endDate: now,
-      },
-    });
-
     const endDate = new Date(now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
-    const policy = await prisma.policy.create({
-      data: {
-        userId,
-        planType: plan.key,
-        status: 'ACTIVE',
-        premium: plan.price,
-        startDate: now,
-        endDate,
-        weeklyPlanId: plan.id,
-      },
-    });
+    try {
+      const result = await prisma.$transaction(async (tx: any) => {
+        await tx.policy.updateMany({
+          where: {
+            userId,
+            status: 'ACTIVE',
+            endDate: { gt: now },
+          },
+          data: {
+            endDate: now,
+          },
+        });
 
-    await prisma.razorpayOrder.update({
-      where: { id: razorpayOrder.id },
-      data: {
-        status: 'SUCCESS',
-        razorpayPaymentId: razorpay_payment_id,
-        razorpaySignature: razorpay_signature,
-      },
-    });
+        const policy = await tx.policy.create({
+          data: {
+            userId,
+            planType: plan.key,
+            status: 'ACTIVE',
+            premium: plan.price,
+            startDate: now,
+            endDate,
+            weeklyPlanId: plan.id,
+          },
+        });
 
-    return {
-      success: true,
-      policy,
-    };
+        await tx.razorpayOrder.update({
+          where: { id: razorpayOrder.id },
+          data: {
+            status: 'SUCCESS',
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature,
+          },
+        });
+
+        return policy;
+      });
+
+      return {
+        success: true,
+        policy: result,
+      };
+    } catch (err: any) {
+      this.logger.error(`Transaction failed during policy creation: ${err.message}`);
+      throw new BadRequestException('Payment verified but policy creation failed. Please contact support.');
+    }
   }
 
   // ── Parametric Payouts (Idempotent) ──────────────────────────────────────────

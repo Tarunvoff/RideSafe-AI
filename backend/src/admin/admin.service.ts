@@ -64,6 +64,18 @@ export class AdminService {
       },
     }));
 
+    let riskTrend: any[] = [];
+    try {
+      riskTrend = await prisma.$queryRaw`
+        SELECT DATE_TRUNC('day', "createdAt") as day, AVG("lfScore") as avg_lf
+        FROM zone_telemetry_logs
+        WHERE "createdAt" > NOW() - INTERVAL '7 days'
+        GROUP BY 1 ORDER BY 1
+      `;
+    } catch (err: any) {
+      riskTrend = [];
+    }
+
     return {
       totalWorkers,
       activePlans,
@@ -79,6 +91,7 @@ export class AdminService {
         expectedPayout: alert.expectedPayout ?? null,
       })),
       recentClaims,
+      riskTrend,
     };
   }
 

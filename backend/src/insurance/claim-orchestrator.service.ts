@@ -49,6 +49,10 @@ export class ClaimOrchestratorService {
           eventType: 'AUTO_EVAL',
           eventTimestamp: timestamp,
         });
+        if (result.decision === 'REJECT' || result.payout === 0) {
+          this.logger.debug(`Skipping driver ${driverId}: decision=${result.decision}, payout=${result.payout}`);
+          continue;
+        }
         this.logger.log(`Result for ${driverId}: payout=${result.payout}, decision=${result.decision}`);
       } catch (err: any) {
         this.logger.error(`Auto-claim evaluation failed for driver ${driverId}: ${err.message}`, err.stack);
