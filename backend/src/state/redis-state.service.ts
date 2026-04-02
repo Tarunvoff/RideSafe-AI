@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+export const PARAMETRIC_TRIGGER_STATES = ['HALTED', 'FLOODED', 'TOXIC_AQI', 'GRIDLOCK'];
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const DRIVER_STATE_TTL = Number(process.env.DRIVER_STATE_TTL_SECONDS ?? 900);
@@ -55,7 +56,8 @@ export class RedisStateService {
         const raw = await redis.get(key);
         if (raw) {
           const state = JSON.parse(raw);
-          if (state.zone_state === 'HALTED' || state.state === 'HALTED') {
+          const zs = state.zone_state?.toUpperCase() ?? state.state?.toUpperCase();
+          if (PARAMETRIC_TRIGGER_STATES.includes(zs)) {
             const h3Cell = key.replace('zone:', '');
             haltedZones.push({ h3Cell, state });
           }

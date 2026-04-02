@@ -85,6 +85,19 @@ def get_zone_state(civic_alert: bool, Lf: float) -> str:
         return "SLOW"
     return "NORMAL"
 
+def check_parametric_overrides(features: FeatureResponse, is_gridlock: bool = False) -> tuple[float | None, str | None]:
+    """
+    Parametric trigger overrides. Priority: FLOODED > TOXIC_AQI > GRIDLOCK.
+    Returns (Lf, zone_state) or (None, None) if no override.
+    """
+    if features.rainfall >= 50.0:
+        return 1.0, "FLOODED"
+    if features.aqi >= 300.0:
+        return 1.0, "TOXIC_AQI"
+    if is_gridlock:
+        return 1.0, "GRIDLOCK"
+    return None, None
+
 
 def _sanity_check(Lf: float, premium: float, zone_state: str, trace_id: str) -> tuple[float, float, str]:
     """
@@ -107,7 +120,7 @@ def _sanity_check(Lf: float, premium: float, zone_state: str, trace_id: str) -> 
     # [SC3] zone_state ↔ Lf consistency
     # Re-derive expected state (no civic_alert context here, use Lf only)
     expected_state = get_zone_state(False, Lf)
-    if zone_state != expected_state and zone_state != "HALTED":
+    if zone_state not in ["HALTED", "FLOODED", "TOXIC_AQI", "GRIDLOCK"] and zone_state != expected_state:
         issues.append(f"zone_state={zone_state} inconsistent with Lf={Lf:.4f} → overridden to {expected_state}")
         zone_state = expected_state
 
@@ -246,6 +259,19 @@ async def _execute_pipeline_core(
     except Exception:
         pass
 
+    # ── Step 2.6: Fetch Live Traffic (TomTom Mock) ───────────────────────────
+    try:
+        from services.traffic_service import get_traffic_features
+        traffic_data = await get_traffic_features(request.lat, request.lng, h3_cell)
+        # We can dynamically inject into Pydantic models with setattr or directly into the request scope
+        setattr(features, "is_gridlock", traffic_data.get("is_gridlock", False))
+        if traffic_data["avg_speed_kmh"] > 0:
+            avg_speed = traffic_data["avg_speed_kmh"]
+        logger.debug("[tid=%s] Traffic: speed=%.1f gridlock=%s", trace_id, traffic_data["avg_speed_kmh"], traffic_data["is_gridlock"])
+    except Exception as exc:
+        logger.warning("[tid=%s] Traffic fetch failed: %s", trace_id, exc)
+        setattr(features, "is_gridlock", False)
+
     # ── Step 3: Features → /risk-score (circuit breaker guarded) ─────────────
     historical_freq = min(1.0, max(0.0, features.avg_delivery_delay_min / 60.0))
     zone_volatility = min(1.0, max(0.0, features.sla_breach_rate))
@@ -356,9 +382,19 @@ async def _execute_pipeline_core(
         logger.info("[tid=%s] Estimated fallback premium=₹%.2f (no ML)", trace_id, premium)
         fallback_reasons.append("pricing_fallback")
 
+    # ── Step 4.2: Parametric overrides ───────────────────────────────────────
+    is_gridlock = getattr(features, "is_gridlock", False)
+    override_lf, override_state = check_parametric_overrides(features, is_gridlock=is_gridlock)
+
     # ── Step 4.5: Derive + sanity-check zone_state ───────────────────────────
-    zone_state = get_zone_state(features.civic_alert, Lf)
-    Lf, premium, zone_state = _sanity_check(Lf, premium, zone_state, trace_id)
+    if override_state:
+        zone_state = override_state
+        Lf = override_lf
+        premium = max(_MIN_PREMIUM, min(_MAX_PREMIUM, premium))
+        logger.info("[tid=%s] Parametric trigger fired: %s", trace_id, zone_state)
+    else:
+        zone_state = get_zone_state(features.civic_alert, Lf)
+        Lf, premium, zone_state = _sanity_check(Lf, premium, zone_state, trace_id)
 
     # ── Step 4.9: Write ML-authoritative zone state to Redis ─────────────────
     _write_zone_to_redis(h3_cell, Lf, zone_state, trace_id)

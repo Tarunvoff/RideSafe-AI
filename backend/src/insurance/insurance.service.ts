@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.service';
-import { RedisStateService } from '../state/redis-state.service';
+import { RedisStateService, PARAMETRIC_TRIGGER_STATES } from '../state/redis-state.service';
 import { FraudIntegrationService } from '../fraud-integration/fraud-integration.service';
 import { PayoutService } from '../payout/payout.service';
 import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
@@ -159,11 +159,16 @@ export class InsuranceService {
     const Ct = this.resolveCtOrThrow(plan);
     let Lf = 0.5;
     let zoneState = 'UNKNOWN';
+    let premiumFromPipeline: number | null = null;
 
     try {
       const pipeline = await this.callPipeline(lat, lng, Ew, Ct, platform);
       Lf = Number(pipeline?.Lf ?? Lf);
       zoneState = pipeline?.zone_state ?? zoneState;
+      // Prefer Python pricing service result; fall through to local formula if absent
+      if (pipeline?.premium != null && Number(pipeline.premium) > 0) {
+        premiumFromPipeline = Number(pipeline.premium);
+      }
     } catch (err) {
       this.logger.warn(`Pipeline unavailable for ${dto.driverId}: ${err}`);
       const fallbackZone = await this.fallbackZoneState(h3Cell);
@@ -173,7 +178,8 @@ export class InsuranceService {
       }
     }
 
-    const premium = this.computePremium(Ew, Lf, Ct);
+    // Use Python pricing if available, otherwise compute locally as safety net
+    const premium = premiumFromPipeline ?? this.computePremium(Ew, Lf, Ct);
     const now = new Date();
     const validTo = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -321,7 +327,7 @@ export class InsuranceService {
       this.logger.warn(`Fraud scoring failed for ${driverId}: ${err}`);
     }
 
-    const trigger = zoneState === 'HALTED';
+    const trigger = PARAMETRIC_TRIGGER_STATES.includes(zoneState.toUpperCase());
 
     const eligible = Boolean(activePolicy);
 
