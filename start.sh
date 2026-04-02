@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Define colors for pretty output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -7,16 +9,45 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+if [[ "$(uname)" != "Darwin" ]]; then
+    echo -e "${YELLOW}⚠ This script is optimized for macOS. Use linux.sh on Linux.${NC}"
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+    echo -e "${RED}❌ Node.js is not installed. Please install Node.js 18+.${NC}"
+    exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+    echo -e "${RED}❌ npm is not installed. Please install npm.${NC}"
+    exit 1
+fi
+
 echo -e "${BLUE}=======================================${NC}"
 echo -e "${GREEN}🚀 Starting RideSafe-AI Magic Setup...${NC}"
 echo -e "${BLUE}=======================================${NC}\n"
 
 # 1. Dynamically find the local IP address (macOS)
 echo -e "${YELLOW}🔍 Detecting your local Wi-Fi IP address...${NC}"
-LOCAL_IP=$(ip route get 1 | awk '{print $7}')
+
+DEFAULT_IFACE=$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')
+LOCAL_IP=""
+
+if [ -n "$DEFAULT_IFACE" ]; then
+    LOCAL_IP=$(ipconfig getifaddr "$DEFAULT_IFACE" 2>/dev/null || true)
+fi
 
 if [ -z "$LOCAL_IP" ]; then
-    echo -e "${RED}❌ Could not determine your local IP address. Make sure you are connected to Wi-Fi.${NC}"
+    for iface in en0 en1; do
+        LOCAL_IP=$(ipconfig getifaddr "$iface" 2>/dev/null || true)
+        if [ -n "$LOCAL_IP" ]; then
+            break
+        fi
+    done
+fi
+
+if [ -z "$LOCAL_IP" ]; then
+    echo -e "${RED}❌ Could not determine your local IP address on macOS. Connect to Wi-Fi/Ethernet and try again.${NC}"
     exit 1
 fi
 
