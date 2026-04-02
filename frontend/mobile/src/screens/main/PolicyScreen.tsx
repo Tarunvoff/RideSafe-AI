@@ -1,15 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import { Animated, ImageBackground, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
-import { plansApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { plansApi, policyApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function PolicyScreen({ navigation }: any) {
+  const { user } = useAuth();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [policy, setPolicy] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('Updating policy...');
+
+  const driverId = user?.id ?? user?.email ?? null;
 
   const loadPolicy = useCallback(async () => {
     setLoading(true);
@@ -27,6 +34,64 @@ export default function PolicyScreen({ navigation }: any) {
   useEffect(() => {
     void loadPolicy();
   }, [loadPolicy]);
+
+  const doCancelPolicy = async () => {
+    if (!driverId) {
+      Alert.alert('Unable to cancel', 'Missing driver identity. Please log in again.');
+      return;
+    }
+    setActionMessage('Cancelling policy...');
+    setActionLoading(true);
+    try {
+      await policyApi.cancel(String(driverId), 'Cancelled from mobile policy screen');
+      await loadPolicy();
+      Alert.alert('Policy cancelled', 'Your current policy has been cancelled successfully.');
+    } catch (e: any) {
+      Alert.alert('Cancel failed', e?.message ?? 'Could not cancel policy right now.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const doRenewPolicy = async () => {
+    if (!driverId) {
+      Alert.alert('Unable to renew', 'Missing driver identity. Please log in again.');
+      return;
+    }
+    setActionMessage('Renewing policy...');
+    setActionLoading(true);
+    try {
+      await policyApi.renew(String(driverId));
+      await loadPolicy();
+      Alert.alert('Policy renewed', 'Your policy has been renewed successfully.');
+    } catch (e: any) {
+      Alert.alert('Renew failed', e?.message ?? 'Could not renew policy right now.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const onPressCancelPolicy = () => {
+    Alert.alert(
+      'Cancel Policy',
+      'Are you sure you want to cancel your current policy?',
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes, Cancel', style: 'destructive', onPress: () => void doCancelPolicy() },
+      ],
+    );
+  };
+
+  const onPressRenewPolicy = () => {
+    Alert.alert(
+      'Renew Policy',
+      'Do you want to renew your policy now?',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Renew', onPress: () => void doRenewPolicy() },
+      ],
+    );
+  };
 
   // Simple slide to activate logic
   const panResponder = useRef(
@@ -54,7 +119,7 @@ export default function PolicyScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
-      <LoadingOverlay visible={loading} message="Loading policy details..." />
+      <LoadingOverlay visible={loading || actionLoading} message={actionLoading ? actionMessage : 'Loading policy details...'} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
@@ -121,6 +186,28 @@ export default function PolicyScreen({ navigation }: any) {
         </View>
 
         <View style={styles.actionSection}>
+          <View style={styles.lifecycleRow}>
+            <TouchableOpacity
+              style={[styles.lifecycleBtn, styles.cancelBtn, (!policy || actionLoading) && styles.lifecycleBtnDisabled]}
+              onPress={onPressCancelPolicy}
+              disabled={!policy || actionLoading}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="close-circle-outline" size={18} color="#b91c1c" />
+              <Text style={styles.cancelBtnText}>Cancel Policy</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.lifecycleBtn, styles.renewBtn, actionLoading && styles.lifecycleBtnDisabled]}
+              onPress={onPressRenewPolicy}
+              disabled={actionLoading}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#166534" />
+              <Text style={styles.renewBtnText}>Renew Policy</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.sliderTrack}>
             <Text style={styles.sliderText}>SLIDE TO ACTIVATE</Text>
             <Animated.View {...panResponder.panHandlers} style={[styles.sliderThumb, { transform: [{ translateX: slideAnim }] }]}>
@@ -173,6 +260,22 @@ const styles = StyleSheet.create({
   autoClaimDesc: { fontSize: 12, color: '#475569', lineHeight: 18 },
 
   actionSection: { paddingHorizontal: 24, marginTop: 'auto', paddingTop: 16, gap: 16 },
+  lifecycleRow: { flexDirection: 'row', gap: 10 },
+  lifecycleBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: Theme.borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+  },
+  lifecycleBtnDisabled: { opacity: 0.55 },
+  cancelBtn: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
+  cancelBtnText: { fontSize: 13, fontWeight: '800', color: '#b91c1c' },
+  renewBtn: { backgroundColor: '#ecfdf3', borderColor: '#86efac' },
+  renewBtnText: { fontSize: 13, fontWeight: '800', color: '#166534' },
   sliderTrack: { height: 64, backgroundColor: '#f1f5f9', borderRadius: 32, justifyContent: 'center', paddingHorizontal: 4, position: 'relative' },
   sliderText: { position: 'absolute', width: '100%', textAlign: 'center', fontSize: 14, fontWeight: '600', color: '#94a3b8', letterSpacing: 1 },
   sliderThumb: { width: 56, height: 56, borderRadius: 28, backgroundColor: Theme.colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: Theme.colors.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, zIndex: 10 },

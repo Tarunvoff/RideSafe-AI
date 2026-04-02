@@ -379,6 +379,36 @@ export const insuranceApi = {
     }),
 };
 
+export const policyApi = {
+  cancel: (driverId: string, reason?: string) =>
+    request<{ message: string; policyId: string; status: string; reason: string }>(
+      '/policy/cancel',
+      {
+        method: 'POST',
+        body: JSON.stringify({ driverId, reason }),
+      },
+      true,
+    ),
+
+  renew: (driverId: string) =>
+    request<{
+      message: string;
+      policyId: string;
+      status: string;
+      planType: string;
+      premium: number;
+      startDate: string;
+      endDate: string;
+    }>(
+      '/policy/renew',
+      {
+        method: 'POST',
+        body: JSON.stringify({ driverId }),
+      },
+      true,
+    ),
+};
+
 // ── CLAIMS / PAYOUTS ───────────────────────────────────────────────────────
 
 export type ClaimRecord = {
