@@ -1,7 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 from routes import risk, pricing, fraud, trigger
 import utils.model_loader # This triggers singleton initialization during startup
+
+REQUIRED_ENV_VARS = (
+    "REDIS_URL",
+)
+
+
+def validate_required_env_vars() -> None:
+    missing = [key for key in REQUIRED_ENV_VARS if not os.getenv(key, "").strip()]
+    if missing:
+        raise RuntimeError(
+            "Missing required environment variables: "
+            + ", ".join(missing)
+            + ". Please set them before starting ml-insurance-service."
+        )
+
+
+validate_required_env_vars()
 
 app = FastAPI(
     title="Aegis ML Microservice",

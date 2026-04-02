@@ -16,6 +16,7 @@ Responsibilities:
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -30,6 +31,26 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+REQUIRED_ENV_VARS = (
+    "KAFKA_BOOTSTRAP_SERVERS",
+    "REDIS_URL",
+    "ML_SERVICE_URL",
+    "H3_FEATURE_SERVICE_URL",
+)
+
+
+def validate_required_env_vars() -> None:
+    missing = [key for key in REQUIRED_ENV_VARS if not os.getenv(key, "").strip()]
+    if missing:
+        raise RuntimeError(
+            "Missing required environment variables: "
+            + ", ".join(missing)
+            + ". Please set them before starting grid_event_service."
+        )
+
+
+validate_required_env_vars()
 
 _aggregator: ZoneAggregator | None = None
 

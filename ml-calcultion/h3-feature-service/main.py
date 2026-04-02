@@ -14,6 +14,7 @@ Port: 8001 (runs alongside ML service on 8000)
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -23,6 +24,25 @@ from routes.pipeline import router as pipeline_router
 from services.kafka_consumer import run_h3_kafka_consumer
 
 logger = logging.getLogger(__name__)
+
+REQUIRED_ENV_VARS = (
+    "KAFKA_BOOTSTRAP_SERVERS",
+    "REDIS_URL",
+    "ML_INSURANCE_SERVICE_URL",
+)
+
+
+def validate_required_env_vars() -> None:
+    missing = [key for key in REQUIRED_ENV_VARS if not os.getenv(key, "").strip()]
+    if missing:
+        raise RuntimeError(
+            "Missing required environment variables: "
+            + ", ".join(missing)
+            + ". Please set them before starting h3-feature-service."
+        )
+
+
+validate_required_env_vars()
 
 
 @asynccontextmanager
