@@ -13,10 +13,8 @@ import Svg, { Circle, Polygon } from 'react-native-svg';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
-import { getDeviceLocation } from '../../utils/location';
-
-const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -74,10 +72,14 @@ function riskColors(level: RiskLevel) {
 export default function DriverLiveRiskScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
   const { user } = useAuth();
+  const { location, refreshLocation } = useLocation();
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string>('c0');
-  const [coords, setCoords] = useState(DEFAULT_COORDS);
+  const coords = useMemo(
+    () => ({ lat: location.latitude, lng: location.longitude }),
+    [location.latitude, location.longitude],
+  );
 
   // Fixed map size for stable tap targets across devices.
   const mapW = clamp(width - 48, 320, 380);
@@ -103,15 +105,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   const loadZones = useCallback(async () => {
     try {
-      const device = (await getDeviceLocation()) ?? DEFAULT_COORDS;
-      setCoords(device);
+      if (location.loading) return;
       await telemetryApi.sendGps({
         driverId: user?.id ?? user?.email ?? 'anonymous',
-        lat: device.lat,
-        lng: device.lng,
+        lat: coords.lat,
+        lng: coords.lng,
         platform: 'mobile-app',
       });
-      const res = await fraudApi.getZoneNeighbors(device.lat, device.lng, 1);
+      const res = await fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1);
       const center = toCellRisk(res?.center ?? {}, 'c0');
       const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors.slice(0, 6) : [];
       const neighbors = neighborsRaw.map((entry: any, idx: number) => toCellRisk(entry, `n${idx + 1}`));
@@ -123,7 +124,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       const fallback = toCellRisk({}, 'c0');
       setCellData({ current: fallback, neighbors: Array.from({ length: 6 }, (_, i) => ({ ...fallback, id: `n${i + 1}` })) });
     }
-  }, [toCellRisk, user?.email, user?.id]);
+  }, [coords.lat, coords.lng, location.loading, toCellRisk, user?.email, user?.id]);
 
   useEffect(() => {
     void loadZones();
@@ -199,9 +200,15 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     return hexes;
   }, [center.x, center.y, hexR]);
 
-  const driverLat = `${coords.lat.toFixed(4)}° N`;
-  const driverLon = `${coords.lng.toFixed(4)}° W`;
+  const driverLat = coords.lat.toFixed(4);
+  const driverLon = coords.lng.toFixed(4);
+  const accuracyLabel = location.accuracy != null ? `${Math.round(location.accuracy)} m` : '—';
   const lastPing = 'just now';
+  const locationSource = location.loading
+    ? 'Fetching your location…'
+    : location.isMock
+      ? 'Mock Location'
+      : 'Live GPS';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -318,6 +325,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
             })}
           </Svg>
 
+          <View style={styles.userMarker}>
+            <Ionicons name="location" size={18} color="#16a34a" />
+            <View style={styles.userMarkerLabel}>
+              <Text style={styles.userMarkerText}>You are here</Text>
+              <Text style={styles.userMarkerCoords}>Lat {driverLat} · Lon {driverLon}</Text>
+            </View>
+          </View>
+
           {/* Legend */}
           <View style={styles.legend}>
             <View style={styles.legendRow}>
@@ -389,14 +404,22 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
           <View style={styles.validationRow}>
             <View style={styles.validationLeft}>
-              <Text style={styles.validationTitleText}>Validation</Text>
+                <Text style={styles.validationTitleText}>Realtime Location</Text>
               <View style={styles.validationChip}>
                 <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
                 <Text style={styles.validationChipText}>Valid</Text>
               </View>
               <Text style={styles.validationMeta}>
-                {driverLat}, {driverLon} • {lastPing}
+                  Lat: {driverLat} | Lon: {driverLon}
               </Text>
+                <Text style={styles.validationMetaSecondary}>
+                  Accuracy: {accuracyLabel} • {lastPing}
+                </Text>
+                <View style={[styles.sourceBadge, location.isMock ? styles.sourceBadgeMock : styles.sourceBadgeLive]}>
+                  <Text style={[styles.sourceBadgeText, location.isMock ? styles.sourceBadgeTextMock : styles.sourceBadgeTextLive]}>
+                    {locationSource}
+                  </Text>
+                </View>
             </View>
             <Ionicons name="share-outline" size={20} color="#6b7280" />
           </View>
@@ -404,7 +427,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
         {/* CTA Cluster */}
         <View style={styles.ctaCluster}>
-          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9} onPress={() => void refreshLocation()}>
             <Ionicons name="refresh" size={18} color="#ffffff" />
             <Text style={styles.primaryBtnText}>Recheck Location</Text>
           </TouchableOpacity>
@@ -485,6 +508,25 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
   },
+  userMarker: {
+    position: 'absolute' as const,
+    left: '50%',
+    top: '50%',
+    transform: [{ translateX: -40 }, { translateY: -34 }],
+    alignItems: 'center',
+    gap: 6,
+  },
+  userMarkerLabel: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  userMarkerText: { fontSize: 10, fontWeight: '900', color: '#0f172a', textTransform: 'uppercase' },
+  userMarkerCoords: { fontSize: 10, fontWeight: '600', color: '#6b7280', marginTop: 2 },
 
   legend: {
     position: 'absolute' as const,
@@ -604,7 +646,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   validationChipText: { fontSize: 10, fontWeight: '900', color: '#166534' },
-  validationMeta: { marginTop: 6, fontSize: 12, color: '#6b7280', fontWeight: '600' },
+  validationMeta: { marginTop: 6, fontSize: 12, color: '#6b7280', fontWeight: '600', fontFamily: 'monospace' },
+  validationMetaSecondary: { marginTop: 4, fontSize: 11, color: '#9ca3af', fontWeight: '600', fontFamily: 'monospace' },
+  sourceBadge: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  sourceBadgeLive: { backgroundColor: '#dcfce7' },
+  sourceBadgeMock: { backgroundColor: '#e5e7eb' },
+  sourceBadgeText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  sourceBadgeTextLive: { color: '#166534' },
+  sourceBadgeTextMock: { color: '#4b5563' },
 
   ctaCluster: {
     flexDirection: 'row',

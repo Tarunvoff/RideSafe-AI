@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import { Theme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
+import { LocationProvider } from './src/context/LocationContext';
 
 // Force Admin + Driver to use the same font family system-wide.
 // This aligns typography with the driver UI (Theme.typography.fontFamily).
@@ -25,11 +26,13 @@ Text.defaultProps = {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-      </AuthProvider>
+      <LocationProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </LocationProvider>
     </SafeAreaProvider>
   );
 }

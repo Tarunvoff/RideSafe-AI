@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authApi, dynamicQCommerceApi, kycApi } from '../services/api';
+import { useLocation } from './LocationContext';
 
 interface AuthUser {
   id?: string;
@@ -29,6 +30,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { refreshLocation } = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isNewRegistration, setIsNewRegistration] = useState(false);
@@ -102,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', 'DRIVER'],
       ['userId', email], // Use email as user ID for now
     ]);
+    await refreshLocation();
     setUser({ email, role: 'DRIVER', driverName: savedName || undefined });
     setKycStatus('NOT_STARTED');
   };
@@ -133,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         driverId = null;
       }
     }
+    await refreshLocation();
     setUser({ id: driverId || email, email, role: res.role || 'DRIVER', driverName: savedName || undefined });
     
     // Check KYC status for drivers

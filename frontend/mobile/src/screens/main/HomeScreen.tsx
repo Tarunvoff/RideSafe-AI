@@ -4,18 +4,16 @@ import { Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpac
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
-import { getDeviceLocation } from '../../utils/location';
-
-const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 export default function HomeScreen({ navigation }: any) {
   const { logout, user } = useAuth();
+  const { location } = useLocation();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profile, setProfile] = useState<any | null>(null);
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
-  const [coords, setCoords] = useState(DEFAULT_COORDS);
 
   const driverId = user?.id ?? user?.email ?? null;
 
@@ -34,21 +32,21 @@ export default function HomeScreen({ navigation }: any) {
     try {
       const profileRes = await driverApi.getProfile(driverId);
       setProfile(profileRes?.driverProfile ?? null);
-      const deviceCoords = (await getDeviceLocation()) ?? DEFAULT_COORDS;
-      setCoords(deviceCoords);
+      const lat = location.latitude;
+      const lng = location.longitude;
       await telemetryApi.sendGps({
         driverId,
-        lat: deviceCoords.lat,
-        lng: deviceCoords.lng,
+        lat,
+        lng,
         platform: 'mobile-app',
       });
-      const zone = await fraudApi.getZoneRisk(deviceCoords.lat, deviceCoords.lng);
+      const zone = await fraudApi.getZoneRisk(lat, lng);
       setZoneRisk(zone ?? null);
     } catch {
       setProfile(null);
       setZoneRisk(null);
     }
-  }, [driverId]);
+  }, [driverId, location.latitude, location.longitude]);
 
   useEffect(() => {
     void loadHome();

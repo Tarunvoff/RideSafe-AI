@@ -5,20 +5,18 @@ import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
-import { getDeviceLocation } from '../../utils/location';
-
-const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 export default function DriverRiskPipelineScreen({ navigation }: any) {
   const { logout, user } = useAuth();
+  const { location, refreshLocation } = useLocation();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profile, setProfile] = useState<any | null>(null);
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [deviceCoords, setDeviceCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const driverId = user?.id ?? user?.email ?? null;
 
@@ -38,12 +36,12 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const greetingMessage = greetingOptions[greetingIndex];
 
   const derivedCoords = useMemo(() => {
-    const candidateLat = deviceCoords?.lat ?? profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
-    const candidateLng = deviceCoords?.lng ?? profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
-    const lat = Number(candidateLat ?? DEFAULT_COORDS.lat);
-    const lng = Number(candidateLng ?? DEFAULT_COORDS.lng);
+    const candidateLat = profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
+    const candidateLng = profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
+    const lat = Number.isFinite(location.latitude) ? location.latitude : Number(candidateLat ?? 0);
+    const lng = Number.isFinite(location.longitude) ? location.longitude : Number(candidateLng ?? 0);
     return { lat, lng };
-  }, [deviceCoords, profile]);
+  }, [location.latitude, location.longitude, profile]);
 
   const loadDashboard = useCallback(async () => {
     if (!driverId) return;
@@ -54,18 +52,16 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       const driverProfile = profileRes?.driverProfile ?? null;
       setProfile(driverProfile);
 
-      const device = await getDeviceLocation();
-      if (device) {
-        setDeviceCoords(device);
+      const coords = derivedCoords;
+
+      if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
         await telemetryApi.sendGps({
           driverId,
-          lat: device.lat,
-          lng: device.lng,
+          lat: coords.lat,
+          lng: coords.lng,
           platform: 'mobile-app',
         });
       }
-
-      const coords = device ?? derivedCoords;
 
       if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
         const zone = await fraudApi.getZoneRisk(coords.lat, coords.lng);
@@ -150,24 +146,30 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
               <Ionicons name="location-outline" size={18} color="#111827" />
               <Text style={styles.locationTitle}>Location Intelligence</Text>
             </View>
-            <View style={styles.validBadge}>
-              <View style={styles.validDot} />
-              <Text style={styles.validText}>Valid location confirmed</Text>
+            <View style={[styles.validBadge, location.isMock ? styles.mockBadge : styles.liveBadge]}>
+              <View style={[styles.validDot, location.isMock ? styles.mockDot : styles.liveDot]} />
+              <Text style={[styles.validText, location.isMock ? styles.mockText : styles.liveText]}>
+                {location.loading ? 'Fetching your location…' : location.isMock ? 'Mock Location' : 'Live GPS'}
+              </Text>
             </View>
           </View>
 
           <View style={styles.coordsGrid}>
-            <View style={styles.coordBox}>
-              <Text style={styles.coordLabel}>Latitude</Text>
-              <Text style={styles.coordValue}>{derivedCoords.lat.toFixed(4)}°</Text>
-            </View>
-            <View style={styles.coordBox}>
-              <Text style={styles.coordLabel}>Longitude</Text>
-              <Text style={styles.coordValue}>{derivedCoords.lng.toFixed(4)}°</Text>
+            <View style={styles.coordBoxWide}>
+              <Text style={styles.coordLabel}>Coordinates</Text>
+              <Text style={styles.coordValueInline}>
+                Lat: {derivedCoords.lat.toFixed(4)} | Lon: {derivedCoords.lng.toFixed(4)}
+              </Text>
             </View>
           </View>
 
-          <Text style={styles.timestampText}>Last valid location timestamp: 10:42:15 AM</Text>
+          <View style={styles.locationActionsRow}>
+            <Text style={styles.timestampText}>Last valid location timestamp: 10:42:15 AM</Text>
+            <TouchableOpacity style={styles.locationRefreshBtn} onPress={() => void refreshLocation()}>
+              <Ionicons name="refresh" size={14} color="#111827" />
+              <Text style={styles.locationRefreshText}>Recheck</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.envCard}>
@@ -287,8 +289,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
+  liveBadge: { backgroundColor: '#e7f7ed' },
+  mockBadge: { backgroundColor: '#e5e7eb' },
   validDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16a34a' },
+  liveDot: { backgroundColor: '#16a34a' },
+  mockDot: { backgroundColor: '#6b7280' },
   validText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#166534' },
+  liveText: { color: '#166534' },
+  mockText: { color: '#4b5563' },
   coordsGrid: { flexDirection: 'row', gap: 10 },
   coordBox: {
     flex: 1,
@@ -298,9 +306,37 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     padding: Theme.spacing.sm,
   },
+  coordBoxWide: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: Theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: Theme.spacing.sm,
+  },
   coordLabel: { fontSize: 10, textTransform: 'uppercase', color: '#6b7280', marginBottom: 3 },
   coordValue: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  timestampText: { marginTop: Theme.spacing.sm, fontSize: 10, color: '#6b7280', fontStyle: 'italic' },
+  coordValueInline: { fontSize: 13, fontWeight: '700', color: '#111827' },
+  locationActionsRow: {
+    marginTop: Theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  locationRefreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  locationRefreshText: { fontSize: 10, fontWeight: '800', color: '#111827', textTransform: 'uppercase' },
+  timestampText: { fontSize: 10, color: '#6b7280', fontStyle: 'italic' },
   envCard: {
     backgroundColor: '#ffffff',
     borderRadius: Theme.borderRadius.lg,
