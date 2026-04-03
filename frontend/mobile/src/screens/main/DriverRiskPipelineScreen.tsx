@@ -44,6 +44,9 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
     return { lat, lng };
   }, [location.latitude, location.longitude, profile]);
 
+  const derivedLat = derivedCoords.lat;
+  const derivedLng = derivedCoords.lng;
+
   const loadDashboard = useCallback(async () => {
     if (!driverId) return;
     setLoading(true);
@@ -53,19 +56,17 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       const driverProfile = profileRes?.driverProfile ?? null;
       setProfile(driverProfile);
 
-      const coords = derivedCoords;
-
-      if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+      if (Number.isFinite(derivedLat) && Number.isFinite(derivedLng)) {
         await telemetryApi.sendGps({
           driverId,
-          lat: coords.lat,
-          lng: coords.lng,
+          lat: derivedLat,
+          lng: derivedLng,
           platform: 'mobile-app',
         });
       }
 
-      if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
-        const zone = await fraudApi.getZoneRisk(coords.lat, coords.lng);
+      if (Number.isFinite(derivedLat) && Number.isFinite(derivedLng)) {
+        const zone = await fraudApi.getZoneRisk(derivedLat, derivedLng);
         setZoneRisk(zone ?? null);
       } else {
         setZoneRisk(null);
@@ -75,7 +76,7 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [driverId, derivedCoords]);
+  }, [driverId, derivedLat, derivedLng]);
 
   useEffect(() => {
     void loadDashboard();
@@ -149,7 +150,7 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
               <Text style={styles.locationTitle}>Location Intelligence</Text>
             </View>
             <View style={[styles.validBadge, location.isMock ? styles.mockBadge : styles.liveBadge]}>
-              <View style={[styles.validDot, location.isMock ? styles.mockDot : styles.liveDot]} />
+              <View style={[styles.validDot, location.isMock ? styles.mockDot : styles.validLiveDot]} />
               <Text style={[styles.validText, location.isMock ? styles.mockText : styles.liveText]}>
                 {location.loading ? 'Fetching your location…' : location.isMock ? 'Mock Location' : 'Live GPS'}
               </Text>
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
   liveBadge: { backgroundColor: '#e7f7ed' },
   mockBadge: { backgroundColor: '#e5e7eb' },
   validDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16a34a' },
-  liveDot: { backgroundColor: '#16a34a' },
+  validLiveDot: { backgroundColor: '#16a34a' },
   mockDot: { backgroundColor: '#6b7280' },
   validText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#166534' },
   liveText: { color: '#166534' },
