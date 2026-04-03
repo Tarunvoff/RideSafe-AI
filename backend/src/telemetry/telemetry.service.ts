@@ -97,4 +97,9 @@ export class TelemetryService implements OnModuleInit {
       platform,
     });
   }
+
+  reportLocationFailure(payload: { reason: string; platform?: string }) {
+    const platform = payload.platform ?? 'mobile-app';
+    this.logger.warn(`Location failure reported (${platform}): ${payload.reason}`);
+  }
 }

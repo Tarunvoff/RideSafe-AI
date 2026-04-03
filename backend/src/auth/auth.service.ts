@@ -10,6 +10,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.service';
+import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 import {
   AdminLoginDto,
   AdminVerifyOtpDto,
@@ -19,6 +21,7 @@ import {
   ResetPasswordDto,
   VerifyOtpDto,
 } from './dto/auth.dto';
+import { createInternalDriverId } from '../dynamic-qcommerce/utils/dynamic-data.factory';
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -38,6 +41,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private email: EmailService,
+    private dynamicQCommerce: DynamicQCommerceService,
   ) {}
 
   private getAdminEnvCreds(): { email: string; password: string } {
@@ -120,7 +124,13 @@ export class AuthService {
     });
 
     const tokens = await this.generateTokens(user);
-    return { message: 'Email verified successfully.', ...tokens };
+    return {
+      message: 'Email verified successfully.',
+      ...tokens,
+      role: user.role,
+      userId: user.id,
+      driverId: user.role === 'DRIVER' ? user.id : undefined,
+    };
   }
 
   // ── LOGIN ────────────────────────────────────────────────────────────────
@@ -139,7 +149,13 @@ export class AuthService {
     const rtHash = hashOTP(tokens.refreshToken);
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
-    return { message: 'Login successful', ...tokens, role: user.role };
+    return {
+      message: 'Login successful',
+      ...tokens,
+      role: user.role,
+      userId: user.id,
+      driverId: user.role === 'DRIVER' ? user.id : undefined,
+    };
   }
 
   // ── REFRESH TOKEN ────────────────────────────────────────────────────────
@@ -279,6 +295,65 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
     return { message: 'Admin sign-in successful.', ...tokens, role: 'ADMIN' };
+  }
+
+  // ── OAUTH FLOW ─────────────────────────────────────────────────────────
+  async startOAuthAuthorize(provider: QCommerceProvider, identifier: string, redirectUri?: string) {
+    return this.dynamicQCommerce.startOAuthLogin({ provider, identifier, redirectUri });
+  }
+
+  async exchangeOAuth(provider: QCommerceProvider, data: { sessionId: string; code: string; state?: string }) {
+    const oauthResult = this.dynamicQCommerce.completeOAuthCallback({
+      provider,
+      sessionId: data.sessionId,
+      code: data.code,
+      state: data.state,
+    });
+
+    const driverProfile = oauthResult?.driverProfile;
+    const email = driverProfile?.identity?.email?.trim();
+    if (!email) throw new BadRequestException('Provider did not return an email identity');
+
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      const tempPassword = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          phone: null,
+          passwordHash,
+          role: 'DRIVER',
+          isVerified: true,
+          driverName: driverProfile?.identity?.fullName ?? null,
+        },
+      });
+
+      await this.prisma.kYCProfile.create({
+        data: { userId: user.id, status: 'NOT_STARTED' },
+      });
+    } else if (!user.isVerified) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
+    }
+
+    const tokens = await this.generateTokens(user);
+    const rtHash = hashOTP(tokens.refreshToken);
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
+
+    const fallbackIdentifier =
+      driverProfile?.identity?.email ?? driverProfile?.identity?.phone ?? email;
+    const driverId =
+      driverProfile?.identity?.internalDriverId ??
+      createInternalDriverId(provider, fallbackIdentifier);
+
+    return {
+      message: 'OAuth sign-in successful',
+      ...tokens,
+      role: user.role,
+      userId: user.id,
+      driverId,
+      email: user.email,
+    };
   }
 
   // ── SEED ADMIN ───────────────────────────────────────────────────────────

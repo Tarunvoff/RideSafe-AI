@@ -74,3 +74,19 @@ export class AdminVerifyOtpDto {
   @IsString()
   otp: string;
 }
+
+export class OAuthExchangeDto {
+  @IsString()
+  sessionId: string;
+
+  @IsString()
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  redirectUri?: string;
+}

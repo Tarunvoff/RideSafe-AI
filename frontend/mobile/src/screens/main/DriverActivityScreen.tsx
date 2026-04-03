@@ -26,7 +26,7 @@ export default function DriverActivityScreen({ navigation }: any) {
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
 
   const handleLogout = async () => {
     try {

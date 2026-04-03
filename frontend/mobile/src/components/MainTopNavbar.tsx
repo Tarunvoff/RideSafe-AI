@@ -18,9 +18,11 @@ export default function MainTopNavbar({ onProfilePress, onNotificationPress }: M
       />
       <Text style={styles.headerTitle}>Aegis</Text>
       <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onNotificationPress}>
-          <Ionicons name="notifications-outline" size={22} color={Theme.colors.textSecondary} />
-        </TouchableOpacity>
+        {onNotificationPress ? (
+          <TouchableOpacity style={styles.iconBtn} onPress={onNotificationPress}>
+            <Ionicons name="notifications-outline" size={22} color={Theme.colors.textSecondary} />
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={styles.avatarContainer} onPress={onProfilePress}>
           <ImageBackground
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }}

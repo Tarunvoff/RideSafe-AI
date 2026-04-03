@@ -32,15 +32,6 @@ const SLATE_500 = '#64748b';
 const SLATE_900 = '#0f172a';
 const SLATE_100 = '#f1f5f9';
 
-const SIGNALS = [
-  { id: 'device_id', label: 'X-Device-ID Match', desc: 'Device hardware signature verified against profile.', pass: true },
-  { id: 'bootloader', label: 'Bootloader Status', desc: 'Unlocked/Tampered (Custom ROM risk detected).', pass: false },
-  { id: 'latency', label: 'Carrier Latency', desc: 'Timing mismatch check for claimed region.', pass: false },
-  { id: 'screen', label: 'Screen Mirroring', desc: 'No active screen recording/broadcasting found.', pass: true },
-  { id: 'mock', label: 'Mock Locations Hook', desc: "System 'Allow Mock Locations' status check.", pass: false },
-  { id: 'app', label: 'App Integrity', desc: 'Original binary signature match.', pass: true },
-];
-
 export default function KYCFraudDetectionScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(false);
   const [riskScore, setRiskScore] = useState<number | null>(null);
@@ -49,7 +40,10 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
   const [networkType, setNetworkType] = useState('Standard Network');
   const [velocityCheck, setVelocityCheck] = useState('Within Range');
   const [analysisDetails, setAnalysisDetails] = useState<string[]>([]);
-  const [claimedCoords, setClaimedCoords] = useState({ lat: 0, lng: 0 });
+  const [signals, setSignals] = useState<any[]>([]);
+  const [claimedCoords, setClaimedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationReady, setLocationReady] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const { refreshKycStatus } = useAuth();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -66,30 +60,56 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
 
   const requestLocationPermission = async () => {
     try {
-      if (!Location) return;
+      if (!Location) {
+        setLocationError('Location services are unavailable on this device.');
+        setLocationReady(false);
+        return;
+      }
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        setLocationError('Location permission is required for fraud detection.');
+        setLocationReady(false);
         Alert.alert('Permission Denied', 'Location permission is required for fraud detection');
+        return;
       }
+      setLocationError(null);
+      setLocationReady(true);
     } catch (error) {
       console.error('Location permission error:', error);
+      setLocationError('Could not request location permission. Please try again.');
+      setLocationReady(false);
     }
   };
 
   const handleAnalyze = async () => {
     setIsLoading(true);
     try {
-      let latitude = 12.9716;
-      let longitude = 77.5946;
+      if (!Location) {
+        throw new Error('Location services not available.');
+      }
+
+      if (!locationReady) {
+        throw new Error(locationError || 'Location permission is required for fraud detection.');
+      }
+      
+      let latitude: number;
+      let longitude: number;
 
       try {
-        if (Location) {
-          const location = await Location.getCurrentPositionAsync({});
-          latitude = location.coords.latitude;
-          longitude = location.coords.longitude;
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError('Location permission is required for fraud detection. Please enable it in settings.');
+          setLocationReady(false);
+          throw new Error('Location permission is required for fraud detection. Please enable it in settings.');
         }
-      } catch (locError) {
-        console.warn('Could not get location, using default:', locError);
+
+        const location = await Location.getCurrentPositionAsync({});
+        latitude = location.coords.latitude;
+        longitude = location.coords.longitude;
+      } catch (locError: any) {
+        setLocationError(locError.message || 'Could not fetch device location. Please try again.');
+        setLocationReady(false);
+        throw new Error(locError.message || 'Could not fetch device location. Please try again.');
       }
 
       setClaimedCoords({ lat: latitude, lng: longitude });
@@ -105,6 +125,9 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       setRiskScore(response.data.riskScore);
       setStatus(response.data.status);
       setAnalysisDetails(response.data.analysis?.riskFactors || []);
+      setSignals(response.data.analysis?.signals || []);
+      setLocationError(null);
+      setLocationReady(true);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to analyze fraud risk');
     } finally {
@@ -157,9 +180,25 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
         </View>
         <View style={styles.mapLabel}>
           <Ionicons name="scan" size={14} color="#fff" />
-          <Text style={styles.mapLabelText}>Awaiting GPS Lock…</Text>
+          <Text style={styles.mapLabelText}>
+            {locationError ? 'Location required' : 'Awaiting GPS Lock…'}
+          </Text>
         </View>
       </View>
+
+        {locationError && (
+          <View style={styles.locationErrorCard}>
+            <Ionicons name="location-outline" size={18} color={AMBER} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locationErrorTitle}>Location needed</Text>
+              <Text style={styles.locationErrorText}>{locationError}</Text>
+            </View>
+            <TouchableOpacity style={styles.locationRetryBtn} onPress={requestLocationPermission}>
+              <Ionicons name="refresh" size={14} color={SLATE_900} />
+              <Text style={styles.locationRetryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
       {/* Session card */}
       <View style={styles.sessionCard}>
@@ -230,7 +269,9 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
               <View style={[styles.pinDot, { backgroundColor: '#3b82f6' }]} />
               <View>
                 <Text style={styles.pinLabel}>Claimed Location</Text>
-                <Text style={styles.pinCoords}>{claimedCoords.lat.toFixed(4)}° N</Text>
+                <Text style={styles.pinCoords}>
+                  {claimedCoords ? `${claimedCoords.lat.toFixed(4)}° N` : '—'}
+                </Text>
                 <Text style={styles.pinCity}>GPS Signal Origin</Text>
               </View>
             </View>
@@ -319,19 +360,26 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
         {/* Detection Signals */}
         <Text style={styles.sectionTitle}>Detection Signals</Text>
         <View style={styles.signalsGrid}>
-          {SIGNALS.map((sig) => (
-            <View key={sig.id} style={[styles.signalCard, !sig.pass && styles.signalCardFail]}>
-              <Ionicons
-                name={sig.pass ? 'checkmark-circle' : 'close-circle'}
-                size={20}
-                color={sig.pass ? GREEN : RED}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.signalLabel}>{sig.label}</Text>
-                <Text style={styles.signalDesc}>{sig.desc}</Text>
+          {signals.length > 0 ? (
+            signals.map((sig, i) => (
+              <View key={sig.id || `sig-${i}`} style={[styles.signalCard, !sig.pass && styles.signalCardFail]}>
+                <Ionicons
+                  name={sig.pass ? 'checkmark-circle' : 'close-circle'}
+                  size={20}
+                  color={sig.pass ? GREEN : RED}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.signalLabel}>{sig.label}</Text>
+                  <Text style={styles.signalDesc}>{sig.desc}</Text>
+                </View>
               </View>
+            ))
+          ) : (
+            <View style={styles.signalEmpty}>
+              <Ionicons name="alert-circle-outline" size={18} color={SLATE_500} />
+              <Text style={styles.signalEmptyText}>No signal breakdown returned yet.</Text>
             </View>
-          ))}
+          )}
         </View>
 
         {/* Historical Timeline */}
@@ -417,9 +465,9 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       <View style={styles.footer}>
         {riskScore === null ? (
           <Button
-            title={isLoading ? 'Scanning…' : 'Analyze Device'}
+            title={isLoading ? 'Scanning…' : locationReady ? 'Analyze Device' : 'Enable Location to Continue'}
             onPress={handleAnalyze}
-            disabled={isLoading}
+            disabled={isLoading || !locationReady}
           />
         ) : (
           <>
@@ -593,6 +641,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   infoText: { fontSize: 12, color: SLATE_900, flex: 1, lineHeight: 18 },
+  locationErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff7ed',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    padding: 12,
+  },
+  locationErrorTitle: { fontSize: 12, fontWeight: '800', color: SLATE_900 },
+  locationErrorText: { fontSize: 11, color: SLATE_500, marginTop: 2 },
+  locationRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fde68a',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  locationRetryText: { fontSize: 11, fontWeight: '700', color: SLATE_900 },
 
   // Summary
   summaryCard: {
@@ -646,6 +716,17 @@ const styles = StyleSheet.create({
 
   // Signals grid
   signalsGrid: { gap: 8 },
+  signalEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+  },
+  signalEmptyText: { fontSize: 12, color: SLATE_500 },
   signalCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',

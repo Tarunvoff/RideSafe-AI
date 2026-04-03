@@ -16,7 +16,7 @@ export default function PolicyScreen({ navigation }: any) {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState('Updating policy...');
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
   const hasPolicy = !!policy;
 
   const goToDashboard = useCallback(() => {

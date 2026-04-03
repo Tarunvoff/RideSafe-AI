@@ -112,6 +112,19 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
 
+  oauthExchange: (provider: string, data: { code: string; sessionId: string; state?: string; redirectUri: string }) =>
+    request<{
+      accessToken: string;
+      refreshToken: string;
+      role: string;
+      userId: string;
+      driverId?: string;
+      email: string;
+    }>(`/auth/${provider.toLowerCase()}/exchange`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   logout: () =>
     request('/auth/logout', { method: 'POST' }, true),
 
@@ -454,6 +467,11 @@ export const telemetryApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  reportLocationFailure: (data: { reason: string; platform?: string }) =>
+    request('/telemetry/location-failure', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ── PLANS / PAYMENTS ──────────────────────────────────────────────────────────
@@ -545,4 +563,46 @@ export const plansApi = {
       },
       true,
     ),
+};
+
+// ── CONFIG ─────────────────────────────────────────────────────────────────
+
+export const configApi = {
+  getSupportMetrics: () =>
+    request<{
+      data: {
+        faqs: Array<{ id: string; q: string; a: string }>;
+        contacts: { email: string; phone: string; hours: string };
+        appVersion: string;
+        legalFooter: string;
+        privacySections?: Array<{ title: string; body: string; icon?: string }>;
+        legalNotice?: string;
+      }
+    }>('/support/config', { method: 'GET' }, true).then(res => ({
+      faqs: res.data.faqs,
+      contacts: [
+        { icon: 'mail-outline', label: 'Email', value: res.data.contacts.email },
+        { icon: 'call-outline', label: 'Phone', value: res.data.contacts.phone },
+        { icon: 'time-outline', label: 'Hours', value: res.data.contacts.hours },
+      ],
+      appVersion: res.data.appVersion,
+      legalFooter: res.data.legalFooter,
+      privacySections: res.data.privacySections ?? [],
+      legalNotice: res.data.legalNotice ?? '',
+    })),
+};
+
+// ── NOTIFICATIONS ──────────────────────────────────────────────────────────
+
+export const notificationsApi = {
+  getAlerts: () =>
+    request<{
+      data: Array<{
+        id: string;
+        title: string;
+        message: string;
+        date: string;
+        read: boolean;
+      }>
+    }>('/notifications', { method: 'GET' }, true).then(res => res.data),
 };

@@ -14,12 +14,13 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { kycApi } from '../../services/api';
+import { kycApi, configApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +40,48 @@ type NotifPrefs = {
   policyReminders: boolean;
   systemUpdates: boolean;
 };
+
+type SupportConfig = {
+  faqs: Array<{ q: string; a: string }>;
+  contacts: Array<{ icon: string; label: string; value: string }>;
+  appVersion: string;
+  legalFooter: string;
+  privacySections: Array<{ title: string; body: string; icon?: string }>;
+  legalNotice: string;
+  source: 'remote' | 'cache' | 'empty';
+};
+
+const SUPPORT_CACHE_KEY = 'supportConfigCache';
+
+const EMPTY_SUPPORT_CONFIG: SupportConfig = {
+  faqs: [],
+  contacts: [],
+  appVersion: '',
+  legalFooter: '',
+  privacySections: [],
+  legalNotice: '',
+  source: 'empty',
+};
+
+async function loadSupportConfig(): Promise<SupportConfig> {
+  try {
+    const remote = await configApi.getSupportMetrics();
+    await AsyncStorage.setItem(SUPPORT_CACHE_KEY, JSON.stringify(remote));
+    return { ...remote, source: 'remote' };
+  } catch {
+    try {
+      const cached = await AsyncStorage.getItem(SUPPORT_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return { ...parsed, source: 'cache' };
+      }
+    } catch {
+      // Ignore cache read failures
+    }
+  }
+
+  return { ...EMPTY_SUPPORT_CONFIG };
+}
 
 // ─── Sub-screen Modals ────────────────────────────────────────────────────────
 
@@ -133,6 +176,20 @@ function NotificationModal({
 }
 
 function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [supportConfig, setSupportConfig] = useState<SupportConfig>(EMPTY_SUPPORT_CONFIG);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (visible) {
+      setLoading(true);
+      loadSupportConfig()
+        .then(setSupportConfig)
+        .finally(() => setLoading(false));
+    }
+  }, [visible]);
+
+  const { privacySections, legalFooter, legalNotice, source } = supportConfig;
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={modalStyles.wrap}>
@@ -144,49 +201,42 @@ function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () 
           <View style={{ width: 44 }} />
         </View>
         <ScrollView contentContainerStyle={modalStyles.body}>
-          {[
-            {
-              icon: 'shield-checkmark-outline',
-              title: 'What We Collect',
-              body: 'Aegis collects your name, government ID numbers, address, payout details, and GPS data solely to verify your identity, detect fraud, and process insurance payouts. No unnecessary data is collected.',
-            },
-            {
-              icon: 'lock-closed-outline',
-              title: 'How We Store It',
-              body: 'All personally identifiable information is encrypted at rest (AES-256) and in transit (TLS 1.3). Your Aadhaar and PAN numbers are stored in hashed form after verification.',
-            },
-            {
-              icon: 'share-social-outline',
-              title: 'Who We Share With',
-              body: 'Your data is shared only with platform partners (Zepto, Blinkit, Instamart etc.) strictly to validate earnings and with the IRDAI-regulated insurer for claim processing. We do not sell your data.',
-            },
-            {
-              icon: 'location-outline',
-              title: 'Location Data',
-              body: 'GPS data is used in real-time for zone risk scoring and fraud detection. Location history beyond 30 days is automatically deleted.',
-            },
-            {
-              icon: 'trash-outline',
-              title: 'Your Rights',
-              body: 'You may request a full data export or account deletion at any time by contacting support@aegis-protect.in. Deletion requests are processed within 30 days as per DPDP Act 2023.',
-            },
-          ].map((item, i) => (
-            <View key={i} style={modalStyles.privacyItem}>
-              <View style={modalStyles.privacyIconWrap}>
-                <Ionicons name={item.icon as any} size={22} color="#16a34a" />
-              </View>
-              <View style={modalStyles.privacyText}>
-                <Text style={modalStyles.privacyTitle}>{item.title}</Text>
-                <Text style={modalStyles.privacyBody}>{item.body}</Text>
-              </View>
+          {loading ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#16a34a" />
+              <Text style={{ marginTop: 10, color: '#6b7280' }}>Loading remote config...</Text>
             </View>
-          ))}
+          ) : privacySections.length > 0 ? (
+            privacySections.map((item, i) => (
+              <View key={`${item.title}-${i}`} style={modalStyles.privacyItem}>
+                <View style={modalStyles.privacyIconWrap}>
+                  <Ionicons name={(item.icon || 'shield-checkmark-outline') as any} size={22} color="#16a34a" />
+                </View>
+                <View style={modalStyles.privacyText}>
+                  <Text style={modalStyles.privacyTitle}>{item.title}</Text>
+                  <Text style={modalStyles.privacyBody}>{item.body}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={modalStyles.emptyStateBox}>
+              <Ionicons name="information-circle-outline" size={22} color="#9ca3af" />
+              <Text style={modalStyles.emptyStateText}>Privacy details are unavailable. Check your connection.</Text>
+            </View>
+          )}
 
           <View style={modalStyles.legalBox}>
-            <Text style={modalStyles.legalText}>
-              Last updated: March 2026 · Aegis Protect Pvt. Ltd.{'\n'}
-              Compliant with DPDP Act 2023 & IRDAI Guidelines
-            </Text>
+            <View style={{ flex: 1 }}>
+              {legalNotice ? (
+                <Text style={[modalStyles.legalText, { marginBottom: 6 }]}>{legalNotice}</Text>
+              ) : null}
+              <Text style={modalStyles.legalText}>
+                {legalFooter || 'Legal details unavailable.'}
+              </Text>
+              {source === 'cache' && (
+                <Text style={modalStyles.cacheHint}>Cached copy</Text>
+              )}
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -195,15 +245,21 @@ function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () 
 }
 
 function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const faqs = [
-    { q: 'How is my risk score calculated?', a: 'Your risk score is computed using GPS zone data, historical disruption patterns, device integrity signals, and platform velocity checks. It updates every ride.' },
-    { q: 'When will my claim be approved?', a: 'Claims are processed within 2–5 business days after a disruption event is verified. You will receive a notification once the payout is approved.' },
-    { q: 'My KYC is stuck in review. What do I do?', a: 'KYC review typically takes 1–2 business days. If it has been more than 5 days, contact our support via email below.' },
-    { q: 'Can I change my payout method?', a: 'Yes. Contact our support team and we will guide you through the update process after re-verification.' },
-    { q: 'How do I delete my account?', a: 'Send a deletion request to support@aegis-protect.in. Per DPDP Act 2023, your data will be purged within 30 days.' },
-  ];
+  const [supportConfig, setSupportConfig] = useState<SupportConfig>(EMPTY_SUPPORT_CONFIG);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (visible) {
+      setLoading(true);
+      loadSupportConfig()
+        .then(setSupportConfig)
+        .finally(() => setLoading(false));
+    }
+  }, [visible]);
 
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+
+  const { faqs, contacts, appVersion, source } = supportConfig;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -216,57 +272,83 @@ function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () 
           <View style={{ width: 44 }} />
         </View>
         <ScrollView contentContainerStyle={modalStyles.body}>
-          {/* Contact */}
-          <Text style={modalStyles.sectionLabel}>CONTACT US</Text>
-          <View style={modalStyles.card}>
-            {[
-              { icon: 'mail-outline', label: 'Email Support', value: 'support@aegis-protect.in' },
-              { icon: 'call-outline', label: 'Phone Helpline', value: '1800-209-AEGIS (Mon–Sat, 9am–6pm)' },
-              { icon: 'logo-whatsapp', label: 'WhatsApp', value: '+91 98200 00000' },
-            ].map((item, i) => (
-              <View key={i}>
-                {i > 0 && <View style={modalStyles.divider} />}
-                <View style={modalStyles.notifRow}>
-                  <View style={modalStyles.notifIcon}>
-                    <Ionicons name={item.icon as any} size={20} color="#16a34a" />
-                  </View>
-                  <View style={modalStyles.notifText}>
-                    <Text style={modalStyles.notifLabel}>{item.label}</Text>
-                    <Text style={modalStyles.notifDesc}>{item.value}</Text>
-                  </View>
+          {loading ? (
+             <View style={{ padding: 20, alignItems: 'center' }}>
+               <ActivityIndicator size="small" color="#16a34a" />
+               <Text style={{ marginTop: 10, color: '#6b7280' }}>Loading remote config...</Text>
+             </View>
+          ) : (
+            <>
+              {/* Contact */}
+              <Text style={modalStyles.sectionLabel}>CONTACT US</Text>
+              {contacts.length > 0 ? (
+                <View style={modalStyles.card}>
+                  {contacts.map((item, i) => (
+                    <View key={`${item.label}-${i}`}>
+                      {i > 0 && <View style={modalStyles.divider} />}
+                      <View style={modalStyles.notifRow}>
+                        <View style={modalStyles.notifIcon}>
+                          <Ionicons name={item.icon as any} size={20} color="#16a34a" />
+                        </View>
+                        <View style={modalStyles.notifText}>
+                          <Text style={modalStyles.notifLabel}>{item.label}</Text>
+                          <Text style={modalStyles.notifDesc}>{item.value}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={modalStyles.emptyStateBox}>
+                  <Ionicons name="information-circle-outline" size={22} color="#9ca3af" />
+                  <Text style={modalStyles.emptyStateText}>Support contacts unavailable.</Text>
+                </View>
+              )}
+
+              {/* FAQ */}
+              <Text style={[modalStyles.sectionLabel, { marginTop: 20 }]}>FREQUENTLY ASKED QUESTIONS</Text>
+              {faqs.length > 0 ? (
+                <View style={modalStyles.card}>
+                  {faqs.map((faq, i) => (
+                    <View key={`${faq.q}-${i}`}>
+                      {i > 0 && <View style={modalStyles.divider} />}
+                      <TouchableOpacity
+                        style={modalStyles.faqRow}
+                        activeOpacity={0.7}
+                        onPress={() => setOpenIdx(openIdx === i ? null : i)}
+                      >
+                        <Text style={modalStyles.faqQ}>{faq.q}</Text>
+                        <Ionicons
+                          name={openIdx === i ? 'chevron-up' : 'chevron-down'}
+                          size={16}
+                          color="#6b7280"
+                        />
+                      </TouchableOpacity>
+                      {openIdx === i && (
+                        <Text style={modalStyles.faqA}>{faq.a}</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={modalStyles.emptyStateBox}>
+                  <Ionicons name="information-circle-outline" size={22} color="#9ca3af" />
+                  <Text style={modalStyles.emptyStateText}>FAQ data unavailable.</Text>
+                </View>
+              )}
+
+              <View style={modalStyles.legalBox}>
+                <View style={{ flex: 1 }}>
+                  <Text style={modalStyles.legalText}>
+                    {appVersion ? `App Version ${appVersion}` : 'App Version unavailable'}
+                  </Text>
+                  {source === 'cache' && (
+                    <Text style={modalStyles.cacheHint}>Cached copy</Text>
+                  )}
                 </View>
               </View>
-            ))}
-          </View>
-
-          {/* FAQ */}
-          <Text style={[modalStyles.sectionLabel, { marginTop: 20 }]}>FREQUENTLY ASKED QUESTIONS</Text>
-          <View style={modalStyles.card}>
-            {faqs.map((faq, i) => (
-              <View key={i}>
-                {i > 0 && <View style={modalStyles.divider} />}
-                <TouchableOpacity
-                  style={modalStyles.faqRow}
-                  activeOpacity={0.7}
-                  onPress={() => setOpenIdx(openIdx === i ? null : i)}
-                >
-                  <Text style={modalStyles.faqQ}>{faq.q}</Text>
-                  <Ionicons
-                    name={openIdx === i ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color="#6b7280"
-                  />
-                </TouchableOpacity>
-                {openIdx === i && (
-                  <Text style={modalStyles.faqA}>{faq.a}</Text>
-                )}
-              </View>
-            ))}
-          </View>
-
-          <View style={modalStyles.legalBox}>
-            <Text style={modalStyles.legalText}>App Version 1.4.2 · Aegis Protect Pvt. Ltd.</Text>
-          </View>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -494,9 +576,7 @@ export default function DriverProfileScreen({ navigation }: any) {
   // Build driver ID from email or user id
   const driverId = user?.id
     ? `GS-${user.id.slice(0, 5).toUpperCase()}`
-    : user?.email
-      ? `GS-${user.email.slice(0, 5).toUpperCase()}`
-      : 'GS-XXXXX';
+    : 'GS-—';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -878,6 +958,18 @@ const modalStyles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   legalText: { fontSize: 11, color: '#9ca3af', lineHeight: 16, flex: 1 },
+  cacheHint: { fontSize: 11, color: '#94a3b8', marginTop: 6 },
+  emptyStateBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+  },
+  emptyStateText: { fontSize: 12, color: '#6b7280', flex: 1 },
 
   statusBadge: {
     flexDirection: 'row',

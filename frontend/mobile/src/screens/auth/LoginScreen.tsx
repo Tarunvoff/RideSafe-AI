@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Image,
@@ -13,17 +12,20 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function LoginScreen({ navigation }: any) {
-  const { login, register } = useAuth();
+  const { loginWithOAuth } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const demoVideoRef = useRef<any>(null);
 
@@ -37,27 +39,9 @@ export default function LoginScreen({ navigation }: any) {
     return () => clearTimeout(t);
   }, [demoVisible]);
 
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      if (isRegistering) {
-        await register(email, password);
-        closeAuthModal();
-      } else {
-        await login(email, password);
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || error.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const closeAuthModal = () => {
     setModalVisible(false);
-    setIsRegistering(false);
-    setEmail('');
-    setPassword('');
+    setIdentifier('');
   };
 
   const showDemo = () => {
@@ -68,48 +52,85 @@ export default function LoginScreen({ navigation }: any) {
     setDemoVisible(false);
   };
 
-  const openHelp = () => {
-    Alert.alert('Help', 'Need support? Reach out to Aegis support.');
+  const getApiBaseUrl = () => {
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    return 'http://127.0.0.1:3001/api';
   };
 
-  const openNotifications = () => {
-    Alert.alert('Notifications', 'No new alerts right now.');
+  const getRedirectUri = () => {
+    const override = process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim();
+    if (override) return override;
+    const isExpoGo = Constants.appOwnership === 'expo';
+    return isExpoGo
+      ? Linking.createURL('oauth-callback')
+      : Linking.createURL('oauth-callback', { scheme: 'ridesafe' });
   };
 
   const handleOAuthLogin = async (platform: string) => {
     setLoading(true);
     try {
-      const providerMap: Record<string, string> = {
-        'Zepto': 'ZEPTO',
-        'Blinkit': 'BLINKIT',
-        'Instamart': 'INSTAMART',
-        'BigBasket': 'BIGBASKET',
-        'JioMart': 'JIOMART',
-      };
-      const provider = providerMap[platform] || platform.toUpperCase();
-      
-      try {
-        await AsyncStorage.setItem('oauthProvider', provider);
-      } catch (storageError) {
-        console.warn('AsyncStorage not available, skipping provider storage');
+      const trimmedIdentifier = identifier.trim();
+      if (!trimmedIdentifier) {
+        Alert.alert('Missing identifier', 'Enter your work email or phone to continue.');
+        return;
       }
-      
-      const mockEmail = `${platform.toLowerCase().replace(/\s+/g, '')}@oauth.com`;
-      const mockPassword = 'oauth-mock-password';
-      
-      try {
-        await login(mockEmail, mockPassword);
-        console.log('✅ OAuth login successful');
-      } catch (loginError: any) {
-        console.log('⚠️ Login failed, attempting registration:', loginError.message);
-        await register(mockEmail, mockPassword, undefined, true);
-        console.log('✅ OAuth registration successful');
+      const provider = platform.trim().toUpperCase();
+      const redirectUri = getRedirectUri();
+      const canOpenRedirect = await Linking.canOpenURL(redirectUri);
+      if (!canOpenRedirect) {
+        Alert.alert(
+          'OAuth Error',
+          'Unable to open the redirect link. If you are using Expo Go, make sure it is installed and the device can reach the dev server.'
+        );
+        return;
       }
-      
+      const authUrl = `${getApiBaseUrl()}/auth/${provider.toLowerCase()}/authorize?identifier=${encodeURIComponent(trimmedIdentifier)}&redirectUri=${encodeURIComponent(redirectUri)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type === 'cancel') {
+        Alert.alert('Login Cancelled', 'You cancelled the login process.');
+        return;
+      }
+
+      if (result.type !== 'success' || !result.url) {
+        const message = result.type === 'dismiss'
+          ? 'Login was dismissed. Please try again.'
+          : 'OAuth provider exchange failed.';
+        Alert.alert('OAuth Error', message);
+        return;
+      }
+
+      const queryParams = new URL(result.url).searchParams;
+      const error = queryParams.get('error');
+      const errorDesc = queryParams.get('error_description');
+      const code = queryParams.get('code');
+      const sessionId = queryParams.get('sessionId');
+      const state = queryParams.get('state') ?? undefined;
+
+      if (error) {
+        const message = error === 'access_denied'
+          ? 'Consent was denied. Please allow access to continue.'
+          : errorDesc || 'OAuth provider rejected the request.';
+        Alert.alert('OAuth Error', message);
+        return;
+      }
+
+      if (!code) {
+        Alert.alert('OAuth Error', 'Token exchange failed: Missing authorization code.');
+        return;
+      }
+
+      if (!sessionId) {
+        Alert.alert('OAuth Error', 'Token exchange failed: Missing session ID.');
+        return;
+      }
+
+      await loginWithOAuth(provider, { code, sessionId, state, redirectUri });
       closeAuthModal();
     } catch (error: any) {
       console.error('❌ OAuth Error:', error);
-      Alert.alert('OAuth Error', error?.response?.data?.message || error?.message || 'Failed to authenticate');
+      Alert.alert('OAuth Error', error?.message || 'Failed to authenticate');
     } finally {
       setLoading(false);
     }
@@ -146,85 +167,55 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons name="close" size={24} color={Theme.colors.textSecondary} />
             </TouchableOpacity>
 
-            <Text style={styles.modalTitle}>{isRegistering ? 'Create Account' : 'Welcome Back'}</Text>
+            <Text style={styles.modalTitle}>Continue with your platform</Text>
+            <Text style={styles.modalSubtitle}>Choose your delivery partner to sign in securely.</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Email address"
+              placeholder="Work email or phone"
               autoCapitalize="none"
               keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
+              value={identifier}
+              onChangeText={setIdentifier}
             />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-
-            <TouchableOpacity style={styles.modalButton} onPress={handleSubmit} disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.modalButtonText}>{isRegistering ? 'Register' : 'Login'}</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
-              <Text style={styles.switchModeText}>
-                {isRegistering ? 'Already have an account? Login' : "Don't have an account? Register"}
-              </Text>
-            </TouchableOpacity>
-
-            {!isRegistering && (
-              <View style={styles.oauthContainer}>
-                <View style={styles.oauthDivider}>
-                  <View style={styles.oauthLine} />
-                  <Text style={styles.oauthDividerText}>OR LOGIN WITH</Text>
-                  <View style={styles.oauthLine} />
-                </View>
-                <View style={styles.oauthButtonsRow}>
-                  <OAuthButton 
-                    name="Zepto" 
-                    color="#29075c" 
-                    iconSource={require('../../../assets/images/Logo_of_Zepto.png')} 
-                    imagePadding={8}
-                    onPress={() => handleOAuthLogin('Zepto')} 
-                  />
-                  <OAuthButton 
-                    name="Blinkit" 
-                    color="#F8CB19" 
-                    iconSource={require('../../../assets/images/BlinkitLogo.jpg')} 
-                    imagePadding={0}
-                    onPress={() => handleOAuthLogin('Blinkit')} 
-                  />
-                  <OAuthButton 
-                    name="Instamart" 
-                    color="#fff" 
-                    iconSource={require('../../../assets/images/instaMart.png')} 
-                    imagePadding={0}
-                    onPress={() => handleOAuthLogin('Instamart')} 
-                  />
-                  <OAuthButton 
-                    name="BigBasket" 
-                    color="#fff" 
-                    iconSource={require('../../../assets/images/bigBasket.png')} 
-                    imagePadding={0}
-                    onPress={() => handleOAuthLogin('BigBasket')} 
-                  />
-                  <OAuthButton 
-                    name="JioMart" 
-                    color="#fff" 
-                    iconSource={require('../../../assets/images/jioMart.png')} 
-                    imagePadding={0}
-                    onPress={() => handleOAuthLogin('JioMart')} 
-                  />
-                </View>
-              </View>
-            )}
+            <View style={styles.oauthButtonsRow}>
+              <OAuthButton 
+                name="Zepto" 
+                color="#29075c" 
+                iconSource={require('../../../assets/images/Logo_of_Zepto.png')} 
+                imagePadding={8}
+                onPress={() => handleOAuthLogin('Zepto')} 
+              />
+              <OAuthButton 
+                name="Blinkit" 
+                color="#F8CB19" 
+                iconSource={require('../../../assets/images/BlinkitLogo.jpg')} 
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('Blinkit')} 
+              />
+              <OAuthButton 
+                name="Instamart" 
+                color="#fff" 
+                iconSource={require('../../../assets/images/instaMart.png')} 
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('Instamart')} 
+              />
+              <OAuthButton 
+                name="BigBasket" 
+                color="#fff" 
+                iconSource={require('../../../assets/images/bigBasket.png')} 
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('BigBasket')} 
+              />
+              <OAuthButton 
+                name="JioMart" 
+                color="#fff" 
+                iconSource={require('../../../assets/images/jioMart.png')} 
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('JioMart')} 
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -234,14 +225,7 @@ export default function LoginScreen({ navigation }: any) {
           <Image source={require('../../../assets/images/ProductLogo.png')} style={styles.headerLogoIcon} resizeMode="contain" />
           <Text style={styles.headerTitle}>Aegis</Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={openHelp}>
-            <Ionicons name="help-circle-outline" size={22} color={Theme.colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={openNotifications}>
-            <Ionicons name="notifications-outline" size={22} color={Theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerActions} />
       </View>
 
       <View style={styles.container}>
@@ -392,14 +376,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   container: {
     flex: 1,
@@ -653,8 +629,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: Theme.spacing.xl,
+    marginBottom: Theme.spacing.sm,
     marginTop: Theme.spacing.md,
+  },
+  modalSubtitle: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: Theme.colors.textSecondary,
+    marginBottom: Theme.spacing.lg,
   },
   input: {
     width: '100%',
@@ -663,35 +645,10 @@ const styles = StyleSheet.create({
     borderColor: Theme.colors.border,
     borderRadius: Theme.borderRadius.lg,
     paddingHorizontal: Theme.spacing.md,
-    marginBottom: Theme.spacing.md,
+    marginBottom: Theme.spacing.lg,
     fontSize: 15,
     color: '#0f172a',
   },
-  modalButton: {
-    width: '100%',
-    height: 52,
-    backgroundColor: Theme.colors.primary,
-    borderRadius: Theme.borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Theme.spacing.md,
-    marginBottom: Theme.spacing.lg,
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  switchModeText: {
-    color: Theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  oauthContainer: { width: '100%', marginTop: Theme.spacing.xl },
-  oauthDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: Theme.spacing.md },
-  oauthLine: { flex: 1, height: 1, backgroundColor: Theme.colors.border },
-  oauthDividerText: { marginHorizontal: Theme.spacing.sm, fontSize: 12, color: Theme.colors.textSecondary, fontWeight: '700' },
   oauthButtonsRow: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
   oauthBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 3, elevation: 2 },
-  oauthBtnText: { color: '#fff', fontSize: 18, fontWeight: '900' },
 });

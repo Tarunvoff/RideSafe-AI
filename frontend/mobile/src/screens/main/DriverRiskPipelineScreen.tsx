@@ -19,7 +19,8 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
+  const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const handleLogout = async () => {
     try {
@@ -37,12 +38,9 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const greetingMessage = greetingOptions[greetingIndex];
 
   const derivedCoords = useMemo(() => {
-    const candidateLat = profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
-    const candidateLng = profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
-    const lat = Number.isFinite(location.latitude) ? location.latitude : Number(candidateLat ?? 0);
-    const lng = Number.isFinite(location.longitude) ? location.longitude : Number(candidateLng ?? 0);
-    return { lat, lng };
-  }, [location.latitude, location.longitude, profile]);
+    if (!hasValidLocation) return null;
+    return { lat: location.latitude as number, lng: location.longitude as number };
+  }, [hasValidLocation, location.latitude, location.longitude]);
 
   const loadDashboard = useCallback(async () => {
     if (!driverId) return;
@@ -52,30 +50,27 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       const profileRes = await driverApi.getProfile(driverId);
       const driverProfile = profileRes?.driverProfile ?? null;
       setProfile(driverProfile);
-
       const coords = derivedCoords;
 
-      if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+      if (coords) {
         await telemetryApi.sendGps({
           driverId,
           lat: coords.lat,
           lng: coords.lng,
           platform: 'mobile-app',
         });
-      }
-
-      if (Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
         const zone = await fraudApi.getZoneRisk(coords.lat, coords.lng);
         setZoneRisk(zone ?? null);
       } else {
         setZoneRisk(null);
+        setErrorMsg(location.error ?? 'Location unavailable. Enable GPS to continue.');
       }
     } catch (e: any) {
       setErrorMsg(e?.message ?? 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }
-  }, [driverId, derivedCoords]);
+  }, [driverId, derivedCoords, location.error]);
 
   useEffect(() => {
     void loadDashboard();
@@ -148,10 +143,10 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
               <Ionicons name="location-outline" size={18} color="#111827" />
               <Text style={styles.locationTitle}>Location Intelligence</Text>
             </View>
-            <View style={[styles.validBadge, location.isMock ? styles.mockBadge : styles.liveBadge]}>
-              <View style={[styles.validDot, location.isMock ? styles.mockDot : styles.liveDot]} />
-              <Text style={[styles.validText, location.isMock ? styles.mockText : styles.liveText]}>
-                {location.loading ? 'Fetching your location…' : location.isMock ? 'Mock Location' : 'Live GPS'}
+              <View style={[styles.validBadge, hasValidLocation ? styles.liveBadge : styles.mockBadge]}>
+              <View style={[styles.validDot, hasValidLocation ? styles.liveDot : styles.mockDot]} />
+              <Text style={[styles.validText, hasValidLocation ? styles.liveText : styles.mockText]}>
+                {location.loading ? 'Fetching your location…' : hasValidLocation ? 'Live GPS' : 'Location unavailable'}
               </Text>
             </View>
           </View>
@@ -160,7 +155,9 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
             <View style={styles.coordBoxWide}>
               <Text style={styles.coordLabel}>Coordinates</Text>
               <Text style={styles.coordValueInline}>
-                Lat: {derivedCoords.lat.toFixed(4)} | Lon: {derivedCoords.lng.toFixed(4)}
+                {derivedCoords
+                  ? `Lat: ${derivedCoords.lat.toFixed(4)} | Lon: ${derivedCoords.lng.toFixed(4)}`
+                  : 'Lat: — | Lon: —'}
               </Text>
             </View>
           </View>

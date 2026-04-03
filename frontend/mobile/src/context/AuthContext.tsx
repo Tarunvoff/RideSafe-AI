@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { authApi, dynamicQCommerceApi, kycApi } from '../services/api';
+import { authApi, kycApi } from '../services/api';
 import { useLocation } from './LocationContext';
 
 interface AuthUser {
@@ -17,6 +17,7 @@ interface AuthContextType {
   isNewRegistration: boolean;
   kycStatus: string | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithOAuth: (provider: string, data: { code: string; sessionId: string; state?: string; redirectUri: string }) => Promise<void>;
   logout: () => Promise<void>;
   register: (email: string, password: string, phone?: string, skipKyc?: boolean) => Promise<void>;
   verifyOtp: (email: string, otp: string) => Promise<void>;
@@ -44,26 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const email = await AsyncStorage.getItem('userEmail');
         const userId = await AsyncStorage.getItem('userId');
         const driverId = await AsyncStorage.getItem('driverId');
-        const provider = await AsyncStorage.getItem('oauthProvider');
         const role = await AsyncStorage.getItem('userRole') as 'DRIVER' | 'ADMIN' | null;
         
         if (token && email && role) {
           const savedName = await AsyncStorage.getItem('driverName');
-          let resolvedId = role === 'DRIVER' ? (driverId || userId || undefined) : (userId || undefined);
+          const resolvedId = role === 'DRIVER' ? driverId : userId;
 
-          if (role === 'DRIVER' && !driverId && provider) {
-            try {
-              const created = await dynamicQCommerceApi.createDriver(provider as any, email);
-              resolvedId = created?.driverId ?? resolvedId;
-              if (created?.driverId) {
-                await AsyncStorage.setItem('driverId', created.driverId);
-              }
-            } catch {
-              // Ignore and keep fallback id.
-            }
+          if (role === 'DRIVER' && !resolvedId) {
+            console.warn('Missing driverId for driver role, rejecting session');
+            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId', 'driverName', 'driverId', 'oauthProvider']);
+            return;
           }
 
-          setUser({ id: resolvedId, email, role, driverName: savedName || undefined });
+          setUser({ id: resolvedId ?? undefined, email, role, driverName: savedName || undefined });
           
           // Check KYC status if driver
           if (role === 'DRIVER') {
@@ -98,15 +92,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get saved driver name from local storage
     const savedName = await AsyncStorage.getItem('driverName');
     
+    if (!res?.driverId) {
+      throw new Error('Driver identity not found. Please re-authenticate.');
+    }
+
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
       ['userEmail', email],
       ['userRole', 'DRIVER'],
-      ['userId', email], // Use email as user ID for now
+      ['userId', res.userId || res.id || ''],
+      ['driverId', res.driverId],
     ]);
     await refreshLocation();
-    setUser({ email, role: 'DRIVER', driverName: savedName || undefined });
+    setUser({ id: res.driverId, email, role: 'DRIVER', driverName: savedName || undefined });
     setKycStatus('NOT_STARTED');
   };
 
@@ -114,36 +113,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await authApi.login(email, password) as any;
     
     const savedName = await AsyncStorage.getItem('driverName');
-    const provider = await AsyncStorage.getItem('oauthProvider');
-    
+    const role = (res.role || 'DRIVER') as 'DRIVER' | 'ADMIN';
+
+    if (role === 'DRIVER' && !res?.driverId) {
+      throw new Error('Driver identity not found. Please sign in again.');
+    }
+
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
       ['userEmail', email],
-      ['userRole', res.role || 'DRIVER'],
-      ['userId', email],
+      ['userRole', role],
+      ['userId', res.userId || res.id || ''],
+      ['driverId', res.driverId || ''],
     ]);
-    
-    let driverId: string | null = null;
-    if ((res.role || 'DRIVER') === 'DRIVER') {
-      const resolvedProvider = provider || 'ZEPTO';
-      try {
-        const driverRes = await dynamicQCommerceApi.createDriver(resolvedProvider as any, email);
-        driverId = driverRes?.driverId ?? null;
-        if (driverId) {
-          await AsyncStorage.setItem('driverId', driverId);
-        }
-        console.log('✅ Driver profile created:', driverId);
-      } catch (e) {
-        console.error('❌ Driver profile creation failed:', e);
-        driverId = null;
-      }
-    }
-    
+
     await refreshLocation();
-    setUser({ id: driverId || email, email, role: res.role || 'DRIVER', driverName: savedName || undefined });
-    
-    if (res.role === 'DRIVER') {
+    setUser({ id: role === 'DRIVER' ? res.driverId : (res.userId || res.id || undefined), email, role, driverName: savedName || undefined });
+
+    if (role === 'DRIVER') {
       try {
         const status = await kycApi.getStatus();
         setKycStatus(status.status);
@@ -154,7 +142,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    console.log('✅ Login complete - user:', { email, role: res.role, driverId });
+    console.log('✅ Login complete - user:', { email, role, driverId: res.driverId });
+  };
+
+  const loginWithOAuth = async (provider: string, data: { code: string; sessionId: string; state?: string; redirectUri: string }) => {
+    const res = await authApi.oauthExchange(provider, data) as any;
+    const role = (res.role || 'DRIVER') as 'DRIVER' | 'ADMIN';
+    const email = res.email;
+
+    if (!email) {
+      throw new Error('Missing email from provider. Please try again.');
+    }
+
+    if (role === 'DRIVER' && !res?.driverId) {
+      throw new Error('Driver identity not found. Please sign in again.');
+    }
+
+    await AsyncStorage.multiSet([
+      ['accessToken', res.accessToken],
+      ['refreshToken', res.refreshToken],
+      ['userEmail', email],
+      ['userRole', role],
+      ['userId', res.userId || ''],
+      ['driverId', res.driverId || ''],
+      ['oauthProvider', provider.toUpperCase()],
+    ]);
+
+    const savedName = await AsyncStorage.getItem('driverName');
+    await refreshLocation();
+    setUser({ id: role === 'DRIVER' ? res.driverId : res.userId || undefined, email, role, driverName: savedName || undefined });
+
+    if (role === 'DRIVER') {
+      try {
+        const status = await kycApi.getStatus();
+        setKycStatus(status.status || 'NOT_STARTED');
+      } catch {
+        setKycStatus('NOT_STARTED');
+      }
+    }
   };
 
   const logout = async () => {
@@ -193,9 +218,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['refreshToken', res.refreshToken],
       ['userEmail', email],
       ['userRole', 'ADMIN'],
-      ['userId', email],
+      ['userId', res.userId || res.id || ''],
     ]);
-    setUser({ id: email, email, role: 'ADMIN', driverName: savedName || undefined });
+    setUser({ id: res.userId || res.id || undefined, email, role: 'ADMIN', driverName: savedName || undefined });
   };
 
   const checkKycStatus = useCallback(async () => {
@@ -239,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isNewRegistration,
         kycStatus,
         login,
+        loginWithOAuth,
         logout,
         register,
         verifyOtp,

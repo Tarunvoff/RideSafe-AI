@@ -58,12 +58,13 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const { user } = useAuth();
   const { location, refreshLocation } = useLocation();
   const mapRef = React.useRef<MapView | null>(null);
+  const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const coords = useMemo(
-    () => ({ lat: location.latitude, lng: location.longitude }),
-    [location.latitude, location.longitude],
+    () => (hasValidLocation ? { lat: location.latitude as number, lng: location.longitude as number } : null),
+    [hasValidLocation, location.latitude, location.longitude],
   );
 
   // Fixed map size for stable tap targets across devices.
@@ -89,10 +90,11 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   const loadZones = useCallback(async () => {
     try {
-      if (location.loading) return;
+      if (location.loading || !coords) return;
       setLoading(true);
+      if (!user?.id) return;
       await telemetryApi.sendGps({
-        driverId: user?.id ?? user?.email ?? 'anonymous',
+        driverId: user.id,
         lat: coords.lat,
         lng: coords.lng,
         platform: 'mobile-app',
@@ -111,7 +113,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [coords.lat, coords.lng, location.loading, toCellRisk, user?.email, user?.id]);
+  }, [coords, location.loading, toCellRisk, user?.id]);
 
   useEffect(() => {
     void loadZones();
@@ -126,8 +128,8 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   const risk = useMemo(() => riskColors(selectedCell.riskLevel), [selectedCell.riskLevel]);
 
-  const driverLat = coords.lat;
-  const driverLon = coords.lng;
+  const driverLat = coords?.lat ?? 0;
+  const driverLon = coords?.lng ?? 0;
   const accuracyLabel = location.accuracy != null ? `${Math.round(location.accuracy)} m` : '—';
   const lastPing = location.fetchedAt
     ? location.fetchedAt.toLocaleTimeString('en-IN', {
@@ -139,18 +141,21 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     : '—';
   const locationSource = location.loading
     ? 'Fetching your location…'
-    : location.isMock
-      ? 'Mock Location'
-      : 'Live GPS';
+    : hasValidLocation
+      ? 'Live GPS'
+      : 'Location unavailable';
 
   const mapRegion = useMemo(
-    () => ({
-      latitude: coords.lat,
-      longitude: coords.lng,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    }),
-    [coords.lat, coords.lng],
+    () => (coords
+      ? {
+          latitude: coords.lat,
+          longitude: coords.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }
+      : null
+    ),
+    [coords],
   );
 
   const formatCoords = (lat: number, lng: number) => {
@@ -160,14 +165,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   };
 
   const handleRecenter = () => {
-    if (mapRef.current) {
+    if (mapRef.current && mapRegion) {
       mapRef.current.animateToRegion(mapRegion, 600);
     }
     void refreshLocation();
   };
 
   useEffect(() => {
-    if (mapRef.current && !location.loading) {
+    if (mapRef.current && !location.loading && mapRegion) {
       mapRef.current.animateToRegion(mapRegion, 600);
     }
   }, [location.loading, mapRegion]);
@@ -185,52 +190,38 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         <View style={styles.statusStrip}>
           {/* Hero Map */}
           <View style={styles.mapHero}>
-            <MapView
-              ref={mapRef}
-              style={[styles.mapView, { width: mapW, height: mapH }]}
-              initialRegion={mapRegion}
-            >
-              <Marker
-                coordinate={{ latitude: coords.lat, longitude: coords.lng }}
-                title={location.isMock ? 'Mock Location' : 'You are here'}
-                pinColor={location.isMock ? '#f59e0b' : '#16a34a'}
-              />
-            </MapView>
-
-            {location.isMock ? (
-              <View style={styles.mockMarkerBadge}>
-                <Text style={styles.mockMarkerText}>Mock</Text>
+            {coords && mapRegion ? (
+              <MapView
+                ref={mapRef}
+                style={[styles.mapView, { width: mapW, height: mapH }]}
+                initialRegion={mapRegion}
+              mapFallback: {
+                backgroundColor: '#f8fafc',
+                borderWidth: 1,
+                borderColor: '#e2e8f0',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingHorizontal: 16,
+              },
+              mapFallbackTitle: { fontSize: 14, fontWeight: '800', color: '#111827' },
+              mapFallbackText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
+              mapFallbackBtn: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: '#e2e8f0',
+              },
+              mapFallbackBtnText: { fontSize: 12, fontWeight: '700', color: '#111827' },
+                <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
+                  <Ionicons name="refresh" size={14} color="#111827" />
+                  <Text style={styles.mapFallbackBtnText}>Retry</Text>
+                </TouchableOpacity>
               </View>
-            ) : null}
-                />
-              );
-            })()}
-            {hexPositions.neighbors.map((p) => {
-              const cell = cells.neighbors.find((n) => n.id === p.id)!;
-              const c = riskColors(cell.riskLevel);
-              const selected = selectedCellId === cell.id;
-              return (
-                <Polygon
-                  key={cell.id}
-                  points={hexPoints(p.x, p.y, hexR)}
-                  fill={
-                    selected ? c.fill : 'rgba(243,244,246,1)'
-                  }
-                  stroke={selected ? c.stroke : '#e5e7eb'}
-                  strokeWidth={selected ? 3 : 1.5}
-                  opacity={selected ? 1 : 0.95}
-                  onPress={() => setSelectedCellId(cell.id)}
-                />
-              );
-            })}
-          </Svg>
-
-          <View style={styles.userMarker}>
-            <Ionicons name="location" size={18} color="#16a34a" />
-            <View style={styles.userMarkerLabel}>
-              <Text style={styles.userMarkerText}>You are here</Text>
-              <Text style={styles.userMarkerCoords}>Lat {driverLat} · Lon {driverLon}</Text>
-            </View>
+            )}
           </View>
 
           {/* Legend */}
@@ -305,19 +296,21 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
           <View style={styles.validationRow}>
             <View style={styles.validationLeft}>
               <Text style={styles.validationTitleText}>Realtime Location</Text>
-              <View style={[styles.validationChip, location.isMock ? styles.validationChipMock : styles.validationChipLive]}>
-                <Ionicons name="checkmark-circle" size={14} color={location.isMock ? '#f59e0b' : '#16a34a'} />
-                <Text style={[styles.validationChipText, location.isMock ? styles.validationChipTextMock : styles.validationChipTextLive]}>
-                  {location.loading ? 'Fetching location' : location.isMock ? 'Mock location active' : 'Valid location confirmed'}
+              <View style={[styles.validationChip, hasValidLocation ? styles.validationChipLive : styles.validationChipMock]}>
+                <Ionicons name="checkmark-circle" size={14} color={hasValidLocation ? '#16a34a' : '#f59e0b'} />
+                <Text style={[styles.validationChipText, hasValidLocation ? styles.validationChipTextLive : styles.validationChipTextMock]}>
+                  {location.loading ? 'Fetching location' : hasValidLocation ? 'Valid location confirmed' : 'Location unavailable'}
                 </Text>
               </View>
-              <Text style={styles.validationMeta}>{formatCoords(driverLat, driverLon)}</Text>
+              <Text style={styles.validationMeta}>
+                {hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}
+              </Text>
               <Text style={styles.validationMetaSecondary}>
-                {location.isMock ? `Mock • Last set at ${lastPing}` : `Fetched at ${lastPing}`}
+                {hasValidLocation ? `Fetched at ${lastPing}` : `Location missing • ${lastPing}`}
               </Text>
               <Text style={styles.validationMetaSecondary}>Accuracy: {accuracyLabel}</Text>
-              <View style={[styles.sourceBadge, location.isMock ? styles.sourceBadgeMock : styles.sourceBadgeLive]}>
-                <Text style={[styles.sourceBadgeText, location.isMock ? styles.sourceBadgeTextMock : styles.sourceBadgeTextLive]}>
+              <View style={[styles.sourceBadge, hasValidLocation ? styles.sourceBadgeLive : styles.sourceBadgeMock]}>
+                <Text style={[styles.sourceBadgeText, hasValidLocation ? styles.sourceBadgeTextLive : styles.sourceBadgeTextMock]}>
                   {locationSource}
                 </Text>
               </View>

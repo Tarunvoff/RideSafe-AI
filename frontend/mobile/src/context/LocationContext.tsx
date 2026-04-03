@@ -1,10 +1,12 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
+import { telemetryApi } from '../services/api';
 
 export type LocationState = {
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   accuracy: number | null;
   isMock: boolean;
+  isValid: boolean;
   fetchedAt: Date | null;
   loading: boolean;
   error: string | null;
@@ -15,12 +17,6 @@ type LocationContextType = {
   refreshLocation: () => Promise<void>;
 };
 
-const MOCK_LOCATION = {
-  latitude: 12.9716,
-  longitude: 77.5946,
-  accuracy: 0,
-  isMock: true,
-};
 
 let ExpoLocation: any = null;
 try {
@@ -33,15 +29,26 @@ const LocationContext = createContext<LocationContextType | null>(null);
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useState<LocationState>({
-    ...MOCK_LOCATION,
+    latitude: null,
+    longitude: null,
+    accuracy: null,
+    isMock: false,
+    isValid: false,
     fetchedAt: null,
     loading: true,
     error: null,
   });
 
   const setMock = useCallback((reason: string) => {
+    // We log the error telemetry here to track how many users are missing location permissions/capabilities
+    console.warn(`Location fetch failed: ${reason}`);
+    void telemetryApi.reportLocationFailure({ reason, platform: 'mobile-app' }).catch(() => {});
     setLocation({
-      ...MOCK_LOCATION,
+      latitude: null,
+      longitude: null,
+      accuracy: null,
+      isMock: false,
+      isValid: false,
       fetchedAt: new Date(),
       loading: false,
       error: reason,
@@ -84,6 +91,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         longitude: coords.longitude,
         accuracy: Number.isFinite(coords.accuracy) ? coords.accuracy : null,
         isMock: false,
+        isValid: true,
         fetchedAt: new Date(),
         loading: false,
         error: null,

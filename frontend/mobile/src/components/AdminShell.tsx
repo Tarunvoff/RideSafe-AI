@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, SafeAreaView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
 import MainTopNavbar from './MainTopNavbar';
 import DriverLogoutMenu from './DriverLogoutMenu';
 import AdminBottomNavbar, { type AdminBottomNavKey } from './AdminBottomNavbar';
@@ -31,7 +31,6 @@ export default function AdminShell({ navigation, activeKey, children }: AdminShe
       {/* Sticky top admin navbar (stays outside of scroll views) */}
       <MainTopNavbar
         onProfilePress={() => setProfileMenuVisible(true)}
-        onNotificationPress={() => Alert.alert('Notifications', 'No new notifications right now.')}
       />
 
       <DriverLogoutMenu

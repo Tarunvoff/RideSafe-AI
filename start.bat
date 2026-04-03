@@ -8,10 +8,30 @@ echo.
 
 :: 1. Dynamically find the local IP address
 echo 🔍 Detecting your local Wi-Fi IP address...
+
+:: Look specifically for a 192.168.x.x or 10.x.x.x address to ignore Docker/Hyper-V (172.x)
 FOR /F "tokens=2 delims=:" %%A IN ('ipconfig ^| findstr /c:"IPv4 Address" /c:"IPv4-Adresse"') DO (
-    SET LOCAL_IP=%%A
-    SET LOCAL_IP=!LOCAL_IP: =!
-    goto :IP_FOUND
+    SET TEMP_IP=%%A
+    SET TEMP_IP=!TEMP_IP: =!
+    echo !TEMP_IP! | findstr /b "192.168." >nul
+    if !errorlevel! equ 0 (
+        SET LOCAL_IP=!TEMP_IP!
+        goto :IP_FOUND
+    )
+    echo !TEMP_IP! | findstr /b "10." >nul
+    if !errorlevel! equ 0 (
+        SET LOCAL_IP=!TEMP_IP!
+        goto :IP_FOUND
+    )
+)
+
+:: Fallback if none found
+if "%LOCAL_IP%"=="" (
+    FOR /F "tokens=2 delims=:" %%A IN ('ipconfig ^| findstr /c:"IPv4 Address" /c:"IPv4-Adresse"') DO (
+        SET LOCAL_IP=%%A
+        SET LOCAL_IP=!LOCAL_IP: =!
+        goto :IP_FOUND
+    )
 )
 
 :IP_FOUND

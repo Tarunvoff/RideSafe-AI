@@ -1,46 +1,53 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
-import { getDeviceLocation } from '../../utils/location';
+import { useLocation } from '../../context/LocationContext';
 // react-native-svg removed — using pure RN ring
-
-const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
 
 export default function RiskScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { location, refreshLocation } = useLocation();
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const loadRisk = useCallback(async () => {
     setLoading(true);
     try {
-      const device = (await getDeviceLocation()) ?? DEFAULT_COORDS;
+      if (!user?.id) return;
+      if (!hasValidLocation) {
+        setZoneRisk(null);
+        return;
+      }
       await telemetryApi.sendGps({
-        driverId: user?.id ?? user?.email ?? 'anonymous',
-        lat: device.lat,
-        lng: device.lng,
+        driverId: user.id,
+        lat: location.latitude as number,
+        lng: location.longitude as number,
         platform: 'mobile-app',
       });
-      const res = await fraudApi.getZoneRisk(device.lat, device.lng);
+      const res = await fraudApi.getZoneRisk(location.latitude as number, location.longitude as number);
       setZoneRisk(res ?? null);
     } catch {
       setZoneRisk(null);
     } finally {
       setLoading(false);
     }
-  }, [user?.email, user?.id]);
+  }, [hasValidLocation, location.latitude, location.longitude, user?.id]);
 
   useEffect(() => {
     void loadRisk();
   }, [loadRisk]);
 
   const riskScore = Math.round(Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5) * 100);
-  const riskLabel = riskScore >= 70 ? 'HIGH RISK' : riskScore >= 40 ? 'MODERATE RISK' : 'LOW RISK';
+  const locationBlocked = !hasValidLocation && !location.loading;
+  const riskLabel = locationBlocked
+    ? 'LOCATION REQUIRED'
+    : riskScore >= 70 ? 'HIGH RISK' : riskScore >= 40 ? 'MODERATE RISK' : 'LOW RISK';
   const weatherSafe = Math.max(0, 100 - Math.round(Number(zoneRisk?.rainfall ?? 0)));
   const densitySafe = Math.max(0, 100 - Math.round(Number(zoneRisk?.active_riders ?? 0)));
   const platformSafe = Math.max(0, 100 - Math.round(riskScore / 2));
@@ -51,6 +58,16 @@ export default function RiskScreen({ navigation }: any) {
       <LoadingOverlay visible={loading} message="Analyzing zone risk..." />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {locationBlocked && (
+          <View style={styles.locationNotice}>
+            <Ionicons name="location-outline" size={18} color={Theme.colors.primary} />
+            <Text style={styles.locationNoticeText}>Enable GPS to load live risk signals.</Text>
+            <TouchableOpacity style={styles.locationNoticeBtn} onPress={() => void refreshLocation()}>
+              <Ionicons name="refresh" size={14} color="#0f172a" />
+              <Text style={styles.locationNoticeBtnText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/* Hero Score Section */}
         <View style={styles.heroSection}>
           <View style={styles.scoreContainer}>
@@ -144,6 +161,29 @@ export default function RiskScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Theme.colors.surface },
   container: { paddingBottom: 24, backgroundColor: Theme.colors.surface },
+  locationNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: Theme.spacing.lg,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: Theme.borderRadius.lg,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  locationNoticeText: { fontSize: 12, color: '#475569', flex: 1 },
+  locationNoticeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#e2e8f0',
+  },
+  locationNoticeBtnText: { fontSize: 12, fontWeight: '700', color: '#0f172a' },
   
   heroSection: { padding: 32, alignItems: 'center', backgroundColor: '#fff', marginBottom: 8 },
   scoreContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

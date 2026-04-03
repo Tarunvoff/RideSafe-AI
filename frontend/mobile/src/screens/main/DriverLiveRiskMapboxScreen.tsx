@@ -40,8 +40,9 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   const webFullRef = useRef<WebView>(null);
 
   const { location, refreshLocation } = useLocation();
-  const driverLat = location.latitude;
-  const driverLon = location.longitude;
+  const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
+  const driverLat = location.latitude ?? 0;
+  const driverLon = location.longitude ?? 0;
   const lastPing = location.fetchedAt
     ? location.fetchedAt.toLocaleTimeString('en-IN', { 
         hour: '2-digit',
@@ -92,7 +93,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     // Mapbox + H3 are loaded in the web layer so we can render true hex polygons and
     // interactive Mapbox GL features without adding native Mapbox dependencies.
     const token = mapboxToken ? mapboxToken : '';
-    const driver = { lat: driverLat, lon: driverLon, isMock: location.isMock };
+    const driver = { lat: driverLat, lon: driverLon, isMock: !hasValidLocation };
     const res = h3Resolution;
 
     return `<!doctype html>
@@ -561,7 +562,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     </script>
   </body>
 </html>`;
-  }, [driverLat, driverLon, h3Resolution, mapboxToken, location.isMock]);
+  }, [driverLat, driverLon, h3Resolution, mapboxToken, hasValidLocation]);
 
   useEffect(() => {
     if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon)) return;
@@ -569,9 +570,9 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
       type: 'SET_DRIVER',
       lat: driverLat,
       lon: driverLon,
-      isMock: location.isMock,
+      isMock: !hasValidLocation,
     });
-  }, [driverLat, driverLon, location.isMock, viewMode]);
+  }, [driverLat, driverLon, hasValidLocation, viewMode]);
 
   const onWebMessage = (e: any) => {
     try {
@@ -678,21 +679,33 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         </View>
 
         <View style={styles.mapHero}>
-          <WebView
-            key={`mobile-${driverLat}-${driverLon}-${h3Resolution}`}
-            ref={webRef}
-            originWhitelist={['*']}
-            source={{ html }}
-            style={styles.mapWeb}
-            javaScriptEnabled
-            domStorageEnabled
-            onMessage={onWebMessage}
-            scrollEnabled={false}
-            // Important: avoid nested scroll fighting with Mapbox touch gestures.
-            nestedScrollEnabled={true}
-          />
+          {hasValidLocation ? (
+            <WebView
+              key={`mobile-${driverLat}-${driverLon}-${h3Resolution}`}
+              ref={webRef}
+              originWhitelist={['*']}
+              source={{ html }}
+              style={styles.mapWeb}
+              javaScriptEnabled
+              domStorageEnabled
+              onMessage={onWebMessage}
+              scrollEnabled={false}
+              // Important: avoid nested scroll fighting with Mapbox touch gestures.
+              nestedScrollEnabled={true}
+            />
+          ) : (
+            <View style={styles.locationBlocked}>
+              <Ionicons name="location-outline" size={28} color="#9ca3af" />
+              <Text style={styles.locationBlockedTitle}>Location required</Text>
+              <Text style={styles.locationBlockedText}>Enable GPS to view live H3 risk zones.</Text>
+              <TouchableOpacity style={styles.locationBlockedBtn} onPress={handleRecenter}>
+                <Ionicons name="refresh" size={14} color="#111827" />
+                <Text style={styles.locationBlockedBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          {!mapboxToken && (
+          {!mapboxToken && hasValidLocation && (
             <View style={styles.mapOverlayMessage}>
               <Text style={styles.mapOverlayTitle}>Mapbox token missing</Text>
               <Text style={styles.mapOverlaySubtitle}>
@@ -792,15 +805,17 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           <View style={styles.validationRow}>
             <View style={styles.validationLeft}>
               <Text style={styles.validationTitle}>Validation</Text>
-              <View style={[styles.validationChip, location.isMock ? styles.validationChipMock : styles.validationChipLive]}>
-                <Ionicons name="checkmark-circle" size={14} color={location.isMock ? '#f59e0b' : Theme.colors.primary} />
-                <Text style={[styles.validationChipText, location.isMock ? styles.validationChipTextMock : styles.validationChipTextLive]}>
-                  {location.loading ? 'Fetching location' : location.isMock ? 'Mock location active' : 'Valid location confirmed'}
+              <View style={[styles.validationChip, hasValidLocation ? styles.validationChipLive : styles.validationChipMock]}>
+                <Ionicons name="checkmark-circle" size={14} color={hasValidLocation ? Theme.colors.primary : '#f59e0b'} />
+                <Text style={[styles.validationChipText, hasValidLocation ? styles.validationChipTextLive : styles.validationChipTextMock]}>
+                  {location.loading ? 'Fetching location' : hasValidLocation ? 'Valid location confirmed' : 'Location unavailable'}
                 </Text>
               </View>
-              <Text style={styles.validationMeta}>{formatCoords(driverLat, driverLon)}</Text>
+              <Text style={styles.validationMeta}>
+                {hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}
+              </Text>
               <Text style={styles.validationMetaSecondary}>
-                {location.isMock ? `Mock • Last set at ${lastPing}` : `Fetched at ${lastPing}`}
+                {hasValidLocation ? `Fetched at ${lastPing}` : `Location missing • ${lastPing}`}
               </Text>
             </View>
           </View>
@@ -828,18 +843,30 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         </ScrollView>
       ) : (
         <View style={styles.webOnlyContainer}>
-          <WebView
-            key={`web-${driverLat}-${driverLon}-${h3Resolution}`}
-            ref={webFullRef}
-            originWhitelist={['*']}
-            source={{ html }}
-            style={styles.webOnlyWebView}
-            javaScriptEnabled
-            domStorageEnabled
-            onMessage={onWebMessage}
-            scrollEnabled={false}
-          />
-          {!mapboxToken && (
+          {hasValidLocation ? (
+            <WebView
+              key={`web-${driverLat}-${driverLon}-${h3Resolution}`}
+              ref={webFullRef}
+              originWhitelist={['*']}
+              source={{ html }}
+              style={styles.webOnlyWebView}
+              javaScriptEnabled
+              domStorageEnabled
+              onMessage={onWebMessage}
+              scrollEnabled={false}
+            />
+          ) : (
+            <View style={[styles.locationBlocked, styles.webOnlyBlocked]}>
+              <Ionicons name="location-outline" size={28} color="#9ca3af" />
+              <Text style={styles.locationBlockedTitle}>Location required</Text>
+              <Text style={styles.locationBlockedText}>Enable GPS to view live H3 risk zones.</Text>
+              <TouchableOpacity style={styles.locationBlockedBtn} onPress={handleRecenter}>
+                <Ionicons name="refresh" size={14} color="#111827" />
+                <Text style={styles.locationBlockedBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {!mapboxToken && hasValidLocation && (
             <View style={styles.webOnlyOverlay}>
               <Text style={styles.mapOverlayTitle}>Mapbox token missing</Text>
               <Text style={styles.mapOverlaySubtitle}>
@@ -932,6 +959,32 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  locationBlocked: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    backgroundColor: '#f8fafc',
+  },
+  webOnlyBlocked: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  locationBlockedTitle: { fontSize: 14, fontWeight: '800', color: '#111827' },
+  locationBlockedText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
+  locationBlockedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#e2e8f0',
+  },
+  locationBlockedBtnText: { fontSize: 12, fontWeight: '700', color: '#111827' },
   mapWeb: { width: '100%', height: '100%', backgroundColor: '#ffffff' },
   mapOverlayMessage: {
     position: 'absolute',

@@ -17,7 +17,8 @@ export default function HomeScreen({ navigation }: any) {
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
+  const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const handleLogout = async () => {
     try {
@@ -35,23 +36,27 @@ export default function HomeScreen({ navigation }: any) {
     try {
       const profileRes = await driverApi.getProfile(driverId);
       setProfile(profileRes?.driverProfile ?? null);
-      const lat = location.latitude;
-      const lng = location.longitude;
-      await telemetryApi.sendGps({
-        driverId,
-        lat,
-        lng,
-        platform: 'mobile-app',
-      });
-      const zone = await fraudApi.getZoneRisk(lat, lng);
-      setZoneRisk(zone ?? null);
+      if (hasValidLocation) {
+        const lat = location.latitude as number;
+        const lng = location.longitude as number;
+        await telemetryApi.sendGps({
+          driverId,
+          lat,
+          lng,
+          platform: 'mobile-app',
+        });
+        const zone = await fraudApi.getZoneRisk(lat, lng);
+        setZoneRisk(zone ?? null);
+      } else {
+        setZoneRisk(null);
+      }
     } catch {
       setProfile(null);
       setZoneRisk(null);
     } finally {
       setLoading(false);
     }
-  }, [driverId, location.latitude, location.longitude]);
+  }, [driverId, hasValidLocation, location.latitude, location.longitude]);
 
   useEffect(() => {
     void loadHome();

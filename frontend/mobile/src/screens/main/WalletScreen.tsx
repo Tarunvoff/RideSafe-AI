@@ -14,7 +14,7 @@ export default function WalletScreen() {
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
 
   const loadPayouts = useCallback(async () => {
     if (!driverId) return;

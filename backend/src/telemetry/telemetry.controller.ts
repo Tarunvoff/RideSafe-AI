@@ -1,6 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
 import { GpsTelemetryDto } from './dto/gps-telemetry.dto';
+import { LocationFailureDto } from './dto/location-failure.dto';
 
 @Controller('telemetry')
 export class TelemetryController {
@@ -28,5 +29,12 @@ export class TelemetryController {
       driverId: dto.driverId,
       timestamp: dto.timestamp ?? Math.floor(Date.now() / 1000),
     };
+  }
+
+  @Post('location-failure')
+  @HttpCode(HttpStatus.OK)
+  reportLocationFailure(@Body() dto: LocationFailureDto) {
+    this.telemetryService.reportLocationFailure(dto);
+    return { status: 'accepted' };
   }
 }

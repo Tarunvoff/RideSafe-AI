@@ -1,12 +1,18 @@
 import {
-    Body,
-    Controller,
-    HttpCode, HttpStatus,
-    Post,
-    Request,
-    UseGuards,
-    Patch,
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode, HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Request,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import {
     AdminLoginDto, AdminVerifyOtpDto,
@@ -16,8 +22,10 @@ import {
     ResetPasswordDto,
     VerifyOtpDto,
     UpdateDriverNameDto,
+  OAuthExchangeDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 
 @Controller('auth')
 export class AuthController {
@@ -97,5 +105,55 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   seedAdmin() {
     return this.authService.seedAdmin();
+  }
+
+  // ── OAUTH ──────────────────────────────────────────────────────────────
+
+  @Get(':provider/authorize')
+  async authorizeOAuth(
+    @Param('provider') provider: string,
+    @Query('identifier') identifier: string,
+    @Query('redirectUri') redirectUri: string,
+    @Res() res: Response,
+  ) {
+    const normalized = String(provider || '').toLowerCase();
+    if (!normalized || !(Object.values(QCommerceProvider) as string[]).includes(normalized)) {
+      throw new BadRequestException('Unsupported provider');
+    }
+    if (!identifier) throw new BadRequestException('Missing identifier');
+
+    const safeRedirect = redirectUri || 'aegis://oauth-callback';
+    const session = await this.authService.startOAuthAuthorize(
+      normalized as QCommerceProvider,
+      identifier,
+      safeRedirect,
+    );
+
+    const sessionId = session?.oauthSession?.sessionId;
+    const state = session?.oauthSession?.state;
+    const code = session?.oauthSession?.demoAuthCode;
+    if (!sessionId || !code) {
+      throw new BadRequestException('OAuth session could not be initialized');
+    }
+
+    const sep = safeRedirect.includes('?') ? '&' : '?';
+    const redirectUrl = `${safeRedirect}${sep}code=${encodeURIComponent(code)}&sessionId=${encodeURIComponent(sessionId)}&state=${encodeURIComponent(state ?? '')}`;
+    return res.redirect(redirectUrl);
+  }
+
+  @Post(':provider/exchange')
+  @HttpCode(HttpStatus.OK)
+  async exchangeOAuth(@Param('provider') provider: string, @Body() dto: OAuthExchangeDto) {
+    const normalized = String(provider || '').toLowerCase();
+    if (!normalized || !(Object.values(QCommerceProvider) as string[]).includes(normalized)) {
+      throw new BadRequestException('Unsupported provider');
+    }
+    if (!dto?.sessionId || !dto?.code) throw new BadRequestException('Missing OAuth session data');
+
+    return this.authService.exchangeOAuth(normalized as QCommerceProvider, {
+      sessionId: dto.sessionId,
+      code: dto.code,
+      state: dto.state,
+    });
   }
 }

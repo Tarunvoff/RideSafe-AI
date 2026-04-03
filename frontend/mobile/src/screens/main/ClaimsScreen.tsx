@@ -14,7 +14,7 @@ export default function ClaimsScreen() {
   const [claims, setClaims] = useState<ClaimRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
 
   const loadClaims = useCallback(async () => {
     if (!driverId) return;

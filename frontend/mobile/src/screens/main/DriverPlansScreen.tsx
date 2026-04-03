@@ -172,7 +172,7 @@ export default function DriverPlansScreen({ navigation }: any) {
   const [premiumPreview, setPremiumPreview] = useState<any | null>(null);
   const [paymentErrorData, setPaymentErrorData] = useState<{ paymentId: string; message: string } | null>(null);
 
-  const driverId = user?.id ?? user?.email ?? null;
+  const driverId = user?.id ?? null;
 
   const [checkout, setCheckout] = useState<null | {
     keyId: string;
