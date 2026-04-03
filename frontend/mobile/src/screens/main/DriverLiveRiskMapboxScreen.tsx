@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
@@ -8,6 +8,9 @@ import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { Theme } from '../../theme';
+import { fraudApi } from '../../services/api';
+
+// ────── TYPESCRIPT TYPES ──────────────────────────────────────────────────────
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 type FloodChance = 'Low' | 'Medium' | 'High';
@@ -24,10 +27,95 @@ type SelectedCellRisk = {
   trafficStatus: TrafficStatus;
 };
 
+type RiskCell = {
+  h3Index: string;
+  riskLevel: RiskLevel;
+  riskScore: number;
+  rainPct: number;
+  aqi: number;
+  floodChance: FloodChance;
+  disruptionScore: number;
+  trafficStatus: TrafficStatus;
+};
+
+type RiskMap = Record<string, RiskCell>;
+
+interface ZoneStateResponse {
+  h3_cell: string;
+  state?: string;
+  lf_score?: number;
+  active_riders?: number;
+  rainfall?: number;
+  temperature?: number;
+  humidity?: number;
+  aqi?: number;
+  pm25?: number;
+  pm10?: number;
+  [key: string]: any;
+}
+
+interface ZoneNeighborsResponse {
+  center: ZoneStateResponse;
+  neighbors: ZoneStateResponse[];
+}
+
 function formatRiskLevel(level: RiskLevel) {
   if (level === 'HIGH') return 'High Risk';
   if (level === 'MEDIUM') return 'Medium Risk';
   return 'Low Risk';
+}
+
+/**
+ * Transform backend API response to RiskMap keyed by H3 index.
+ * Handles missing/incomplete data gracefully with sensible defaults.
+ */
+function transformToRiskMap(apiResponse: ZoneNeighborsResponse | null): RiskMap {
+  if (!apiResponse) return {};
+
+  const result: RiskMap = {};
+  const allZones: ZoneStateResponse[] = [];
+
+  // Collect center and neighbors.
+  if (apiResponse.center) allZones.push(apiResponse.center);
+  if (apiResponse.neighbors && Array.isArray(apiResponse.neighbors)) {
+    allZones.push(...apiResponse.neighbors);
+  }
+
+  for (const zone of allZones) {
+    if (!zone.h3_cell) continue;
+
+    const lf_score = Math.round((zone.lf_score ?? 0) * 100); // 0–100
+    
+    // Map lf_score to riskLevel and derive other metrics.
+    const riskLevel: RiskLevel =
+      lf_score >= 70 ? 'HIGH' : lf_score >= 40 ? 'MEDIUM' : 'LOW';
+
+    // Estimate disruption from lf_score (0–1).
+    const disruptionScore = (zone.lf_score ?? 0) * 1.0; // Already 0–1
+
+    result[zone.h3_cell] = {
+      h3Index: zone.h3_cell,
+      riskLevel,
+      riskScore: lf_score, // Use lf_score as risk score (0–100)
+      rainPct: Math.round((zone.rainfall ?? 0) * 10), // Convert mm to percentage-like metric
+      aqi: Math.round(zone.aqi ?? 50), // Default safe AQI
+      floodChance:
+        (zone.rainfall ?? 0) > 30
+          ? 'High'
+          : (zone.rainfall ?? 0) > 10
+            ? 'Medium'
+            : 'Low',
+      disruptionScore: Math.min(1, disruptionScore),
+      trafficStatus:
+        disruptionScore > 0.65
+          ? 'Halt'
+          : disruptionScore > 0.3
+            ? 'Slow Traffic'
+            : 'Stable Flow',
+    };
+  }
+
+  return result;
 }
 
 const H3_RESOLUTIONS = [8, 9, 10] as const;
@@ -51,6 +139,104 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
       })
     : '—';
   
+  // ────── REAL RISK DATA STATE ──────────────────────────────────────────────
+
+  const [riskMap, setRiskMap] = useState<RiskMap>({});
+  const [isLoadingRisk, setIsLoadingRisk] = useState(false);
+  const [riskError, setRiskError] = useState<string | null>(null);
+  
+  // ────── VIEW MODE STATE ──────────────────────────────────────────────────
+  const [h3Resolution, setH3Resolution] = useState<(typeof H3_RESOLUTIONS)[number]>(9);
+  const [driverH3, setDriverH3] = useState<string>('—');
+  const [selectedCell, setSelectedCell] = useState<SelectedCellRisk | null>(null);
+  const [viewMode, setViewMode] = useState<typeof VIEW_MODE_MOBILE | typeof VIEW_MODE_WEB>(VIEW_MODE_MOBILE);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+  // ────── FETCH LIVE RISK DATA ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon)) {
+      setRiskMap({});
+      return;
+    }
+
+    const fetchRiskData = async () => {
+      setIsLoadingRisk(true);
+      setRiskError(null);
+
+      try {
+        const response = await fraudApi.getZoneNeighbors(
+          driverLat,
+          driverLon,
+          1 // radius = 1 ring of neighbors
+        );
+
+        const transformed = transformToRiskMap(response as unknown as ZoneNeighborsResponse);
+        setRiskMap(transformed);
+      } catch (error: any) {
+        console.error('[RiskMap] Failed to fetch risk data:', error);
+        const errorMessage = error?.message ?? 'Failed to load risk data';
+        setRiskError(errorMessage);
+        setRiskMap({});
+      } finally {
+        setIsLoadingRisk(false);
+      }
+    };
+
+    fetchRiskData();
+  }, [driverLat, driverLon]);
+
+  // ────── INJECT RISK MAP INTO WEBVIEW ──────────────────────────────────────
+
+  // Whenever riskMap changes, send it to WebView so mock is replaced with real data.
+  useEffect(() => {
+    if (Object.keys(riskMap).length === 0) return;
+
+    const injectedJS = `
+      console.log('[Injected] Received risk data:', Object.keys(window.__RISK_MAP__).length, 'cells');
+      window.__RISK_MAP__ = ${JSON.stringify(riskMap)};
+      window.__RISK_LOADED__ = true;
+      console.log('[Injected] Updated window.__RISK_MAP__ with', Object.keys(window.__RISK_MAP__).length, 'cells');
+      if (window.refreshRiskLayer && typeof window.refreshRiskLayer === 'function') {
+        console.log('[Injected] Calling refreshRiskLayer()');
+        window.refreshRiskLayer();
+      } else {
+        console.warn('[Injected] refreshRiskLayer not found!');
+      }
+      true;
+    `;
+
+    const targetRef = viewMode === 'web' ? webFullRef.current : webRef.current;
+    if (!targetRef) return;
+
+    console.log('[RiskMap] Injecting', Object.keys(riskMap).length, 'cells into WebView');
+    targetRef.injectJavaScript(injectedJS);
+  }, [riskMap, viewMode]);
+
+  // ────── PERIODIC RISK DATA REFRESH (every 30 seconds) ──────────────────────
+
+  useEffect(() => {
+    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon)) return;
+
+    // Fetch immediately, then every 30 seconds for dynamic color updates
+    const fetchInterval = setInterval(async () => {
+      try {
+        const response = await fraudApi.getZoneNeighbors(
+          driverLat,
+          driverLon,
+          1 // radius = 1 ring of neighbors
+        );
+
+        const transformed = transformToRiskMap(response as unknown as ZoneNeighborsResponse);
+        setRiskMap(transformed);
+      } catch (error: any) {
+        console.error('[RiskMap Refresh] Failed to fetch risk data:', error);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(fetchInterval);
+  }, [driverLat, driverLon]);
+  
   const formatCoords = (lat: number, lon: number) => {
     const latDir = lat >= 0 ? 'N' : 'S';
     const lonDir = lon >= 0 ? 'E' : 'W';
@@ -61,12 +247,6 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     void refreshLocation();
     sendToWebView({ type: 'RECENTER' });
   };
-
-  const [h3Resolution, setH3Resolution] = useState<(typeof H3_RESOLUTIONS)[number]>(9);
-  const [driverH3, setDriverH3] = useState<string>('—');
-  const [selectedCell, setSelectedCell] = useState<SelectedCellRisk | null>(null);
-  const [viewMode, setViewMode] = useState<typeof VIEW_MODE_MOBILE | typeof VIEW_MODE_WEB>(VIEW_MODE_MOBILE);
-  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -165,12 +345,16 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
     <div class="legend">
       <div class="legendRow">
-        <div class="legendDot"></div>
-        <div class="legendText">Secure / Safe Zones</div>
+        <div class="legendDot" style="background: rgba(34,197,94,0.35); border-color: rgba(22,163,74,0.65);"></div>
+        <div class="legendText">Low Risk (Safe)</div>
       </div>
       <div class="legendRow">
-        <div class="legendDot" style="background: rgba(22,163,74,0.55); border-color: rgba(22,163,74,0.8);"></div>
-        <div class="legendText">Higher Risk (green)</div>
+        <div class="legendDot" style="background: rgba(234,179,8,0.45); border-color: rgba(202,138,4,0.85);"></div>
+        <div class="legendText">Medium Risk</div>
+      </div>
+      <div class="legendRow">
+        <div class="legendDot" style="background: rgba(239,68,68,0.45); border-color: rgba(220,38,38,0.95);"></div>
+        <div class="legendText">High Risk (Alert!)</div>
       </div>
     </div>
 
@@ -191,60 +375,76 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
       // Placeholder for backend binding:
       // RN can inject a real riskMap keyed by H3 index later.
-      const riskMap = window.__RISK_MAP__ || {};
+      // NOTE: We use window.__RISK_MAP__ directly so updates are reflected!
+      console.log('[MapInit] Initial riskMap cells:', Object.keys(window.__RISK_MAP__ || {}).length);
 
       function post(type, data) {
         if (!window.ReactNativeWebView) return;
         window.ReactNativeWebView.postMessage(JSON.stringify({ type, ...data }));
       }
 
-      function hashString(str) {
-        let h = 2166136261;
-        for (let i = 0; i < str.length; i++) {
-          h ^= str.charCodeAt(i);
-          h = Math.imul(h, 16777619);
-        }
-        return Math.abs(h) % 1000000;
-      }
-
-      function riskMockForH3(h3Index) {
-        const h = hashString(h3Index);
-        const u = (h % 1000) / 999; // 0..1
-        const u2 = ((h / 7) % 1000) / 999;
-        const u3 = ((h / 11) % 1000) / 999;
-        const u4 = ((h / 13) % 1000) / 999;
-        const u5 = ((h / 17) % 1000) / 999;
-
-        const riskScore = Math.round(u * 100);
-        const riskLevel = riskScore >= 70 ? 'HIGH' : (riskScore >= 40 ? 'MEDIUM' : 'LOW');
-
-        const rainPct = Math.round(u2 * 100);
-        const aqi = Math.round(20 + u3 * 220);
-        const floodChance = u4 < 0.33 ? 'Low' : (u4 < 0.66 ? 'Medium' : 'High');
-        const disruptionScore = Math.round(u5 * 100) / 100;
-        const trafficStatus = disruptionScore > 0.65 ? 'Halt' : (disruptionScore > 0.3 ? 'Slow Traffic' : 'Stable Flow');
-
-        return {
-          h3Index,
-          riskLevel,
-          riskScore,
-          rainPct,
-          aqi,
-          floodChance,
-          disruptionScore,
-          trafficStatus
-        };
-      }
-
       function getRiskForH3(h3Index) {
-        return riskMap[h3Index] || riskMockForH3(h3Index);
+        // ✅ Real data ONLY — access window.__RISK_MAP__ directly so updates are reflected
+        const riskMap = window.__RISK_MAP__ || {};
+        const riskData = riskMap[h3Index] || {
+          h3Index,
+          riskLevel: 'LOW',
+          riskScore: 0,
+          rainPct: 0,
+          aqi: 50,
+          floodChance: 'Low',
+          disruptionScore: 0,
+          trafficStatus: 'Stable Flow'
+        };
+        
+        if (h3Index === driverH3 && Object.keys(riskMap).length > 0) {
+          console.log('[getRiskForH3] Driver cell data:', { h3Index, riskLevel: riskData.riskLevel, riskScore: riskData.riskScore, hasData: !!riskMap[h3Index] });
+        }
+        
+        return riskData;
       }
 
       function riskColor(level) {
-        // Green-only palette (premium look).
-        if (level === 'HIGH') return { fill: 'rgba(22,163,74,0.42)', stroke: 'rgba(22,163,74,0.9)' };
-        if (level === 'MEDIUM') return { fill: 'rgba(74,222,128,0.32)', stroke: 'rgba(22,163,74,0.75)' };
-        return { fill: 'rgba(220,252,231,0.42)', stroke: 'rgba(22,163,74,0.55)' };
+        // GREEN for LOW, YELLOW for MEDIUM, RED for HIGH
+        if (level === 'HIGH') return { fill: 'rgba(239,68,68,0.45)', stroke: 'rgba(220,38,38,0.95)' }; // Red
+        if (level === 'MEDIUM') return { fill: 'rgba(234,179,8,0.45)', stroke: 'rgba(202,138,4,0.85)' }; // Yellow
+        return { fill: 'rgba(34,197,94,0.35)', stroke: 'rgba(22,163,74,0.65)' }; // Green
+      }
+
+      function updateDriverMarker() {
+        // Update marker color based on driver's current cell risk level
+        if (!driverMarker || !driverH3) {
+          console.log('[updateDriverMarker] Marker or driverH3 not ready', { driverMarker: !!driverMarker, driverH3 });
+          return;
+        }
+        
+        const driverRisk = getRiskForH3(driverH3);
+        console.log('[updateDriverMarker] Driver cell:', driverH3, 'Risk:', driverRisk.riskLevel, 'Score:', driverRisk.riskScore);
+        
+        let markerColor = '#16a34a'; // Default green for LOW
+        
+        if (driver.isMock) {
+          markerColor = '#f59e0b'; // Orange for mock
+        } else if (driverRisk.riskLevel === 'HIGH') {
+          markerColor = '#dc2626'; // Red
+          console.log('[updateDriverMarker] Setting marker to RED');
+        } else if (driverRisk.riskLevel === 'MEDIUM') {
+          markerColor = '#ca8a04'; // Yellow
+          console.log('[updateDriverMarker] Setting marker to YELLOW');
+        } else {
+          console.log('[updateDriverMarker] Setting marker to GREEN');
+        }
+        
+        // Create new marker with updated color
+        try {
+          driverMarker.remove();
+          driverMarker = new mapboxgl.Marker({ color: markerColor })
+            .setLngLat([driver.lon, driver.lat])
+            .addTo(map);
+          console.log('[updateDriverMarker] Marker updated to color:', markerColor);
+        } catch (err) {
+          console.error('[updateDriverMarker] Error updating marker:', err);
+        }
       }
 
       function computeDriverH3() {
@@ -356,14 +556,18 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
         map.addControl(new mapboxgl.NavigationControl({ showCompass: false, showZoom: true }), 'top-right');
         map.on('load', () => {
-          // Emphasize driver location with a marker.
+          // Emphasize driver location with a marker (will be updated by updateDriverMarker based on risk).
           driverMarker = new mapboxgl.Marker({ color: driver.isMock ? '#f59e0b' : '#16a34a' })
             .setLngLat([driver.lon, driver.lat])
             .addTo(map);
+          
           const fc = buildGeoJSON();
           map.addSource('h3cells', { type: 'geojson', data: fc });
+        
+          // Update marker color based on driver's risk level
+          updateDriverMarker();
 
-          // Base green fill for all cells.
+          // Base fill for all cells: GREEN (LOW), YELLOW (MEDIUM), RED (HIGH)
           map.addLayer({
             id: 'h3fill',
             type: 'fill',
@@ -371,12 +575,17 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
             paint: {
               'fill-color': [
                 'case',
-                ['==', ['get', 'riskLevel'], 'HIGH'], 'rgba(22,163,74,0.36)',
-                ['==', ['get', 'riskLevel'], 'MEDIUM'], 'rgba(74,222,128,0.28)',
-                'rgba(220,252,231,0.35)'
+                ['==', ['get', 'riskLevel'], 'HIGH'], 'rgba(239,68,68,0.45)',  // RED
+                ['==', ['get', 'riskLevel'], 'MEDIUM'], 'rgba(234,179,8,0.45)', // YELLOW
+                'rgba(34,197,94,0.35)' // GREEN for LOW
               ],
               'fill-opacity': 1,
-              'fill-outline-color': 'rgba(22,163,74,0.18)'
+              'fill-outline-color': [
+                'case',
+                ['==', ['get', 'riskLevel'], 'HIGH'], 'rgba(220,38,38,0.95)',
+                ['==', ['get', 'riskLevel'], 'MEDIUM'], 'rgba(202,138,4,0.85)',
+                'rgba(22,163,74,0.65)'
+              ]
             }
           });
 
@@ -451,7 +660,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         const fc = buildGeoJSON();
         map.addSource('h3cells', { type: 'geojson', data: fc });
 
-        // Re-add layers after rebuild.
+        // Re-add layers after rebuild with updated GREEN/YELLOW/RED colors.
         map.addLayer({
           id: 'h3fill',
           type: 'fill',
@@ -459,12 +668,17 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           paint: {
             'fill-color': [
               'case',
-              ['==', ['get', 'riskLevel'], 'HIGH'], 'rgba(22,163,74,0.36)',
-              ['==', ['get', 'riskLevel'], 'MEDIUM'], 'rgba(74,222,128,0.28)',
-              'rgba(220,252,231,0.35)'
+              ['==', ['get', 'riskLevel'], 'HIGH'], 'rgba(239,68,68,0.45)',  // RED
+              ['==', ['get', 'riskLevel'], 'MEDIUM'], 'rgba(234,179,8,0.45)', // YELLOW
+              'rgba(34,197,94,0.35)' // GREEN for LOW
             ],
             'fill-opacity': 1,
-            'fill-outline-color': 'rgba(22,163,74,0.18)'
+            'fill-outline-color': [
+              'case',
+              ['==', ['get', 'riskLevel'], 'HIGH'], 'rgba(220,38,38,0.95)',
+              ['==', ['get', 'riskLevel'], 'MEDIUM'], 'rgba(202,138,4,0.85)',
+              'rgba(22,163,74,0.65)'
+            ]
           }
         });
 
@@ -516,19 +730,38 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         driver.lat = nextLat;
         driver.lon = nextLon;
         driver.isMock = Boolean(nextIsMock);
-        if (driverMarker) {
-          driverMarker.remove();
-          driverMarker = new mapboxgl.Marker({ color: driver.isMock ? '#f59e0b' : '#16a34a' })
-            .setLngLat([driver.lon, driver.lat])
-            .addTo(map);
-        } else {
-          driverMarker = new mapboxgl.Marker({ color: driver.isMock ? '#f59e0b' : '#16a34a' })
-            .setLngLat([driver.lon, driver.lat])
-            .addTo(map);
-        }
         map.easeTo({ center: [driver.lon, driver.lat], duration: 400 });
         rebuildGrid(resolution);
+        
+        // After grid rebuild, update marker with correct risk-based color
+        setTimeout(() => {
+          updateDriverMarker();
+        }, 100);
       }
+
+      function refreshRiskLayer() {
+        // Called when new risk data arrives from React Native
+        if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+        
+        console.log('[refreshRiskLayer] Updating with new risk data');
+        
+        // Rebuild the GeoJSON with latest riskMap data
+        const fc = buildGeoJSON();
+        if (map.getSource('h3cells')) {
+          map.getSource('h3cells').setData(fc);
+          console.log('[refreshRiskLayer] GeoJSON updated with', fc.features.length, 'cells');
+        }
+        
+        // Update marker color based on driver's new risk level
+        updateDriverMarker();
+        console.log('[refreshRiskLayer] Driver marker updated');
+      }
+      
+      // Auto-refresh driver marker color every 5 seconds to catch backend variance changes
+      setInterval(() => {
+        if (!map || !driverH3) return;
+        updateDriverMarker();
+      }, 5000);
 
       window.__RN_HANDLE__ = function(payload) {
         try {
@@ -604,6 +837,50 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   const selectedCellId = selectedCell?.h3Index ?? '—';
 
   const riskLevelLabel = selectedCell ? formatRiskLevel(selectedCell.riskLevel) : '—';
+
+  // ────── RENDER LOADING STATE ──────────────────────────────────────────────
+
+  if (isLoadingRisk) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading live risk data...</Text>
+        </View>
+        <DriverBottomNavbar navigation={navigation} activeKey="risk" />
+      </SafeAreaView>
+    );
+  }
+
+  // ────── RENDER EMPTY STATE ──────────────────────────────────────────────
+
+  if (!riskMap || Object.keys(riskMap).length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+        <View style={styles.centeredContainer}>
+          <Ionicons name="warning-outline" size={48} color="#f59e0b" />
+          <Text style={styles.emptyTitle}>No Risk Data Available</Text>
+          <Text style={styles.emptySubtitle}>
+            {riskError
+              ? `Error: ${riskError}`
+              : 'Unable to load risk data for your current location.'}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            activeOpacity={0.8}
+            onPress={() => refreshLocation()}
+          >
+            <Text style={styles.retryBtnText}>Refresh Location</Text>
+          </TouchableOpacity>
+        </View>
+        <DriverBottomNavbar navigation={navigation} activeKey="risk" />
+      </SafeAreaView>
+    );
+  }
+
+  // ────── RENDER NORMAL VIEW ──────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1113,5 +1390,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryBtnText: { fontSize: 13, fontWeight: '900', color: '#0f172a' },
+
+  // ────── LOADING & EMPTY STATE STYLES ──────────────────────────────────────
+
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9ca3af',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryBtn: {
+    marginTop: 20,
+    backgroundColor: '#16a34a',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+  },
+  retryBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
 });
 

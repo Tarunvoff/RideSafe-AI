@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as h3 from 'h3-js';
 import 'dotenv/config';
 
 const prisma = new PrismaClient();
@@ -652,7 +653,91 @@ async function main() {
     }
   }
 
-  console.log('\n🎉 Seed completed!');
+  // ────── ZONE RISK DATA SEEDING (H3 Cells) ──────────────────────────────────
+  console.log('\n🌱 Seeding H3 Zone Risk Data...');
+
+  const SEED_CITIES = [
+    { name: 'Bangalore', lat: 12.9716, lon: 77.5946 },
+    { name: 'Chennai', lat: 13.0827, lon: 80.2707 },
+    { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
+  ];
+
+  const RESOLUTIONS = [8, 9, 10];
+  const DISK_RADIUS = 3; // Rings of neighbors per city center
+
+  // Deterministic risk generator with varied distribution for better color mapping
+  function generateRiskData(h3Index: string) {
+    const seed = h3Index
+      .split('')
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    // Use multiple offsets to create varied but deterministic data
+    const norm = (offset = 0) => ((seed + offset) % 100) / 100; // 0–1
+    
+    // Create more variance: shift some results higher for better HIGH/MEDIUM distribution
+    const riskVariance = norm(1);
+    
+    // Distribute: ~30% HIGH (70-100), ~40% MEDIUM (40-69), ~30% LOW (0-39)
+    let riskScore: number;
+    if (riskVariance > 0.7) {
+      riskScore = Math.round(70 + norm(11) * 30); // HIGH: 70-100
+    } else if (riskVariance > 0.3) {
+      riskScore = Math.round(40 + norm(12) * 30); // MEDIUM: 40-69
+    } else {
+      riskScore = Math.round(norm(13) * 40); // LOW: 0-39
+    }
+
+    const riskLevel = riskScore > 69 ? 'HIGH' : riskScore > 39 ? 'MEDIUM' : 'LOW';
+    const rainfall = parseFloat((norm(2) * 50).toFixed(1));
+    const temperature = parseFloat((25 + norm(3) * 15).toFixed(1));
+    const aqi = Math.round(50 + norm(4) * 200);
+    const floodChanceVal = norm(5);
+    const floodChance = floodChanceVal > 0.65 ? 'High' : floodChanceVal > 0.35 ? 'Medium' : 'Low';
+    const disruptionScore = parseFloat(norm(6).toFixed(2));
+    const trafficVal = norm(7);
+    const trafficStatus =
+      trafficVal > 0.65 ? 'Halt' : trafficVal > 0.35 ? 'Slow Traffic' : 'Stable Flow';
+    const activeRiders = Math.round(norm(8) * 50);
+
+    return {
+      riskScore,
+      riskLevel,
+      rainfall,
+      temperature,
+      aqi,
+      floodChance,
+      disruptionScore,
+      trafficStatus,
+      activeRiders,
+    };
+  }
+
+  let totalSeeded = 0;
+
+  for (const city of SEED_CITIES) {
+    for (const resolution of RESOLUTIONS) {
+      const centerCell = h3.latLngToCell(city.lat, city.lon, resolution);
+      const allCells = h3.gridDisk(centerCell, DISK_RADIUS);
+
+      for (const h3Index of allCells) {
+        const riskData = generateRiskData(h3Index);
+
+        await (prisma as any).zoneRiskData.upsert({
+          where: { h3_cell: h3Index },
+          update: { ...riskData, updatedAt: new Date() },
+          create: { h3_cell: h3Index, ...riskData },
+        });
+
+        totalSeeded++;
+      }
+
+      console.log(`   ✅ ${city.name} R${resolution}: ${allCells.length} cells seeded`);
+    }
+  }
+
+  console.log(`\n🎯 Zone Risk Seeding Complete: ${totalSeeded} cells seeded\n`);
+
+  console.log('\n🎉 Database Seed Completed!');
   console.log('\n📱 Login Instructions:');
   console.log('   1. Open mobile app');
   console.log('   2. Click "Zepto" OAuth button');
