@@ -166,8 +166,47 @@ export class PaymentsService {
         policy: result,
       };
     } catch (err: any) {
-      this.logger.error(`Transaction failed during policy creation: ${err.message}`);
-      throw new BadRequestException('Payment verified but policy creation failed. Please contact support.');
+      this.logger.error(`Critical: Transaction failed during policy creation for order ${razorpayOrder.id}: ${err.message}`);
+
+      try {
+        // The transaction rolled back, so the 'SUCCESS' update was undone, but the payment is verified.
+        // Update the order status to FAILED outside the transaction to preserve the payment details.
+        await prisma.razorpayOrder.update({
+          where: { id: razorpayOrder.id },
+          data: {
+            status: 'FAILED',
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature,
+          },
+        });
+
+        // Insert into our DLQ table so the ML/event pipeline or admin reconciliation jobs 
+        // are explicitly aware of the missing policy.
+        await prisma.kafkaDLQ.create({
+          data: {
+            topic: 'PAYMENT_VERIFIED_POLICY_FAILED',
+            eventKey: userId,
+            payload: JSON.stringify({ 
+              orderId: razorpayOrder.id,
+              planId: plan.id,
+              razorpayPaymentId: razorpay_payment_id 
+            }),
+            error: err.message,
+            status: 'PENDING',
+          }
+        });
+      } catch (fallbackErr: any) {
+        // EXACT EDGE CASE: If the DB connection dropped completely, the fallback queries above will ALSO fail.
+        // We catch it here so we don't throw an unhandled DB exception back to the client,
+        // and we log it as a FATAL alert because money is verified but completely unrecorded locally.
+        this.logger.error(`FATAL: Fallback tracking failed for verified Razorpay Payment ID ${razorpay_payment_id}. DB completely unreachable. Err: ${fallbackErr.message}`);
+      }
+
+      throw new BadRequestException({
+        message: 'Payment verified but policy creation failed. Your money is safe. Please contact support.',
+        error: 'POLICY_CREATION_FAILED',
+        razorpay_payment_id: razorpay_payment_id
+      });
     }
   }
 

@@ -83,7 +83,9 @@ async function request<T>(
       }
     }
 
-    throw new Error(data?.message ?? 'Something went wrong');
+    const err: any = new Error(data?.message ?? 'Something went wrong');
+    err.response = { data }; // Preserve the structured JSON body
+    throw err;
   }
 
   return data as T;

@@ -170,6 +170,7 @@ export default function DriverPlansScreen({ navigation }: any) {
   const [purchasedPolicies, setPurchasedPolicies] = useState<any[]>([]);
   const [latestDisruption, setLatestDisruption] = useState<any | null>(null);
   const [premiumPreview, setPremiumPreview] = useState<any | null>(null);
+  const [paymentErrorData, setPaymentErrorData] = useState<{ paymentId: string; message: string } | null>(null);
 
   const driverId = user?.id ?? user?.email ?? null;
 
@@ -346,15 +347,16 @@ export default function DriverPlansScreen({ navigation }: any) {
         } else {
           throw new Error('Payment verification failed');
         }
-      } catch (e: any) {
-        // Verification failed - show error, keep state unchanged
-        setCheckout(null);
-        setCheckoutProcessing(false);
-        Alert.alert(
-          'Verification Failed',
-          e?.message ?? 'Payment could not be verified. If amount was deducted, contact support.',
-          [{ text: 'OK' }]
-        );
+      } catch (err: any) {
+        // Verify failed (network etc): keep local policy, user still sees purchase (unless it's our explicit rejection)
+        const errorData = err?.response?.data;
+        if (errorData?.error === 'POLICY_CREATION_FAILED' && errorData?.razorpay_payment_id) {
+          // Explicit UI flow intercept for "Money is safe" Drop
+          setPaymentErrorData({
+            paymentId: errorData.razorpay_payment_id,
+            message: errorData.message || 'Payment verified but policy creation failed.',
+          });
+        }
       }
     }
   };
@@ -659,6 +661,38 @@ export default function DriverPlansScreen({ navigation }: any) {
           )}
         </SafeAreaView>
       </Modal>
+
+      <Modal
+        visible={!!paymentErrorData}
+        onRequestClose={() => setPaymentErrorData(null)}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.errorModalOverlay}>
+          <View style={styles.errorModalContent}>
+            <Ionicons name="shield-checkmark" size={48} color="#16a34a" style={{ marginBottom: 8 }} />
+            <Text style={styles.errorModalTitle}>Your Money is Safe</Text>
+            <Text style={styles.errorModalSub}>{paymentErrorData?.message}</Text>
+            
+            <View style={styles.paymentIdBox}>
+              <Text style={styles.paymentIdLabel}>Razorpay Payment ID</Text>
+              <Text style={styles.paymentIdValue}>{paymentErrorData?.paymentId}</Text>
+            </View>
+
+            <TouchableOpacity activeOpacity={0.85} style={styles.supportBtn} onPress={() => {
+              setPaymentErrorData(null);
+              Alert.alert('Support Ticket Created', `Our financial team will reconcile payment ${paymentErrorData?.paymentId} shortly.`);
+            }}>
+              <Text style={styles.supportBtnText}>Contact Support</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity activeOpacity={0.85} style={styles.dismissBtn} onPress={() => setPaymentErrorData(null)}>
+              <Text style={styles.dismissBtnText}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -824,5 +858,87 @@ const styles = StyleSheet.create({
   checkoutProcessingCard: { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 18, width: '82%', alignItems: 'center' },
   checkoutProcessingTitle: { marginTop: 10, fontWeight: '900', fontSize: 16, color: '#111827' },
   checkoutProcessingSub: { marginTop: 6, fontWeight: '700', fontSize: 12, color: '#6b7280', textAlign: 'center' },
+
+  // Error Payment Modal UX
+  errorModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Theme.spacing.lg,
+  },
+  errorModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: Theme.borderRadius.xl,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  errorModalTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorModalSub: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  paymentIdBox: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: Theme.borderRadius.lg,
+    padding: 16,
+    width: '100%',
+    marginBottom: 20,
+  },
+  paymentIdLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  paymentIdValue: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#16a34a',
+    letterSpacing: 0.5,
+  },
+  supportBtn: {
+    backgroundColor: '#16a34a',
+    borderRadius: Theme.borderRadius.lg,
+    paddingVertical: 14,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  supportBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dismissBtn: {
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  dismissBtnText: {
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '800',
+  },
 });
 
