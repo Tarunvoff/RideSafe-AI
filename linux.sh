@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "========================================================"
 echo "🚀 STARTING RIDESAFE-AI DISTRIBUTED ENGINE (PHASE 2)"
 echo "========================================================"
@@ -15,7 +19,9 @@ fi
 
 # 1. Boot Docker Containers
 echo "[1/8] Booting Docker Containers (Kafka, Zookeeper, Redis, DB)..."
+pushd "$SCRIPT_DIR" > /dev/null
 docker compose up -d
+popd > /dev/null
 
 echo "⏳ Waiting for Kafka to initialize..."
 sleep 10
@@ -49,22 +55,38 @@ echo "✅ Kafka topic ready"
 echo "🔍 Running containers:"
 docker ps
 
-# 5. ML Insurance Service
-echo "[3/8] Starting ML Insurance Service (8000)..."
+# 5. Create + activate Python virtual environment (once)
+echo "[3/8] Preparing Python virtual environment..."
+if [ ! -f "$SCRIPT_DIR/ml-calcultion/.venv/bin/activate" ]; then
+  echo "Creating .venv under $SCRIPT_DIR/ml-calcultion"
+  python3 -m venv "$SCRIPT_DIR/ml-calcultion/.venv"
+fi
+
+"$SCRIPT_DIR/ml-calcultion/.venv/bin/pip" install --upgrade pip
+
+# 6. Install Python dependencies for each ML service
+echo "[4/8] Installing Python dependencies..."
+"$SCRIPT_DIR/ml-calcultion/.venv/bin/pip" install -r "$SCRIPT_DIR/ml-calcultion/ml-insurance-service/requirements.txt"
+"$SCRIPT_DIR/ml-calcultion/.venv/bin/pip" install -r "$SCRIPT_DIR/ml-calcultion/fraud-feature-service/requirements.txt"
+"$SCRIPT_DIR/ml-calcultion/.venv/bin/pip" install -r "$SCRIPT_DIR/ml-calcultion/h3-feature-service/requirements.txt"
+"$SCRIPT_DIR/ml-calcultion/.venv/bin/pip" install -r "$SCRIPT_DIR/ml-calcultion/grid_event_service/requirements.txt"
+
+# 7. ML Insurance Service
+echo "[5/8] Starting ML Insurance Service (8000)..."
 gnome-terminal -- bash -c "
-cd ml-calcultion &&
+cd '$SCRIPT_DIR/ml-calcultion' &&
 source .venv/bin/activate &&
 export REDIS_URL=redis://127.0.0.1:6379/0 &&
 cd ml-insurance-service &&
 echo 'ML-INSURANCE-8000' &&
-uvicorn main:app --host 0.0.0.0 --port 8000;
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload;
 exec bash
 "
 
-# 6. Fraud Feature Service
-echo "[4/8] Starting Fraud Feature Service (8002)..."
+# 8. Fraud Feature Service
+echo "[6/8] Starting Fraud Feature Service (8002)..."
 gnome-terminal -- bash -c "
-cd ml-calcultion &&
+cd '$SCRIPT_DIR/ml-calcultion' &&
 source .venv/bin/activate &&
 cd fraud-feature-service &&
 export REDIS_URL=redis://127.0.0.1:6379/0 &&
@@ -74,10 +96,10 @@ uvicorn main:app --host 0.0.0.0 --port 8002 --reload;
 exec bash
 "
 
-# 7. Grid Event Service
-echo "[5/8] Starting Grid Event Service (8003)..."
+# 9. Grid Event Service
+echo "[7/8] Starting Grid Event Service (8003)..."
 gnome-terminal -- bash -c "
-cd ml-calcultion &&
+cd '$SCRIPT_DIR/ml-calcultion' &&
 source .venv/bin/activate &&
 cd grid_event_service &&
 export KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 &&
@@ -90,10 +112,10 @@ uvicorn main:app --host 0.0.0.0 --port 8003 --reload;
 exec bash
 "
 
-# 8. H3 Feature Service
-echo "[6/8] Starting H3 Feature Service (8004)..."
+# 10. H3 Feature Service
+echo "[8/8] Starting H3 Feature Service (8004)..."
 gnome-terminal -- bash -c "
-cd ml-calcultion &&
+cd '$SCRIPT_DIR/ml-calcultion' &&
 source .venv/bin/activate &&
 cd h3-feature-service &&
 export KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 &&
@@ -109,9 +131,10 @@ echo "⏳ Waiting before starting backend..."
 sleep 5
 
 # 9. NestJS Backend (AFTER Kafka READY 🔥)
-echo "[7/8] Starting NestJS Backend (3001)..."
+echo "[9/9] Starting NestJS Backend (3001)..."
 gnome-terminal -- bash -c "
-cd backend &&
+cd '$SCRIPT_DIR/backend' &&
+npm install &&
 echo 'NESTJS-BACKEND-3001' &&
 npm run start:dev;
 exec bash
@@ -120,9 +143,10 @@ exec bash
 sleep 3
 
 # 10. React Native App
-echo "[8/8] Starting Mobile App..."
+echo "[10/10] Starting Mobile App..."
 gnome-terminal -- bash -c "
-cd frontend/mobile &&
+cd '$SCRIPT_DIR/frontend/mobile' &&
+npm install &&
 echo 'EXPO-MOBILE-APP' &&
 npx expo start --offline;
 exec bash
