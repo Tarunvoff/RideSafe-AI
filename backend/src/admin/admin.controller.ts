@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 
@@ -15,13 +15,74 @@ export class AdminController {
 
   @Get('workers')
   @HttpCode(HttpStatus.OK)
-  getWorkers() {
-    return this.adminService.getWorkers();
+  getWorkers(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('risk') risk?: string,
+    @Query('city') city?: string,
+    @Query('platform') platform?: string,
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+  ) {
+    return this.adminService.getWorkers({
+      search,
+      status,
+      risk,
+      city,
+      platform,
+      take: take ? Number(take) : undefined,
+      skip: skip ? Number(skip) : undefined,
+    });
   }
 
   @Get('claims')
   @HttpCode(HttpStatus.OK)
-  getClaims() {
-    return this.adminService.getClaims();
+  getClaims(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+  ) {
+    return this.adminService.getClaims({
+      search,
+      status,
+      type,
+      take: take ? Number(take) : undefined,
+      skip: skip ? Number(skip) : undefined,
+    });
+  }
+
+  @Get('alerts')
+  @HttpCode(HttpStatus.OK)
+  getAlerts(@Query('take') take?: string, @Query('skip') skip?: string) {
+    return this.adminService.getAlerts({
+      take: take ? Number(take) : undefined,
+      skip: skip ? Number(skip) : undefined,
+    });
+  }
+
+  @Get('settings')
+  @HttpCode(HttpStatus.OK)
+  getSettings() {
+    return this.adminService.getSettings();
+  }
+
+  @Patch('settings/:section')
+  @HttpCode(HttpStatus.OK)
+  updateSettings(@Param('section') section: string, @Body() payload: Record<string, any>) {
+    return this.adminService.updateSettings(section, payload ?? {});
+  }
+
+  @Get('profile')
+  @HttpCode(HttpStatus.OK)
+  getProfile(@Request() req: any) {
+    return this.adminService.getAdminProfile(req.user.id);
+  }
+
+  @Patch('profile')
+  @HttpCode(HttpStatus.OK)
+  updateProfile(@Request() req: any, @Body() dto: { displayName?: string; phone?: string }) {
+    return this.adminService.updateAdminProfile(req.user.id, dto ?? {});
   }
 }

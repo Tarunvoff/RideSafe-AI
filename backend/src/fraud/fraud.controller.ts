@@ -105,4 +105,21 @@ export class FraudController {
   reviewSubmission(@Param('userId') userId: string, @Body() dto: ReviewFraudDto) {
     return this.fraudService.reviewSubmission(userId, dto);
   }
+
+  @Patch('admin/escalate/:userId')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  escalateSubmission(
+    @Param('userId') userId: string,
+    @Body() dto: ReviewFraudDto,
+  ) {
+    return this.fraudService.escalateSubmission(userId, dto?.reviewNote);
+  }
+
+  @Get('admin/submission/:userId/pdf')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  exportSubmissionPdf(@Param('userId') userId: string) {
+    return this.fraudService.exportSubmissionPdf(userId);
+  }
 }

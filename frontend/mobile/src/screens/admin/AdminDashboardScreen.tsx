@@ -1,16 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdminShell from '../../components/AdminShell';
 import LoadingOverlay from '../../components/LoadingOverlay';
-import { Theme } from '../../theme';
 import { adminApi } from '../../services/api';
+import { Theme } from '../../theme';
 
 export default function AdminDashboardScreen({ navigation }: any) {
   const [summary, setSummary] = useState<any | null>(null);
@@ -52,7 +46,6 @@ export default function AdminDashboardScreen({ navigation }: any) {
     <AdminShell navigation={navigation} activeKey="dash">
       <LoadingOverlay visible={loading} message="Loading admin dashboard..." />
       <View style={styles.root}>
-        {/* Page title section (top navbar lives above and stays sticky) */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>ADMIN DASHBOARD</Text>
@@ -61,30 +54,31 @@ export default function AdminDashboardScreen({ navigation }: any) {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Overview Grid */}
-          <View style={styles.overviewGrid}>
-            <OverviewCell label="Total Workers" value={String(safeSummary.totalWorkers)} />
-            <OverviewCell label="Active Plans" value={String(safeSummary.activePlans)} isRight />
-            <OverviewCell label="Active Alerts" value={String(safeSummary.activeAlerts)} isTop />
-            <OverviewCell label="Claims Today" value={String(safeSummary.claimsToday)} isTop isRight />
-            <OverviewCell label="High Risk Workers" value={String(safeSummary.highRiskWorkers)} isTop />
-            <OverviewCell
-              label="Simulated Payout"
-              value={formatINR(safeSummary.simulatedPayout)}
-              isTop
-              isRight
-            />
+          <View style={styles.section}>
+            <Text style={styles.sectionKicker}>KEY METRICS</Text>
+            <View style={styles.kpiGrid}>
+              <KpiCard label="Total Workers" value={String(safeSummary.totalWorkers)} />
+              <KpiCard label="Active Plans" value={String(safeSummary.activePlans)} />
+              <KpiCard label="Active Alerts" value={String(safeSummary.activeAlerts)} />
+              <KpiCard label="Claims Today" value={String(safeSummary.claimsToday)} />
+              <KpiCard label="High Risk Workers" value={String(safeSummary.highRiskWorkers)} />
+              <KpiCard label="Simulated Payout" value={formatINR(safeSummary.simulatedPayout)} />
+            </View>
           </View>
 
-          {/* Quick Actions */}
           <View style={styles.section}>
             <Text style={styles.sectionKicker}>QUICK ACTIONS</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.quickActionsRow}
-            >
-              <QuickAction icon={<MaterialIcons name="add-alert" size={22} color={Theme.colors.text} />} label="Alert" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActionsRow}>
+              <QuickAction
+                icon={<MaterialIcons name="add-alert" size={22} color={Theme.colors.text} />}
+                label="Alert"
+                onPress={() => navigation.navigate('AdminAlerts')}
+              />
+              <QuickAction
+                icon={<MaterialIcons name="report" size={22} color={Theme.colors.text} />}
+                label="Fraud"
+                onPress={() => navigation.navigate('AdminFraudReview')}
+              />
               <QuickAction
                 icon={<MaterialIcons name="group" size={22} color={Theme.colors.text} />}
                 label="Workers"
@@ -95,26 +89,18 @@ export default function AdminDashboardScreen({ navigation }: any) {
                 label="Claims"
                 onPress={() => navigation.navigate('AdminClaims')}
               />
-              <QuickAction icon={<MaterialIcons name="analytics" size={22} color={Theme.colors.text} />} label="Analytics" />
+              <QuickAction
+                icon={<MaterialIcons name="analytics" size={22} color={Theme.colors.text} />}
+                label="Analytics"
+                onPress={() => navigation.navigate('AdminAnalytics')}
+              />
             </ScrollView>
           </View>
 
-          {/* Risk Overview Chart Placeholder */}
-          <View style={styles.section}>
-            <Text style={styles.sectionKicker}>RISK DISTRIBUTION</Text>
-            <View style={styles.riskPlaceholder}>
-              <MaterialIcons name="monitor" size={40} color={Theme.colors.text} />
-              <Text style={styles.placeholderText}>
-                {summary.highRiskWorkers} high-risk workers tracked
-              </Text>
-            </View>
-          </View>
-
-          {/* Recent Alerts (Empty State) */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionKicker}>RECENT ALERTS</Text>
-              <Text style={styles.viewAll}>VIEW ALL</Text>
+              <Text style={styles.viewAll} onPress={() => navigation.navigate('AdminAlerts')}>VIEW ALL</Text>
             </View>
             <View style={styles.simpleList}>
               {safeSummary.recentAlerts.map((a: any) => (
@@ -134,7 +120,6 @@ export default function AdminDashboardScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* Recent Claims (Empty State) */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionKicker}>RECENT CLAIMS</Text>
@@ -154,9 +139,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.simpleListTitle}>
-                      {c.userEmail ?? 'Unknown user'}
-                    </Text>
+                    <Text style={styles.simpleListTitle}>{c.userEmail ?? 'Unknown user'}</Text>
                     <Text style={styles.simpleListMeta}>
                       {c.disruption?.title ?? 'Disruption'} •{' '}
                       {c.approvedPayout != null ? formatINR(c.approvedPayout) : 'N/A'}
@@ -172,27 +155,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
   );
 }
 
-function OverviewCell({
-  label,
-  value,
-  isTop,
-  isRight,
-}: {
-  label: string;
-  value: string;
-  isTop?: boolean;
-  isRight?: boolean;
-}) {
+function KpiCard({ label, value }: { label: string; value: string }) {
   return (
-    <View
-      style={[
-        styles.overviewCell,
-        isTop ? styles.cellTopBorder : null,
-        isRight ? styles.cellRightBorder : null,
-      ]}
-    >
-      <Text style={styles.cellLabel}>{label.toUpperCase()}</Text>
-      <Text style={styles.cellValue}>{value}</Text>
+    <View style={styles.kpiCard}>
+      <Text style={styles.kpiLabel}>{label.toUpperCase()}</Text>
+      <Text style={styles.kpiValue}>{value}</Text>
     </View>
   );
 }
@@ -215,8 +182,8 @@ function QuickAction({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Theme.colors.background },
   root: { flex: 1, backgroundColor: Theme.colors.background },
+  scrollContent: { paddingBottom: 110 },
 
   header: {
     paddingHorizontal: Theme.spacing.lg,
@@ -242,104 +209,10 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: Theme.colors.textSecondary,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: Theme.borderRadius.full,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Theme.colors.background,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-    paddingRight: Theme.spacing.lg,
-    paddingTop: 60,
-  },
-  profileMenuBox: {
-    backgroundColor: Theme.colors.background,
-    borderRadius: Theme.borderRadius.lg,
-    padding: 8,
-    width: 220,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  profileMenuHeader: {
-    padding: Theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
-    marginBottom: 8,
-  },
-  profileMenuEmail: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Theme.colors.text,
-  },
-  profileMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Theme.spacing.md,
-    gap: 12,
-    borderRadius: Theme.borderRadius.md,
-    backgroundColor: '#fef2f2',
-  },
-  profileMenuTextLogout: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ef4444',
-  },
-
-  scrollContent: {
-    paddingBottom: 110,
-  },
-
-  overviewGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
-    backgroundColor: Theme.colors.background,
-  },
-  overviewCell: {
-    width: '50%',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.lg,
-    backgroundColor: Theme.colors.background,
-  },
-  cellTopBorder: {
-    borderTopWidth: 1,
-    borderTopColor: Theme.colors.border,
-  },
-  cellRightBorder: {
-    borderLeftWidth: 1,
-    borderLeftColor: Theme.colors.border,
-  },
-  cellLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.6,
-    color: Theme.colors.text,
-  },
-  cellValue: {
-    marginTop: 4,
-    fontSize: 26,
-    fontWeight: '800',
-    color: Theme.colors.text,
-  },
 
   section: {
     paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.lg,
+    paddingTop: Theme.spacing.sm,
   },
   sectionKicker: {
     fontSize: 10,
@@ -348,14 +221,41 @@ const styles = StyleSheet.create({
     color: Theme.colors.text,
   },
 
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Theme.spacing.sm,
+    marginTop: Theme.spacing.sm,
+  },
+  kpiCard: {
+    width: '48%',
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.xs,
+    backgroundColor: Theme.colors.background,
+    gap: 3,
+  },
+  kpiLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.6,
+    color: Theme.colors.textSecondary,
+  },
+  kpiValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Theme.colors.text,
+  },
+
   quickActionsRow: {
-    paddingTop: Theme.spacing.md,
+    paddingTop: Theme.spacing.sm,
     paddingBottom: Theme.spacing.xs,
-    gap: 12,
+    gap: 10,
   },
   quickActionBtn: {
-    width: 90,
-    height: 90,
+    width: 84,
+    height: 84,
     borderWidth: 1,
     borderColor: Theme.colors.border,
     alignItems: 'center',
@@ -370,20 +270,6 @@ const styles = StyleSheet.create({
     color: Theme.colors.text,
   },
 
-  riskPlaceholder: {
-    marginTop: Theme.spacing.md,
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Theme.colors.background,
-  },
-  placeholderText: { fontSize: 12, color: Theme.colors.text },
-
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   viewAll: {
     fontSize: 10,
@@ -393,17 +279,8 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     textDecorationStyle: 'solid',
   },
-  emptyBox: {
-    marginTop: Theme.spacing.md,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    padding: Theme.spacing.xl,
-    alignItems: 'center',
-    backgroundColor: Theme.colors.background,
-  },
-  emptyBoxText: { fontSize: 12, color: Theme.colors.text },
 
-  simpleList: { marginTop: Theme.spacing.md, gap: 10 },
+  simpleList: { marginTop: Theme.spacing.sm, gap: 8 },
   simpleListRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -411,7 +288,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Theme.colors.border,
     borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.md,
+    padding: Theme.spacing.xs,
     backgroundColor: Theme.colors.background,
   },
   greenDot: {
@@ -428,6 +305,4 @@ const styles = StyleSheet.create({
   statusPillApproved: { backgroundColor: `${Theme.colors.primary}15` },
   statusPillProcessing: { backgroundColor: `${Theme.colors.primary}10` },
   statusPillText: { fontSize: 10, fontWeight: '900', color: Theme.colors.primary },
-
-  // Bottom navbar is shared via `AdminBottomNavbar`.
 });

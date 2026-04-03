@@ -1,15 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import AdminShell from '../../components/AdminShell';
+import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 const PRIMARY = Theme.colors.primary;
@@ -27,24 +31,22 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const mock = {
-      analysis: {
-        id: userId === 'u2' ? 'fa2' : 'fa1',
-        riskScore: userId === 'u2' ? 64 : 78,
-        status: 'INCONCLUSIVE',
-        gpsLatitude: userId === 'u2' ? 13.0827 : 12.9716,
-        gpsLongitude: userId === 'u2' ? 80.2707 : 77.5946,
-        deviceIntegrity: userId === 'u2' ? 'Jailbroken Device' : 'Rooted Device',
-        networkType: userId === 'u2' ? 'Premium VPN' : 'Proxy',
-        velocityCheck: 'Suspicious',
-      },
-      user: {
-        id: userId,
-        email: userId === 'u2' ? 'test2@gmail.com' : 'test1@gmail.com',
-      },
+    let isActive = true;
+    const loadReport = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fraudApi.getSubmissionDetails(userId);
+        if (isActive) setData(response);
+      } catch (e: any) {
+        if (isActive) Alert.alert('Error', e?.message ?? 'Failed to load fraud report');
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
     };
-    setData(mock);
-    setIsLoading(false);
+    void loadReport();
+    return () => {
+      isActive = false;
+    };
   }, [userId]);
 
   if (isLoading || !data) {
@@ -64,14 +66,47 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
     { label: 'Network Latency', value: 8, color: RED },
   ];
 
-  const SIGNALS = [
-    { label: 'X-Device-ID Match', desc: 'Device hardware signature verified against profile.', pass: true },
-    { label: 'Bootloader Status', desc: 'Unlocked/Tampered (Custom ROM detected).', pass: false, critical: true },
-    { label: 'Carrier Latency', desc: '320ms jitter mismatch for claimed region.', pass: false, critical: true },
-    { label: 'Screen Mirroring', desc: 'No active screen recording/broadcasting found.', pass: true },
-    { label: 'Mock Locations Hook', desc: "System 'Allow Mock Locations' is ENABLED.", pass: false, critical: true },
-    { label: 'App Integrity', desc: 'Original binary signature match.', pass: true },
-  ];
+  const signals = useMemo(() => {
+    const factors = data?.analysis?.details?.riskFactors;
+    return Array.isArray(factors) ? factors : [];
+  }, [data]);
+
+  const handleReview = async (status: 'APPROVED' | 'REJECTED') => {
+    setIsLoading(true);
+    try {
+      await fraudApi.reviewSubmission(userId, { status });
+      Alert.alert('Success', `Submission ${status.toLowerCase()} successfully`);
+      navigation.goBack();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to update submission');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fraudApi.exportSubmissionPdf(userId);
+      const uri = `data:${res.contentType};base64,${res.base64}`;
+      await Linking.openURL(uri);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to export PDF');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: 'Fraud Detection Report',
+        message: `Fraud report ${analysis.id} · ${analysis.status} · Risk ${analysis.riskScore}%`,
+      });
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to share report');
+    }
+  };
 
   return (
     <AdminShell navigation={navigation} activeKey="dash">
@@ -87,11 +122,11 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
           </View>
         </View>
         <View style={styles.headerRight}>
-             <TouchableOpacity style={styles.pdfBtn}>
+             <TouchableOpacity style={styles.pdfBtn} onPress={() => void handleExportPdf()}>
                 <Ionicons name="document-text" size={18} color="#fff" />
                 <Text style={styles.pdfBtnText}>Export PDF</Text>
              </TouchableOpacity>
-             <TouchableOpacity style={styles.shareBtn}>
+             <TouchableOpacity style={styles.shareBtn} onPress={() => void handleShare()}>
                 <Ionicons name="share-outline" size={20} color={SLATE_500} />
              </TouchableOpacity>
         </View>
@@ -190,20 +225,30 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
 
         {/* Signals Grid */}
         <View style={styles.signalsSection}>
-          <Text style={styles.sectionTitle}>DETECTION SIGNALS (15 CHECKED)</Text>
+           <Text style={styles.sectionTitle}>DETECTION SIGNALS ({signals.length} CHECKED)</Text>
           <View style={styles.signalsGrid}>
-             {SIGNALS.map((sig, i) => (
-               <View key={i} style={[styles.signalCard, !sig.pass && styles.signalCardFail]}>
-                  <Ionicons name={sig.pass ? 'checkmark-circle' : 'close-circle'} size={20} color={sig.pass ? GREEN : RED} />
+             {signals.length === 0 ? (
+              <View style={styles.signalCard}>
+                <Ionicons name="information-circle" size={20} color={SLATE_500} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sigLabel}>No signals available</Text>
+                  <Text style={styles.sigDesc}>This submission has no risk factors attached.</Text>
+                </View>
+              </View>
+             ) : (
+              signals.map((signal: string, i: number) => (
+                <View key={`${signal}-${i}`} style={[styles.signalCard, styles.signalCardFail]}>
+                  <Ionicons name="close-circle" size={20} color={RED} />
                   <View style={{ flex: 1 }}>
-                     <Text style={styles.sigLabel}>{sig.label}</Text>
-                     <Text style={styles.sigDesc}>{sig.desc}</Text>
+                    <Text style={styles.sigLabel}>{signal}</Text>
+                    <Text style={styles.sigDesc}>Flagged by the fraud risk engine.</Text>
                   </View>
-               </View>
-             ))}
+                </View>
+              ))
+             )}
           </View>
           <TouchableOpacity style={styles.showMoreBtn}>
-             <Text style={styles.showMoreText}>Show all 15 detection signals</Text>
+             <Text style={styles.showMoreText}>Show all detection signals</Text>
           </TouchableOpacity>
         </View>
 
@@ -246,11 +291,11 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
 
         {/* Actions */}
         <View style={styles.actionsBox}>
-           <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={() => navigation.goBack()}>
+            <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={() => void handleReview('APPROVED')}>
               <Ionicons name="checkmark" size={20} color="#fff" />
               <Text style={styles.actionBtnText}>Approve Driver</Text>
            </TouchableOpacity>
-           <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]}>
+            <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]} onPress={() => void handleReview('REJECTED')}>
               <Ionicons name="close" size={20} color="#fff" />
               <Text style={styles.actionBtnText}>Reject Submission</Text>
            </TouchableOpacity>

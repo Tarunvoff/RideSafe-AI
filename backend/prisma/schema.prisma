@@ -34,6 +34,7 @@ model User {
   phone         String?  @unique
   passwordHash  String
   driverName    String?
+  platform      String?
   role          Role     @default(DRIVER)
   isVerified    Boolean  @default(false)
   otpCode       String?
@@ -248,6 +249,19 @@ model RazorpayOrder {
   updatedAt DateTime @updatedAt
 
   @@map("razorpay_orders")
+}
+
+model AdminSettings {
+  id                    String   @id @default(uuid())
+  alertThresholds       Json
+  riskConfig            Json
+  planConfig            Json
+  verificationSettings  Json
+  notifications         Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("admin_settings")
 }
 
 model ZoneTelemetryLog {

@@ -15,34 +15,46 @@ import { adminApi } from '../../services/api';
 
 export default function AdminWorkersScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
+  const [cityFilter, setCityFilter] = useState('ALL');
+  const [platformFilter, setPlatformFilter] = useState('ALL');
   const [workers, setWorkers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const cityOptions = ['ALL', 'Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli'];
+  const platformOptions = [
+    { label: 'ALL', value: 'ALL' },
+    { label: 'ZEPTO', value: 'zepto' },
+    { label: 'BLINKIT', value: 'blinkit' },
+    { label: 'INSTAMART', value: 'instamart' },
+    { label: 'BIGBASKET', value: 'bigbasket' },
+    { label: 'JIOMART', value: 'jiomart' },
+  ];
+  const platformLabel = platformOptions.find((option) => option.value === platformFilter)?.label ?? 'ALL';
 
   const loadWorkers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.getWorkers();
+      const res = await adminApi.getWorkers({
+        search: search.trim() ? search.trim() : undefined,
+        city: cityFilter === 'ALL' ? undefined : cityFilter,
+        platform: platformFilter === 'ALL' ? undefined : platformFilter,
+      });
       setWorkers(Array.isArray(res) ? res : []);
     } catch {
       setWorkers([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, cityFilter, platformFilter]);
 
   useEffect(() => {
-    void loadWorkers();
+    const timer = setTimeout(() => {
+      void loadWorkers();
+    }, 350);
+    return () => clearTimeout(timer);
   }, [loadWorkers]);
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return workers;
-    return workers.filter((s) => {
-      const email = (s.email ?? '').toLowerCase();
-      const phone = (s.phone ?? '').toLowerCase();
-      const status = (s.status ?? '').toLowerCase();
-      return email.includes(q) || phone.includes(q) || status.includes(q);
-    });
-  }, [search]);
+
+  const filtered = useMemo(() => workers, [workers]);
 
   return (
     <AdminShell navigation={navigation} activeKey="workers">
@@ -68,7 +80,7 @@ export default function AdminWorkersScreen({ navigation }: any) {
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search workers"
+                placeholder="Search workers by email or phone"
                 placeholderTextColor={Theme.colors.textSecondary}
                 style={styles.searchInput}
               />
@@ -81,16 +93,28 @@ export default function AdminWorkersScreen({ navigation }: any) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filtersRow}
           >
-            <FilterChip label="City" />
-            <FilterChip label="Platform" />
-            <FilterChip label="Risk Level" />
+            <FilterChip
+              label={`City: ${cityFilter}`}
+              onPress={() => {
+                const next = cityOptions[(cityOptions.indexOf(cityFilter) + 1) % cityOptions.length];
+                setCityFilter(next);
+              }}
+            />
+            <FilterChip
+              label={`Platform: ${platformLabel}`}
+              onPress={() => {
+                const currentIndex = platformOptions.findIndex((option) => option.value === platformFilter);
+                const next = platformOptions[(currentIndex + 1) % platformOptions.length];
+                setPlatformFilter(next.value);
+              }}
+            />
           </ScrollView>
 
           {/* Worker Summary Strip */}
           <View style={styles.summaryStrip}>
             <SummaryCell label="Total Workers" value={String(workers.length)} isRightBorder />
-            <SummaryCell label="High Risk" value={String(workers.filter((w) => String(w.status).includes('REVIEW')).length)} isRightBorder />
-            <SummaryCell label="Active Plans" value="—" />
+            <SummaryCell label="City" value={cityFilter} isRightBorder />
+            <SummaryCell label="Platform" value={platformLabel} />
           </View>
 
           {/* Worker List */}
@@ -105,7 +129,7 @@ export default function AdminWorkersScreen({ navigation }: any) {
                     </View>
                   </View>
                   <Text style={styles.workerMeta}>
-                    {s.phone ?? 'No phone'} • {new Date(s.submittedAt).toLocaleString([], { hour: '2-digit', minute: '2-digit' })} • {s.status}
+                    {(s.city ?? 'Unknown city')} • {(s.platform ?? 'Unknown platform').toString().toUpperCase()} • {new Date(s.submittedAt).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
               ))}
@@ -125,9 +149,9 @@ export default function AdminWorkersScreen({ navigation }: any) {
   );
 }
 
-function FilterChip({ label }: { label: string }) {
+function FilterChip({ label, onPress }: { label: string; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={styles.filterChip} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.filterChip} activeOpacity={0.8} onPress={onPress}>
       <Text style={styles.filterChipText}>{label.toUpperCase()}</Text>
     </TouchableOpacity>
   );

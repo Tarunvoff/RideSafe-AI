@@ -367,4 +367,101 @@ export class FraudService {
       },
     };
   }
+
+  async escalateSubmission(userId: string, reviewNote?: string) {
+    const analysis = await (this.prisma as any).fraudAnalysis.update({
+      where: { userId },
+      data: {
+        status:     'ESCALATED',
+        reviewedAt: new Date(),
+        reviewNote: reviewNote ?? 'Escalated to fraud analyst',
+      },
+    });
+    return {
+      message: 'Fraud analysis escalated successfully',
+      data: {
+        userId:     analysis.userId,
+        status:     analysis.status,
+        reviewedAt: analysis.reviewedAt,
+        reviewNote: analysis.reviewNote,
+      },
+    };
+  }
+
+  async exportSubmissionPdf(userId: string) {
+    const details = await this.getSubmissionDetails(userId);
+    const analysis = details.analysis;
+    const user = details.user;
+    const riskFactors = Array.isArray(analysis?.details?.riskFactors)
+      ? analysis.details.riskFactors
+      : [];
+
+    const lines = [
+      'Aegis Fraud Report',
+      `Analysis ID: ${analysis.id}`,
+      `Status: ${analysis.status}`,
+      `Risk Score: ${analysis.riskScore}`,
+      `User Email: ${user.email ?? 'Unknown'}`,
+      `User Phone: ${user.phone ?? 'Unknown'}`,
+      `GPS: ${analysis.gpsLatitude ?? 'N/A'}, ${analysis.gpsLongitude ?? 'N/A'}`,
+      `Created At: ${analysis.createdAt}`,
+      '',
+      'Risk Factors:',
+      ...(riskFactors.length ? riskFactors.map((factor: string, idx: number) => `${idx + 1}. ${factor}`) : ['None']),
+    ];
+
+    const pdfBuffer = this.buildSimplePdf(lines);
+    return {
+      fileName: `fraud-report-${analysis.id}.pdf`,
+      contentType: 'application/pdf',
+      base64: pdfBuffer.toString('base64'),
+    };
+  }
+
+  private buildSimplePdf(lines: string[]): Buffer {
+    const escape = (value: string) =>
+      value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+    const fontRef = '5 0 R';
+    const contentLines = lines.map((line, index) => {
+      const y = 760 - index * 16;
+      return `1 0 0 1 50 ${y} Tm (${escape(line)}) Tj`;
+    });
+
+    const contentStream = `BT /F1 12 Tf\n${contentLines.join('\n')}\nET`;
+    const objects = [
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
+      `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 ${fontRef} >> >> >>\nendobj`,
+      `4 0 obj\n<< /Length ${Buffer.byteLength(contentStream, 'utf8')} >>\nstream\n${contentStream}\nendstream\nendobj`,
+      '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
+    ];
+
+    const header = '%PDF-1.3\n';
+    const parts: string[] = [header];
+    const offsets: number[] = [0];
+    let total = Buffer.byteLength(header, 'utf8');
+
+    objects.forEach((obj) => {
+      offsets.push(total);
+      const chunk = `${obj}\n`;
+      parts.push(chunk);
+      total += Buffer.byteLength(chunk, 'utf8');
+    });
+
+    const xrefStart = total;
+    const xrefLines = [
+      `xref\n0 ${objects.length + 1}`,
+      '0000000000 65535 f ',
+      ...offsets.slice(1).map((offset) => `${String(offset).padStart(10, '0')} 00000 n `),
+    ];
+    const xref = `${xrefLines.join('\n')}\n`;
+    parts.push(xref);
+    total += Buffer.byteLength(xref, 'utf8');
+
+    const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+    parts.push(trailer);
+
+    return Buffer.from(parts.join(''), 'utf8');
+  }
 }

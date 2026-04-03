@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DriverBottomNavbar from '../../components/DriverBottomNavbar';
+import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
@@ -130,30 +131,12 @@ export default function HomeScreen({ navigation }: any) {
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading} message="Loading dashboard intelligence..." />
 
-      <Modal
+      <DriverLogoutMenu
         visible={profileMenuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setProfileMenuVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setProfileMenuVisible(false)}
-        >
-          <View style={styles.profileMenuBox}>
-            <View style={styles.profileMenuHeader}>
-              <Text style={styles.profileMenuEmail} numberOfLines={1}>
-                {user?.email || 'Driver'}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.profileMenuItem} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-              <Text style={styles.profileMenuTextLogout}>Log Out</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        userEmail={user?.email ?? null}
+        onClose={() => setProfileMenuVisible(false)}
+        onLogout={handleLogout}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>

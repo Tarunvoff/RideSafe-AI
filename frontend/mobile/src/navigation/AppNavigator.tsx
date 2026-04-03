@@ -5,6 +5,8 @@ import { Theme } from '../theme';
 
 import { useAuth } from '../context/AuthContext';
 import AdminClaimsScreen from '../screens/admin/AdminClaimsScreen';
+import AdminAlertsScreen from '../screens/admin/AdminAlertsScreen';
+import AdminAnalyticsScreen from '../screens/admin/AdminAnalyticsScreen';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import AdminFraudDetailScreen from '../screens/admin/AdminFraudDetailScreen';
 import AdminFraudReportScreen from '../screens/admin/AdminFraudReportScreen';
@@ -62,6 +64,8 @@ export default function AppNavigator() {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen name="AdminAnalytics" component={AdminAnalyticsScreen} />
+        <Stack.Screen name="AdminAlerts" component={AdminAlertsScreen} />
         <Stack.Screen name="AdminWorkers" component={AdminWorkersScreen} />
         <Stack.Screen name="AdminClaims" component={AdminClaimsScreen} />
         <Stack.Screen name="AdminSetup" component={AdminSetupScreen} />

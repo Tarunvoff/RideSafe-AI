@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,12 +30,14 @@ export default function DriverLogoutMenu({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
+      <Pressable
         style={styles.modalOverlay}
-        activeOpacity={1}
         onPress={onClose}
       >
-        <View style={styles.profileMenuBox}>
+        <Pressable
+          style={styles.profileMenuBox}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.profileMenuHeader}>
             <Text style={styles.profileMenuEmail} numberOfLines={1}>
               {userEmail || 'Driver'}
@@ -52,8 +55,8 @@ export default function DriverLogoutMenu({
             />
             <Text style={styles.profileMenuTextLogout}>Log Out</Text>
           </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
