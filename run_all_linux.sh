@@ -15,7 +15,7 @@ if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
 fi
 
 if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
-	echo "ERROR: Could not find docker-compose.yml in this folder or its direct subfolders."
+	echo "ERROR: Could not find docker-compose.yml"
 	exit 1
 fi
 
@@ -24,35 +24,44 @@ echo "STARTING RIDESAFE-AI DISTRIBUTED ENGINE (PHASE 2)"
 echo "========================================================"
 echo ""
 
-# Ensure Docker is accessible
+# Check Docker
 if ! docker info > /dev/null 2>&1; then
-	echo "ERROR: Docker is not accessible."
-	echo "- Ensure Docker is running"
-	echo "- Ensure your user is in the docker group"
+	echo "ERROR: Docker not running"
 	exit 1
 fi
 
-# 1. Boot Docker Containers
-echo "[1/9] Booting Docker Containers (Kafka, Zookeeper, Redis, DB)..."
-pushd "$PROJECT_DIR" > /dev/null
+# 1. Start Docker containers
+echo "[1/10] Starting Docker containers..."
+cd "$PROJECT_DIR"
 docker compose up -d
-popd > /dev/null
 
-echo "Waiting for Kafka to initialize..."
+echo "Waiting for containers..."
 sleep 10
 
-# 2. Wait until Kafka is READY
+# 🔥 AUTO-DETECT KAFKA CONTAINER
+echo "Detecting Kafka container..."
+KAFKA_CONTAINER=$(docker ps --format "{{.Names}}" | grep -i kafka | head -n 1)
+
+if [ -z "$KAFKA_CONTAINER" ]; then
+	echo "ERROR: Kafka container not found"
+	docker ps
+	exit 1
+fi
+
+echo "Kafka container: $KAFKA_CONTAINER"
+
+# 2. Wait for Kafka readiness
 echo "Checking Kafka readiness..."
-until docker exec aegis-kafka-1 bash -c "kafka-topics.sh --bootstrap-server localhost:9092 --list"; do
+until docker exec "$KAFKA_CONTAINER" bash -c "kafka-topics.sh --bootstrap-server localhost:9092 --list" > /dev/null 2>&1; do
 	echo "Kafka not ready yet..."
 	sleep 3
 done
 
-echo "Kafka is READY."
+echo "Kafka is READY"
 
-# 3. Create topic if not exists
-echo "[2/9] Ensuring Kafka topic exists..."
-docker exec aegis_kafka_1 kafka-topics.sh \
+# 3. Create topic
+echo "[2/10] Creating Kafka topic..."
+docker exec "$KAFKA_CONTAINER" kafka-topics.sh \
 	--create \
 	--if-not-exists \
 	--topic aegis-events \
@@ -62,108 +71,77 @@ docker exec aegis_kafka_1 kafka-topics.sh \
 
 echo "Kafka topic ready"
 
-# 4. Show running containers
-echo "Running containers:"
+# 4. Show containers
+echo "[3/10] Running containers:"
 docker ps
 
-# 5. Create + activate Python virtual environment (once)
-echo "[3/9] Preparing Python virtual environment..."
+# 5. Setup Python venv
+echo "[4/10] Setting up Python venv..."
 if [ ! -f "$PROJECT_DIR/ml-calcultion/.venv/bin/activate" ]; then
-	echo "Creating .venv under $PROJECT_DIR/ml-calcultion"
 	python3 -m venv "$PROJECT_DIR/ml-calcultion/.venv"
 fi
 
 "$PROJECT_DIR/ml-calcultion/.venv/bin/pip" install --upgrade pip
 
-# 6. Install Python dependencies for each ML service
-echo "[4/9] Installing Python dependencies..."
-"$PROJECT_DIR/ml-calcultion/.venv/bin/pip" install -r "$PROJECT_DIR/ml-calcultion/ml-insurance-service/requirements.txt"
-"$PROJECT_DIR/ml-calcultion/.venv/bin/pip" install -r "$PROJECT_DIR/ml-calcultion/fraud-feature-service/requirements.txt"
-"$PROJECT_DIR/ml-calcultion/.venv/bin/pip" install -r "$PROJECT_DIR/ml-calcultion/h3-feature-service/requirements.txt"
-"$PROJECT_DIR/ml-calcultion/.venv/bin/pip" install -r "$PROJECT_DIR/ml-calcultion/grid_event_service/requirements.txt"
+# 6. Install dependencies
+echo "[5/10] Installing Python dependencies..."
+pip_path="$PROJECT_DIR/ml-calcultion/.venv/bin/pip"
 
-# 7. ML Insurance Service
-echo "[5/9] Starting ML Insurance Service (8000)..."
+$pip_path install -r "$PROJECT_DIR/ml-calcultion/ml-insurance-service/requirements.txt"
+$pip_path install -r "$PROJECT_DIR/ml-calcultion/fraud-feature-service/requirements.txt"
+$pip_path install -r "$PROJECT_DIR/ml-calcultion/h3-feature-service/requirements.txt"
+$pip_path install -r "$PROJECT_DIR/ml-calcultion/grid_event_service/requirements.txt"
+
+# 7–10 Open services
+echo "[6/10] Starting ML services..."
+
 gnome-terminal -- bash -c "
-cd '$PROJECT_DIR/ml-calcultion' &&
-source .venv/bin/activate &&
-export REDIS_URL=redis://127.0.0.1:6379/0 &&
+cd '$PROJECT_DIR/ml-calcultion' && source .venv/bin/activate &&
 cd ml-insurance-service &&
-echo 'ML-INSURANCE-8000' &&
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload;
-exec bash
-"
+exec bash"
 
-# 8. Fraud Feature Service
-echo "[6/9] Starting Fraud Feature Service (8002)..."
 gnome-terminal -- bash -c "
-cd '$PROJECT_DIR/ml-calcultion' &&
-source .venv/bin/activate &&
+cd '$PROJECT_DIR/ml-calcultion' && source .venv/bin/activate &&
 cd fraud-feature-service &&
-export REDIS_URL=redis://127.0.0.1:6379/0 &&
-export USE_REDIS=True &&
-echo 'FRAUD-EXTRACTOR-8002' &&
 uvicorn main:app --host 0.0.0.0 --port 8002 --reload;
-exec bash
-"
+exec bash"
 
-# 9. Grid Event Service
-echo "[7/9] Starting Grid Event Service (8003)..."
 gnome-terminal -- bash -c "
-cd '$PROJECT_DIR/ml-calcultion' &&
-source .venv/bin/activate &&
+cd '$PROJECT_DIR/ml-calcultion' && source .venv/bin/activate &&
 cd grid_event_service &&
-export KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 &&
-export REDIS_URL=redis://127.0.0.1:6379/0 &&
-export ML_SERVICE_URL=http://127.0.0.1:8000 &&
-export H3_FEATURE_SERVICE_URL=http://127.0.0.1:8004 &&
-export USE_REDIS=True &&
-echo 'GRID-EVENT-8003' &&
 uvicorn main:app --host 0.0.0.0 --port 8003 --reload;
-exec bash
-"
+exec bash"
 
-# 10. H3 Feature Service
-echo "[8/9] Starting H3 Feature Service (8004)..."
 gnome-terminal -- bash -c "
-cd '$PROJECT_DIR/ml-calcultion' &&
-source .venv/bin/activate &&
+cd '$PROJECT_DIR/ml-calcultion' && source .venv/bin/activate &&
 cd h3-feature-service &&
-export KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:9092 &&
-export REDIS_URL=redis://127.0.0.1:6379/0 &&
-export ML_INSURANCE_SERVICE_URL=http://127.0.0.1:8000 &&
-export STRICT_REALTIME=true &&
-echo 'H3-FEATURE-8004' &&
 uvicorn main:app --host 0.0.0.0 --port 8004 --reload;
-exec bash
-"
+exec bash"
 
-echo "Waiting before starting backend..."
 sleep 5
 
-# 11. NestJS Backend
-echo "[9/9] Starting NestJS Backend (3001)..."
+echo "[9/10] Starting backend..."
 gnome-terminal -- bash -c "
+export NVM_DIR=\$HOME/.nvm &&
+source \$NVM_DIR/nvm.sh &&
 cd '$PROJECT_DIR/backend' &&
 npm install &&
-echo 'NESTJS-BACKEND-3001' &&
 npm run start:dev;
-exec bash
-"
+exec bash"
 
 sleep 3
 
-# 12. React Native App
-echo "[10/10] Starting Mobile App..."
+echo "[10/10] Starting mobile app..."
 gnome-terminal -- bash -c "
+export NVM_DIR=\$HOME/.nvm &&
+source \$NVM_DIR/nvm.sh &&
 cd '$PROJECT_DIR/frontend/mobile' &&
 npm install &&
-echo 'EXPO-MOBILE-APP' &&
 npx expo start --offline;
-exec bash
-"
+exec bash"
 
 echo ""
 echo "========================================================"
-echo "ALL MICROSERVICES LAUNCHED WITH KAFKA READY!"
+echo "ALL SERVICES RUNNING 🚀"
 echo "========================================================"

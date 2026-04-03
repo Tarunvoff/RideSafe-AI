@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from dotenv import load_dotenv
 from routes import risk, pricing, fraud, trigger
 import utils.model_loader # This triggers singleton initialization during startup
+
+# Load environment variables from .env file
+load_dotenv()
 
 REQUIRED_ENV_VARS = (
     "REDIS_URL",
