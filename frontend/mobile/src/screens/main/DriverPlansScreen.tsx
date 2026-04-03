@@ -129,9 +129,7 @@ function getRazorpayCheckoutHTML(opts: {
           order_id: ${JSON.stringify(orderId)},
           prefill: {
             email: ${JSON.stringify(email)},
-            contact: ${JSON.stringify(contact)},
-            method: 'upi',
-            vpa: 'success@razorpay'
+            contact: ${JSON.stringify(contact)}
           },
           theme: { color: '#16a34a' },
           modal: { ondismiss: function() { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DISMISSED' })); } },
@@ -328,29 +326,26 @@ export default function DriverPlansScreen({ navigation }: any) {
         return;
       }
 
-      setCheckout(null);
-      setCheckoutProcessing(false);
+      // Show processing overlay - DO NOT create local policy yet
+      setCheckoutProcessing(true);
 
-      // Instant UI: add locally and switch to Purchased tab
-      const localPolicy = buildLocalPolicy(current.plan);
-      setPurchasedPolicies((prev) => {
-        const planId = String(current.plan.id);
-        if (prev.some((p) => p?.plan?.id && String(p.plan.id) === planId)) return prev;
-        const next = [...prev, localPolicy];
-        void savePurchasedToStorage(user?.email, next);
-        return next;
-      });
-      setTab('purchased');
-
-      // Verify on backend → creates Policy in DB → sync purchased from backend
+      // Verify on backend → creates Policy in DB → sync from backend ONLY
       try {
         const verifyRes = await plansApi.verifyRazorpayPayment({
           razorpay_order_id: payload.razorpay_order_id,
           razorpay_payment_id: payload.razorpay_payment_id,
           razorpay_signature: payload.razorpay_signature,
         });
+        
         if (verifyRes?.success) {
-          await fetchPurchased(); // Sync from backend (policies table)
+          // Backend confirmed - fetch policies from DB (source of truth)
+          await fetchPurchased();
+          setCheckout(null);
+          setCheckoutProcessing(false);
+          setTab('purchased');
+          Alert.alert('Success', `${current.plan.name} activated successfully!`);
+        } else {
+          throw new Error('Payment verification failed');
         }
       } catch (err: any) {
         // Verify failed (network etc): keep local policy, user still sees purchase (unless it's our explicit rejection)
@@ -471,7 +466,7 @@ export default function DriverPlansScreen({ navigation }: any) {
                     disabled={loading}
                   >
                     <Ionicons name="lock-closed-outline" size={18} color="#ffffff" />
-                    <Text style={styles.buyBtnText}>Pay with Razorpay (TEST)</Text>
+                    <Text style={styles.buyBtnText}>Pay with Razorpay</Text>
                   </TouchableOpacity>
                 </View>
               ))
@@ -626,7 +621,7 @@ export default function DriverPlansScreen({ navigation }: any) {
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={styles.checkoutTitle}>Razorpay Checkout</Text>
-              <Text style={styles.checkoutSub}>{checkout?.plan?.name ?? ''} · TEST Payment</Text>
+              <Text style={styles.checkoutSub}>{checkout?.plan?.name ?? ''}</Text>
             </View>
             <View style={styles.checkoutMetaPill}>
               <Text style={styles.checkoutMetaPillText}>{formatRupees((checkout?.amount ?? 0) / 100)}</Text>

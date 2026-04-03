@@ -44,15 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const email = await AsyncStorage.getItem('userEmail');
         const userId = await AsyncStorage.getItem('userId');
         const driverId = await AsyncStorage.getItem('driverId');
+        const provider = await AsyncStorage.getItem('oauthProvider');
         const role = await AsyncStorage.getItem('userRole') as 'DRIVER' | 'ADMIN' | null;
         
         if (token && email && role) {
           const savedName = await AsyncStorage.getItem('driverName');
           let resolvedId = role === 'DRIVER' ? (driverId || userId || undefined) : (userId || undefined);
 
-          if (role === 'DRIVER' && !driverId) {
+          if (role === 'DRIVER' && !driverId && provider) {
             try {
-              const created = await dynamicQCommerceApi.createDriver('BLINKIT', email);
+              const created = await dynamicQCommerceApi.createDriver(provider as any, email);
               resolvedId = created?.driverId ?? resolvedId;
               if (created?.driverId) {
                 await AsyncStorage.setItem('driverId', created.driverId);
@@ -110,12 +111,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    // For manual logins, reset the new registration flag just in case
-    // setIsNewRegistration(false); // Only set if not already set by register() within this session
     const res = await authApi.login(email, password) as any;
     
-    // Get saved driver name from local storage
     const savedName = await AsyncStorage.getItem('driverName');
+    const provider = await AsyncStorage.getItem('oauthProvider');
     
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
@@ -124,41 +123,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['userRole', res.role || 'DRIVER'],
       ['userId', email],
     ]);
+    
     let driverId: string | null = null;
     if ((res.role || 'DRIVER') === 'DRIVER') {
+      const resolvedProvider = provider || 'ZEPTO';
       try {
-        const driverRes = await dynamicQCommerceApi.createDriver('BLINKIT', email);
+        const driverRes = await dynamicQCommerceApi.createDriver(resolvedProvider as any, email);
         driverId = driverRes?.driverId ?? null;
         if (driverId) {
           await AsyncStorage.setItem('driverId', driverId);
         }
-      } catch {
+        console.log('✅ Driver profile created:', driverId);
+      } catch (e) {
+        console.error('❌ Driver profile creation failed:', e);
         driverId = null;
       }
     }
+    
     await refreshLocation();
     setUser({ id: driverId || email, email, role: res.role || 'DRIVER', driverName: savedName || undefined });
     
-    // Check KYC status for drivers
     if (res.role === 'DRIVER') {
       try {
         const status = await kycApi.getStatus();
         setKycStatus(status.status);
+        console.log('✅ KYC Status:', status.status);
       } catch (e) {
         setKycStatus('NOT_STARTED');
+        console.log('⚠️ KYC Status defaulted to NOT_STARTED');
       }
     }
+    
+    console.log('✅ Login complete - user:', { email, role: res.role, driverId });
   };
 
   const logout = async () => {
     try {
       await authApi.logout();
     } catch (e) {
-      // Ignore unauthorized or network errors during logout
-      // We still want to clear the local session regardless of backend success
       console.log('Backend logout failed or token expired, proceeding with local logout');
     }
-    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId', 'driverName']);
+    await AsyncStorage.multiRemove([
+      'accessToken',
+      'refreshToken',
+      'userEmail',
+      'userRole',
+      'userId',
+      'driverName',
+      'driverId',
+      'oauthProvider',
+    ]);
     setUser(null);
     setKycStatus(null);
     setIsNewRegistration(false);

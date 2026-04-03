@@ -79,20 +79,37 @@ export default function LoginScreen({ navigation }: any) {
   const handleOAuthLogin = async (platform: string) => {
     setLoading(true);
     try {
+      const providerMap: Record<string, string> = {
+        'Zepto': 'ZEPTO',
+        'Blinkit': 'BLINKIT',
+        'Instamart': 'INSTAMART',
+        'BigBasket': 'BIGBASKET',
+        'JioMart': 'JIOMART',
+      };
+      const provider = providerMap[platform] || platform.toUpperCase();
+      
+      try {
+        await AsyncStorage.setItem('oauthProvider', provider);
+      } catch (storageError) {
+        console.warn('AsyncStorage not available, skipping provider storage');
+      }
+      
       const mockEmail = `${platform.toLowerCase().replace(/\s+/g, '')}@oauth.com`;
       const mockPassword = 'oauth-mock-password';
+      
       try {
         await login(mockEmail, mockPassword);
-      } catch {
+        console.log('✅ OAuth login successful');
+      } catch (loginError: any) {
+        console.log('⚠️ Login failed, attempting registration:', loginError.message);
         await register(mockEmail, mockPassword, undefined, true);
+        console.log('✅ OAuth registration successful');
       }
+      
       closeAuthModal();
-      Alert.alert(
-        'Identity Verified',
-        `Successfully signed in as ${platform} Driver. Your platform identity is verified.`
-      );
     } catch (error: any) {
-      Alert.alert('OAuth Error', error?.response?.data?.message || 'Failed to authenticate');
+      console.error('❌ OAuth Error:', error);
+      Alert.alert('OAuth Error', error?.response?.data?.message || error?.message || 'Failed to authenticate');
     } finally {
       setLoading(false);
     }
