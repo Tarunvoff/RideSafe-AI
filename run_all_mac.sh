@@ -92,7 +92,35 @@ docker compose up -d
 popd > /dev/null
 
 echo -e "${YELLOW}Waiting for Kafka to initialize...${NC}"
-sleep 8
+sleep 10
+
+# Wait for Kafka to be truly ready
+echo -e "${YELLOW}Checking Kafka health...${NC}"
+for i in {1..30}; do
+	if docker exec $(docker ps -qf "name=kafka") kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1; then
+		echo -e "${GREEN}Kafka is ready!${NC}"
+		break
+	fi
+	if [ $i -eq 30 ]; then
+		echo -e "${RED}Kafka failed to start properly. Check docker logs.${NC}"
+		exit 1
+	fi
+	echo -e "Waiting for Kafka... ($i/30)"
+	sleep 2
+done
+
+# Create required Kafka topics
+echo -e "${YELLOW}Creating Kafka topics...${NC}"
+KAFKA_CONTAINER=$(docker ps -qf "name=kafka")
+for topic in zone.state.change disruption.event claim.trigger payout.request; do
+	docker exec "$KAFKA_CONTAINER" kafka-topics --create \
+		--bootstrap-server localhost:9092 \
+		--topic "$topic" \
+		--partitions 3 \
+		--replication-factor 1 \
+		--if-not-exists 2>/dev/null || true
+done
+echo -e "${GREEN}Kafka topics ready!${NC}"
 
 # 4. Create + activate Python virtual environment (once)
 echo -e "${YELLOW}Preparing Python virtual environment...${NC}"
