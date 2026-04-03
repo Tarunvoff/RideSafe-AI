@@ -22,18 +22,23 @@ export default function AdminClaimsScreen({ navigation }: any) {
 
   const [claimsRes, setClaimsRes] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROCESSING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'RAIN' | 'AQI'>('ALL');
 
   const loadClaims = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.getClaims();
+      const res = await adminApi.getClaims({
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        type: typeFilter === 'ALL' ? undefined : typeFilter,
+      });
       setClaimsRes(res ?? null);
     } catch {
       setClaimsRes(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter, typeFilter]);
 
   useEffect(() => {
     void loadClaims();
@@ -73,9 +78,22 @@ export default function AdminClaimsScreen({ navigation }: any) {
           contentContainerStyle={styles.filtersRow}
           style={styles.filtersScroll}
         >
-          <FilterButton label="City" />
-          <FilterButton label="Claim Type" />
-          <FilterButton label="Status" />
+          <FilterButton
+            label={`Claim Type: ${typeFilter}`}
+            onPress={() => {
+              const options: Array<typeof typeFilter> = ['ALL', 'RAIN', 'AQI'];
+              const next = options[(options.indexOf(typeFilter) + 1) % options.length];
+              setTypeFilter(next);
+            }}
+          />
+          <FilterButton
+            label={`Status: ${statusFilter}`}
+            onPress={() => {
+              const options: Array<typeof statusFilter> = ['ALL', 'PROCESSING', 'APPROVED', 'REJECTED'];
+              const next = options[(options.indexOf(statusFilter) + 1) % options.length];
+              setStatusFilter(next);
+            }}
+          />
         </ScrollView>
 
         {/* Summary */}
@@ -118,9 +136,9 @@ export default function AdminClaimsScreen({ navigation }: any) {
   );
 }
 
-function FilterButton({ label }: { label: string }) {
+function FilterButton({ label, onPress }: { label: string; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={styles.filterBtn} activeOpacity={0.85}>
+    <TouchableOpacity style={styles.filterBtn} activeOpacity={0.85} onPress={onPress}>
       <Text style={styles.filterText}>{label.toUpperCase()}</Text>
       <MaterialIcons name="expand-more" size={18} color={Theme.colors.textSecondary} />
     </TouchableOpacity>

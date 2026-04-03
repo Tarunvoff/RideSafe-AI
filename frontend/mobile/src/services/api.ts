@@ -279,6 +279,19 @@ export const fraudApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }, true),
+
+  escalateSubmission: (userId: string, reviewNote?: string) =>
+    request(`/fraud/admin/escalate/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'ESCALATED', reviewNote }),
+    }, true),
+
+  exportSubmissionPdf: (userId: string) =>
+    request<{ fileName: string; contentType: string; base64: string }>(
+      `/fraud/admin/submission/${userId}/pdf`,
+      {},
+      true,
+    ),
 };
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────
@@ -303,10 +316,30 @@ export const adminApi = {
         userEmail: string | null;
         disruption: { type: string | null; title: string | null };
       }>;
+      riskTrend: Array<{ day: string; avg_risk: number; total: number }>;
+      payoutTrend: Array<{ day: string; total_payout: number }>;
+      workersByCity: Array<{ label: string; value: number }>;
+      platformSplit: Array<{ label: string; value: number }>;
+      claimsByType: Array<{ label: string; value: number }>;
+      alertsByType: Array<{ label: string; value: number }>;
+      fraudStatusSplit: Array<{ label: string; value: number }>;
     }>('/admin/dashboard', {}, true),
 
-  getWorkers: () =>
-    request<Array<{
+  getWorkers: (params?: {
+    search?: string;
+    status?: string;
+    risk?: 'high';
+    city?: string;
+    platform?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.status) query.set('status', params.status);
+    if (params?.risk) query.set('risk', params.risk);
+    if (params?.city) query.set('city', params.city);
+    if (params?.platform) query.set('platform', params.platform);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<Array<{
       profileId: string;
       userId: string;
       email: string;
@@ -314,10 +347,18 @@ export const adminApi = {
       status: string;
       submittedAt: string;
       userCreatedAt: string;
-    }>>('/admin/workers', {}, true),
+      city: string | null;
+      platform: string | null;
+    }>>(`/admin/workers${suffix}`, {}, true);
+  },
 
-  getClaims: () =>
-    request<{
+  getClaims: (params?: { status?: string; type?: string; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.type) query.set('type', params.type);
+    if (params?.search) query.set('search', params.search);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<{
       total: number;
       pendingReview: number;
       totalPayout: number;
@@ -331,7 +372,50 @@ export const adminApi = {
         userEmail: string | null;
         disruption: { type: string | null; title: string | null };
       }>;
-    }>('/admin/claims', {}, true),
+    }>(`/admin/claims${suffix}`, {}, true);
+  },
+
+  getAlerts: (params?: { take?: number; skip?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.take) query.set('take', String(params.take));
+    if (params?.skip) query.set('skip', String(params.skip));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<{
+      total: number;
+      alerts: Array<{
+        id: string;
+        type: string;
+        title: string;
+        occurredAt: string;
+        expiresAt: string | null;
+        expectedLoss: number | null;
+        expectedPayout: number | null;
+        verified: boolean;
+      }>;
+    }>(`/admin/alerts${suffix}`, {}, true);
+  },
+
+  getSettings: () =>
+    request<{
+      alertThresholds: Record<string, any>;
+      riskConfig: Record<string, any>;
+      planConfig: Record<string, any>;
+      verificationSettings: Record<string, any>;
+      notifications: Record<string, any>;
+    }>('/admin/settings', {}, true),
+
+  updateSettings: (section: string, payload: Record<string, any>) =>
+    request(`/admin/settings/${section}`, { method: 'PATCH', body: JSON.stringify(payload) }, true),
+
+  getProfile: () =>
+    request<{ id: string; email: string; phone: string | null; displayName: string | null }>(
+      '/admin/profile',
+      {},
+      true,
+    ),
+
+  updateProfile: (payload: { displayName?: string; phone?: string }) =>
+    request('/admin/profile', { method: 'PATCH', body: JSON.stringify(payload) }, true),
 };
 
 // ── DRIVER / DASHBOARD ─────────────────────────────────────────────────────

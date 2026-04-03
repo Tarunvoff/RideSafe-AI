@@ -70,17 +70,32 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const timeoutMs = 10_000;
-      const locationPromise = ExpoLocation.getCurrentPositionAsync({
-        accuracy: ExpoLocation.Accuracy.High,
-      });
+      let coords = null;
+      let accuracy = null;
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location timeout')), timeoutMs),
-      );
+      try {
+        const lastKnown = await ExpoLocation.getLastKnownPositionAsync();
+        if (lastKnown?.coords) {
+          coords = lastKnown.coords;
+        }
+      } catch (e) {
+        // Ignore last known errors
+      }
 
-      const result: any = await Promise.race([locationPromise, timeoutPromise]);
-      const coords = result?.coords;
+      if (!coords) {
+        const timeoutMs = 10_000;
+        const locationPromise = ExpoLocation.getCurrentPositionAsync({
+          accuracy: ExpoLocation.Accuracy.Balanced,
+        });
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Location timeout')), timeoutMs),
+        );
+
+        const result: any = await Promise.race([locationPromise, timeoutPromise]);
+        coords = result?.coords;
+      }
+
       if (!coords) {
         setMock('Location unavailable');
         return;

@@ -34,6 +34,7 @@ model User {
   phone         String?  @unique
   passwordHash  String
   driverName    String?
+  platform      String?
   role          Role     @default(DRIVER)
   isVerified    Boolean  @default(false)
   otpCode       String?
@@ -250,6 +251,19 @@ model RazorpayOrder {
   @@map("razorpay_orders")
 }
 
+model AdminSettings {
+  id                    String   @id @default(uuid())
+  alertThresholds       Json
+  riskConfig            Json
+  planConfig            Json
+  verificationSettings  Json
+  notifications         Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("admin_settings")
+}
+
 model ZoneTelemetryLog {
   id        String   @id @default(uuid())
   h3Cell    String   @map("h3_cell")
@@ -284,6 +298,28 @@ model PayoutIdempotencyKey {
   @@unique([userId, h3Cell, eventTimestamp])
   @@index([userId])
   @@map("payout_idempotency_keys")
+}
+
+// ── H3 Zone Risk Data (for seeding + testing) ──────────────────────────────
+// Deterministic risk data for H3 cells. Used for QA/UAT testing.
+// Production uses real-time Kafka/Redis via zone-monitoring service.
+model ZoneRiskData {
+  id              String   @id @default(cuid())
+  h3_cell         String   @unique
+  riskScore       Float                          // 0–100
+  riskLevel       String                         // HIGH | MEDIUM | LOW
+  rainfall        Float                          // mm
+  temperature     Float                          // °C
+  aqi             Int                            // 0–500
+  floodChance     String                         // High | Medium | Low
+  disruptionScore Float                          // 0–1
+  trafficStatus   String                         // Halt | Slow Traffic | Stable Flow
+  activeRiders    Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([h3_cell])
+  @@map("zone_risk_data")
 }
 
 // ── Kafka Dead Letter Queue (DB fallback) ─────────────────────────────────────

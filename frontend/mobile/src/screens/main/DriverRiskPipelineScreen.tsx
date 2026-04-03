@@ -38,9 +38,15 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const greetingMessage = greetingOptions[greetingIndex];
 
   const derivedCoords = useMemo(() => {
-    if (!hasValidLocation) return null;
-    return { lat: location.latitude as number, lng: location.longitude as number };
-  }, [hasValidLocation, location.latitude, location.longitude]);
+    const candidateLat = profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
+    const candidateLng = profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
+    const lat = location.latitude != null && Number.isFinite(location.latitude) ? (location.latitude as number) : Number(candidateLat ?? 0);
+    const lng = location.longitude != null && Number.isFinite(location.longitude) ? (location.longitude as number) : Number(candidateLng ?? 0);
+    return { lat, lng };
+  }, [location.latitude, location.longitude, profile]);
+
+  const derivedLat = derivedCoords.lat;
+  const derivedLng = derivedCoords.lng;
 
   const loadDashboard = useCallback(async () => {
     if (!driverId) return;
@@ -50,16 +56,16 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       const profileRes = await driverApi.getProfile(driverId);
       const driverProfile = profileRes?.driverProfile ?? null;
       setProfile(driverProfile);
-      const coords = derivedCoords;
 
-      if (coords) {
+      if (Number.isFinite(derivedLat) && Number.isFinite(derivedLng)) {
         await telemetryApi.sendGps({
           driverId,
-          lat: coords.lat,
-          lng: coords.lng,
+          lat: derivedLat,
+          lng: derivedLng,
           platform: 'mobile-app',
         });
-        const zone = await fraudApi.getZoneRisk(coords.lat, coords.lng);
+
+        const zone = await fraudApi.getZoneRisk(derivedLat, derivedLng);
         setZoneRisk(zone ?? null);
       } else {
         setZoneRisk(null);
@@ -70,7 +76,7 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [driverId, derivedCoords, location.error]);
+  }, [driverId, derivedLat, derivedLng, location.error]);
 
   useEffect(() => {
     void loadDashboard();
@@ -143,10 +149,10 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
               <Ionicons name="location-outline" size={18} color="#111827" />
               <Text style={styles.locationTitle}>Location Intelligence</Text>
             </View>
-              <View style={[styles.validBadge, hasValidLocation ? styles.liveBadge : styles.mockBadge]}>
-              <View style={[styles.validDot, hasValidLocation ? styles.liveDot : styles.mockDot]} />
-              <Text style={[styles.validText, hasValidLocation ? styles.liveText : styles.mockText]}>
-                {location.loading ? 'Fetching your location…' : hasValidLocation ? 'Live GPS' : 'Location unavailable'}
+            <View style={[styles.validBadge, location.isMock ? styles.mockBadge : (hasValidLocation ? styles.liveBadge : styles.mockBadge)]}>
+              <View style={[styles.validDot, location.isMock ? styles.mockDot : (hasValidLocation ? styles.liveDot : styles.mockDot)]} />
+              <Text style={[styles.validText, location.isMock ? styles.mockText : (hasValidLocation ? styles.liveText : styles.mockText)]}>
+                {location.loading ? 'Fetching your location…' : location.isMock ? 'Mock Location' : hasValidLocation ? 'Live GPS' : 'Location unavailable'}
               </Text>
             </View>
           </View>
@@ -155,8 +161,8 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
             <View style={styles.coordBoxWide}>
               <Text style={styles.coordLabel}>Coordinates</Text>
               <Text style={styles.coordValueInline}>
-                {derivedCoords
-                  ? `Lat: ${derivedCoords.lat.toFixed(4)} | Lon: ${derivedCoords.lng.toFixed(4)}`
+                {derivedCoords && derivedCoords.lat != null && derivedCoords.lng != null
+                  ? `Lat: ${(derivedCoords.lat as number).toFixed(4)} | Lon: ${(derivedCoords.lng as number).toFixed(4)}`
                   : 'Lat: — | Lon: —'}
               </Text>
             </View>
@@ -291,7 +297,7 @@ const styles = StyleSheet.create({
   liveBadge: { backgroundColor: '#e7f7ed' },
   mockBadge: { backgroundColor: '#e5e7eb' },
   validDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16a34a' },
-  liveDot: { backgroundColor: '#16a34a' },
+  validLiveDot: { backgroundColor: '#16a34a' },
   mockDot: { backgroundColor: '#6b7280' },
   validText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#166534' },
   liveText: { color: '#166534' },

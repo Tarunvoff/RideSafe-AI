@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+  Alert,
     Animated,
     Image,
     ScrollView,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { Circle, Svg } from 'react-native-svg';
 import AdminShell from '../../components/AdminShell';
+import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 const PRIMARY = Theme.colors.primary;
@@ -30,52 +32,20 @@ export default function AdminFraudDetailScreen({ route, navigation }: any) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const riskAnim = useRef(new Animated.Value(0)).current;
 
-  const mockDetailsByUserId: Record<string, any> = {
-    u1: {
-      analysis: {
-        id: 'fa1',
-        riskScore: 78,
-        status: 'INCONCLUSIVE',
-        gpsLatitude: 12.9716,
-        gpsLongitude: 77.5946,
-        deviceIntegrity: 'Rooted Device',
-        networkType: 'Proxy',
-        velocityCheck: 'Suspicious',
-        details: { riskFactors: ['Root detected', 'Proxy network', 'GPS mismatch'] },
-        createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-      },
-      user: {
-        id: 'u1',
-        email: 'test1@gmail.com',
-        phone: '+91 9000000001',
-      },
-    },
-    u2: {
-      analysis: {
-        id: 'fa2',
-        riskScore: 64,
-        status: 'INCONCLUSIVE',
-        gpsLatitude: 13.0827,
-        gpsLongitude: 80.2707,
-        deviceIntegrity: 'Jailbroken Device',
-        networkType: 'Premium VPN',
-        velocityCheck: 'Suspicious',
-        details: { riskFactors: ['Jailbreak detected', 'VPN usage', 'High jitter'] },
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-      },
-      user: {
-        id: 'u2',
-        email: 'test2@gmail.com',
-        phone: '+91 9000000002',
-      },
-    },
-  };
-
   useEffect(() => {
-    const response = mockDetailsByUserId[userId] ?? mockDetailsByUserId.u1;
-    setIsLoading(true);
-    setIsLoading(false);
-    setData(response);
+    let isActive = true;
+    const loadDetails = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fraudApi.getSubmissionDetails(userId);
+        if (isActive) setData(response);
+      } catch (e: any) {
+        if (isActive) Alert.alert('Error', e?.message ?? 'Failed to load fraud details');
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    };
+    void loadDetails();
     
     Animated.loop(
       Animated.sequence([
@@ -83,6 +53,9 @@ export default function AdminFraudDetailScreen({ route, navigation }: any) {
         Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
       ])
     ).start();
+    return () => {
+      isActive = false;
+    };
   }, [userId]);
 
   useEffect(() => {
@@ -93,6 +66,19 @@ export default function AdminFraudDetailScreen({ route, navigation }: any) {
       useNativeDriver: false,
     }).start();
   }, [data, riskAnim]);
+
+  const handleEscalate = async () => {
+    setIsLoading(true);
+    try {
+      await fraudApi.escalateSubmission(userId, 'Escalated from fraud detail view');
+      Alert.alert('Escalated', 'Submission sent to fraud analyst');
+      navigation.goBack();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to escalate submission');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading || !data) {
     return (
@@ -157,7 +143,9 @@ export default function AdminFraudDetailScreen({ route, navigation }: any) {
               <View style={styles.statusPill}>
                 <Text style={styles.statusPillText}>Status: {analysis.status}</Text>
               </View>
-              <Text style={styles.updatedText}>Last updated: 2m ago</Text>
+              <Text style={styles.updatedText}>
+                Last updated: {analysis.createdAt ? new Date(analysis.createdAt).toLocaleString() : 'Unknown'}
+              </Text>
             </View>
 
             <Text style={styles.analysisTitle}>Inconclusive Patterns Detected</Text>
@@ -207,7 +195,7 @@ export default function AdminFraudDetailScreen({ route, navigation }: any) {
 
             {/* Buttons */}
             <View style={styles.btnRow}>
-              <TouchableOpacity style={styles.primaryBtn}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => void handleEscalate()}>
                 <Ionicons name="person-add" size={18} color="#fff" />
                 <Text style={styles.primaryBtnText}>Escalate to Analyst</Text>
               </TouchableOpacity>

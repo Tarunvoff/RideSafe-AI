@@ -41,7 +41,7 @@ export class AnalyzeFraudDto {
 
 export class ReviewFraudDto {
   @IsString()
-  status: 'APPROVED' | 'REJECTED' | 'INCONCLUSIVE';
+  status: 'APPROVED' | 'REJECTED' | 'INCONCLUSIVE' | 'ESCALATED';
 
   @IsOptional()
   @IsString()

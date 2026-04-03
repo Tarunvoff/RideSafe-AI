@@ -1,9 +1,103 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private defaultSettings() {
+    return {
+      alertThresholds: {
+        fraudBlockThreshold: Number(process.env.FRAUD_BLOCK_THRESHOLD ?? 0.7),
+        highRiskScore: 70,
+      },
+      riskConfig: {
+        deviceSwitchFrequency: 3,
+        gpsSpeedMax: 150,
+        h3ZoneConsistencyMin: 0.3,
+        claimsLast30dMax: 10,
+      },
+      planConfig: {
+        autoRenewDefault: true,
+        gracePeriodDays: 2,
+      },
+      verificationSettings: {
+        kycReviewSlaHours: 48,
+        allowManualOverride: true,
+      },
+      notifications: {
+        adminEmailAlerts: true,
+        webhookUrl: null,
+      },
+    };
+  }
+
+  async getSettings() {
+    const prisma = this.prisma as any;
+    const existing = await prisma.adminSettings.findFirst();
+    if (existing) return existing;
+
+    const defaults = this.defaultSettings();
+    return prisma.adminSettings.create({ data: defaults });
+  }
+
+  async updateSettings(section: string, payload: Record<string, any>) {
+    const allowed = [
+      'alertThresholds',
+      'riskConfig',
+      'planConfig',
+      'verificationSettings',
+      'notifications',
+    ];
+    if (!allowed.includes(section)) {
+      throw new BadRequestException('Invalid settings section');
+    }
+
+    const prisma = this.prisma as any;
+    const existing = await prisma.adminSettings.findFirst();
+    if (!existing) {
+      const defaults = this.defaultSettings();
+      return prisma.adminSettings.create({
+        data: {
+          ...defaults,
+          [section]: payload,
+        },
+      });
+    }
+
+    return prisma.adminSettings.update({
+      where: { id: existing.id },
+      data: { [section]: payload },
+    });
+  }
+
+  async getAdminProfile(userId: string) {
+    const user = await (this.prisma as any).user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Admin not found');
+    return {
+      id: user.id,
+      email: user.email,
+      phone: user.phone ?? null,
+      displayName: user.driverName ?? null,
+    };
+  }
+
+  async updateAdminProfile(userId: string, dto: { displayName?: string; phone?: string }) {
+    const user = await (this.prisma as any).user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Admin not found');
+
+    const data: any = {};
+    if (dto.displayName !== undefined) data.driverName = dto.displayName;
+    if (dto.phone !== undefined) data.phone = dto.phone;
+
+    const updated = await (this.prisma as any).user.update({ where: { id: userId }, data });
+    return {
+      id: updated.id,
+      email: updated.email,
+      phone: updated.phone ?? null,
+      displayName: updated.driverName ?? null,
+    };
+  }
 
   async getDashboardSummary() {
     const now = new Date();
@@ -65,15 +159,97 @@ export class AdminService {
     }));
 
     let riskTrend: any[] = [];
+    let payoutTrend: any[] = [];
+    let workersByCity: any[] = [];
+    let platformSplit: any[] = [];
+    let claimsByType: any[] = [];
+    let alertsByType: any[] = [];
+    let fraudStatusSplit: any[] = [];
     try {
       riskTrend = await prisma.$queryRaw`
-        SELECT DATE_TRUNC('day', "createdAt") as day, AVG("lfScore") as avg_lf
-        FROM zone_telemetry_logs
-        WHERE "createdAt" > NOW() - INTERVAL '7 days'
-        GROUP BY 1 ORDER BY 1
+        SELECT DATE_TRUNC('day', "createdAt") as day, AVG("riskScore") as avg_risk, COUNT(*)::int as total
+        FROM fraud_analysis
+        WHERE "createdAt" > NOW() - INTERVAL '14 days'
+        GROUP BY 1
+        ORDER BY 1
       `;
     } catch (err: any) {
       riskTrend = [];
+    }
+
+    try {
+      payoutTrend = await prisma.$queryRaw`
+        SELECT DATE_TRUNC('day', "createdAt") as day, SUM("approvedPayout") as total_payout
+        FROM payouts
+        WHERE "createdAt" > NOW() - INTERVAL '14 days'
+        GROUP BY 1
+        ORDER BY 1
+      `;
+    } catch (err: any) {
+      payoutTrend = [];
+    }
+
+    try {
+      workersByCity = await prisma.$queryRaw`
+        SELECT pd.city as label, COUNT(*)::int as value
+        FROM kyc_personal_details pd
+        JOIN users u ON u.id = pd."userId"
+        WHERE u.role = 'DRIVER'
+        GROUP BY pd.city
+        ORDER BY value DESC
+        LIMIT 8
+      `;
+    } catch (err: any) {
+      workersByCity = [];
+    }
+
+    try {
+      platformSplit = await prisma.$queryRaw`
+        SELECT COALESCE(NULLIF(TRIM(u.platform), ''), 'Unknown') as label, COUNT(*)::int as value
+        FROM users u
+        WHERE u.role = 'DRIVER'
+        GROUP BY 1
+        ORDER BY value DESC
+      `;
+    } catch (err: any) {
+      platformSplit = [];
+    }
+
+    try {
+      claimsByType = await prisma.$queryRaw`
+        SELECT de.type as label, COUNT(*)::int as value
+        FROM payouts p
+        JOIN disruption_events de ON de.id = p."disruptionEventId"
+        WHERE p."createdAt" > NOW() - INTERVAL '30 days'
+        GROUP BY de.type
+        ORDER BY value DESC
+      `;
+    } catch (err: any) {
+      claimsByType = [];
+    }
+
+    try {
+      alertsByType = await prisma.$queryRaw`
+        SELECT de.type as label, COUNT(*)::int as value
+        FROM disruption_events de
+        WHERE de.verified = true
+          AND de."occurredAt" > NOW() - INTERVAL '30 days'
+        GROUP BY de.type
+        ORDER BY value DESC
+      `;
+    } catch (err: any) {
+      alertsByType = [];
+    }
+
+    try {
+      fraudStatusSplit = await prisma.$queryRaw`
+        SELECT COALESCE(NULLIF(TRIM(f.status), ''), 'UNKNOWN') as label, COUNT(*)::int as value
+        FROM fraud_analysis f
+        GROUP BY 1
+        ORDER BY value DESC
+      `;
+    } catch (err: any) {
+      fraudStatusSplit = [];
     }
 
     return {
@@ -92,16 +268,88 @@ export class AdminService {
       })),
       recentClaims,
       riskTrend,
+      payoutTrend,
+      workersByCity,
+      platformSplit,
+      claimsByType,
+      alertsByType,
+      fraudStatusSplit,
     };
   }
 
-  async getWorkers() {
+  async getAlerts(filters?: { take?: number; skip?: number }) {
     const prisma = this.prisma as any;
+    const [total, alerts] = await Promise.all([
+      prisma.disruptionEvent.count(),
+      prisma.disruptionEvent.findMany({
+        orderBy: { occurredAt: 'desc' },
+        take: filters?.take ?? 20,
+        skip: filters?.skip ?? 0,
+      }),
+    ]);
+
+    return {
+      total,
+      alerts: (alerts ?? []).map((alert: any) => ({
+        id: alert.id,
+        type: alert.type,
+        title: alert.title,
+        occurredAt: alert.occurredAt,
+        expiresAt: alert.expiresAt ?? null,
+        expectedLoss: alert.expectedLoss ?? null,
+        expectedPayout: alert.expectedPayout ?? null,
+        verified: alert.verified ?? false,
+      })),
+    };
+  }
+
+  async getWorkers(filters?: {
+    search?: string;
+    status?: string;
+    risk?: string;
+    city?: string;
+    platform?: string;
+    take?: number;
+    skip?: number;
+  }) {
+    const prisma = this.prisma as any;
+    const search = filters?.search?.trim();
+    const status = filters?.status?.trim();
+    const risk = filters?.risk?.trim();
+    const city = filters?.city?.trim();
+    const platform = filters?.platform?.trim();
+
+    const where: any = { role: 'DRIVER' };
+
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (status) {
+      where.kycProfile = { status };
+    }
+
+    if (risk === 'high') {
+      where.fraudAnalysis = { riskScore: { gte: 70 } };
+    }
+
+    if (city) {
+      where.kycPersonalDetails = { city: { equals: city, mode: 'insensitive' } };
+    }
+
+    if (platform) {
+      where.platform = { equals: platform, mode: 'insensitive' };
+    }
+
     const users = await prisma.user.findMany({
-      where: { role: 'DRIVER' },
-      include: { kycProfile: true },
+      where,
+      include: { kycProfile: true, kycPersonalDetails: true },
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      take: filters?.take ?? 200,
+      skip: filters?.skip ?? 0,
     });
 
     return (users ?? []).map((user: any) => ({
@@ -112,23 +360,45 @@ export class AdminService {
       status: user.kycProfile?.status ?? 'NOT_STARTED',
       submittedAt: user.kycProfile?.submittedAt ?? user.createdAt,
       userCreatedAt: user.createdAt,
+      city: user.kycPersonalDetails?.city ?? null,
+      platform: user.platform ?? null,
     }));
   }
 
-  async getClaims() {
+  async getClaims(filters?: {
+    search?: string;
+    status?: string;
+    type?: string;
+    take?: number;
+    skip?: number;
+  }) {
     const prisma = this.prisma as any;
+    const search = filters?.search?.trim();
+    const status = filters?.status?.trim();
+    const type = filters?.type?.trim();
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (type) where.disruptionEvent = { type };
+    if (search) {
+      where.policy = {
+        user: { email: { contains: search, mode: 'insensitive' } },
+      };
+    }
 
     const [total, pendingReview, payoutAgg, claims] = await Promise.all([
-      prisma.payout.count(),
-      prisma.payout.count({ where: { status: 'PROCESSING' } }),
-      prisma.payout.aggregate({ _sum: { approvedPayout: true } }),
+      prisma.payout.count({ where }),
+      prisma.payout.count({ where: { ...where, status: 'PROCESSING' } }),
+      prisma.payout.aggregate({ _sum: { approvedPayout: true }, where }),
       prisma.payout.findMany({
+        where,
         include: {
           policy: { include: { user: true } },
           disruptionEvent: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 100,
+        take: filters?.take ?? 100,
+        skip: filters?.skip ?? 0,
       }),
     ]);
 
