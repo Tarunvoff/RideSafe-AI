@@ -7,6 +7,7 @@ import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.
 import { RedisStateService, PARAMETRIC_TRIGGER_STATES } from '../state/redis-state.service';
 import { FraudIntegrationService } from '../fraud-integration/fraud-integration.service';
 import { PayoutService } from '../payout/payout.service';
+import { PremiumService } from '../premium/premium.service';
 import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
 import { ctForPlan, normalizePlanTier } from './policy-tiers';
 
@@ -27,6 +28,7 @@ export class InsuranceService {
     private readonly redisState: RedisStateService,
     private readonly fraudIntegration: FraudIntegrationService,
     private readonly payoutService: PayoutService,
+    private readonly premiumService: PremiumService,
   ) {}
 
   private resolveCtOrThrow(planKey?: string | null) {
@@ -430,6 +432,48 @@ export class InsuranceService {
     // Allow renewal only if EXPIRED, CANCELLED, or within 24 hours of expiration
     if (latestPolicy.status === 'ACTIVE' && latestPolicy.endDate.getTime() > now.getTime() + 24 * 60 * 60 * 1000) {
       throw new BadRequestException('Current policy is active and not soon-to-expire. Cannot hold two active policies simultaneously.');
+    }
+
+    if (latestPolicy.weeklyPlanId) {
+      const weeklyPlan = await (this.prisma as any).weeklyPlan.findUnique({
+        where: { id: latestPolicy.weeklyPlanId },
+      });
+      if (!weeklyPlan) {
+        throw new BadRequestException('Weekly plan not found for renewal');
+      }
+
+      const premiumCalc = await this.premiumService.calculateWeeklyPremium(dto.driverId, weeklyPlan.id);
+      const renewedPremium = Number(premiumCalc?.premium ?? latestPolicy.premium ?? weeklyPlan.price ?? 0);
+      const renewStart = new Date();
+      const renewEnd = new Date(renewStart.getTime() + weeklyPlan.durationDays * 24 * 60 * 60 * 1000);
+
+      await (this.prisma as any).policy.updateMany({
+        where: { userId: dto.driverId, status: 'ACTIVE', endDate: { gt: renewStart } },
+        data: { endDate: renewStart },
+      });
+
+      const renewedPolicy = await (this.prisma as any).policy.create({
+        data: {
+          userId: dto.driverId,
+          planType: weeklyPlan.key,
+          status: 'ACTIVE',
+          premium: renewedPremium,
+          startDate: renewStart,
+          endDate: renewEnd,
+          weeklyPlanId: weeklyPlan.id,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Policy renewed successfully',
+        policyId: renewedPolicy.id,
+        status: renewedPolicy.status,
+        planType: renewedPolicy.planType,
+        premium: renewedPolicy.premium,
+        startDate: renewedPolicy.startDate,
+        endDate: renewedPolicy.endDate,
+      };
     }
 
     // Reuse enroll flow to create new policy, calculate dynamic premium, and terminate old policy safely

@@ -62,6 +62,15 @@ export class PlansService {
       const eligibleForLatest =
         !!latestDisruption && eligibleTypes.includes(latestDisruption.type);
 
+      const tierCt = ctForPlan(weeklyPlan?.key ?? policy.planType ?? null) ?? 0.8;
+      const tierWeight = Math.min(1, Math.max(0.1, tierCt / 0.8));
+      const disruptionExpectedLoss = Number(latestDisruption?.expectedLoss ?? 0);
+      const disruptionExpectedPayout = Number(latestDisruption?.expectedPayout ?? 0);
+      const maxPayout = Number(weeklyPlan?.maxPayout ?? 0);
+      const tierEstimatedLoss = Math.round(disruptionExpectedLoss * tierWeight * 100) / 100;
+      const tierApprovedPayout =
+        Math.round(Math.min(disruptionExpectedPayout * tierWeight, maxPayout) * 100) / 100;
+
       let payout: any = null;
       let claimStatus = 'NO_DISRUPTION_ELIGIBLE';
 
@@ -109,8 +118,8 @@ export class PlansService {
               policyId: policy.id,
               disruptionEventId: latestDisruption.id,
               status: shouldBeApproved ? 'APPROVED' : 'PROCESSING',
-              estimatedLoss: latestDisruption.expectedLoss ?? 0,
-              approvedPayout: latestDisruption.expectedPayout ?? 0,
+              estimatedLoss: tierEstimatedLoss,
+              approvedPayout: tierApprovedPayout,
               processingTime: shouldBeApproved ? 'Auto-credited' : 'Auto-processing',
               timeline: {
                 steps: [
@@ -127,7 +136,7 @@ export class PlansService {
             where: { id: existingPayout.id },
             data: {
               status: 'APPROVED',
-              approvedPayout: latestDisruption.expectedPayout ?? existingPayout.approvedPayout ?? 0,
+              approvedPayout: tierApprovedPayout,
               processingTime: 'Auto-credited',
             },
           });

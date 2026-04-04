@@ -2,6 +2,10 @@ import { BadRequestException, Injectable, UnauthorizedException, Logger } from '
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PayoutIdempotencyService } from './payout-idempotency.service';
+import { PremiumService } from '../premium/premium.service';
+import { ctForPlan } from '../insurance/policy-tiers';
+
+const MAX_WEEKLY_PREMIUM_INR = 50;
 
 @Injectable()
 export class PaymentsService {
@@ -10,6 +14,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly idempotency: PayoutIdempotencyService,
+    private readonly premiumService: PremiumService,
   ) {}
 
   private getRazorpayClient(): any {
@@ -44,14 +49,35 @@ export class PaymentsService {
     return expected === signature;
   }
 
+  private resolveTierCapForPlanKey(planKey?: string | null): number {
+    const Ct = ctForPlan(planKey ?? null);
+    if (Ct == null) return MAX_WEEKLY_PREMIUM_INR;
+    const cap = 30 + Ct * 25;
+    return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round(cap * 100) / 100);
+  }
+
   async createOrder(userId: string, weeklyPlanId: string) {
     const prisma = this.prisma as any;
     const plan = await prisma.weeklyPlan.findUnique({ where: { id: weeklyPlanId } });
     if (!plan) throw new BadRequestException('Weekly plan not found');
 
     const razorpay = this.getRazorpayClient();
+    const tierCap = this.resolveTierCapForPlanKey(plan.key ?? null);
 
-    const amountPaise = Math.round(plan.price * 100); // price is stored in INR
+    let amountRupees = Number(plan.price);
+    try {
+      const premiumCalc = await this.premiumService.calculateWeeklyPremium(userId, weeklyPlanId);
+      amountRupees = Number(premiumCalc?.premium ?? plan.price);
+    } catch (err: any) {
+      amountRupees = Math.min(Number(plan.price), tierCap);
+      this.logger.warn(
+        `Premium calculation failed for user=${userId} plan=${weeklyPlanId}; using tier-capped static fallback=${amountRupees}. Error: ${err?.message ?? err}`,
+      );
+    }
+
+    amountRupees = Math.min(amountRupees, tierCap);
+
+    const amountPaise = Math.round(amountRupees * 100); // Razorpay expects paise
     // Razorpay requires `receipt` length <= 40 characters.
     const receipt = `rcpt_${plan.key}_${Date.now()}`;
 
@@ -121,6 +147,7 @@ export class PaymentsService {
     const now = new Date();
     const plan = razorpayOrder.weeklyPlan;
     if (!plan) throw new BadRequestException('Weekly plan not found for order');
+    const paidPremium = Number((razorpayOrder.amount ?? 0) / 100);
 
     const endDate = new Date(now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
@@ -142,7 +169,7 @@ export class PaymentsService {
             userId,
             planType: plan.key,
             status: 'ACTIVE',
-            premium: plan.price,
+            premium: paidPremium,
             startDate: now,
             endDate,
             weeklyPlanId: plan.id,
