@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
@@ -243,7 +242,6 @@ export default function HomeScreen({ navigation }: any) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <DriverBottomNavbar navigation={navigation} activeKey="home" />
     </SafeAreaView>
   );
 }

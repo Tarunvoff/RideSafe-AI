@@ -1,31 +1,46 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
-import { claimsApi, insuranceApi, type ClaimRecord } from '../../services/api';
+import { plansApi, type ClaimRecord } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function ClaimsScreen() {
   const { user } = useAuth();
   const [claims, setClaims] = useState<ClaimRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasProcessing, setHasProcessing] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const driverId = user?.id ?? null;
 
-  const loadClaims = useCallback(async () => {
+  const loadClaims = useCallback(async (showLoading = true) => {
     if (!driverId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
-      const res = await claimsApi.list(driverId);
-      setClaims(Array.isArray(res) ? res : []);
+      const res = await plansApi.getPurchasedPlans();
+      const policies = Array.isArray(res?.purchasedPolicies) ? res.purchasedPolicies : [];
+      const mapped: ClaimRecord[] = policies
+        .filter((p: any) => p.payout)
+        .map((p: any) => ({
+          claimId: p.payout.payoutId,
+          status: p.payout.status,
+          approvedPayout: p.payout.approvedPayout ?? p.payout.estimatedLoss ?? 0,
+          trigger: p.payout.disruptionType ?? res?.latestDisruption?.type ?? 'UNKNOWN',
+          transactionId: p.payout.transactionId,
+          bankReference: p.payout.bankReference,
+          transferredAt: p.payout.transferredAt,
+          createdAt: p.payout.createdAt,
+        }));
+      setClaims(mapped);
+      setHasProcessing(mapped.some((claim) => claim.status === 'PROCESSING'));
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Failed to load claims');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [driverId]);
 
@@ -33,34 +48,37 @@ export default function ClaimsScreen() {
     void loadClaims();
   }, [loadClaims]);
 
-  const triggerClaim = async () => {
-    if (!driverId) return;
-    setLoading(true);
-    try {
-      const res = await insuranceApi.process(driverId, {
-        claimAmount: 450,
-        eventType: 'AQI_SPIKE',
-      });
-      const decision = res?.decision ?? 'HOLD';
-      const payout = res?.payout ?? 0;
-      Alert.alert(
-        'Claim Triggered',
-        decision === 'APPROVED'
-          ? `₹${payout} credited`
-          : `Decision: ${decision}`,
-      );
-      await loadClaims();
-    } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to process claim');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
-  };
+
+    if (hasProcessing) {
+      pollingRef.current = setInterval(() => {
+        void loadClaims(false);
+      }, 10000);
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [hasProcessing, loadClaims]);
+
 
   const renderStatusStyle = (status: string): [ViewStyle, TextStyle] =>
     status === 'APPROVED'
       ? [styles.claimStatusResolved, styles.claimStatusTextResolved]
       : [styles.claimStatusPending, styles.claimStatusTextPending];
+
+  const renderStatusLabel = (status: string) => {
+    if (status === 'APPROVED') return 'Paid Out';
+    if (status === 'REJECTED') return 'Rejected';
+    return 'Processing';
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -69,13 +87,16 @@ export default function ClaimsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Your Claims</Text>
-          <Button title={loading ? 'Processing...' : 'New Claim'} onPress={() => void triggerClaim()} style={styles.newClaimBtn} />
+          <Button title={loading ? 'Loading...' : 'Refresh'} onPress={() => void loadClaims()} style={styles.newClaimBtn} />
         </View>
+        {user?.email ? (
+          <Text style={styles.subtitle}>Notification email: {user.email}</Text>
+        ) : null}
 
         {claims.length === 0 ? (
           <Card style={styles.claimCard}>
             <Text style={styles.claimTitle}>No claims yet</Text>
-            <Text style={styles.claimId}>Trigger a parametric claim to see it here.</Text>
+            <Text style={styles.emptyStateText}>Claims appear here after a verified disruption triggers a payout.</Text>
           </Card>
         ) : (
           claims.map((claim) => {
@@ -84,19 +105,44 @@ export default function ClaimsScreen() {
               <Card style={styles.claimCard} key={claim.claimId}>
                 <View style={styles.claimHeader}>
                   <View style={badgeStyle}>
-                    <Text style={badgeTextStyle}>{claim.status}</Text>
+                    <Text style={badgeTextStyle}>{renderStatusLabel(claim.status)}</Text>
                   </View>
                   <Text style={styles.claimDate}>
                     {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : '—'}
                   </Text>
                 </View>
-                <Text style={styles.claimTitle}>{claim.trigger}</Text>
-                <Text style={styles.claimId}>Claim #{claim.claimId}</Text>
+                <View style={styles.summaryRow}>
+                  <View style={styles.summaryLeft}>
+                    <Text style={styles.claimTitle}>{claim.trigger}</Text>
+                    <Text style={styles.claimId}>Claim #{claim.claimId}</Text>
+                  </View>
+                  <View style={styles.amountPill}>
+                    <Text style={styles.amountPillText}>
+                      ₹{Number(claim.approvedPayout || 0).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                </View>
                 <View style={styles.divider} />
-                <TouchableOpacity style={styles.viewDetailsRow}>
-                  <Text style={styles.viewDetailsText}>Amount: ₹{Number(claim.amount || 0).toLocaleString('en-IN')}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={Theme.colors.primary} />
-                </TouchableOpacity>
+                <View style={styles.detailGrid}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Reference</Text>
+                    <Text style={styles.detailValueFull}>
+                      {claim.transactionId ? claim.transactionId : '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Bank Ref</Text>
+                    <Text style={styles.detailValueFull}>
+                      {claim.bankReference ? claim.bankReference : '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRowInline}>
+                    <Text style={styles.detailLabel}>Transferred</Text>
+                    <Text style={styles.detailValueMuted}>
+                      {claim.transferredAt ? new Date(claim.transferredAt).toLocaleString() : '—'}
+                    </Text>
+                  </View>
+                </View>
               </Card>
             );
           })
@@ -111,10 +157,13 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Theme.colors.surface },
   container: { padding: Theme.spacing.lg },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: Theme.spacing.xl,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.md,
   },
   title: { ...Theme.typography.h1, color: Theme.colors.text },
+  subtitle: { ...Theme.typography.caption, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.lg },
   newClaimBtn: { height: 36, paddingHorizontal: Theme.spacing.md },
   claimCard: { marginBottom: Theme.spacing.lg },
   claimHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.sm },
@@ -123,9 +172,25 @@ const styles = StyleSheet.create({
   claimStatusResolved: { backgroundColor: '#d4edda', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   claimStatusTextResolved: { color: '#155724', ...Theme.typography.caption, fontWeight: '600' },
   claimDate: { ...Theme.typography.caption, color: Theme.colors.textSecondary },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  summaryLeft: { flex: 1, paddingRight: Theme.spacing.sm },
   claimTitle: { ...Theme.typography.h3, color: Theme.colors.text, marginBottom: 4 },
   claimId: { ...Theme.typography.caption, color: Theme.colors.textSecondary },
+  amountPill: {
+    backgroundColor: Theme.colors.surface,
+    borderColor: Theme.colors.border,
+    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  amountPillText: { ...Theme.typography.body, color: Theme.colors.text, fontWeight: '600' },
+  emptyStateText: { ...Theme.typography.body, color: Theme.colors.textSecondary },
   divider: { height: 1, backgroundColor: Theme.colors.border, marginVertical: Theme.spacing.md },
-  viewDetailsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  viewDetailsText: { ...Theme.typography.body, color: Theme.colors.primary, fontWeight: '500' }
+  detailGrid: { gap: 10 },
+  detailRow: { gap: 6 },
+  detailRowInline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  detailLabel: { ...Theme.typography.caption, color: Theme.colors.textSecondary },
+  detailValueFull: { ...Theme.typography.body, color: Theme.colors.text, lineHeight: 20 },
+  detailValueMuted: { ...Theme.typography.body, color: Theme.colors.textSecondary }
 });

@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
@@ -173,7 +172,6 @@ export default function DriverActivityScreen({ navigation }: any) {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      <DriverBottomNavbar navigation={navigation} activeKey="activity" />
     </SafeAreaView>
   );
 }

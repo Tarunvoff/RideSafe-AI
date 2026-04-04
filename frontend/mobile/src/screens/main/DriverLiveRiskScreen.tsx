@@ -12,7 +12,6 @@ import {
 import MapView, { Marker } from 'react-native-maps';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
@@ -198,10 +197,10 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
               />
             ) : (
               <View style={styles.mapFallback}>
-                <Ionicons name="location-outline" size={32} color="#9ca3af" />
-                <Text style={styles.mapFallbackTitle}>Location Unavailable</Text>
+                <Ionicons name="location-outline" size={28} color="#9ca3af" />
+                <Text style={styles.mapFallbackTitle}>Location required</Text>
                 <Text style={styles.mapFallbackText}>
-                  We couldn't get your precise GPS coordinates. Please check your signal and try again.
+                  We couldn't get your precise GPS coordinates. Please enable location and try again.
                 </Text>
                 <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
                   <Ionicons name="refresh" size={14} color="#111827" />
@@ -320,7 +319,6 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         <View style={{ height: 12 }} />
       </ScrollView>
 
-      <DriverBottomNavbar navigation={navigation} activeKey="risk" />
     </SafeAreaView>
   );
 }

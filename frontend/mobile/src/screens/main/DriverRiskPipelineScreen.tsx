@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MainTopNavbar from '../../components/MainTopNavbar';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
@@ -196,7 +195,6 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
         </View>
       </View>
 
-      <DriverBottomNavbar navigation={navigation} activeKey="home" />
     </SafeAreaView>
   );
 }

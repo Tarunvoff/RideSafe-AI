@@ -1,12 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as h3 from 'h3-js';
+import * as crypto from 'crypto';
 import { ctForPlan } from '../insurance/policy-tiers';
 
 @Injectable()
 export class PlansService {
   private readonly logger = new Logger(PlansService.name);
   constructor(private readonly prisma: PrismaService) {}
+
+  private generateSandboxPayoutId(): string {
+    const base62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const bytes = crypto.randomBytes(18);
+    let result = '';
+    for (const byte of bytes) {
+      result += base62[byte % 62];
+    }
+    return `pout_${result}`;
+  }
 
   async getWeeklyPlans(userId?: string) {
     const prisma = this.prisma as any;
@@ -142,12 +153,23 @@ export class PlansService {
           });
         }
 
-        payout = existingPayout;
-        claimStatus = claimStatusFromPayout(existingPayout.status);
+        payout = await this.resolvePayoutForPolicy(policy, latestDisruption, userId);
+        claimStatus = claimStatusFromPayout(payout.status);
       } else if (!latestDisruption) {
         claimStatus = 'NO_DISRUPTION';
       } else {
         claimStatus = 'INELIGIBLE_FOR_LATEST_DISRUPTION';
+      }
+
+      if (!payout) {
+        payout = await prisma.payout.findFirst({
+          where: { policyId: policy.id },
+          include: { disruptionEvent: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (payout) {
+          claimStatus = claimStatusFromPayout(payout.status);
+        }
       }
 
       purchasedPolicies.push({
@@ -175,6 +197,9 @@ export class PlansService {
               approvedPayout: payout.approvedPayout,
               processingTime: payout.processingTime,
               transactionId: payout.transactionId,
+              disruptionType: payout.disruptionEvent?.type ?? null,
+              bankReference: payout.bankReference,
+              transferredAt: payout.transferredAt,
               createdAt: payout.createdAt,
             }
           : null,
@@ -197,5 +222,101 @@ export class PlansService {
       purchasedPolicies,
     };
   }
-}
 
+  /**
+   * Resolves or creates a payout record for a policy against a disruption event.
+   * Calls the ML trigger service to determine approval.
+   *
+   * Extracted from getPurchasedPolicies so that a GET handler never owns
+   * write logic directly — this method is the single source of truth for
+   * payout state transitions driven by the ML pipeline.
+   */
+  private async resolvePayoutForPolicy(
+    policy: any,
+    disruption: any,
+    userId: string,
+  ): Promise<any> {
+    const prisma = this.prisma as any;
+
+    const mlServiceUrl = process.env.ML_SERVICE_URL;
+    if (!mlServiceUrl) {
+      this.logger.warn('ML_SERVICE_URL is not set — trigger evaluation skipped');
+    }
+
+    let shouldBeApproved = false;
+
+    try {
+      const analysis = await prisma.fraudAnalysis.findUnique({
+        where: { userId },
+        select: { gpsLatitude: true, gpsLongitude: true, riskScore: true },
+      });
+
+      if (analysis?.gpsLatitude && analysis?.gpsLongitude && mlServiceUrl) {
+        const h3_cell = h3.latLngToCell(analysis.gpsLatitude, analysis.gpsLongitude, 8);
+
+        const triggerRes = await fetch(`${mlServiceUrl}/trigger`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            h3_cell,
+            fraud_score: (analysis.riskScore || 0) / 100,
+          }),
+          signal: AbortSignal.timeout(3000),
+        });
+
+        if (triggerRes.ok) {
+          const triggerData = await triggerRes.json();
+          shouldBeApproved = triggerData.decision === 'APPROVED';
+          this.logger.log(
+            `ML Trigger evaluated H3 Cell [${h3_cell}]: ${triggerData.decision}`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn('ML Trigger Service unreachable — defaulting to PROCESSING');
+    }
+
+    // Idempotent: find existing payout or create a new one
+    let existingPayout = await prisma.payout.findFirst({
+      where: {
+        policyId: policy.id,
+        disruptionEventId: disruption.id,
+      },
+    });
+
+    if (!existingPayout) {
+      existingPayout = await prisma.payout.create({
+        data: {
+          policyId: policy.id,
+          disruptionEventId: disruption.id,
+          status: shouldBeApproved ? 'APPROVED' : 'PROCESSING',
+          estimatedLoss: disruption.expectedLoss ?? 0,
+          approvedPayout: disruption.expectedPayout ?? 0,
+          processingTime: shouldBeApproved ? 'Auto-credited' : 'Auto-processing',
+          transactionId: shouldBeApproved ? this.generateSandboxPayoutId() : null,
+          timeline: {
+            steps: [
+              { event: 'Disruption Detected', done: true },
+              { event: 'Claim Auto-Triggered', done: true },
+              { event: 'AI Verification', done: shouldBeApproved },
+              { event: 'Payout Processed', done: shouldBeApproved },
+            ],
+          },
+        },
+      });
+    } else if (shouldBeApproved && existingPayout.status === 'PROCESSING') {
+      const transactionId = existingPayout.transactionId || this.generateSandboxPayoutId();
+      existingPayout = await prisma.payout.update({
+        where: { id: existingPayout.id },
+        data: {
+          status: 'APPROVED',
+          approvedPayout: disruption.expectedPayout ?? existingPayout.approvedPayout ?? 0,
+          processingTime: 'Auto-credited',
+          transactionId,
+        },
+      });
+    }
+
+    return existingPayout;
+  }
+}

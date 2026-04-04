@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaymentsService } from './payments.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { ParametricPayoutDto } from './dto/parametric-payout.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -20,6 +21,20 @@ export class PaymentsController {
   @HttpCode(HttpStatus.OK)
   verify(@Request() req: any, @Body() dto: VerifyPaymentDto) {
     return this.paymentsService.verifyPayment(req.user.id, dto);
+  }
+
+  @Post('parametric-payout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  parametricPayout(@Request() req: any, @Body() dto: ParametricPayoutDto) {
+    return this.paymentsService.processParametricPayout({
+      userId: req.user.id,
+      policyId: dto.policyId,
+      disruptionEventId: dto.disruptionEventId,
+      eventTimestamp: dto.eventTimestamp,
+      h3Cell: dto.h3Cell,
+      approvedPayout: dto.approvedPayout,
+    });
   }
 }
 

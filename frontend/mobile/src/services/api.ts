@@ -535,8 +535,11 @@ export const policyApi = {
 export type ClaimRecord = {
   claimId: string;
   status: string;
-  amount: number;
+  approvedPayout: number;
   trigger: string;
+  transactionId?: string | null;
+  bankReference?: string | null;
+  transferredAt?: string | null;
   createdAt?: string;
 };
 
@@ -556,6 +559,24 @@ export const claimsApi = {
 export const payoutsApi = {
   list: (driverId: string) =>
     request<PayoutRecord[]>(`/payouts/${driverId}`),
+};
+
+export const paymentsApi = {
+  parametricPayout: (data: {
+    policyId: string;
+    disruptionEventId: string;
+    eventTimestamp: number;
+    h3Cell: string;
+    approvedPayout: number;
+  }) =>
+    request<{ success: boolean; cached?: boolean; state?: string; payoutId?: string; transactionId?: string | null }>(
+      '/payments/parametric-payout',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+      true,
+    ),
 };
 
 // ── TELEMETRY ─────────────────────────────────────────────────────────────
@@ -626,6 +647,9 @@ export type PurchasedPolicy = {
     approvedPayout: number | null;
     processingTime: string | null;
     transactionId: string | null;
+    disruptionType?: string | null;
+    bankReference?: string | null;
+    transferredAt?: string | null;
     createdAt: string;
   };
 };

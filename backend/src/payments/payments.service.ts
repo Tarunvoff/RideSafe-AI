@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PayoutIdempotencyService } from './payout-idempotency.service';
 import { PremiumService } from '../premium/premium.service';
 import { ctForPlan } from '../insurance/policy-tiers';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const MAX_WEEKLY_PREMIUM_INR = 50;
 
@@ -15,6 +16,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly idempotency: PayoutIdempotencyService,
     private readonly premiumService: PremiumService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private getRazorpayClient(): any {
@@ -54,6 +56,23 @@ export class PaymentsService {
     if (Ct == null) return MAX_WEEKLY_PREMIUM_INR;
     const cap = 30 + Ct * 25;
     return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round(cap * 100) / 100);
+  }
+  /**
+   * Generates a Razorpay-format payout reference for sandbox/demo environments.
+   * Format mirrors real Razorpay payout IDs (pout_<base62>, 18 chars after prefix)
+   * so downstream systems, audit logs, and the demo UI look production-realistic.
+   *
+   * Replace this with a real razorpay.payouts.create() call when live credentials
+   * and fund account IDs are available.
+   */
+  private generateSandboxPayoutId(): string {
+    const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const bytes = crypto.randomBytes(18);
+    let result = '';
+    for (const byte of bytes) {
+      result += BASE62[byte % 62];
+    }
+    return `pout_${result}`;
   }
 
   async createOrder(userId: string, weeklyPlanId: string) {
@@ -267,6 +286,21 @@ export class PaymentsService {
     await this.idempotency.markProcessing(check.idempotencyId);
 
     try {
+      // If a payout already exists for this policy + disruption, return it as idempotent success.
+      const existingPayout = await prisma.payout.findUnique({
+        where: { policyId_disruptionEventId: { policyId, disruptionEventId } },
+      });
+      if (existingPayout) {
+        await this.idempotency.markSuccess(check.idempotencyId, existingPayout.id);
+        return {
+          success: true,
+          cached: true,
+          state: 'SUCCESS',
+          payoutId: existingPayout.id,
+          transactionId: existingPayout.transactionId ?? null,
+        };
+      }
+
       // 3. Create the Database Payout record
       const payout = await prisma.payout.create({
         data: {
@@ -280,18 +314,48 @@ export class PaymentsService {
         },
       });
 
-      // 4. Trigger actual gateway transfer here (mocked for now)
-      // e.g. await this.triggerRazorpayRoute(userId, approvedPayout);
-      const simulatedTransactionId = `txn_param_${Date.now()}`;
+      // 4. Generate a sandbox payout reference in real Razorpay format.
+      //    Replace with razorpay.payouts.create() when live fund account IDs are available.
+      const sandboxPayoutId = this.generateSandboxPayoutId();
+      this.logger.log(`Parametric payout reference generated: ${sandboxPayoutId}`);
 
       // 5. Mark as SUCCESS in both places
       await prisma.payout.update({
         where: { id: payout.id },
         data: {
           status: 'APPROVED',
-          transactionId: simulatedTransactionId,
+          transactionId: sandboxPayoutId,
         },
       });
+
+      const bankReference = `BANK_${sandboxPayoutId}`;
+      await prisma.payout.update({
+        where: { id: payout.id },
+        data: {
+          bankReference,
+          transferredAt: new Date(),
+        },
+      });
+      this.logger.log(`Mock bank transfer complete: ${bankReference}`);
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, driverName: true },
+      });
+
+      const disruption = await prisma.disruptionEvent.findUnique({
+        where: { id: disruptionEventId },
+        select: { type: true },
+      });
+
+      if (user?.email) {
+        await this.notifications.sendClaimApproved(user.email, {
+          driverName: user.driverName ?? 'Driver',
+          amount: approvedPayout,
+          transactionId: sandboxPayoutId,
+          disruptionType: disruption?.type ?? 'Weather Event',
+        });
+      }
 
       await this.idempotency.markSuccess(check.idempotencyId, payout.id);
 
@@ -300,10 +364,10 @@ export class PaymentsService {
         cached: false,
         state: 'SUCCESS',
         payoutId: payout.id,
-        transactionId: simulatedTransactionId,
+        transactionId: sandboxPayoutId,
       };
     } catch (err: any) {
-      // 6. If anything fails (DB or Stripe/Razorpay) → mark FAILED
+      // 6. If anything fails (DB or gateway) → mark FAILED
       await this.idempotency.markFailed(check.idempotencyId, err.message);
 
       // Attempt to record failure in the Payout table if it was created

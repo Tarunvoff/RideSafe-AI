@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import MainTopNavbar from '../../components/MainTopNavbar';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
@@ -691,7 +690,6 @@ export default function DriverPlansScreen({ navigation }: any) {
         )}
       </ScrollView>
 
-      <DriverBottomNavbar navigation={navigation} activeKey="plans" />
 
       <Modal
         visible={!!checkout}

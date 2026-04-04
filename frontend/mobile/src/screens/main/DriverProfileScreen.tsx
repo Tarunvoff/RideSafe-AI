@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MainTopNavbar from '../../components/MainTopNavbar';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
@@ -822,7 +821,6 @@ export default function DriverProfileScreen({ navigation }: any) {
         </View>
       </ScrollView>
 
-      <DriverBottomNavbar navigation={navigation} activeKey="profile" />
     </SafeAreaView>
   );
 }

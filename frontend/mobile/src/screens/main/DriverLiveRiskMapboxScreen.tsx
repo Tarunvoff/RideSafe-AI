@@ -4,7 +4,6 @@ import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, Touchabl
 import WebView from 'react-native-webview';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
-import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { Theme } from '../../theme';
@@ -879,7 +878,6 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           <ActivityIndicator size="large" color={Theme.colors.primary} />
           <Text style={styles.loadingText}>Loading live risk data...</Text>
         </View>
-        <DriverBottomNavbar navigation={navigation} activeKey="risk" />
       </SafeAreaView>
     );
   }
@@ -901,7 +899,6 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
               onRetry={() => refreshLocation()}
             />
           </View>
-          <DriverBottomNavbar navigation={navigation} activeKey="risk" />
         </SafeAreaView>
       );
     }
@@ -924,7 +921,6 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
             <Text style={styles.retryBtnText}>Refresh Location</Text>
           </TouchableOpacity>
         </View>
-        <DriverBottomNavbar navigation={navigation} activeKey="risk" />
       </SafeAreaView>
     );
   }
@@ -1202,7 +1198,6 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         </View>
       )}
 
-      <DriverBottomNavbar navigation={navigation} activeKey="risk" />
     </SafeAreaView>
   );
 }

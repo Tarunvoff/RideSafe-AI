@@ -214,6 +214,8 @@ model Payout {
   estimatedLoss   Float?  @default(0)
   approvedPayout  Float?  @default(0)
   transactionId   String?
+  bankReference   String?
+  transferredAt   DateTime?
   paymentMethod   String?
   processingTime  String?
 

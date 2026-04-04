@@ -6,12 +6,16 @@ import Card from '../../components/Card';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import { useAuth } from '../../context/AuthContext';
-import { payoutsApi, type PayoutRecord } from '../../services/api';
+import { useLocation } from '../../context/LocationContext';
+import { fraudApi, paymentsApi, plansApi, type PayoutRecord } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function WalletScreen() {
   const { user } = useAuth();
+  const { location, refreshLocation } = useLocation();
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
+  const [latestDisruption, setLatestDisruption] = useState<any | null>(null);
+  const [activePolicy, setActivePolicy] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
   const driverId = user?.id ?? null;
@@ -20,8 +24,22 @@ export default function WalletScreen() {
     if (!driverId) return;
     setLoading(true);
     try {
-      const res = await payoutsApi.list(driverId);
-      setPayouts(Array.isArray(res) ? res : []);
+      const res = await plansApi.getPurchasedPlans();
+      const policies = Array.isArray(res?.purchasedPolicies) ? res.purchasedPolicies : [];
+      const active = policies.find((p: any) => p.status === 'ACTIVE') ?? policies[0] ?? null;
+      setActivePolicy(active);
+      setLatestDisruption(res?.latestDisruption ?? null);
+
+      const mapped: PayoutRecord[] = policies
+        .filter((p: any) => p.payout)
+        .map((p: any) => ({
+          payoutId: p.payout.payoutId,
+          amount: p.payout.approvedPayout ?? p.payout.estimatedLoss ?? 0,
+          status: p.payout.status,
+          transactionId: p.payout.transactionId ?? null,
+          createdAt: p.payout.createdAt,
+        }));
+      setPayouts(mapped);
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Failed to load payouts');
     } finally {
@@ -32,6 +50,52 @@ export default function WalletScreen() {
   useEffect(() => {
     void loadPayouts();
   }, [loadPayouts]);
+
+  const handleCashOut = async () => {
+    if (!activePolicy || !latestDisruption) {
+      Alert.alert('Unavailable', 'No active policy or disruption found for payout.');
+      return;
+    }
+    if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
+      await refreshLocation();
+      Alert.alert('Location required', 'Please enable location to cash out.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const zone = await fraudApi.getZoneRisk(location.latitude, location.longitude);
+      const h3Cell = zone?.h3_cell;
+      if (!h3Cell) {
+        throw new Error('Missing H3 cell for payout');
+      }
+
+      const approvedPayout =
+        activePolicy?.payout?.approvedPayout ??
+        latestDisruption?.expectedPayout ??
+        0;
+
+      const eventTimestamp = Math.floor(Date.now() / 1000);
+      const res = await paymentsApi.parametricPayout({
+        policyId: activePolicy.policyId,
+        disruptionEventId: latestDisruption.id,
+        eventTimestamp,
+        h3Cell,
+        approvedPayout,
+      });
+
+      if (res?.success) {
+        Alert.alert('Cashout complete', `Transaction ${res.transactionId ?? 'queued'}`);
+        await loadPayouts();
+      } else {
+        Alert.alert('Cashout failed', 'Please try again.');
+      }
+    } catch (e: any) {
+      Alert.alert('Cashout failed', e?.message ?? 'Unable to process payout');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const balance = payouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
@@ -44,7 +108,7 @@ export default function WalletScreen() {
         <Card style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Available Balance</Text>
           <Text style={styles.balanceAmount}>₹{Number(balance || 0).toLocaleString('en-IN')}</Text>
-          <Button title={loading ? 'Loading...' : 'Cash Out'} onPress={() => {}} style={styles.cashOutBtn} />
+          <Button title={loading ? 'Loading...' : 'Cash Out'} onPress={() => void handleCashOut()} style={styles.cashOutBtn} />
         </Card>
 
         <Text style={styles.sectionTitle}>Recent Transactions</Text>
@@ -81,6 +145,9 @@ export default function WalletScreen() {
                     <Text style={styles.transactionDate}>
                       {payout.createdAt ? new Date(payout.createdAt).toLocaleString() : '—'}
                     </Text>
+                    {payout.transactionId ? (
+                      <Text style={styles.transactionDate}>Txn: {payout.transactionId}</Text>
+                    ) : null}
                   </View>
                   <Text style={isSuccess ? styles.transactionAmountPos : styles.transactionAmountNeg}>
                     ₹{Number(payout.amount || 0).toLocaleString('en-IN')}
