@@ -202,4 +202,4 @@ fi
 
 echo -e "Starting Expo Go Server... (Scan the QR Code below!)"
 echo -e "${BLUE}=======================================${NC}"
-npx expo start --offline -c
+npx expo start -c
