@@ -177,33 +177,6 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           </View>
         </View>
 
-        <View style={styles.envCard}>
-          <Text style={styles.envTitle}>Environmental Risk</Text>
-
-          <View style={styles.envGrid}>
-            <View style={styles.envCell}>
-              <Text style={styles.envLabel}>Rain</Text>
-              <Text style={styles.envValue}>{zoneRisk?.rainfall ?? 0}%</Text>
-            </View>
-            <View style={styles.envCell}>
-              <Text style={styles.envLabel}>AQI</Text>
-              <Text style={styles.envValue}>{zoneRisk?.aqi ?? zoneRisk?.aqi_index ?? '—'}</Text>
-            </View>
-            <View style={styles.envCell}>
-              <Text style={styles.envLabel}>Disruption</Text>
-              <Text style={styles.envValue}>{lfScore.toFixed(2)}</Text>
-            </View>
-            <View style={styles.envCell}>
-              <Text style={styles.envLabel}>Flood</Text>
-              <Text style={styles.envValue}>{zoneState === 'HALTED' ? 'High' : 'Low'}</Text>
-            </View>
-            <View style={styles.envCellWide}>
-              <Text style={styles.envLabel}>Traffic Status</Text>
-              <Text style={styles.envValue}>{zoneRisk?.traffic ?? 'Stable Flow'}</Text>
-            </View>
-          </View>
-        </View>
-
         <View style={styles.infoChipWrap}>
           <View style={styles.infoChip}>
             <Ionicons name="checkmark-circle" size={14} color="#111827" />
@@ -342,55 +315,6 @@ const styles = StyleSheet.create({
   },
   locationRefreshText: { fontSize: 10, fontWeight: '800', color: '#111827', textTransform: 'uppercase' },
   timestampText: { fontSize: 10, color: '#6b7280', fontStyle: 'italic' },
-  envCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: Theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#eceff3',
-    paddingHorizontal: Theme.spacing.md,
-    paddingVertical: Theme.spacing.md,
-    minHeight: 220,
-    marginBottom: Theme.spacing.md,
-  },
-  envTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: '#6b7280',
-    marginBottom: Theme.spacing.sm,
-  },
-  envGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: Theme.spacing.md + 2,
-    marginTop: Theme.spacing.xs,
-  },
-  envCell: {
-    width: '31%',
-    minHeight: 74,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: Theme.borderRadius.md,
-    paddingHorizontal: Theme.spacing.sm,
-  },
-  envCellWide: {
-    width: '100%',
-    minHeight: 74,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: Theme.borderRadius.md,
-    paddingHorizontal: Theme.spacing.sm,
-  },
-  envLabel: { fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 },
-  envValue: { fontSize: 13, fontWeight: '700', color: '#111827' },
   infoChipWrap: { alignItems: 'center', marginTop: Theme.spacing.sm, marginBottom: Theme.spacing.sm },
   infoChip: {
     flexDirection: 'row',
