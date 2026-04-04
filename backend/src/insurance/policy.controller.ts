@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Request, UseGuards } from '@nestjs/common';
 import { InsuranceService } from './insurance.service';
 import { PolicyEnrollDto } from './dto/policy-enroll.dto';
 import { CancelPolicyDto, RenewPolicyDto } from './dto/policy-manage.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('policy')
 export class PolicyController {
@@ -14,15 +15,22 @@ export class PolicyController {
   }
 
   @Post('cancel')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  cancel(@Body() dto: CancelPolicyDto) {
-    return this.insuranceService.cancelPolicy(dto);
+  cancel(@Request() req: any, @Body() dto: CancelPolicyDto) {
+    return this.insuranceService.cancelPolicy({
+      driverId: req.user.id,
+      reason: dto.reason,
+    });
   }
 
   @Post('renew')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  renew(@Body() dto: RenewPolicyDto) {
-    return this.insuranceService.renewPolicy(dto);
+  renew(@Request() req: any, @Body() _dto: RenewPolicyDto) {
+    return this.insuranceService.renewPolicy({
+      driverId: req.user.id,
+    });
   }
 
   @Get('status/:driverId')

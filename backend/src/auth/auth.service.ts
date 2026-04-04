@@ -326,6 +326,7 @@ export class AuthService {
           role: 'DRIVER',
           isVerified: true,
           driverName: driverProfile?.identity?.fullName ?? null,
+          platform: provider,
         },
       });
 
@@ -333,7 +334,11 @@ export class AuthService {
         data: { userId: user.id, status: 'NOT_STARTED' },
       });
     } else if (!user.isVerified) {
-      await this.prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
+      await this.prisma.user.update({ where: { id: user.id }, data: { isVerified: true, platform: provider } });
+      user = await this.prisma.user.findUnique({ where: { id: user.id } });
+    } else if (user.platform !== provider) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { platform: provider } });
+      user = await this.prisma.user.findUnique({ where: { id: user.id } });
     }
 
     const tokens = await this.generateTokens(user);

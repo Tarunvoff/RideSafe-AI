@@ -1,8 +1,9 @@
 import { IsString, IsOptional } from 'class-validator';
 
 export class CancelPolicyDto {
+  @IsOptional()
   @IsString()
-  driverId: string;
+  driverId?: string;
 
   @IsString()
   @IsOptional()
@@ -10,6 +11,7 @@ export class CancelPolicyDto {
 }
 
 export class RenewPolicyDto {
+  @IsOptional()
   @IsString()
-  driverId: string;
+  driverId?: string;
 }

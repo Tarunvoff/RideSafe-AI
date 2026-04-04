@@ -453,7 +453,17 @@ export const premiumApi = {
     }>('/premium/weekly', {
       method: 'POST',
       body: JSON.stringify({ driverId }),
-    }),
+    }, true),
+
+  getPremiumCalculation: (driverId: string, planId: string) =>
+    request<{
+      weeklyPremium: number;
+      breakdown: {
+        Ew: number;
+        Lf: number;
+        Ct: number | null;
+      };
+    }>(`/premium/calculate?driverId=${encodeURIComponent(driverId)}&planId=${encodeURIComponent(planId)}`, {}, true),
 };
 
 export const insuranceApi = {

@@ -13,6 +13,20 @@ import { Theme } from '../../theme';
 import { plansApi, premiumApi, type PurchasedPolicy, type WeeklyPlan } from '../../services/api';
 
 type PlansTabKey = 'available' | 'purchased';
+type PlanPremiumMap = Record<string, { amount: number; loading: boolean; fallback: boolean }>;
+const MAX_WEEKLY_PREMIUM_INR = 50;
+
+function fallbackTierCap(plan: WeeklyPlan): number {
+  const ct = Number((plan as any)?.Ct ?? 0);
+  if (Number.isFinite(ct) && ct > 0) {
+    return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round((30 + ct * 25) * 100) / 100);
+  }
+  const key = String(plan?.key ?? '').toUpperCase();
+  if (key === 'PREMIUM') return 50;
+  if (key === 'STANDARD') return 45;
+  if (key === 'BASIC') return 40;
+  return MAX_WEEKLY_PREMIUM_INR;
+}
 
 const STORAGE_KEY_PREFIX = 'gigshield_purchased_plans';
 
@@ -170,6 +184,7 @@ export default function DriverPlansScreen({ navigation }: any) {
   const [purchasedPolicies, setPurchasedPolicies] = useState<any[]>([]);
   const [latestDisruption, setLatestDisruption] = useState<any | null>(null);
   const [premiumPreview, setPremiumPreview] = useState<any | null>(null);
+  const [planPremiums, setPlanPremiums] = useState<PlanPremiumMap>({});
   const [paymentErrorData, setPaymentErrorData] = useState<{ paymentId: string; message: string } | null>(null);
 
   const driverId = user?.id ?? null;
@@ -211,6 +226,53 @@ export default function DriverPlansScreen({ navigation }: any) {
     }
   }, [driverId]);
 
+  const fetchPlanPremiums = useCallback(
+    async (plans: WeeklyPlan[]) => {
+      if (!driverId || !Array.isArray(plans) || plans.length === 0) {
+        setPlanPremiums({});
+        return;
+      }
+
+      const loadingState: PlanPremiumMap = {};
+      for (const plan of plans) {
+        loadingState[String(plan.id)] = {
+          amount: Math.min(Number(plan.price ?? 0), fallbackTierCap(plan)),
+          loading: true,
+          fallback: false,
+        };
+      }
+      setPlanPremiums(loadingState);
+
+      const entries = await Promise.all(
+        plans.map(async (plan) => {
+          try {
+            const res = await premiumApi.getPremiumCalculation(String(driverId), String(plan.id));
+            return [
+              String(plan.id),
+              {
+                  amount: Math.min(Number(res?.weeklyPremium ?? plan.price ?? 0), MAX_WEEKLY_PREMIUM_INR),
+                loading: false,
+                fallback: false,
+              },
+            ] as const;
+          } catch {
+            return [
+              String(plan.id),
+              {
+                  amount: Math.min(Number(plan.price ?? 0), fallbackTierCap(plan)),
+                loading: false,
+                fallback: true,
+              },
+            ] as const;
+          }
+        })
+      );
+
+      setPlanPremiums(Object.fromEntries(entries));
+    },
+    [driverId]
+  );
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -219,7 +281,9 @@ export default function DriverPlansScreen({ navigation }: any) {
         fetchPurchased(),
         fetchPremiumPreview(),
       ]);
-      setAvailablePlans(Array.isArray(catalog) ? catalog : []);
+      const normalizedCatalog = Array.isArray(catalog) ? catalog : [];
+      setAvailablePlans(normalizedCatalog);
+      await fetchPlanPremiums(normalizedCatalog as WeeklyPlan[]);
     } catch (e: any) {
       const msg = e?.message ?? 'Failed to load plans.';
       if (String(msg).toLowerCase().includes('unauthorized')) {
@@ -233,7 +297,12 @@ export default function DriverPlansScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [fetchPremiumPreview, fetchPurchased]);
+  }, [fetchPlanPremiums, fetchPremiumPreview, fetchPurchased]);
+
+  useEffect(() => {
+    if (!driverId || !Array.isArray(availablePlans) || availablePlans.length === 0) return;
+    void fetchPlanPremiums(availablePlans as WeeklyPlan[]);
+  }, [availablePlans, driverId, fetchPlanPremiums]);
 
   // Refetch plans from DB every time this screen gains focus (e.g. tapping Plans tab)
   useFocusEffect(
@@ -433,13 +502,26 @@ export default function DriverPlansScreen({ navigation }: any) {
             ) : (
               filteredAvailablePlans.map((plan) => (
                 <View key={plan.id} style={styles.planCard}>
+                  {(() => {
+                    const premiumMeta = planPremiums[String(plan.id)];
+                    const displayAmount = Number(premiumMeta?.amount ?? plan.price ?? 0);
+                    const isPremiumLoading = !!premiumMeta?.loading;
+                    const isStandardRate = !!premiumMeta?.fallback;
+
+                    return (
+                      <>
                   <View style={styles.planTop}>
                     <View>
                       <Text style={styles.planName}>{plan.name}</Text>
-                      <Text style={styles.planMeta}>Weekly subscription · {formatRupees(plan.price)}/week</Text>
+                      <Text style={styles.planMeta}>Weekly subscription · {formatRupees(displayAmount)}/week</Text>
+                      {isPremiumLoading ? (
+                        <Text style={styles.planMeta}>Calculating dynamic premium...</Text>
+                      ) : isStandardRate ? (
+                        <Text style={styles.standardRateLabel}>Standard rate</Text>
+                      ) : null}
                     </View>
                     <View style={styles.priceBox}>
-                      <Text style={styles.priceText}>{formatRupees(plan.price)}</Text>
+                      <Text style={styles.priceText}>{formatRupees(displayAmount)}</Text>
                       <Text style={styles.priceSub}>/week</Text>
                     </View>
                   </View>
@@ -468,6 +550,9 @@ export default function DriverPlansScreen({ navigation }: any) {
                     <Ionicons name="lock-closed-outline" size={18} color="#ffffff" />
                     <Text style={styles.buyBtnText}>Pay with Razorpay</Text>
                   </TouchableOpacity>
+                      </>
+                    );
+                  })()}
                 </View>
               ))
             )}
@@ -747,6 +832,7 @@ const styles = StyleSheet.create({
   planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 },
   planName: { fontSize: 18, fontWeight: '900', color: '#111827' },
   planMeta: { marginTop: 4, fontSize: 12, color: '#6b7280', fontWeight: '700' },
+  standardRateLabel: { marginTop: 4, fontSize: 11, color: '#92400e', fontWeight: '800' },
 
   priceBox: { alignItems: 'flex-end' },
   priceText: { fontSize: 22, fontWeight: '900', color: '#16a34a' },
