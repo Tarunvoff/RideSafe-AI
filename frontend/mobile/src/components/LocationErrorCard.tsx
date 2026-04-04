@@ -17,7 +17,7 @@ export default function LocationErrorCard({
   isLoading = false,
 }: LocationErrorCardProps) {
   // Categorize colors and icons based on error type
-  let icon = 'alert-circle';
+  let icon: keyof typeof Ionicons.glyphMap = 'alert-circle';
   let backgroundColor = '#fef3c7';
   let borderColor = '#fcd34d';
   let textColor = '#92400e';
@@ -32,7 +32,7 @@ export default function LocationErrorCard({
     title = 'Location Permission Denied';
     hint = 'Go to Settings → Location to enable GPS access';
   } else if (errorType === 'gps') {
-    icon = 'signal-outline';
+    icon = 'cellular-outline';
     backgroundColor = '#dbeafe';
     borderColor = '#93c5fd';
     textColor = '#0c2340';

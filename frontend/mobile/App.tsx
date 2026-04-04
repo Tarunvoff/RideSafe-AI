@@ -11,10 +11,10 @@ import { LocationProvider } from './src/context/LocationContext';
 // This aligns typography with the driver UI (Theme.typography.fontFamily).
 // Note: we only set fontFamily (no new fonts are introduced).
 const DRIVER_FONT_FAMILY = Theme.typography.fontFamily;
-const existingDefaultProps: any = Text.defaultProps ?? {};
+const existingDefaultProps: any = (Text as any).defaultProps ?? {};
 const existingDefaultStyle: any = existingDefaultProps.style;
 const extraFontStyle = { fontFamily: DRIVER_FONT_FAMILY };
-Text.defaultProps = {
+(Text as any).defaultProps = {
   ...existingDefaultProps,
   style: Array.isArray(existingDefaultStyle)
     ? [extraFontStyle, ...existingDefaultStyle]

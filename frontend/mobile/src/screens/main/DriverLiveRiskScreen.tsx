@@ -195,27 +195,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                 ref={mapRef}
                 style={[styles.mapView, { width: mapW, height: mapH }]}
                 initialRegion={mapRegion}
-              mapFallback: {
-                backgroundColor: '#f8fafc',
-                borderWidth: 1,
-                borderColor: '#e2e8f0',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                paddingHorizontal: 16,
-              },
-              mapFallbackTitle: { fontSize: 14, fontWeight: '800', color: '#111827' },
-              mapFallbackText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
-              mapFallbackBtn: {
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 999,
-                backgroundColor: '#e2e8f0',
-              },
-              mapFallbackBtnText: { fontSize: 12, fontWeight: '700', color: '#111827' },
+              />
+            ) : (
+              <View style={styles.mapFallback}>
+                <Ionicons name="location-outline" size={32} color="#9ca3af" />
+                <Text style={styles.mapFallbackTitle}>Location Unavailable</Text>
+                <Text style={styles.mapFallbackText}>
+                  We couldn't get your precise GPS coordinates. Please check your signal and try again.
+                </Text>
                 <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
                   <Ionicons name="refresh" size={14} color="#111827" />
                   <Text style={styles.mapFallbackBtnText}>Retry</Text>
@@ -395,6 +382,28 @@ const styles = StyleSheet.create({
   mapView: {
     borderRadius: 20,
   },
+  mapFallback: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  mapFallbackTitle: { fontSize: 14, fontWeight: '800', color: '#111827' },
+  mapFallbackText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
+  mapFallbackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#e2e8f0',
+  },
+  mapFallbackBtnText: { fontSize: 12, fontWeight: '700', color: '#111827' },
   mockMarkerBadge: {
     position: 'absolute' as const,
     top: 12,

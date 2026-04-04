@@ -7,7 +7,9 @@ export const Theme = {
     textSecondary: '#666666',
     border: '#e0e0e0',
     success: '#34C759',
+    warning: '#f59e0b',
     error: '#FF3B30',
+    info: '#3b82f6',
   },
   typography: {
     fontFamily: 'Inter', // Assuming Inter is available or system default

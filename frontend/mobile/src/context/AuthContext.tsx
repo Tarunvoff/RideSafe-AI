@@ -8,6 +8,7 @@ interface AuthUser {
   email: string;
   role: 'DRIVER' | 'ADMIN';
   driverName?: string;
+  isTermsAccepted?: boolean;
 }
 
 interface AuthContextType {
@@ -28,6 +29,7 @@ interface AuthContextType {
   checkKycStatus: () => Promise<string | null>;
   refreshKycStatus: () => Promise<void>;
   updateDriverName: (name: string) => Promise<void>;
+  acceptTerms: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,15 +53,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (token && email && role) {
           const savedName = await AsyncStorage.getItem('driverName');
+          const termsAcceptedString = await AsyncStorage.getItem('isTermsAccepted');
+          const isTermsAccepted = termsAcceptedString === 'true';
           const resolvedId = role === 'DRIVER' ? driverId : userId;
 
           if (role === 'DRIVER' && !resolvedId) {
             console.warn('Missing driverId for driver role, rejecting session');
-            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId', 'driverName', 'driverId', 'oauthProvider']);
+            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId', 'driverName', 'driverId', 'oauthProvider', 'isTermsAccepted']);
             return;
           }
 
-          setUser({ id: resolvedId ?? undefined, email, role, driverName: savedName || undefined });
+          setUser({ 
+            id: resolvedId ?? undefined, 
+            email, 
+            role, 
+            driverName: savedName || undefined,
+            isTermsAccepted: role === 'DRIVER' ? isTermsAccepted : true 
+          });
           
           // Check KYC status if driver
           if (role === 'DRIVER') {
@@ -275,6 +285,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const acceptTerms = async () => {
+    try {
+      await AsyncStorage.setItem('isTermsAccepted', 'true');
+      setUser(prev => prev ? { ...prev, isTermsAccepted: true } : prev);
+      console.log('✅ Terms accepted and saved.');
+    } catch (error) {
+      console.error('Error saving terms acceptance:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -295,6 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         checkKycStatus,
         refreshKycStatus,
         updateDriverName,
+        acceptTerms,
       }}
     >
       {children}

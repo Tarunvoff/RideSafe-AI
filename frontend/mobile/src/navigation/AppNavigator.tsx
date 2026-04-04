@@ -25,6 +25,7 @@ import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
 
 import DriverOTPScreen from '../screens/auth/DriverOTPScreen';
+import TermsAndConditionsScreen from '../screens/auth/TermsAndConditionsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -84,10 +85,19 @@ export default function AppNavigator() {
     );
   }
 
-  // LOGGED IN DRIVER - Check KYC Status
+  // LOGGED IN DRIVER - Mandatory checks
   if (user?.role === 'DRIVER') {
     
-    // KYC NOT COMPLETED - Show KYC Flow (ONLY for first time people registering!)
+    // 1. TERMS & CONDITIONS Check
+    if (!user.isTermsAccepted) {
+      return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
+        </Stack.Navigator>
+      );
+    }
+
+    // 2. KYC Check (ONLY for first time people registering!)
     if (isNewRegistration && kycStatus && ['NOT_STARTED', 'IN_PROGRESS'].includes(kycStatus)) {
       return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>

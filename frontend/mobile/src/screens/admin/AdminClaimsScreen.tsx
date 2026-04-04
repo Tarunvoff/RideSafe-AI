@@ -105,7 +105,7 @@ export default function AdminClaimsScreen({ navigation }: any) {
 
         {claims.length ? (
           <ScrollView contentContainerStyle={styles.listWrap} showsVerticalScrollIndicator={false}>
-            {claims.map((c) => (
+            {claims.map((c: any) => (
               <View key={c.payoutId} style={styles.claimRow}>
                 <View style={styles.claimRowTop}>
                   <View style={styles.statusPill}>
