@@ -158,35 +158,35 @@ export default function LoginScreen({ navigation }: any) {
               <OAuthButton 
                 name="Zepto" 
                 color="#29075c" 
-                iconSource={require('../../../assets/images/Logo_of_Zepto.png')} 
+                iconSource={require('../../../assets/images/zepto.png')} 
                 imagePadding={8}
                 onPress={() => handleOAuthLogin('Zepto')} 
               />
               <OAuthButton 
                 name="Blinkit" 
                 color="#F8CB19" 
-                iconSource={require('../../../assets/images/BlinkitLogo.jpg')} 
+                iconSource={require('../../../assets/images/blinkit.png')} 
                 imagePadding={0}
                 onPress={() => handleOAuthLogin('Blinkit')} 
               />
               <OAuthButton 
                 name="Instamart" 
                 color="#fff" 
-                iconSource={require('../../../assets/images/instaMart.png')} 
+                iconSource={require('../../../assets/images/instamart.png')} 
                 imagePadding={0}
                 onPress={() => handleOAuthLogin('Instamart')} 
               />
               <OAuthButton 
                 name="BigBasket" 
                 color="#fff" 
-                iconSource={require('../../../assets/images/bigBasket.png')} 
+                iconSource={require('../../../assets/images/bigbasket.png')} 
                 imagePadding={0}
                 onPress={() => handleOAuthLogin('BigBasket')} 
               />
               <OAuthButton 
                 name="JioMart" 
                 color="#fff" 
-                iconSource={require('../../../assets/images/jioMart.png')} 
+                iconSource={require('../../../assets/images/jiomart.png')} 
                 imagePadding={0}
                 onPress={() => handleOAuthLogin('JioMart')} 
               />
@@ -197,7 +197,7 @@ export default function LoginScreen({ navigation }: any) {
 
       <View style={styles.header}>
         <View style={styles.headerLogo}>
-          <Image source={require('../../../assets/images/ProductLogo.png')} style={styles.headerLogoIcon} resizeMode="contain" />
+          <Image source={require('../../../assets/images/productlogo.png')} style={styles.headerLogoIcon} resizeMode="contain" />
           <Text style={styles.headerTitle}>{t('common.app_name')}</Text>
         </View>
         <View style={styles.headerActions}>
