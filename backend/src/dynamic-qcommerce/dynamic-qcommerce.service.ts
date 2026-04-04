@@ -139,10 +139,12 @@ export class DynamicQCommerceService {
 
     if (!record) {
       const decoded = decodeInternalDriverId(driverId);
-      if (!decoded) {
-        throw new NotFoundException('Unknown driver identifier');
+      if (decoded) {
+        record = this.ensureDriverRecord(decoded.provider, decoded.identifier, driverId);
+      } else {
+        // Fallback for regular drivers (UUIDs) - provides consistent "Aegis Internal" profile
+        record = this.ensureDriverRecord(QCommerceProvider.AEGIS, `aegis_${driverId}`, driverId);
       }
-      record = this.ensureDriverRecord(decoded.provider, decoded.identifier, driverId);
       message = 'Driver profile generated via deterministic seed';
     }
 

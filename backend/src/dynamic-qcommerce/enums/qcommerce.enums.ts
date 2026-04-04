@@ -4,6 +4,7 @@ export enum QCommerceProvider {
   INSTAMART = 'instamart',
   BIGBASKET = 'bigbasket',
   JIOMART = 'jiomart',
+  AEGIS = 'aegis',
 }
 
 export enum EmploymentType {

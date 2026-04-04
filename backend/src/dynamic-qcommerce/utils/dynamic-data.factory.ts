@@ -84,6 +84,7 @@ const NAME_SETS = {
   [QCommerceProvider.INSTAMART]: ['Sai Karthik', 'Meera Iyer', 'Shravan Gupta', 'Rekha Menon'],
   [QCommerceProvider.BIGBASKET]: ['Abdul Rahman', 'Kavya Shetty', 'Vinay Kulkarni', 'Sneha Patil'],
   [QCommerceProvider.JIOMART]: ['Jignesh Patel', 'Bhavna R', 'Ankit Desai', 'Harish Bhatt'],
+  [QCommerceProvider.AEGIS]: ['Aegis Test User', 'Alpha Driver', 'Bravo Runner', 'Charlie Hero'],
 };
 
 const VEHICLE_TYPES = [

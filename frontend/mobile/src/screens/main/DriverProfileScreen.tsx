@@ -20,7 +20,7 @@ import DriverBottomNavbar from '../../components/DriverBottomNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { kycApi, configApi } from '../../services/api';
+import { kycApi, configApi, driverApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,6 +32,43 @@ type KYCDetails = {
   personalDetails: { address: string; city: string; state: string; pincode: string } | null;
   identityVerification: { aadhaarNumber: string; panNumber: string } | null;
   payoutSetup: { method: string; upiId?: string; accountHolder?: string; bankName?: string } | null;
+};
+
+type ProviderKycReport = {
+  kycVerified: boolean;
+  kycVerifiedAt: string;
+  aadhaarMasked: string;
+  panMasked?: string;
+  drivingLicenseMasked?: string;
+  bankAccountMasked: string;
+  upiIdMasked?: string;
+  emergencyContactMasked: string;
+  addressSummary: string;
+  documents: Array<{ type: string; maskedId: string; verifiedAt: string }>;
+  verificationSource: string;
+  trustScore: number;
+};
+
+type ProviderIdentity = {
+  internalDriverId: string;
+  platformDriverId: string;
+  provider: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  ageBand: string;
+  gender?: string;
+  city: string;
+  state: string;
+  primaryServiceZone: string;
+  primaryDarkStore: string;
+  employmentType: string;
+  vehicleType: string;
+  vehicleNumberMasked: string;
+  joiningDate: string;
+  currentStatus: string;
+  rating: number;
+  verificationStatus: string;
 };
 
 type NotifPrefs = {
@@ -358,30 +395,31 @@ function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () 
 function KYCReportModal({
   visible,
   onClose,
-  kycData,
+  providerKyc,
+  providerIdentity,
   loading,
 }: {
   visible: boolean;
   onClose: () => void;
-  kycData: KYCDetails | null;
+  providerKyc: ProviderKycReport | null;
+  providerIdentity: ProviderIdentity | null;
   loading: boolean;
 }) {
-  const kycStatusColor = (s: string) => {
-    if (s === 'APPROVED') return '#16a34a';
-    if (s === 'SUBMITTED') return '#d97706';
-    if (s === 'REJECTED') return '#dc2626';
-    return '#6b7280';
-  };
-
-  const formatDob = (dob: string | undefined) => {
-    if (!dob) return '—';
+  const formatDate = (d: string | undefined) => {
+    if (!d) return '—';
     try {
-      return new Date(dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    } catch { return dob; }
+      return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return d; }
   };
 
-  const maskAadhaar = (n: string) => n ? `XXXX XXXX ${n.slice(-4)}` : '—';
-  const maskPan = (n: string) => n ? `${n.slice(0, 2)}XXXXXXX${n.slice(-1)}` : '—';
+  const trustColor = (score: number) => {
+    const s = score < 1 ? score * 100 : score;
+    if (s >= 80) return '#16a34a';
+    if (s >= 60) return '#d97706';
+    return '#dc2626';
+  };
+
+  const hasProvider = !!(providerKyc || providerIdentity);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -397,64 +435,107 @@ function KYCReportModal({
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#16a34a" />
-            <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>Loading KYC data…</Text>
+            <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>Loading provider report…</Text>
           </View>
-        ) : !kycData ? (
+        ) : !hasProvider ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
             <Ionicons name="alert-circle-outline" size={48} color="#d1d5db" />
             <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 15, textAlign: 'center' }}>
-              KYC data not available. Please complete your KYC process.
+              No provider data found. Please log in via a supported platform (e.g., Zepto) to view your full KYC report.
             </Text>
           </View>
         ) : (
           <ScrollView contentContainerStyle={modalStyles.body}>
-            {/* Status badge */}
-            <View style={[modalStyles.statusBadge, { borderColor: kycStatusColor(kycData.status) }]}>
-              <View style={[modalStyles.statusDot, { backgroundColor: kycStatusColor(kycData.status) }]} />
-              <Text style={[modalStyles.statusText, { color: kycStatusColor(kycData.status) }]}>
-                {kycData.status.replace('_', ' ')}
-              </Text>
-              {kycData.submittedAt && (
-                <Text style={modalStyles.statusDate}>
-                  Submitted {new Date(kycData.submittedAt).toLocaleDateString('en-IN')}
-                </Text>
-              )}
-            </View>
+            {/* Trust Score Hero */}
+            {providerKyc && (
+              <View style={kycTabStyles.trustHero}>
+                <View style={[kycTabStyles.trustCircle, { borderColor: trustColor(providerKyc.trustScore) }]}>
+                  <Text style={[kycTabStyles.trustScoreText, { color: trustColor(providerKyc.trustScore) }]}>
+                    {Math.round(providerKyc.trustScore < 1 ? providerKyc.trustScore * 100 : providerKyc.trustScore)}
+                  </Text>
+                  <Text style={kycTabStyles.trustScoreLabel}>Trust</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                  <View style={[modalStyles.statusBadge, {
+                    borderColor: providerKyc.kycVerified ? '#16a34a' : '#d97706',
+                    marginBottom: 0,
+                    alignSelf: 'flex-start',
+                  }]}>
+                    <View style={[modalStyles.statusDot, {
+                      backgroundColor: providerKyc.kycVerified ? '#16a34a' : '#d97706',
+                    }]} />
+                    <Text style={[modalStyles.statusText, {
+                      color: providerKyc.kycVerified ? '#16a34a' : '#d97706',
+                    }]}>
+                      {providerKyc.kycVerified ? 'VERIFIED' : 'PENDING'}
+                    </Text>
+                  </View>
+                  <Text style={kycTabStyles.trustSource}>
+                    via {providerKyc.verificationSource}
+                  </Text>
+                  {providerKyc.kycVerifiedAt && (
+                    <Text style={kycTabStyles.trustDate}>
+                      Verified {formatDate(providerKyc.kycVerifiedAt)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
 
-            <Text style={modalStyles.sectionLabel}>PERSONAL IDENTITY</Text>
-            <View style={modalStyles.reportCard}>
-              <KYCRow label="Full Name" value={kycData.basicIdentity?.fullName} />
-              <KYCRow label="Date of Birth" value={formatDob(kycData.basicIdentity?.dob)} />
-              <KYCRow label="Gender" value={kycData.basicIdentity?.gender} />
-            </View>
+            {/* Provider Identity */}
+            {providerIdentity && (
+              <>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>DRIVER IDENTITY</Text>
+                <View style={modalStyles.reportCard}>
+                  <KYCRow label="Full Name" value={providerIdentity.fullName} />
+                  <KYCRow label="Provider" value={providerIdentity.provider} />
+                  <KYCRow label="Platform ID" value={providerIdentity.platformDriverId} />
+                  <KYCRow label="Phone" value={providerIdentity.phone} />
+                  {providerIdentity.email && <KYCRow label="Email" value={providerIdentity.email} />}
+                  <KYCRow label="Gender" value={providerIdentity.gender} />
+                  <KYCRow label="Age Band" value={providerIdentity.ageBand} />
+                  <KYCRow label="City" value={providerIdentity.city} />
+                  <KYCRow label="State" value={providerIdentity.state} />
+                </View>
 
-            <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>ADDRESS</Text>
-            <View style={modalStyles.reportCard}>
-              <KYCRow label="Street" value={kycData.personalDetails?.address} />
-              <KYCRow label="City" value={kycData.personalDetails?.city} />
-              <KYCRow label="State" value={kycData.personalDetails?.state} />
-              <KYCRow label="Pincode" value={kycData.personalDetails?.pincode} />
-            </View>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>WORK DETAILS</Text>
+                <View style={modalStyles.reportCard}>
+                  <KYCRow label="Service Zone" value={providerIdentity.primaryServiceZone} />
+                  <KYCRow label="Dark Store" value={providerIdentity.primaryDarkStore} />
+                  <KYCRow label="Employment" value={providerIdentity.employmentType} />
+                  <KYCRow label="Vehicle" value={providerIdentity.vehicleType} />
+                  <KYCRow label="Vehicle No." value={providerIdentity.vehicleNumberMasked} />
+                  <KYCRow label="Joining Date" value={formatDate(providerIdentity.joiningDate)} />
+                  <KYCRow label="Status" value={providerIdentity.currentStatus} />
+                  <KYCRow label="Rating" value={providerIdentity.rating?.toFixed(1)} />
+                  <KYCRow label="Verification" value={providerIdentity.verificationStatus} />
+                </View>
+              </>
+            )}
 
-            <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>IDENTITY DOCUMENTS</Text>
-            <View style={modalStyles.reportCard}>
-              <KYCRow label="Aadhaar" value={maskAadhaar(kycData.identityVerification?.aadhaarNumber ?? '')} />
-              <KYCRow label="PAN" value={maskPan(kycData.identityVerification?.panNumber ?? '')} />
-            </View>
+            {/* Provider KYC details */}
+            {providerKyc && (
+              <>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>IDENTITY DOCUMENTS</Text>
+                <View style={modalStyles.reportCard}>
+                  <KYCRow label="Aadhaar" value={providerKyc.aadhaarMasked} />
+                  {providerKyc.panMasked && <KYCRow label="PAN" value={providerKyc.panMasked} />}
+                  {providerKyc.drivingLicenseMasked && <KYCRow label="Driving License" value={providerKyc.drivingLicenseMasked} />}
+                </View>
 
-            <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>PAYOUT DETAILS</Text>
-            <View style={modalStyles.reportCard}>
-              <KYCRow label="Method" value={kycData.payoutSetup?.method} />
-              {kycData.payoutSetup?.method === 'UPI' && (
-                <KYCRow label="UPI ID" value={kycData.payoutSetup?.upiId} />
-              )}
-              {kycData.payoutSetup?.method === 'BANK' && (
-                <>
-                  <KYCRow label="Account Holder" value={kycData.payoutSetup?.accountHolder} />
-                  <KYCRow label="Bank" value={kycData.payoutSetup?.bankName} />
-                </>
-              )}
-            </View>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>FINANCIAL DETAILS</Text>
+                <View style={modalStyles.reportCard}>
+                  <KYCRow label="Bank Account" value={providerKyc.bankAccountMasked} />
+                  {providerKyc.upiIdMasked && <KYCRow label="UPI ID" value={providerKyc.upiIdMasked} />}
+                </View>
+
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>OTHER</Text>
+                <View style={modalStyles.reportCard}>
+                  <KYCRow label="Emergency Contact" value={providerKyc.emergencyContactMasked} />
+                  <KYCRow label="Address" value={providerKyc.addressSummary} />
+                </View>
+              </>
+            )}
 
             <View style={modalStyles.legalBox}>
               <Ionicons name="lock-closed-outline" size={14} color="#9ca3af" />
@@ -496,6 +577,8 @@ export default function DriverProfileScreen({ navigation }: any) {
 
   // KYC data
   const [kycData, setKycData] = useState<KYCDetails | null>(null);
+  const [providerKyc, setProviderKyc] = useState<ProviderKycReport | null>(null);
+  const [providerIdentity, setProviderIdentity] = useState<ProviderIdentity | null>(null);
   const [kycLoading, setKycLoading] = useState(false);
   const [nameSaving, setNameSaving] = useState(false);
 
@@ -537,18 +620,36 @@ export default function DriverProfileScreen({ navigation }: any) {
   };
 
   const openKycModal = async () => {
-    if (!kycData) {
-      setKycLoading(true);
-      try {
-        const data = await kycApi.getDetails();
-        setKycData(data);
-      } catch {
-        // ignore
-      } finally {
-        setKycLoading(false);
+    setKycLoading(true);
+    console.log('[KYC] Opening report modal for user:', user?.id);
+    
+    try {
+      const [profileResult] = await Promise.allSettled([
+        user?.id ? driverApi.getProfile(user.id) : Promise.reject('No authenticated driver ID found'),
+      ]);
+
+      if (profileResult.status === 'fulfilled') {
+        const driverProfile = profileResult.value?.driverProfile;
+        console.log('[KYC] Provider profile fetched successfully:', driverProfile?.identity?.provider);
+        
+        if (driverProfile?.kyc) {
+          setProviderKyc(driverProfile.kyc);
+        }
+        if (driverProfile?.identity) {
+          setProviderIdentity(driverProfile.identity);
+        }
+      } else {
+        console.warn('[KYC] External provider profile unavailable:', profileResult.reason);
+        // Reset provider states if fetch failed to ensure stale data is not shown
+        setProviderKyc(null);
+        setProviderIdentity(null);
       }
+    } catch (err) {
+      console.error('[KYC] Unexpected error in openKycModal:', err);
+    } finally {
+      setKycLoading(false);
+      setKycModal(true);
     }
-    setKycModal(true);
   };
 
   const startNameEdit = () => {
@@ -600,7 +701,8 @@ export default function DriverProfileScreen({ navigation }: any) {
       <KYCReportModal
         visible={kycModal}
         onClose={() => setKycModal(false)}
-        kycData={kycData}
+        providerKyc={providerKyc}
+        providerIdentity={providerIdentity}
         loading={kycLoading}
       />
 
@@ -1005,4 +1107,139 @@ const modalStyles = StyleSheet.create({
   },
   kycLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   kycValue: { fontSize: 13, color: '#111827', fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
+});
+
+const kycTabStyles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#16a34a',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  tabTextActive: {
+    color: '#16a34a',
+    fontWeight: '700',
+  },
+  trustHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  trustCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  trustScoreText: {
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  trustScoreLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  trustSource: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 8,
+  },
+  trustDate: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  docRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  docIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f0fdf4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  docType: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+    textTransform: 'capitalize',
+  },
+  docId: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 1,
+  },
+  docVerified: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  docVerifiedText: {
+    fontSize: 11,
+    color: '#16a34a',
+    fontWeight: '600',
+  },
+  emptyAegisBox: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    marginTop: 8,
+  },
+  emptyAegisTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#374151',
+    marginTop: 16,
+  },
+  emptyAegisDesc: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
 });
