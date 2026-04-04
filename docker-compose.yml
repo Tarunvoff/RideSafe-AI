@@ -19,6 +19,8 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_CREATE_TOPICS: "aegis-events:1:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # 🔥 REQUIRED FIX
     depends_on:
       - zookeeper
 
