@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import MainTopNavbar from '../../components/MainTopNavbar';
@@ -106,6 +107,8 @@ function getRazorpayCheckoutHTML(opts: {
   contact: string;
   name: string;
   description: string;
+  loadingMessage: string;
+  failedMessage: string;
 }) {
   const { keyId, orderId, amount, currency, email, contact, name, description } = opts;
 
@@ -126,7 +129,7 @@ function getRazorpayCheckoutHTML(opts: {
     <div class="wrap">
       <div class="hint">
         <div class="spinner"></div>
-        Opening secure Razorpay checkout...
+        ${opts.loadingMessage}
       </div>
     </div>
 
@@ -159,7 +162,7 @@ function getRazorpayCheckoutHTML(opts: {
 
         var rzp = new Razorpay(options);
         rzp.on('payment.failed', function(response) {
-          var desc = (response && response.error && response.error.description) ? response.error.description : 'Payment failed';
+          var desc = (response && response.error && response.error.description) ? response.error.description : ${JSON.stringify(opts.failedMessage)};
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'PAYMENT_FAILED',
             description: desc
@@ -174,6 +177,7 @@ function getRazorpayCheckoutHTML(opts: {
 }
 
 export default function DriverPlansScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
@@ -284,13 +288,13 @@ export default function DriverPlansScreen({ navigation }: any) {
       setAvailablePlans(normalizedCatalog);
       await fetchPlanPremiums(normalizedCatalog as WeeklyPlan[]);
     } catch (e: any) {
-      const msg = e?.message ?? 'Failed to load plans.';
+      const msg = e?.message ?? t('plans.load_failed');
       if (String(msg).toLowerCase().includes('unauthorized')) {
-        Alert.alert('Session expired', 'Please log in again.');
+        Alert.alert(t('common.session_expired'), t('common.please_login_again'));
         await handleLogout();
         return;
       }
-      Alert.alert('Error', msg);
+      Alert.alert(t('common.error'), msg);
       // Still try to load purchased (may have local fallback)
       await Promise.all([fetchPurchased(), fetchPremiumPreview()]);
     } finally {
@@ -341,7 +345,7 @@ export default function DriverPlansScreen({ navigation }: any) {
 
   const startCheckout = async (plan: WeeklyPlan) => {
     if (ownedPlanIds.has(String(plan.id))) {
-      Alert.alert('Already owned', 'You already have this plan.');
+      Alert.alert(t('plans.already_owned_title'), t('plans.already_owned_desc'));
       return;
     }
     try {
@@ -355,7 +359,7 @@ export default function DriverPlansScreen({ navigation }: any) {
         plan,
       });
     } catch (e: any) {
-      Alert.alert('Payment Error', e?.message ?? 'Could not start checkout.');
+      Alert.alert(t('common.payment_error'), e?.message ?? t('plans.checkout_start_failed'));
     } finally {
       setLoading(false);
     }
@@ -382,7 +386,7 @@ export default function DriverPlansScreen({ navigation }: any) {
     if (payload.type === 'PAYMENT_FAILED') {
       setCheckout(null);
       setCheckoutProcessing(false);
-      Alert.alert('Payment Failed', payload.description ?? 'Try again.');
+      Alert.alert(t('common.payment_failed'), payload.description ?? t('common.try_again'));
       return;
     }
 
@@ -411,7 +415,7 @@ export default function DriverPlansScreen({ navigation }: any) {
           setCheckout(null);
           setCheckoutProcessing(false);
           setTab('purchased');
-          Alert.alert('Success', `${current.plan.name} activated successfully!`);
+          Alert.alert(t('common.success'), t('plans.activated_success', { name: current.plan.name }));
         } else {
           throw new Error('Payment verification failed');
         }
@@ -432,7 +436,7 @@ export default function DriverPlansScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
-      <LoadingOverlay visible={loading} message="Syncing plans and checkout..." />
+      <LoadingOverlay visible={loading} message={t('plans.syncing')} />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}
@@ -455,7 +459,7 @@ export default function DriverPlansScreen({ navigation }: any) {
         <View style={styles.titleRow}>
           <View style={styles.titleLeft}>
             <Ionicons name="card-outline" size={20} color="#16a34a" />
-            <Text style={styles.title}>Plans</Text>
+            <Text style={styles.title}>{t('plans.title')}</Text>
           </View>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -463,12 +467,12 @@ export default function DriverPlansScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Policy')}
           >
             <Ionicons name="shield-checkmark-outline" size={14} color="#15803d" />
-            <Text style={styles.managePolicyBtnText}>Manage Policy</Text>
+            <Text style={styles.managePolicyBtnText}>{t('plans.manage_policy')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.subTag}>
-          <Text style={styles.subTagText}>Weekly protection + auto payouts</Text>
+          <Text style={styles.subTagText}>{t('plans.subtitle')}</Text>
         </View>
 
         <View style={styles.tabsRow}>
@@ -477,26 +481,26 @@ export default function DriverPlansScreen({ navigation }: any) {
             onPress={() => setTab('available')}
             style={[styles.tabBtn, isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>Available Plans</Text>
+            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>{t('plans.tabs.available')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => setTab('purchased')}
             style={[styles.tabBtn, !isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>Purchased Plans</Text>
+            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>{t('plans.tabs.purchased')}</Text>
           </TouchableOpacity>
         </View>
 
         {isAvailableTab ? (
           <View style={{ gap: 12 }}>
             {loading ? (
-              <Text style={styles.loadingText}>Loading plans...</Text>
+              <Text style={styles.loadingText}>{t('plans.loading_list')}</Text>
             ) : filteredAvailablePlans.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="shield-checkmark" size={28} color="#16a34a" />
-                <Text style={styles.emptyTitle}>No plans available</Text>
-                <Text style={styles.emptySub}>You already have an active weekly plan.</Text>
+                <Text style={styles.emptyTitle}>{t('plans.empty.available_title')}</Text>
+                <Text style={styles.emptySub}>{t('plans.empty.available_sub')}</Text>
               </View>
             ) : (
               filteredAvailablePlans.map((plan) => (
@@ -509,21 +513,21 @@ export default function DriverPlansScreen({ navigation }: any) {
 
                     return (
                       <>
-                  <View style={styles.planTop}>
-                    <View>
-                      <Text style={styles.planName}>{plan.name}</Text>
-                      <Text style={styles.planMeta}>Weekly subscription · {formatRupees(displayAmount)}/week</Text>
-                      {isPremiumLoading ? (
-                        <Text style={styles.planMeta}>Calculating dynamic premium...</Text>
-                      ) : isStandardRate ? (
-                        <Text style={styles.standardRateLabel}>Standard rate</Text>
-                      ) : null}
-                    </View>
-                    <View style={styles.priceBox}>
-                      <Text style={styles.priceText}>{formatRupees(displayAmount)}</Text>
-                      <Text style={styles.priceSub}>/week</Text>
-                    </View>
-                  </View>
+                      <View style={styles.planTop}>
+                        <View>
+                          <Text style={styles.planName}>{plan.name}</Text>
+                          <Text style={styles.planMeta}>{t('plans.weekly_sub')} · {formatRupees(displayAmount)}/{t('common.week')}</Text>
+                          {isPremiumLoading ? (
+                            <Text style={styles.planMeta}>{t('plans.calculating_premium')}</Text>
+                          ) : isStandardRate ? (
+                            <Text style={styles.standardRateLabel}>{t('plans.standard_rate')}</Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.priceBox}>
+                          <Text style={styles.priceText}>{formatRupees(displayAmount)}</Text>
+                          <Text style={styles.priceSub}>/{t('common.week')}</Text>
+                        </View>
+                      </View>
 
                   <View style={styles.divider} />
 
@@ -531,12 +535,12 @@ export default function DriverPlansScreen({ navigation }: any) {
                     <View style={styles.eligiblePill}>
                       <Ionicons name="water-outline" size={14} color="#16a34a" />
                       <Text style={styles.eligibleText}>
-                        Eligible for: {(plan.eligibleDisruptionTypes ?? []).length ? plan.eligibleDisruptionTypes.join(', ') : '—'}
+                        {t('plans.eligible_for')}: {(plan.eligibleDisruptionTypes ?? []).length ? plan.eligibleDisruptionTypes.join(', ') : '—'}
                       </Text>
                     </View>
                     <View style={styles.maxPayoutPill}>
                       <Ionicons name="gift-outline" size={14} color="#16a34a" />
-                      <Text style={styles.eligibleText}>Up to {formatRupees(plan.maxPayout)} weekly payout</Text>
+                      <Text style={styles.eligibleText}>{t('plans.max_payout_hint', { amount: formatRupees(plan.maxPayout) })}</Text>
                     </View>
                   </View>
 
@@ -547,7 +551,7 @@ export default function DriverPlansScreen({ navigation }: any) {
                     disabled={loading}
                   >
                     <Ionicons name="lock-closed-outline" size={18} color="#ffffff" />
-                    <Text style={styles.buyBtnText}>Pay with Razorpay</Text>
+                    <Text style={styles.buyBtnText}>{t('plans.pay_with_razorpay')}</Text>
                   </TouchableOpacity>
                       </>
                     );
@@ -559,7 +563,7 @@ export default function DriverPlansScreen({ navigation }: any) {
         ) : (
           <View style={{ gap: 12 }}>
             <View style={styles.premiumPreviewCard}>
-              <Text style={styles.premiumPreviewTitle}>Weekly Premium Breakdown</Text>
+              <Text style={styles.premiumPreviewTitle}>{t('plans.premium_breakdown')}</Text>
               <View style={styles.premiumPreviewRow}>
                 <Text style={styles.premiumPreviewLabel}>Ew</Text>
                 <Text style={styles.premiumPreviewValue}>₹{Number(premiumPreview?.Ew ?? 0).toLocaleString('en-IN')}</Text>
@@ -573,7 +577,7 @@ export default function DriverPlansScreen({ navigation }: any) {
                 <Text style={styles.premiumPreviewValue}>{premiumPreview?.Ct ?? '—'}</Text>
               </View>
               <View style={styles.premiumPreviewRow}>
-                <Text style={styles.premiumPreviewLabel}>Premium</Text>
+                <Text style={styles.premiumPreviewLabel}>{t('plans.premium_label')}</Text>
                 <Text style={styles.premiumPreviewValue}>₹{Number(premiumPreview?.premium ?? 0).toLocaleString('en-IN')}</Text>
               </View>
             </View>
@@ -582,9 +586,9 @@ export default function DriverPlansScreen({ navigation }: any) {
               <View style={styles.disruptionBanner}>
                 <View style={styles.disruptionDot} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.disruptionTitle}>Disruption events</Text>
+                  <Text style={styles.disruptionTitle}>{t('plans.disruption_events')}</Text>
                   <Text style={styles.disruptionSub}>
-                    Payout eligibility will appear when verified disruption events are detected.
+                    {t('plans.disruption_sub')}
                   </Text>
                 </View>
               </View>
@@ -594,22 +598,22 @@ export default function DriverPlansScreen({ navigation }: any) {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.disruptionTitle}>{latestDisruption.title}</Text>
                   <Text style={styles.disruptionSub}>
-                    Latest verified event: {latestDisruption.type} · {new Date(latestDisruption.occurredAt).toLocaleString()}
+                    {t('plans.latest_event')}: {latestDisruption.type} · {new Date(latestDisruption.occurredAt).toLocaleString()}
                   </Text>
                 </View>
                 <View style={styles.disruptionPill}>
-                  <Text style={styles.disruptionPillText}>{formatRupees(latestDisruption.expectedPayout ?? 0)} max</Text>
+                  <Text style={styles.disruptionPillText}>{formatRupees(latestDisruption.expectedPayout ?? 0)} {t('common.max')}</Text>
                 </View>
               </View>
             )}
 
             {loading ? (
-              <Text style={styles.loadingText}>Loading purchased plans...</Text>
+              <Text style={styles.loadingText}>{t('plans.loading_purchased')}</Text>
             ) : purchasedPolicies.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="briefcase-outline" size={28} color="#16a34a" />
-                <Text style={styles.emptyTitle}>No purchased plans</Text>
-                <Text style={styles.emptySub}>Buy a weekly plan to enable auto-claim payouts.</Text>
+                <Text style={styles.emptyTitle}>{t('plans.empty.purchased_title')}</Text>
+                <Text style={styles.emptySub}>{t('plans.empty.purchased_sub')}</Text>
               </View>
             ) : (
               purchasedPolicies.map((p: any) => {
@@ -618,17 +622,17 @@ export default function DriverPlansScreen({ navigation }: any) {
                 const payoutStatus = p.payout?.status;
 
                 const eligibilityPillText = latestDisruption
-                  ? (eligible ? `Eligible for ${latestDisruption.type} payout` : 'Not eligible for latest event')
-                  : 'Awaiting verified disruption events';
+                  ? (eligible ? t('plans.eligible_for_payout', { type: latestDisruption.type }) : t('plans.not_eligible_event'))
+                  : t('plans.awaiting_events');
 
                 const eligibilityPillBg = eligible ? '#DCFCE7' : '#F3F4F6';
                 const eligibilityPillColor = eligible ? '#16a34a' : '#6b7280';
 
                 const payoutPillText =
                   payoutStatus === 'APPROVED'
-                    ? 'Payout Approved'
+                    ? t('plans.payout_approved')
                     : payoutStatus === 'PROCESSING'
-                      ? 'Auto Payout Processing'
+                      ? t('plans.payout_processing')
                       : '—';
 
                 const payoutPillBg = payoutStatus === 'APPROVED' ? '#DCFCE7' : payoutStatus === 'PROCESSING' ? '#F0FDF4' : '#F3F4F6';
@@ -639,11 +643,11 @@ export default function DriverPlansScreen({ navigation }: any) {
                     <View style={styles.policyTop}>
                       <View>
                         <Text style={styles.policyName}>{p.plan.name}</Text>
-                        <Text style={styles.policyMeta}>Active until {new Date(p.endDate).toLocaleDateString()}</Text>
+                        <Text style={styles.policyMeta}>{t('plans.active_until')} {new Date(p.endDate).toLocaleDateString()}</Text>
                       </View>
                       <View style={styles.policyPrice}>
                         <Text style={styles.policyPriceVal}>{formatRupees(p.plan.price)}</Text>
-                        <Text style={styles.policyPriceSub}>/week</Text>
+                        <Text style={styles.policyPriceSub}>/{t('common.week')}</Text>
                       </View>
                     </View>
 
@@ -657,25 +661,25 @@ export default function DriverPlansScreen({ navigation }: any) {
 
                       <View style={[styles.pill, { backgroundColor: payoutPillBg, borderColor: 'transparent' }]}>
                         <Ionicons name={payoutStatus === 'APPROVED' ? 'gift-outline' : 'time-outline'} size={14} color={payoutPillColor} />
-                        <Text style={[styles.pillText, { color: payoutPillColor }]}>{payoutPillText}</Text>
+                        <Text style={[styles.pillText, { color: payoutPillColor }]}>{payoutStatus === 'APPROVED' ? t('plans.payout_approved') : payoutStatus === 'PROCESSING' ? t('plans.payout_processing') : '—'}</Text>
                       </View>
                     </View>
 
                     {payoutStatus ? (
                       <View style={styles.detailGrid}>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Estimated Loss</Text>
+                          <Text style={styles.detailLabel}>{t('plans.estimated_loss')}</Text>
                           <Text style={styles.detailValue}>{formatRupees(p.payout.estimatedLoss)}</Text>
                         </View>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Approved Payout</Text>
+                          <Text style={styles.detailLabel}>{t('plans.approved_payout')}</Text>
                           <Text style={styles.detailValue}>{formatRupees(p.payout.approvedPayout)}</Text>
                         </View>
                       </View>
                     ) : (
                       <View style={styles.detailGrid}>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Claim Status</Text>
+                          <Text style={styles.detailLabel}>{t('plans.claim_status')}</Text>
                           <Text style={styles.detailValue}>{claimStatus ?? '—'}</Text>
                         </View>
                       </View>
@@ -715,8 +719,8 @@ export default function DriverPlansScreen({ navigation }: any) {
             <View style={styles.checkoutProcessingOverlay}>
               <View style={styles.checkoutProcessingCard}>
                 <Ionicons name="hourglass-outline" size={24} color="#16a34a" />
-                <Text style={styles.checkoutProcessingTitle}>Verifying Payment...</Text>
-                <Text style={styles.checkoutProcessingSub}>Please wait while we confirm your purchase.</Text>
+                <Text style={styles.checkoutProcessingTitle}>{t('plans.verifying_payment')}</Text>
+                <Text style={styles.checkoutProcessingSub}>{t('plans.verifying_payment_sub')}</Text>
               </View>
             </View>
           )}
@@ -731,8 +735,10 @@ export default function DriverPlansScreen({ navigation }: any) {
                   currency: checkout.currency,
                   email: user?.email ?? '',
                   contact: '9999999999',
-                  name: 'Aegis',
-                  description: `Weekly plan purchase · ${checkout.plan?.name ?? ''}`,
+                  name: t('common.app_name'),
+                  description: `${t('plans.weekly_plan_purchase')} · ${checkout.plan?.name ?? ''}`,
+                  loadingMessage: t('plans.opening_checkout'),
+                  failedMessage: t('common.payment_failed'),
                 }),
               }}
               onMessage={onWebMessage}
@@ -754,23 +760,23 @@ export default function DriverPlansScreen({ navigation }: any) {
         <View style={styles.errorModalOverlay}>
           <View style={styles.errorModalContent}>
             <Ionicons name="shield-checkmark" size={48} color="#16a34a" style={{ marginBottom: 8 }} />
-            <Text style={styles.errorModalTitle}>Your Money is Safe</Text>
+            <Text style={styles.errorModalTitle}>{t('plans.money_safe_title')}</Text>
             <Text style={styles.errorModalSub}>{paymentErrorData?.message}</Text>
             
             <View style={styles.paymentIdBox}>
-              <Text style={styles.paymentIdLabel}>Razorpay Payment ID</Text>
+              <Text style={styles.paymentIdLabel}>{t('plans.razorpay_payment_id')}</Text>
               <Text style={styles.paymentIdValue}>{paymentErrorData?.paymentId}</Text>
             </View>
 
             <TouchableOpacity activeOpacity={0.85} style={styles.supportBtn} onPress={() => {
               setPaymentErrorData(null);
-              Alert.alert('Support Ticket Created', `Our financial team will reconcile payment ${paymentErrorData?.paymentId} shortly.`);
+              Alert.alert(t('plans.ticket_created_title'), t('plans.ticket_created_desc', { id: paymentErrorData?.paymentId }));
             }}>
-              <Text style={styles.supportBtnText}>Contact Support</Text>
+              <Text style={styles.supportBtnText}>{t('common.contact_support')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity activeOpacity={0.85} style={styles.dismissBtn} onPress={() => setPaymentErrorData(null)}>
-              <Text style={styles.dismissBtnText}>Dismiss</Text>
+              <Text style={styles.dismissBtnText}>{t('common.dismiss')}</Text>
             </TouchableOpacity>
           </View>
         </View>

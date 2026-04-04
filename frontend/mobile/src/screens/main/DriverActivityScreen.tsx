@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -20,6 +21,7 @@ const palette = {
 };
 
 export default function DriverActivityScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { logout, user } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = React.useState(false);
   const [profile, setProfile] = useState<any | null>(null);
@@ -67,17 +69,17 @@ export default function DriverActivityScreen({ navigation }: any) {
   const dailyEarnings = useMemo(() => {
     const daily = week.dailyBreakdown ?? [];
     return daily.map((day: any) => ({
-      day: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      day: new Date(day.date).toLocaleDateString(t('common.lat') === 'Lat' ? 'en-US' : 'ta-IN', { weekday: 'short' }),
       amount: Number(day.totalEarnings ?? 0),
     }));
-  }, [week.dailyBreakdown]);
+  }, [week.dailyBreakdown, t]);
 
   const maxDaily = dailyEarnings.length ? Math.max(...dailyEarnings.map((d: any) => d.amount)) : 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
-      <LoadingOverlay visible={loading} message="Loading work pulse..." />
+      <LoadingOverlay visible={loading} message={t('activity.loading')} />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}
@@ -90,15 +92,15 @@ export default function DriverActivityScreen({ navigation }: any) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>Work Pulse</Text>
+          <Text style={styles.pageTitle}>{t('activity.title')}</Text>
           <Text style={styles.pageSubtitle}>
-            Week view for {user?.driverName ?? 'you'}
+            {t('activity.subtitle', { name: user?.driverName ?? t('common.you') })}
           </Text>
         </View>
 
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
-            <Text style={styles.sectionLabel}>Store</Text>
+            <Text style={styles.sectionLabel}>{t('activity.store')}</Text>
             <Text style={styles.profileName}>{profile?.identity?.primaryDarkStore ?? '—'}</Text>
             <View style={styles.profileMetaRow}>
               <Text style={styles.profileMeta}>{profile?.identity?.provider ?? '—'}</Text>
@@ -114,30 +116,30 @@ export default function DriverActivityScreen({ navigation }: any) {
           <View style={styles.profileRating}>
             <Ionicons name="star" size={26} color={palette.accent} />
             <Text style={styles.profileRatingValue}>{Number(profile?.identity?.rating ?? 0).toFixed(1)}</Text>
-            <Text style={styles.profileRatingLabel}>Score</Text>
+            <Text style={styles.profileRatingLabel}>{t('activity.score_label')}</Text>
           </View>
         </View>
 
         <View style={styles.statGrid}>
           <View style={[styles.statCard, styles.statCardAccent]}>
-            <Text style={styles.statLabel}>Orders Accepted</Text>
+            <Text style={styles.statLabel}>{t('activity.stats.orders_accepted')}</Text>
             <Text style={styles.statValue}>{completed}</Text>
-            <Text style={styles.statHint}>Week</Text>
+            <Text style={styles.statHint}>{t('activity.stats.week')}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Orders Skipped</Text>
+            <Text style={styles.statLabel}>{t('activity.stats.orders_skipped')}</Text>
             <Text style={styles.statValue}>{rejected}</Text>
-            <Text style={styles.statHint}>Manual</Text>
+            <Text style={styles.statHint}>{t('activity.stats.manual')}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>On-time Delivered</Text>
+            <Text style={styles.statLabel}>{t('activity.stats.on_time_delivered')}</Text>
             <Text style={styles.statValue}>{successRate}%</Text>
-            <Text style={styles.statHint}>Done</Text>
+            <Text style={styles.statHint}>{t('activity.stats.done')}</Text>
           </View>
         </View>
 
         <View style={styles.earningsCard}>
-          <Text style={styles.sectionLabel}>Weekly earnings</Text>
+          <Text style={styles.sectionLabel}>{t('activity.weekly_earnings')}</Text>
           <View style={styles.earningsRow}>
             <Text style={styles.earningsValue}>₹{weeklyEarnings.toLocaleString('en-IN')}</Text>
             <View style={styles.trendPill}>
@@ -149,12 +151,12 @@ export default function DriverActivityScreen({ navigation }: any) {
               <Text style={styles.trendText}>{earningsDelta >= 0 ? '+' : ''}{earningsDeltaPct}%</Text>
             </View>
           </View>
-          <Text style={styles.earningsMeta}>Bonus ₹{Number(summary.incentiveEarnings ?? 0).toLocaleString('en-IN')} · {Number(summary.totalWorkingHours ?? 0)} hrs</Text>
-          <Text style={styles.earningsMeta}>Prev ₹{lastWeek.toLocaleString('en-IN')}</Text>
+          <Text style={styles.earningsMeta}>{t('activity.incentive_label')} ₹{Number(summary.incentiveEarnings ?? 0).toLocaleString('en-IN')} · {Number(summary.totalWorkingHours ?? 0)} {t('activity.hours_label')}</Text>
+          <Text style={styles.earningsMeta}>{t('activity.prev_earnings_label')} ₹{lastWeek.toLocaleString('en-IN')}</Text>
         </View>
 
         <View style={styles.dailyCard}>
-          <Text style={styles.sectionLabel}>Week strip</Text>
+          <Text style={styles.sectionLabel}>{t('activity.week_strip')}</Text>
           {dailyEarnings.map((item: any) => {
             const widthPct = maxDaily ? Math.max(20, Math.round((item.amount / maxDaily) * 100)) : 20;
             return (

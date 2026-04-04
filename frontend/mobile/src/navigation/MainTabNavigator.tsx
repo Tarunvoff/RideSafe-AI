@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Theme } from '../theme';
 
 import DriverRiskPipelineScreen from '../screens/main/DriverRiskPipelineScreen';
@@ -13,6 +14,7 @@ import DriverProfileScreen from '../screens/main/DriverProfileScreen';
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -36,12 +38,36 @@ export default function MainTabNavigator() {
         headerTitleAlign: 'center',
       })}
     >
-      <Tab.Screen name="Home" component={DriverRiskPipelineScreen} />
-      <Tab.Screen name="Live Risk" component={DriverLiveRiskScreen} />
-      <Tab.Screen name="Work Pulse" component={DriverActivityScreen} />
-      <Tab.Screen name="Plans" component={DriverPlansScreen} />
-      <Tab.Screen name="Profile" component={DriverProfileScreen} />
-      <Tab.Screen name="Claims" component={ClaimsScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={DriverRiskPipelineScreen} 
+        options={{ tabBarLabel: t('tabs.home') }}
+      />
+      <Tab.Screen 
+        name="Live Risk" 
+        component={DriverLiveRiskScreen} 
+        options={{ tabBarLabel: t('tabs.live_risk') }}
+      />
+      <Tab.Screen 
+        name="Work Pulse" 
+        component={DriverActivityScreen} 
+        options={{ tabBarLabel: t('tabs.activity') }}
+      />
+      <Tab.Screen 
+        name="Plans" 
+        component={DriverPlansScreen} 
+        options={{ tabBarLabel: t('tabs.plans') }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={DriverProfileScreen} 
+        options={{ tabBarLabel: t('tabs.profile') }}
+      />
+      <Tab.Screen 
+        name="Claims" 
+        component={ClaimsScreen} 
+        options={{ tabBarLabel: t('tabs.claims') }}
+      />
     </Tab.Navigator>
   );
 }

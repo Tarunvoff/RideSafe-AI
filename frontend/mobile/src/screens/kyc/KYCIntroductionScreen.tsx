@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Theme } from '../../theme';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
 
 export default function KYCIntroductionScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { logout } = useAuth();
 
   return (
@@ -23,25 +25,25 @@ export default function KYCIntroductionScreen({ navigation }: any) {
         >
           <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>KYC Verification</Text>
+        <Text style={styles.headerTitle}>{t('kyc.intro.header')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Complete your KYC</Text>
+        <Text style={styles.title}>{t('kyc.intro.title')}</Text>
         <Text style={styles.subtitle}>
-          Verify your driver identity to unlock all Aegis benefits, ensure instant payouts, and keep your insurance policy active.
+          {t('kyc.intro.subtitle')}
         </Text>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Why is KYC needed?</Text>
+          <Text style={styles.cardTitle}>{t('kyc.intro.why_title')}</Text>
           <View style={styles.listItem}>
             <View style={styles.iconContainer}>
               <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />
             </View>
             <View>
-              <Text style={styles.listTitle}>Policy Activation</Text>
-              <Text style={styles.listDesc}>Required for your insurance coverage to begin.</Text>
+              <Text style={styles.listTitle}>{t('kyc.intro.policy_activation.title')}</Text>
+              <Text style={styles.listDesc}>{t('kyc.intro.policy_activation.desc')}</Text>
             </View>
           </View>
           <View style={styles.listItem}>
@@ -49,8 +51,8 @@ export default function KYCIntroductionScreen({ navigation }: any) {
               <Ionicons name="checkmark-circle" size={20} color={Theme.colors.primary} />
             </View>
             <View>
-              <Text style={styles.listTitle}>Claim Validation</Text>
-              <Text style={styles.listDesc}>Ensures seamless approval during emergencies.</Text>
+              <Text style={styles.listTitle}>{t('kyc.intro.claim_validation.title')}</Text>
+              <Text style={styles.listDesc}>{t('kyc.intro.claim_validation.desc')}</Text>
             </View>
           </View>
           <View style={styles.listItem}>
@@ -58,45 +60,45 @@ export default function KYCIntroductionScreen({ navigation }: any) {
               <Ionicons name="wallet" size={20} color={Theme.colors.primary} />
             </View>
             <View>
-              <Text style={styles.listTitle}>Payout Processing</Text>
-              <Text style={styles.listDesc}>Quick transfers to your bank or UPI account.</Text>
+              <Text style={styles.listTitle}>{t('kyc.intro.payout_processing.title')}</Text>
+              <Text style={styles.listDesc}>{t('kyc.intro.payout_processing.desc')}</Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Keep these ready</Text>
+        <Text style={styles.sectionTitle}>{t('kyc.intro.ready_title')}</Text>
         <View style={styles.grid}>
           <View style={styles.gridItem}>
             <Ionicons name="id-card" size={20} color={Theme.colors.primary} />
-            <Text style={styles.gridText}>Govt ID</Text>
+            <Text style={styles.gridText}>{t('kyc.intro.ready_items.id')}</Text>
           </View>
           <View style={styles.gridItem}>
             <Ionicons name="person" size={20} color={Theme.colors.primary} />
-            <Text style={styles.gridText}>Selfie</Text>
+            <Text style={styles.gridText}>{t('kyc.intro.ready_items.selfie')}</Text>
           </View>
           <View style={styles.gridItem}>
             <Ionicons name="location" size={20} color={Theme.colors.primary} />
-            <Text style={styles.gridText}>Address</Text>
+            <Text style={styles.gridText}>{t('kyc.intro.ready_items.address')}</Text>
           </View>
           <View style={styles.gridItem}>
             <Ionicons name="cash" size={20} color={Theme.colors.primary} />
-            <Text style={styles.gridText}>Bank/UPI</Text>
+            <Text style={styles.gridText}>{t('kyc.intro.ready_items.bank')}</Text>
           </View>
         </View>
 
         <View style={styles.timeBanner}>
           <Ionicons name="time" size={18} color={Theme.colors.primary} />
-          <Text style={styles.timeText}>Estimated time: 3 mins</Text>
+          <Text style={styles.timeText}>{t('kyc.intro.estimated_time')}</Text>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <Button 
-          title="Start KYC" 
+          title={t('kyc.intro.start_button')} 
           onPress={() => navigation.navigate('KYCBasicIdentity')} 
         />
         <TouchableOpacity style={styles.secondaryButton} onPress={() => logout()}>
-          <Text style={styles.secondaryButtonText}>Continue later</Text>
+          <Text style={styles.secondaryButtonText}>{t('kyc.intro.continue_later')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

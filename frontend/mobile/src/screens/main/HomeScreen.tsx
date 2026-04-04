@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
@@ -10,6 +11,7 @@ import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function HomeScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { logout, user } = useAuth();
   const { location } = useLocation();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
@@ -26,7 +28,7 @@ export default function HomeScreen({ navigation }: any) {
       await logout();
     } catch (e) {
       setProfileMenuVisible(false);
-      Alert.alert('Error', 'Failed to log out');
+      Alert.alert(t('common.error'), t('common.logout_failed'));
     }
   };
 
@@ -70,10 +72,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const metricBlocks = useMemo(
     () => [
-      { key: 'pay', label: 'Today Pay', value: `₹${todayPay.toLocaleString('en-IN')}`, hint: `Orders ${todayTrips}` },
-      { key: 'rides', label: 'Trips Done', value: `${todayTrips}`, hint: `Week ${profile?.currentWeek?.totalCompletedDeliveries ?? 0}` },
-      { key: 'score', label: 'Safety Score', value: rating ? rating.toFixed(1) : '—', hint: zoneRisk?.state ?? '—' },
-      { key: 'hours', label: 'Hours Worked', value: `${hoursWorked} hrs`, hint: profile?.workSummary?.preferredWorkingHours ?? '—' },
+      { key: 'pay', label: t('dashboard.today_pay_label'), value: `₹${todayPay.toLocaleString('en-IN')}`, hint: `${t('activity.stats.orders_accepted')} ${todayTrips}` },
+      { key: 'rides', label: t('dashboard.trips_done_label'), value: `${todayTrips}`, hint: `${t('activity.stats.week')} ${profile?.currentWeek?.totalCompletedDeliveries ?? 0}` },
+      { key: 'score', label: t('dashboard.safety_score_label'), value: rating ? rating.toFixed(1) : '—', hint: zoneRisk?.state ?? '—' },
+      { key: 'hours', label: t('dashboard.hours_worked_label'), value: `${hoursWorked} ${t('activity.hours_label')}`, hint: profile?.workSummary?.preferredWorkingHours ?? '—' },
     ],
     [todayPay, todayTrips, rating, hoursWorked, profile, zoneRisk],
   );
@@ -83,22 +85,22 @@ export default function HomeScreen({ navigation }: any) {
     const recent = history.slice(0, 4);
     return recent.map((order: any) => ({
       key: order.orderId,
-      place: order.deliveryZone ?? order.pickupZone ?? 'Order',
-      detail: order.deliveredAt ? `Delivered · ${new Date(order.deliveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'In progress',
+      place: order.deliveryZone ?? order.pickupZone ?? t('dashboard.platform'),
+      detail: order.deliveredAt ? `${t('activity.stats.done')} · ${new Date(order.deliveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : t('claims.status.processing'),
     }));
   }, [profile]);
 
   const safetyCard = useMemo(() => ({
-    level: zoneRisk?.state === 'HALTED' ? 'Zone HALTED' : 'Risk stable',
-    zone: profile?.identity?.primaryServiceZone ?? 'Zone',
-    note: zoneRisk?.state === 'HALTED' ? 'Auto-claim trigger active' : 'No disruption detected',
-    updated: 'Updated just now',
-  }), [profile, zoneRisk]);
+    level: zoneRisk?.state === 'HALTED' ? t('dashboard.zone_halted') : t('dashboard.risk_stable'),
+    zone: profile?.identity?.primaryServiceZone ?? t('dashboard.platform'),
+    note: zoneRisk?.state === 'HALTED' ? t('dashboard.auto_claim_active') : t('dashboard.no_disruption'),
+    updated: t('dashboard.updated_now'),
+  }), [profile, zoneRisk, t]);
 
   const quickActions = [
     {
       key: 'pulse',
-      label: 'Work Pulse',
+      label: t('tabs.activity'),
       icon: 'stats-chart-outline' as const,
       bg: '#dffbe8',
       color: Theme.colors.primary,
@@ -106,7 +108,7 @@ export default function HomeScreen({ navigation }: any) {
     },
     {
       key: 'plans',
-      label: 'Plans',
+      label: t('tabs.plans'),
       icon: 'card-outline' as const,
       bg: '#e0f2fe',
       color: '#0f172a',
@@ -114,15 +116,15 @@ export default function HomeScreen({ navigation }: any) {
     },
     {
       key: 'lead',
-      label: 'Call Lead',
+      label: t('dashboard.call_lead'),
       icon: 'call-outline' as const,
       bg: '#fee2e2',
       color: '#b91c1c',
-      onPress: () => Alert.alert('Lead Anjali', 'Calling your lead...'),
+      onPress: () => Alert.alert(t('dashboard.call_lead'), 'Calling...'),
     },
     {
       key: 'policy',
-      label: 'Policy',
+      label: t('policy.title'),
       icon: 'shield-checkmark-outline' as const,
       bg: '#dcfce7',
       color: '#15803d',
@@ -133,7 +135,7 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
-      <LoadingOverlay visible={loading} message="Loading dashboard intelligence..." />
+      <LoadingOverlay visible={loading} message={t('dashboard.loading_intel')} />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}
@@ -144,18 +146,18 @@ export default function HomeScreen({ navigation }: any) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
-          <Text style={styles.heroGreeting}>Hi {user?.driverName ?? 'Driver'} 👋</Text>
-          <Text style={styles.heroTitle}>Night shift is live</Text>
-          <Text style={styles.heroSubtitle}>{profile?.identity?.primaryDarkStore ?? 'Active zone'}</Text>
+          <Text style={styles.heroGreeting}>{t('dashboard.hi_driver', { name: user?.driverName ?? t('common.driver') })}</Text>
+          <Text style={styles.heroTitle}>{t('dashboard.shift_live')}</Text>
+          <Text style={styles.heroSubtitle}>{profile?.identity?.primaryDarkStore ?? t('dashboard.shift_active')}</Text>
 
           <View style={styles.heroChipRow}>
             <View style={styles.heroChip}>
               <Ionicons name="time-outline" size={22} color={Theme.colors.primary} />
-              <Text style={styles.heroChipText}>{profile?.identity?.employmentType ?? 'Shift active'}</Text>
+              <Text style={styles.heroChipText}>{profile?.identity?.employmentType ?? t('dashboard.shift_active')}</Text>
             </View>
             <View style={styles.heroChip}>
               <Ionicons name="people-outline" size={22} color={Theme.colors.primary} />
-              <Text style={styles.heroChipText}>{profile?.identity?.provider ?? 'Platform'}</Text>
+              <Text style={styles.heroChipText}>{profile?.identity?.provider ?? t('dashboard.platform')}</Text>
             </View>
           </View>
 
@@ -164,7 +166,7 @@ export default function HomeScreen({ navigation }: any) {
             activeOpacity={0.9}
             onPress={() => navigation.navigate('DriverActivity')}
           >
-            <Text style={styles.heroButtonText}>See today plan</Text>
+            <Text style={styles.heroButtonText}>{t('dashboard.see_today_plan')}</Text>
             <Ionicons name="arrow-forward" size={22} color="#052e16" />
           </TouchableOpacity>
         </View>
@@ -180,7 +182,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         <View style={styles.quickCard}>
-          <Text style={styles.sectionTitle}>Big buttons</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.big_buttons')}</Text>
           <View style={styles.quickGrid}>
             {quickActions.map((action) => (
               <TouchableOpacity
@@ -199,7 +201,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         <View style={styles.routeCard}>
-          <Text style={styles.sectionTitle}>Today route</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.today_route')}</Text>
           {routeSteps.length ? routeSteps.map((step: any, index: number) => (
             <View key={step.key} style={styles.routeRow}>
               <View style={styles.routeBulletColumn}>
@@ -212,13 +214,13 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             </View>
           )) : (
-            <Text style={styles.routeDetail}>No recent orders yet.</Text>
+            <Text style={styles.routeDetail}>{t('dashboard.no_orders')}</Text>
           )}
           <TouchableOpacity
             style={styles.routeButton}
             onPress={() => navigation.navigate('DriverLiveRisk')}
           >
-            <Text style={styles.routeButtonText}>Open live map</Text>
+            <Text style={styles.routeButtonText}>{t('dashboard.open_live_map')}</Text>
             <Ionicons name="navigate-outline" size={20} color={Theme.colors.primary} />
           </TouchableOpacity>
         </View>
@@ -235,7 +237,7 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.safetyButton}
             onPress={() => navigation.navigate('DriverLiveRisk')}
           >
-            <Text style={styles.safetyButtonText}>Watch Live Risk</Text>
+            <Text style={styles.safetyButtonText}>{t('dashboard.watch_live_risk')}</Text>
           </TouchableOpacity>
         </View>
 

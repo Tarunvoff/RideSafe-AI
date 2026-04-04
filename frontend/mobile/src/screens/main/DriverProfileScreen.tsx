@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Modal,
@@ -128,6 +129,7 @@ function NotificationModal({
   visible: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<NotifPrefs>({
     riskAlerts: true,
     payoutUpdates: true,
@@ -140,15 +142,15 @@ function NotificationModal({
 
   const handleClear = () => {
     Alert.alert(
-      'Clear All Notifications',
-      'This will clear all notification history from this device. You will still receive future notifications.',
+      t('profile.notifications.clear_title'),
+      t('profile.notifications.clear_desc'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('common.clear'),
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Done', 'Notification history cleared.');
+            Alert.alert(t('common.done'), t('profile.notifications.cleared_msg'));
           },
         },
       ],
@@ -156,10 +158,10 @@ function NotificationModal({
   };
 
   const rows: { key: keyof NotifPrefs; label: string; desc: string; icon: string }[] = [
-    { key: 'riskAlerts', label: 'Risk Alerts', desc: 'Real-time zone risk and fraud warnings', icon: 'warning-outline' },
-    { key: 'payoutUpdates', label: 'Payout Updates', desc: 'Claim approval and payout status', icon: 'cash-outline' },
-    { key: 'policyReminders', label: 'Policy Reminders', desc: 'Expiry alerts and renewal nudges', icon: 'document-text-outline' },
-    { key: 'systemUpdates', label: 'System Updates', desc: 'App updates and maintenance notices', icon: 'settings-outline' },
+    { key: 'riskAlerts', label: t('profile.notifications.types.risk.label'), desc: t('profile.notifications.types.risk.desc'), icon: 'warning-outline' },
+    { key: 'payoutUpdates', label: t('profile.notifications.types.payout.label'), desc: t('profile.notifications.types.payout.desc'), icon: 'cash-outline' },
+    { key: 'policyReminders', label: t('profile.notifications.types.policy.label'), desc: t('profile.notifications.types.policy.desc'), icon: 'document-text-outline' },
+    { key: 'systemUpdates', label: t('profile.notifications.types.system.label'), desc: t('profile.notifications.types.system.desc'), icon: 'settings-outline' },
   ];
 
   return (
@@ -170,14 +172,14 @@ function NotificationModal({
           <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn}>
             <Ionicons name="close" size={22} color="#111827" />
           </TouchableOpacity>
-          <Text style={modalStyles.headerTitle}>Notification Settings</Text>
+          <Text style={modalStyles.headerTitle}>{t('profile.notifications.title')}</Text>
           <TouchableOpacity onPress={handleClear} style={modalStyles.clearBtn}>
-            <Text style={modalStyles.clearText}>Clear</Text>
+            <Text style={modalStyles.clearText}>{t('common.clear')}</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={modalStyles.body}>
-          <Text style={modalStyles.sectionLabel}>MANAGE NOTIFICATIONS</Text>
+          <Text style={modalStyles.sectionLabel}>{t('profile.notifications.manage')}</Text>
 
           <View style={modalStyles.card}>
             {rows.map((row, i) => (
@@ -203,7 +205,7 @@ function NotificationModal({
           </View>
 
           <Text style={modalStyles.hint}>
-            Push notifications require device permission. Tap Clear to remove all notification history from this device.
+            {t('profile.notifications.hint')}
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -212,6 +214,7 @@ function NotificationModal({
 }
 
 function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
   const [supportConfig, setSupportConfig] = useState<SupportConfig>(EMPTY_SUPPORT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -233,14 +236,14 @@ function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () 
           <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn}>
             <Ionicons name="close" size={22} color="#111827" />
           </TouchableOpacity>
-          <Text style={modalStyles.headerTitle}>Data & Privacy</Text>
+          <Text style={modalStyles.headerTitle}>{t('profile.privacy.title')}</Text>
           <View style={{ width: 44 }} />
         </View>
         <ScrollView contentContainerStyle={modalStyles.body}>
           {loading ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
               <ActivityIndicator size="small" color="#16a34a" />
-              <Text style={{ marginTop: 10, color: '#6b7280' }}>Loading remote config...</Text>
+              <Text style={{ marginTop: 10, color: '#6b7280' }}>{t('common.loading_config')}</Text>
             </View>
           ) : privacySections.length > 0 ? (
             privacySections.map((item, i) => (
@@ -257,7 +260,7 @@ function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () 
           ) : (
             <View style={modalStyles.emptyStateBox}>
               <Ionicons name="information-circle-outline" size={22} color="#9ca3af" />
-              <Text style={modalStyles.emptyStateText}>Privacy details are unavailable. Check your connection.</Text>
+              <Text style={modalStyles.emptyStateText}>{t('profile.privacy.unavailable')}</Text>
             </View>
           )}
 
@@ -267,10 +270,10 @@ function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () 
                 <Text style={[modalStyles.legalText, { marginBottom: 6 }]}>{legalNotice}</Text>
               ) : null}
               <Text style={modalStyles.legalText}>
-                {legalFooter || 'Legal details unavailable.'}
+                {legalFooter || t('common.legal_unavailable')}
               </Text>
               {source === 'cache' && (
-                <Text style={modalStyles.cacheHint}>Cached copy</Text>
+                <Text style={modalStyles.cacheHint}>{t('common.cached_copy')}</Text>
               )}
             </View>
           </View>
@@ -281,6 +284,7 @@ function DataPrivacyModal({ visible, onClose }: { visible: boolean; onClose: () 
 }
 
 function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
   const [supportConfig, setSupportConfig] = useState<SupportConfig>(EMPTY_SUPPORT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -304,19 +308,19 @@ function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () 
           <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn}>
             <Ionicons name="close" size={22} color="#111827" />
           </TouchableOpacity>
-          <Text style={modalStyles.headerTitle}>Help & Support</Text>
+          <Text style={modalStyles.headerTitle}>{t('profile.help.title')}</Text>
           <View style={{ width: 44 }} />
         </View>
         <ScrollView contentContainerStyle={modalStyles.body}>
           {loading ? (
              <View style={{ padding: 20, alignItems: 'center' }}>
                <ActivityIndicator size="small" color="#16a34a" />
-               <Text style={{ marginTop: 10, color: '#6b7280' }}>Loading remote config...</Text>
+               <Text style={{ marginTop: 10, color: '#6b7280' }}>{t('common.loading_config')}</Text>
              </View>
           ) : (
             <>
               {/* Contact */}
-              <Text style={modalStyles.sectionLabel}>CONTACT US</Text>
+              <Text style={modalStyles.sectionLabel}>{t('profile.help.contact_us')}</Text>
               {contacts.length > 0 ? (
                 <View style={modalStyles.card}>
                   {contacts.map((item, i) => (
@@ -337,12 +341,12 @@ function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () 
               ) : (
                 <View style={modalStyles.emptyStateBox}>
                   <Ionicons name="information-circle-outline" size={22} color="#9ca3af" />
-                  <Text style={modalStyles.emptyStateText}>Support contacts unavailable.</Text>
+                  <Text style={modalStyles.emptyStateText}>{t('profile.help.contacts_unavailable')}</Text>
                 </View>
               )}
 
               {/* FAQ */}
-              <Text style={[modalStyles.sectionLabel, { marginTop: 20 }]}>FREQUENTLY ASKED QUESTIONS</Text>
+              <Text style={[modalStyles.sectionLabel, { marginTop: 20 }]}>{t('profile.help.faq')}</Text>
               {faqs.length > 0 ? (
                 <View style={modalStyles.card}>
                   {faqs.map((faq, i) => (
@@ -369,17 +373,17 @@ function HelpSupportModal({ visible, onClose }: { visible: boolean; onClose: () 
               ) : (
                 <View style={modalStyles.emptyStateBox}>
                   <Ionicons name="information-circle-outline" size={22} color="#9ca3af" />
-                  <Text style={modalStyles.emptyStateText}>FAQ data unavailable.</Text>
+                  <Text style={modalStyles.emptyStateText}>{t('profile.help.faq_unavailable')}</Text>
                 </View>
               )}
 
               <View style={modalStyles.legalBox}>
                 <View style={{ flex: 1 }}>
                   <Text style={modalStyles.legalText}>
-                    {appVersion ? `App Version ${appVersion}` : 'App Version unavailable'}
+                    {appVersion ? `${t('common.app_version')} ${appVersion}` : t('common.app_version_unavailable')}
                   </Text>
                   {source === 'cache' && (
-                    <Text style={modalStyles.cacheHint}>Cached copy</Text>
+                    <Text style={modalStyles.cacheHint}>{t('common.cached_copy')}</Text>
                   )}
                 </View>
               </View>
@@ -404,6 +408,7 @@ function KYCReportModal({
   providerIdentity: ProviderIdentity | null;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   const formatDate = (d: string | undefined) => {
     if (!d) return '—';
     try {
@@ -427,20 +432,20 @@ function KYCReportModal({
           <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn}>
             <Ionicons name="close" size={22} color="#111827" />
           </TouchableOpacity>
-          <Text style={modalStyles.headerTitle}>KYC Report</Text>
+          <Text style={modalStyles.headerTitle}>{t('profile.kyc_report.title')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#16a34a" />
-            <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>Loading provider report…</Text>
+            <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>{t('profile.kyc_report.loading')}</Text>
           </View>
         ) : !hasProvider ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
             <Ionicons name="alert-circle-outline" size={48} color="#d1d5db" />
             <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 15, textAlign: 'center' }}>
-              No provider data found. Please log in via a supported platform (e.g., Zepto) to view your full KYC report.
+              {t('profile.kyc_report.no_data')}
             </Text>
           </View>
         ) : (
@@ -452,7 +457,7 @@ function KYCReportModal({
                   <Text style={[kycTabStyles.trustScoreText, { color: trustColor(providerKyc.trustScore) }]}>
                     {Math.round(providerKyc.trustScore < 1 ? providerKyc.trustScore * 100 : providerKyc.trustScore)}
                   </Text>
-                  <Text style={kycTabStyles.trustScoreLabel}>Trust</Text>
+                  <Text style={kycTabStyles.trustScoreLabel}>{t('profile.kyc_report.trust')}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
                   <View style={[modalStyles.statusBadge, {
@@ -466,15 +471,15 @@ function KYCReportModal({
                     <Text style={[modalStyles.statusText, {
                       color: providerKyc.kycVerified ? '#16a34a' : '#d97706',
                     }]}>
-                      {providerKyc.kycVerified ? 'VERIFIED' : 'PENDING'}
+                      {providerKyc.kycVerified ? t('common.verified') : t('common.pending')}
                     </Text>
                   </View>
                   <Text style={kycTabStyles.trustSource}>
-                    via {providerKyc.verificationSource}
+                    {t('common.via')} {providerKyc.verificationSource}
                   </Text>
                   {providerKyc.kycVerifiedAt && (
                     <Text style={kycTabStyles.trustDate}>
-                      Verified {formatDate(providerKyc.kycVerifiedAt)}
+                      {t('common.verified')} {formatDate(providerKyc.kycVerifiedAt)}
                     </Text>
                   )}
                 </View>
@@ -484,30 +489,30 @@ function KYCReportModal({
             {/* Provider Identity */}
             {providerIdentity && (
               <>
-                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>DRIVER IDENTITY</Text>
+                 <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>{t('profile.kyc_report.identity')}</Text>
                 <View style={modalStyles.reportCard}>
-                  <KYCRow label="Full Name" value={providerIdentity.fullName} />
-                  <KYCRow label="Provider" value={providerIdentity.provider} />
-                  <KYCRow label="Platform ID" value={providerIdentity.platformDriverId} />
-                  <KYCRow label="Phone" value={providerIdentity.phone} />
-                  {providerIdentity.email && <KYCRow label="Email" value={providerIdentity.email} />}
-                  <KYCRow label="Gender" value={providerIdentity.gender} />
-                  <KYCRow label="Age Band" value={providerIdentity.ageBand} />
-                  <KYCRow label="City" value={providerIdentity.city} />
-                  <KYCRow label="State" value={providerIdentity.state} />
+                  <KYCRow label={t('kyc.basic_identity.full_name')} value={providerIdentity.fullName} />
+                  <KYCRow label={t('profile.kyc_report.provider')} value={providerIdentity.provider} />
+                  <KYCRow label={t('profile.kyc_report.platform_id')} value={providerIdentity.platformDriverId} />
+                  <KYCRow label={t('kyc.basic_identity.phone')} value={providerIdentity.phone} />
+                  {providerIdentity.email && <KYCRow label={t('common.email')} value={providerIdentity.email} />}
+                  <KYCRow label={t('kyc.basic_identity.gender')} value={providerIdentity.gender} />
+                  <KYCRow label={t('profile.kyc_report.age_band')} value={providerIdentity.ageBand} />
+                  <KYCRow label={t('kyc.basic_identity.city')} value={providerIdentity.city} />
+                  <KYCRow label={t('kyc.basic_identity.state')} value={providerIdentity.state} />
                 </View>
 
-                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>WORK DETAILS</Text>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>{t('profile.kyc_report.work_details')}</Text>
                 <View style={modalStyles.reportCard}>
-                  <KYCRow label="Service Zone" value={providerIdentity.primaryServiceZone} />
-                  <KYCRow label="Dark Store" value={providerIdentity.primaryDarkStore} />
-                  <KYCRow label="Employment" value={providerIdentity.employmentType} />
-                  <KYCRow label="Vehicle" value={providerIdentity.vehicleType} />
-                  <KYCRow label="Vehicle No." value={providerIdentity.vehicleNumberMasked} />
-                  <KYCRow label="Joining Date" value={formatDate(providerIdentity.joiningDate)} />
-                  <KYCRow label="Status" value={providerIdentity.currentStatus} />
-                  <KYCRow label="Rating" value={providerIdentity.rating?.toFixed(1)} />
-                  <KYCRow label="Verification" value={providerIdentity.verificationStatus} />
+                  <KYCRow label={t('profile.kyc_report.service_zone')} value={providerIdentity.primaryServiceZone} />
+                  <KYCRow label={t('profile.kyc_report.dark_store')} value={providerIdentity.primaryDarkStore} />
+                  <KYCRow label={t('profile.kyc_report.employment')} value={providerIdentity.employmentType} />
+                  <KYCRow label={t('profile.kyc_report.vehicle')} value={providerIdentity.vehicleType} />
+                  <KYCRow label={t('profile.kyc_report.vehicle_no')} value={providerIdentity.vehicleNumberMasked} />
+                  <KYCRow label={t('profile.kyc_report.joining_date')} value={formatDate(providerIdentity.joiningDate)} />
+                  <KYCRow label={t('common.status')} value={providerIdentity.currentStatus} />
+                  <KYCRow label={t('profile.kyc_report.rating')} value={providerIdentity.rating?.toFixed(1)} />
+                  <KYCRow label={t('profile.kyc_report.verification')} value={providerIdentity.verificationStatus} />
                 </View>
               </>
             )}
@@ -515,23 +520,23 @@ function KYCReportModal({
             {/* Provider KYC details */}
             {providerKyc && (
               <>
-                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>IDENTITY DOCUMENTS</Text>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>{t('profile.kyc_report.documents')}</Text>
                 <View style={modalStyles.reportCard}>
-                  <KYCRow label="Aadhaar" value={providerKyc.aadhaarMasked} />
-                  {providerKyc.panMasked && <KYCRow label="PAN" value={providerKyc.panMasked} />}
-                  {providerKyc.drivingLicenseMasked && <KYCRow label="Driving License" value={providerKyc.drivingLicenseMasked} />}
+                  <KYCRow label={t('kyc.identity_verification.aadhaar')} value={providerKyc.aadhaarMasked} />
+                  {providerKyc.panMasked && <KYCRow label={t('kyc.identity_verification.pan')} value={providerKyc.panMasked} />}
+                  {providerKyc.drivingLicenseMasked && <KYCRow label={t('profile.kyc_report.license')} value={providerKyc.drivingLicenseMasked} />}
                 </View>
 
-                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>FINANCIAL DETAILS</Text>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>{t('profile.kyc_report.financial')}</Text>
                 <View style={modalStyles.reportCard}>
-                  <KYCRow label="Bank Account" value={providerKyc.bankAccountMasked} />
-                  {providerKyc.upiIdMasked && <KYCRow label="UPI ID" value={providerKyc.upiIdMasked} />}
+                  <KYCRow label={t('profile.kyc_report.bank_account')} value={providerKyc.bankAccountMasked} />
+                  {providerKyc.upiIdMasked && <KYCRow label={t('kyc.payout_setup.upi_id')} value={providerKyc.upiIdMasked} />}
                 </View>
 
-                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>OTHER</Text>
+                <Text style={[modalStyles.sectionLabel, { marginTop: 16 }]}>{t('common.other')}</Text>
                 <View style={modalStyles.reportCard}>
-                  <KYCRow label="Emergency Contact" value={providerKyc.emergencyContactMasked} />
-                  <KYCRow label="Address" value={providerKyc.addressSummary} />
+                  <KYCRow label={t('profile.kyc_report.emergency_contact')} value={providerKyc.emergencyContactMasked} />
+                  <KYCRow label={t('kyc.personal_details.address')} value={providerKyc.addressSummary} />
                 </View>
               </>
             )}
@@ -539,7 +544,7 @@ function KYCReportModal({
             <View style={modalStyles.legalBox}>
               <Ionicons name="lock-closed-outline" size={14} color="#9ca3af" />
               <Text style={[modalStyles.legalText, { marginLeft: 6 }]}>
-                This information is encrypted and used only for verification and claim processing.
+                {t('profile.kyc_report.encryption_notice')}
               </Text>
             </View>
           </ScrollView>
@@ -561,6 +566,7 @@ function KYCRow({ label, value }: { label: string; value: string | undefined | n
 // ─── Main Profile Screen ──────────────────────────────────────────────────────
 
 export default function DriverProfileScreen({ navigation }: any) {
+  const { t, i18n } = useTranslation();
   const { logout, user, updateDriverName } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
@@ -585,7 +591,7 @@ export default function DriverProfileScreen({ navigation }: any) {
   const displayName =
     user?.driverName ||
     kycData?.basicIdentity?.fullName ||
-    (user?.email ? user.email.split('@')[0] : 'Driver');
+    (user?.email ? user.email.split('@')[0] : t('common.driver'));
 
   // Load KYC details once on mount
   const loadKycData = useCallback(async () => {
@@ -659,7 +665,7 @@ export default function DriverProfileScreen({ navigation }: any) {
   const saveNameEdit = async () => {
     const trimmed = nameInput.trim();
     if (!trimmed) {
-      Alert.alert('Invalid Name', 'Name cannot be empty.');
+      Alert.alert(t('profile.edit_name.invalid_title'), t('profile.edit_name.invalid_desc'));
       return;
     }
     try {
@@ -683,7 +689,7 @@ export default function DriverProfileScreen({ navigation }: any) {
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay
         visible={kycLoading || nameSaving}
-        message={nameSaving ? 'Updating your profile name...' : 'Loading profile and KYC details...'}
+        message={nameSaving ? t('profile.edit_name.saving') : t('profile.loading_details')}
       />
 
       <DriverLogoutMenu
@@ -742,7 +748,7 @@ export default function DriverProfileScreen({ navigation }: any) {
               <View style={styles.driverNameRow}>
                 <Text style={styles.driverName}>{displayName}</Text>
                 <View style={styles.driverVerifiedPill}>
-                  <Text style={styles.driverVerifiedText}>VERIFIED</Text>
+                  <Text style={styles.driverVerifiedText}>{t('common.verified')}</Text>
                 </View>
               </View>
             )}
@@ -759,7 +765,7 @@ export default function DriverProfileScreen({ navigation }: any) {
 
         {/* Preferences */}
         <View style={styles.section}>
-          <Text style={styles.sectionOverline}>PREFERENCES</Text>
+          <Text style={styles.sectionOverline}>{t('profile.sections.preferences')}</Text>
 
           <View style={styles.prefCard}>
             <TouchableOpacity
@@ -769,7 +775,7 @@ export default function DriverProfileScreen({ navigation }: any) {
             >
               <View style={styles.prefLabelRow}>
                 <Ionicons name="notifications-outline" size={24} color="#6b7280" />
-                <Text style={styles.prefTitle}>Notification Settings</Text>
+                <Text style={styles.prefTitle}>{t('profile.notifications.title')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -783,7 +789,7 @@ export default function DriverProfileScreen({ navigation }: any) {
             >
               <View style={styles.prefLabelRow}>
                 <Ionicons name="lock-closed-outline" size={24} color="#6b7280" />
-                <Text style={styles.prefTitle}>Data & Privacy</Text>
+                <Text style={styles.prefTitle}>{t('profile.privacy.title')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -797,18 +803,39 @@ export default function DriverProfileScreen({ navigation }: any) {
             >
               <View style={styles.prefLabelRow}>
                 <Ionicons name="help-circle-outline" size={24} color="#6b7280" />
-                <Text style={styles.prefTitle}>Help & Support</Text>
+                <Text style={styles.prefTitle}>{t('profile.help.title')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* KYC + Logout */}
+        {/* Profile Actions: Language + KYC + Logout */}
+        <View style={styles.section}>
+          <Text style={styles.sectionOverline}>{t('profile.sections.app_language')}</Text>
+          <View style={styles.languageCard}>
+            <TouchableOpacity
+              style={[styles.langItem, i18n.language === 'en' && styles.langItemSelected]}
+              onPress={() => i18n.changeLanguage('en')}
+            >
+              <Text style={[styles.langText, i18n.language === 'en' && styles.langTextSelected]}>English</Text>
+              {i18n.language === 'en' && <Ionicons name="checkmark" size={18} color="#16a34a" />}
+            </TouchableOpacity>
+            <View style={styles.langDivider} />
+            <TouchableOpacity
+              style={[styles.langItem, i18n.language === 'ta' && styles.langItemSelected]}
+              onPress={() => i18n.changeLanguage('ta')}
+            >
+              <Text style={[styles.langText, i18n.language === 'ta' && styles.langTextSelected]}>தமிழ் (Tamil)</Text>
+              {i18n.language === 'ta' && <Ionicons name="checkmark" size={18} color="#16a34a" />}
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.section}>
           <TouchableOpacity style={styles.kycButton} activeOpacity={0.9} onPress={openKycModal}>
             <Ionicons name="document-text-outline" size={22} color="#374151" style={{ marginRight: 10 }} />
-            <Text style={styles.kycButtonText}>View My KYC Details</Text>
+            <Text style={styles.kycButtonText}>{t('profile.view_kyc')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -816,7 +843,7 @@ export default function DriverProfileScreen({ navigation }: any) {
             activeOpacity={0.9}
             onPress={() => { void handleLogout(); }}
           >
-            <Text style={styles.logoutButtonText}>Logout</Text>
+            <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1104,7 +1131,41 @@ const modalStyles = StyleSheet.create({
     borderBottomColor: '#f3f4f6',
   },
   kycLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  kycValue: { fontSize: 13, color: '#111827', fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
+    kycValue: { fontSize: 13, color: '#111827', fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
+
+  // Language Switcher Styles
+  languageCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: Theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+  langItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Theme.spacing.lg,
+    paddingHorizontal: Theme.spacing.lg,
+    backgroundColor: '#ffffff',
+  },
+  langItemSelected: {
+    backgroundColor: '#f0fdf4',
+  },
+  langText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  langTextSelected: {
+    color: '#16a34a',
+    fontWeight: '700',
+  },
+  langDivider: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
+    marginHorizontal: Theme.spacing.lg,
+  },
 });
 
 const kycTabStyles = StyleSheet.create({

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
@@ -9,6 +10,7 @@ import { kycApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function KYCIdentityVerificationScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [panNumber, setPanNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -16,17 +18,17 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
 
   const handleContinue = async () => {
     if (!aadhaarNumber || !panNumber) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('common.required_fields'));
       return;
     }
 
     if (aadhaarNumber.length !== 12) {
-      Alert.alert('Error', 'Aadhaar number must be 12 digits');
+      Alert.alert(t('common.error'), t('kyc.identity.invalid_aadhaar'));
       return;
     }
 
     if (panNumber.length !== 10) {
-      Alert.alert('Error', 'PAN number must be 10 characters');
+      Alert.alert(t('common.error'), t('kyc.identity.invalid_pan'));
       return;
     }
 
@@ -39,7 +41,7 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
       await refreshKycStatus();
       navigation.navigate('KYCPayoutSetup');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save identity verification');
+      Alert.alert(t('common.error'), e.message || t('kyc.identity.save_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +49,7 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={isLoading} message="Verifying identity details..." />
+      <LoadingOverlay visible={isLoading} message={t('kyc.identity.verifying')} />
       <View style={styles.header}>
         {navigation.canGoBack() ? (
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -56,12 +58,12 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
         ) : (
           <View style={styles.backButton} />
         )}
-        <Text style={styles.headerTitle}>Step 3 of 4</Text>
+        <Text style={styles.headerTitle}>{t('kyc.common.step', { current: 3, total: 4 })}</Text>
         <View style={{ width: 24 }} />
       </View>
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressText}>Identity Verification</Text>
+          <Text style={styles.progressText}>{t('kyc.overview.steps.identity.title')}</Text>
           <Text style={styles.progressPercent}>75%</Text>
         </View>
         <View style={styles.progressBarBg}>
@@ -70,13 +72,13 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Verify your identity</Text>
-        <Text style={styles.subtitle}>Enter your government-issued IDs for verification.</Text>
+        <Text style={styles.title}>{t('kyc.identity.title')}</Text>
+        <Text style={styles.subtitle}>{t('kyc.identity.subtitle')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Aadhaar Number"
-            placeholder="12 digit number"
+            label={t('kyc.identity.aadhaar_label')}
+            placeholder={t('kyc.identity.aadhaar_placeholder')}
             value={aadhaarNumber}
             onChangeText={setAadhaarNumber}
             keyboardType="numeric"
@@ -84,8 +86,8 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
           />
 
           <Input
-            label="PAN Number"
-            placeholder="10 character code"
+            label={t('kyc.identity.pan_label')}
+            placeholder={t('kyc.identity.pan_placeholder')}
             value={panNumber}
             onChangeText={setPanNumber}
             autoCapitalize="characters"
@@ -95,7 +97,7 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color={Theme.colors.primary} />
             <Text style={styles.infoText}>
-              Your ID information is encrypted and stored securely. It will only be used for verification purposes.
+              {t('kyc.identity.info_box')}
             </Text>
           </View>
         </View>
@@ -103,7 +105,7 @@ export default function KYCIdentityVerificationScreen({ navigation }: any) {
 
       <View style={styles.footer}>
         <Button
-          title={isLoading ? 'Verifying...' : 'Continue'}
+          title={isLoading ? t('common.verifying') : t('kyc.common.next')}
           onPress={handleContinue}
           disabled={!aadhaarNumber || !panNumber || isLoading}
         />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
@@ -9,6 +10,7 @@ import { kycApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function KYCPersonalDetailsScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -18,7 +20,7 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
 
   const handleContinue = async () => {
     if (!address || !city || !state || !pincode) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('common.required_fields'));
       return;
     }
 
@@ -33,7 +35,7 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
       await refreshKycStatus();
       navigation.navigate('KYCIdentityVerification');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save personal details');
+      Alert.alert(t('common.error'), e.message || t('kyc.personal.save_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -41,7 +43,7 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={isLoading} message="Saving personal details..." />
+      <LoadingOverlay visible={isLoading} message={t('kyc.personal.saving')} />
       <View style={styles.header}>
         {navigation.canGoBack() ? (
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -50,12 +52,12 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
         ) : (
           <View style={styles.backButton} />
         )}
-        <Text style={styles.headerTitle}>Step 2 of 4</Text>
+        <Text style={styles.headerTitle}>{t('kyc.common.step', { current: 2, total: 4 })}</Text>
         <View style={{ width: 24 }} />
       </View>
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressText}>Personal Details</Text>
+          <Text style={styles.progressText}>{t('kyc.overview.steps.personal.title')}</Text>
           <Text style={styles.progressPercent}>50%</Text>
         </View>
         <View style={styles.progressBarBg}>
@@ -64,20 +66,20 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Where do you live?</Text>
-        <Text style={styles.subtitle}>Enter your residential address for official records.</Text>
+        <Text style={styles.title}>{t('kyc.personal.title')}</Text>
+        <Text style={styles.subtitle}>{t('kyc.personal.subtitle')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Street Address"
-            placeholder="123 Main Street"
+            label={t('kyc.personal.address_label')}
+            placeholder={t('kyc.personal.address_placeholder')}
             value={address}
             onChangeText={setAddress}
           />
 
           <Input
-            label="City"
-            placeholder="New York"
+            label={t('kyc.personal.city_label')}
+            placeholder={t('kyc.personal.city_placeholder')}
             value={city}
             onChangeText={setCity}
           />
@@ -85,16 +87,16 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
           <View style={styles.row}>
             <View style={styles.halfWidth}>
               <Input
-                label="State"
-                placeholder="NY"
+                label={t('kyc.personal.state_label')}
+                placeholder={t('kyc.personal.state_placeholder')}
                 value={state}
                 onChangeText={setState}
               />
             </View>
             <View style={styles.halfWidth}>
               <Input
-                label="Pincode"
-                placeholder="10001"
+                label={t('kyc.personal.pincode_label')}
+                placeholder={t('kyc.personal.pincode_placeholder')}
                 value={pincode}
                 onChangeText={setPincode}
                 keyboardType="numeric"
@@ -106,7 +108,7 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
 
       <View style={styles.footer}>
         <Button
-          title={isLoading ? 'Saving...' : 'Continue'}
+          title={isLoading ? t('common.saving') : t('kyc.common.next')}
           onPress={handleContinue}
           disabled={!address || !city || !state || !pincode || isLoading}
         />

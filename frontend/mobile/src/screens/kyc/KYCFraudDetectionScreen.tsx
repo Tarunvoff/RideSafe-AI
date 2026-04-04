@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Animated,
@@ -33,6 +34,7 @@ const SLATE_900 = '#0f172a';
 const SLATE_100 = '#f1f5f9';
 
 export default function KYCFraudDetectionScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [riskScore, setRiskScore] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -61,15 +63,15 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
   const requestLocationPermission = async () => {
     try {
       if (!Location) {
-        setLocationError('Location services are unavailable on this device.');
+        setLocationError(t('kyc.fraud.location_unavailable'));
         setLocationReady(false);
         return;
       }
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocationError('Location permission is required for fraud detection.');
+        setLocationError(t('kyc.fraud.location_permission_required'));
         setLocationReady(false);
-        Alert.alert('Permission Denied', 'Location permission is required for fraud detection');
+        Alert.alert(t('kyc.fraud.permission_denied'), t('kyc.fraud.location_permission_required'));
         return;
       }
       setLocationError(null);
@@ -85,11 +87,11 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
     setIsLoading(true);
     try {
       if (!Location) {
-        throw new Error('Location services not available.');
+        throw new Error(t('kyc.fraud.location_unavailable'));
       }
 
       if (!locationReady) {
-        throw new Error(locationError || 'Location permission is required for fraud detection.');
+        throw new Error(locationError || t('kyc.fraud.location_permission_required'));
       }
       
       let latitude: number;
@@ -98,18 +100,18 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
         if (status !== 'granted') {
-          setLocationError('Location permission is required for fraud detection. Please enable it in settings.');
+          setLocationError(t('kyc.fraud.location_permission_required_settings'));
           setLocationReady(false);
-          throw new Error('Location permission is required for fraud detection. Please enable it in settings.');
+          throw new Error(t('kyc.fraud.location_permission_required_settings'));
         }
 
         const location = await Location.getCurrentPositionAsync({});
         latitude = location.coords.latitude;
         longitude = location.coords.longitude;
       } catch (locError: any) {
-        setLocationError(locError.message || 'Could not fetch device location. Please try again.');
+        setLocationError(locError.message || t('kyc.fraud.location_fetch_error'));
         setLocationReady(false);
-        throw new Error(locError.message || 'Could not fetch device location. Please try again.');
+        throw new Error(locError.message || t('kyc.fraud.location_fetch_error'));
       }
 
       setClaimedCoords({ lat: latitude, lng: longitude });
@@ -129,7 +131,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       setLocationError(null);
       setLocationReady(true);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to analyze fraud risk');
+      Alert.alert(t('common.error'), e.message || t('kyc.fraud.analyze_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +139,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
 
   const handleContinue = async () => {
     if (status === 'INCONCLUSIVE') {
-      Alert.alert('Manual Review Required', 'Your submission has been flagged for manual review. Our team will notify you within 24 hours.');
+      Alert.alert(t('kyc.fraud.manual_review_required'), t('kyc.fraud.manual_review_desc_alert'));
     }
     await refreshKycStatus();
     navigation.navigate('KYCSubmitted');
@@ -150,9 +152,9 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
   };
 
   const getRiskLabel = (score: number) => {
-    if (score < 30) return 'Low Risk';
-    if (score < 60) return 'Medium Risk';
-    return 'High Risk';
+    if (score < 30) return t('kyc.fraud.risk_levels.low');
+    if (score < 60) return t('kyc.fraud.risk_levels.medium');
+    return t('kyc.fraud.risk_levels.high');
   };
 
   const getStatusLabel = (score: number) => {
@@ -181,7 +183,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
         <View style={styles.mapLabel}>
           <Ionicons name="scan" size={14} color="#fff" />
           <Text style={styles.mapLabelText}>
-            {locationError ? 'Location required' : 'Awaiting GPS Lock…'}
+            {locationError ? t('kyc.fraud.location_required') : t('kyc.fraud.awaiting_lock')}
           </Text>
         </View>
       </View>
@@ -190,12 +192,12 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
           <View style={styles.locationErrorCard}>
             <Ionicons name="location-outline" size={18} color={AMBER} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.locationErrorTitle}>Location needed</Text>
+              <Text style={styles.locationErrorTitle}>{t('kyc.fraud.location_needed_title')}</Text>
               <Text style={styles.locationErrorText}>{locationError}</Text>
             </View>
             <TouchableOpacity style={styles.locationRetryBtn} onPress={requestLocationPermission}>
               <Ionicons name="refresh" size={14} color={SLATE_900} />
-              <Text style={styles.locationRetryText}>Retry</Text>
+              <Text style={styles.locationRetryText}>{t('kyc.fraud.retry')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -204,26 +206,26 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       <View style={styles.sessionCard}>
         <View style={styles.sessionRow}>
           <Ionicons name="time-outline" size={16} color={SLATE_500} />
-          <Text style={styles.sessionLabel}>Session ID</Text>
+          <Text style={styles.sessionLabel}>{t('kyc.fraud.session_id')}</Text>
           <Text style={styles.sessionValue}>#TRX-9920-X1</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.sessionRow}>
           <Ionicons name="warning-outline" size={16} color={AMBER} />
-          <Text style={styles.sessionLabel}>Status</Text>
+          <Text style={styles.sessionLabel}>{t('common.status')}</Text>
           <View style={styles.statusPill}>
-            <Text style={styles.statusPillText}>PENDING SCAN</Text>
+            <Text style={styles.statusPillText}>{t('kyc.fraud.pending_scan')}</Text>
           </View>
         </View>
       </View>
 
       {/* Device checks */}
-      <Text style={styles.sectionTitle}>Security Checks</Text>
+      <Text style={styles.sectionTitle}>{t('kyc.fraud.security_checks')}</Text>
       <View style={styles.checksCard}>
         {[
-          { icon: 'phone-portrait-outline', label: 'Device Integrity', value: deviceIntegrity, color: Theme.colors.primary },
-          { icon: 'wifi-outline', label: 'Network Type', value: networkType, color: Theme.colors.primary },
-          { icon: 'checkmark-circle-outline', label: 'Velocity Check', value: velocityCheck, color: GREEN },
+          { icon: 'phone-portrait-outline', label: t('kyc.fraud.factors.integrity'), value: deviceIntegrity, color: Theme.colors.primary },
+          { icon: 'wifi-outline', label: t('kyc.fraud.factors.network'), value: networkType, color: Theme.colors.primary },
+          { icon: 'checkmark-circle-outline', label: t('kyc.fraud.factors.velocity'), value: velocityCheck, color: GREEN },
         ].map((item, i) => (
           <View key={item.label} style={[styles.checkRow, i < 2 ? styles.checkRowBorder : null]}>
             <View style={styles.checkIcon}>
@@ -238,7 +240,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       <View style={styles.infoBox}>
         <Ionicons name="information-circle" size={20} color={Theme.colors.primary} />
         <Text style={styles.infoText}>
-          We analyze GPS signal integrity, device tampering indicators, and network anomalies to detect spoofing in real-time.
+          {t('kyc.fraud.info_box')}
         </Text>
       </View>
     </>
@@ -358,7 +360,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
         </View>
 
         {/* Detection Signals */}
-        <Text style={styles.sectionTitle}>Detection Signals</Text>
+        <Text style={styles.sectionTitle}>{t('kyc.fraud.detection_signals')}</Text>
         <View style={styles.signalsGrid}>
           {signals.length > 0 ? (
             signals.map((sig, i) => (
@@ -377,13 +379,13 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
           ) : (
             <View style={styles.signalEmpty}>
               <Ionicons name="alert-circle-outline" size={18} color={SLATE_500} />
-              <Text style={styles.signalEmptyText}>No signal breakdown returned yet.</Text>
+              <Text style={styles.signalEmptyText}>{t('kyc.fraud.no_signals')}</Text>
             </View>
           )}
         </View>
 
         {/* Historical Timeline */}
-        <Text style={styles.sectionTitle}>Risk Timeline</Text>
+        <Text style={styles.sectionTitle}>{t('kyc.fraud.risk_timeline')}</Text>
         <View style={styles.timelineCard}>
           <View style={styles.timelineTrack}>
             <View style={styles.timelineLine} />
@@ -408,15 +410,15 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
           <View style={styles.reviewNotice}>
             <Ionicons name="time" size={20} color={AMBER} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.reviewTitle}>Manual Review Required</Text>
-              <Text style={styles.reviewDesc}>GPS signals exhibit inconsistent timing offsets that require human verification.</Text>
+              <Text style={styles.reviewTitle}>{t('kyc.fraud.manual_review_required')}</Text>
+              <Text style={styles.reviewDesc}>{t('kyc.fraud.manual_review_desc')}</Text>
             </View>
           </View>
         )}
 
         {analysisDetails.length > 0 && (
           <View style={styles.riskFactorsCard}>
-            <Text style={styles.sectionTitle}>Risk Factors</Text>
+            <Text style={styles.sectionTitle}>{t('kyc.fraud.risk_factors')}</Text>
             {analysisDetails.map((d, i) => (
               <View key={i} style={styles.riskFactor}>
                 <Ionicons name="alert-circle" size={14} color={RED} />
@@ -431,7 +433,7 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={isLoading} message="Running fraud signal analysis..." />
+      <LoadingOverlay visible={isLoading} message={t('kyc.fraud.analyzing')} />
       {/* Header */}
       <View style={styles.header}>
         {navigation.canGoBack() ? (
@@ -465,16 +467,16 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
       <View style={styles.footer}>
         {riskScore === null ? (
           <Button
-            title={isLoading ? 'Scanning…' : locationReady ? 'Analyze Device' : 'Enable Location to Continue'}
+            title={isLoading ? t('common.scanning') : locationReady ? t('kyc.fraud.analyze_button') : t('kyc.fraud.enable_location')}
             onPress={handleAnalyze}
             disabled={isLoading || !locationReady}
           />
         ) : (
           <>
-            <Button title="Continue to Submission" onPress={handleContinue} />
+            <Button title={t('kyc.fraud.continue_button')} onPress={handleContinue} />
             <TouchableOpacity style={styles.reanalyzeBtn} onPress={() => setRiskScore(null)}>
               <Ionicons name="refresh" size={16} color={SLATE_500} />
-              <Text style={styles.reanalyzeBtnText}>Re-analyze</Text>
+              <Text style={styles.reanalyzeBtnText}>{t('kyc.fraud.reanalyze')}</Text>
             </TouchableOpacity>
           </>
         )}

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { Animated, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -9,12 +10,13 @@ import { plansApi, policyApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function PolicyScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [policy, setPolicy] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState('Updating policy...');
+  const [actionMessage, setActionMessage] = useState(t('policy.updating'));
 
   const driverId = user?.id ?? null;
   const hasPolicy = !!policy;
@@ -46,17 +48,17 @@ export default function PolicyScreen({ navigation }: any) {
 
   const doCancelPolicy = async () => {
     if (!driverId) {
-      Alert.alert('Unable to cancel', 'Missing driver identity. Please log in again.');
+      Alert.alert(t('policy.unable_cancel'), t('common.please_login_again'));
       return;
     }
-    setActionMessage('Cancelling policy...');
+    setActionMessage(t('policy.cancelling'));
     setActionLoading(true);
     try {
       await policyApi.cancel(String(driverId), 'Cancelled from mobile policy screen');
       await loadPolicy();
-      Alert.alert('Policy cancelled', 'Your current policy has been cancelled successfully.');
+      Alert.alert(t('policy.cancelled_title'), t('policy.cancelled_desc'));
     } catch (e: any) {
-      Alert.alert('Cancel failed', e?.message ?? 'Could not cancel policy right now.');
+      Alert.alert(t('policy.cancel_failed'), e?.message ?? t('policy.unable_cancel_now'));
     } finally {
       setActionLoading(false);
     }
@@ -64,17 +66,17 @@ export default function PolicyScreen({ navigation }: any) {
 
   const doRenewPolicy = async () => {
     if (!driverId) {
-      Alert.alert('Unable to renew', 'Missing driver identity. Please log in again.');
+      Alert.alert(t('policy.unable_renew'), t('common.please_login_again'));
       return;
     }
-    setActionMessage('Renewing policy...');
+    setActionMessage(t('policy.renewing'));
     setActionLoading(true);
     try {
       await policyApi.renew(String(driverId));
       await loadPolicy();
-      Alert.alert('Policy renewed', 'Your policy has been renewed successfully.');
+      Alert.alert(t('policy.renewed_title'), t('policy.renewed_desc'));
     } catch (e: any) {
-      Alert.alert('Renew failed', e?.message ?? 'Could not renew policy right now.');
+      Alert.alert(t('policy.renew_failed'), e?.message ?? t('policy.unable_renew_now'));
     } finally {
       setActionLoading(false);
     }
@@ -82,22 +84,22 @@ export default function PolicyScreen({ navigation }: any) {
 
   const onPressCancelPolicy = () => {
     Alert.alert(
-      'Cancel Policy',
-      'Are you sure you want to cancel your current policy?',
+      t('policy.cancel_confirm_title'),
+      t('policy.cancel_confirm_desc'),
       [
-        { text: 'No', style: 'cancel' },
-        { text: 'Yes, Cancel', style: 'destructive', onPress: () => void doCancelPolicy() },
+        { text: t('common.no'), style: 'cancel' },
+        { text: t('common.yes_cancel'), style: 'destructive', onPress: () => void doCancelPolicy() },
       ],
     );
   };
 
   const onPressRenewPolicy = () => {
     Alert.alert(
-      'Renew Policy',
-      'Do you want to renew your policy now?',
+      t('policy.renew_confirm_title'),
+      t('policy.renew_confirm_desc'),
       [
-        { text: 'Not Now', style: 'cancel' },
-        { text: 'Renew', onPress: () => void doRenewPolicy() },
+        { text: t('common.not_now'), style: 'cancel' },
+        { text: t('common.renew'), onPress: () => void doRenewPolicy() },
       ],
     );
   };
@@ -129,12 +131,12 @@ export default function PolicyScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
-      <LoadingOverlay visible={loading || actionLoading} message={actionLoading ? actionMessage : 'Loading policy details...'} />
+      <LoadingOverlay visible={loading || actionLoading} message={actionLoading ? actionMessage : t('policy.loading')} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
-          <Text style={styles.heroTitle}>Aegis Protection</Text>
-          <Text style={styles.heroDesc}>{hasPolicy ? 'Secure your income and liability in one tap' : 'Activate protection to unlock automated claim support'}</Text>
+          <Text style={styles.heroTitle}>{t('policy.hero_title')}</Text>
+          <Text style={styles.heroDesc}>{hasPolicy ? t('policy.hero_desc_active') : t('policy.hero_desc_inactive')}</Text>
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.refreshBtn}
@@ -142,7 +144,7 @@ export default function PolicyScreen({ navigation }: any) {
             disabled={loading || actionLoading}
           >
             <Ionicons name="refresh-outline" size={15} color="#14532d" />
-            <Text style={styles.refreshBtnText}>Refresh Policy</Text>
+            <Text style={styles.refreshBtnText}>{t('policy.refresh_btn')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -150,17 +152,17 @@ export default function PolicyScreen({ navigation }: any) {
           <View style={styles.planCard}>
             <View style={styles.planImage}>
               <Ionicons name="shield-checkmark" size={32} color="#16a34a" />
-              <Text style={styles.planImageText}>{hasPolicy ? 'Protection Active' : 'Protection Inactive'}</Text>
+              <Text style={styles.planImageText}>{hasPolicy ? t('policy.status_active') : t('policy.status_inactive')}</Text>
             </View>
             <View style={styles.planContent}>
               <View style={styles.planBadge}>
-                <Text style={styles.planBadgeText}>{policy?.plan?.key ?? 'NO PLAN'}</Text>
+                <Text style={styles.planBadgeText}>{policy?.plan?.key ?? t('policy.no_plan')}</Text>
               </View>
-              <Text style={styles.planTitle}>{policy?.plan?.name ?? 'No active plan'}</Text>
+              <Text style={styles.planTitle}>{policy?.plan?.name ?? t('policy.no_active_plan')}</Text>
               
               <View style={styles.planPriceBox}>
-                <Text style={styles.planPrice}>₹{Number(policy?.plan?.price ?? 0).toLocaleString('en-IN')} <Text style={styles.planPricePeriod}>/ week</Text></Text>
-                <Text style={styles.planDesc}>Weekly protection with auto-claim payouts during verified disruptions.</Text>
+                <Text style={styles.planPrice}>₹{Number(policy?.plan?.price ?? 0).toLocaleString('en-IN')} <Text style={styles.planPricePeriod}>/ {t('common.week')}</Text></Text>
+                <Text style={styles.planDesc}>{t('policy.weekly_protection_desc')}</Text>
               </View>
             </View>
           </View>
@@ -169,12 +171,12 @@ export default function PolicyScreen({ navigation }: any) {
         {hasPolicy ? (
           <>
             <View style={styles.summarySection}>
-              <Text style={styles.sectionTitle}>Plan Summary</Text>
+              <Text style={styles.sectionTitle}>{t('policy.summary_title')}</Text>
 
               <View style={styles.summaryRow}>
                 <View style={styles.summaryLabelRow}>
                   <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />
-                  <Text style={styles.summaryLabel}>Coverage Limit</Text>
+                  <Text style={styles.summaryLabel}>{t('policy.coverage_limit')}</Text>
                 </View>
                 <Text style={styles.summaryValue}>₹{Number(policy?.plan?.maxPayout ?? 0).toLocaleString('en-IN')}</Text>
               </View>
@@ -182,7 +184,7 @@ export default function PolicyScreen({ navigation }: any) {
               <View style={styles.summaryRow}>
                 <View style={styles.summaryLabelRow}>
                   <Ionicons name="wallet" size={20} color={Theme.colors.primary} />
-                  <Text style={styles.summaryLabel}>Deductible</Text>
+                  <Text style={styles.summaryLabel}>{t('policy.deductible')}</Text>
                 </View>
                 <Text style={styles.summaryValue}>₹0</Text>
               </View>
@@ -190,7 +192,7 @@ export default function PolicyScreen({ navigation }: any) {
               <View style={styles.summaryRow}>
                 <View style={styles.summaryLabelRow}>
                   <Ionicons name="calendar" size={20} color={Theme.colors.primary} />
-                  <Text style={styles.summaryLabel}>Next Billing</Text>
+                  <Text style={styles.summaryLabel}>{t('policy.next_billing')}</Text>
                 </View>
                 <Text style={styles.summaryValue}>{policy?.endDate ? new Date(policy.endDate).toLocaleDateString() : '—'}</Text>
               </View>
@@ -200,8 +202,8 @@ export default function PolicyScreen({ navigation }: any) {
               <View style={styles.autoClaimBox}>
                 <Ionicons name="checkmark-circle" size={24} color={Theme.colors.primary} style={{ marginTop: 2, marginRight: 12 }} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.autoClaimTitle}>Auto-Claim Monitoring Active</Text>
-                  <Text style={styles.autoClaimDesc}>We'll automatically detect platform deactivations or accidents through your linked accounts and start your claim process instantly.</Text>
+                  <Text style={styles.autoClaimTitle}>{t('policy.auto_claim_title')}</Text>
+                  <Text style={styles.autoClaimDesc}>{t('policy.auto_claim_desc')}</Text>
                 </View>
               </View>
             </View>
@@ -210,8 +212,8 @@ export default function PolicyScreen({ navigation }: any) {
           <View style={styles.emptyStateCard}>
             <Ionicons name="information-circle-outline" size={22} color="#15803d" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.emptyStateTitle}>No active policy found</Text>
-              <Text style={styles.emptyStateSub}>Purchase a weekly plan to enable payout coverage and automated claim handling.</Text>
+              <Text style={styles.emptyStateTitle}>{t('policy.no_active_policy')}</Text>
+              <Text style={styles.emptyStateSub}>{t('policy.no_active_policy_sub')}</Text>
             </View>
           </View>
         )}
@@ -227,7 +229,7 @@ export default function PolicyScreen({ navigation }: any) {
                   activeOpacity={0.85}
                 >
                   <Ionicons name="close-circle-outline" size={18} color="#b91c1c" />
-                  <Text style={styles.cancelBtnText}>Cancel Policy</Text>
+                  <Text style={styles.cancelBtnText}>{t('policy.cancel_btn')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -237,12 +239,12 @@ export default function PolicyScreen({ navigation }: any) {
                   activeOpacity={0.85}
                 >
                   <Ionicons name="refresh-outline" size={18} color="#166534" />
-                  <Text style={styles.renewBtnText}>Renew Policy</Text>
+                  <Text style={styles.renewBtnText}>{t('policy.renew_btn')}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.sliderTrack}>
-                <Text style={styles.sliderText}>SLIDE TO DASHBOARD</Text>
+                <Text style={styles.sliderText}>{t('policy.slide_to_dashboard')}</Text>
                 <Animated.View {...panResponder.panHandlers} style={[styles.sliderThumb, { transform: [{ translateX: slideAnim }] }]}> 
                   <Ionicons name="chevron-forward" size={24} color="#fff" />
                   <Ionicons name="chevron-forward" size={24} color="#fff" style={{ marginLeft: -12 }} />
@@ -250,15 +252,15 @@ export default function PolicyScreen({ navigation }: any) {
               </View>
 
               <TouchableOpacity style={styles.activateBtn} onPress={goToDashboard}>
-                <Text style={styles.activateBtnText}>Back To Dashboard</Text>
+                <Text style={styles.activateBtnText}>{t('policy.back_to_dashboard')}</Text>
               </TouchableOpacity>
             </>
           ) : (
             <TouchableOpacity style={styles.activateBtn} onPress={goToPlans}>
-              <Text style={styles.activateBtnText}>Browse Plans</Text>
+              <Text style={styles.activateBtnText}>{t('policy.browse_plans')}</Text>
             </TouchableOpacity>
           )}
-          <Text style={styles.termsText}>BY CONTINUING, YOU AGREE TO OUR TERMS OF SERVICE</Text>
+          <Text style={styles.termsText}>{t('policy.terms_agree_hint')}</Text>
         </View>
 
       </ScrollView>

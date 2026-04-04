@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import i18n from '../i18n';
 import { authApi, kycApi } from '../services/api';
 import { useLocation } from './LocationContext';
 
@@ -105,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedName = await AsyncStorage.getItem('driverName');
     
     if (!res?.driverId) {
-      throw new Error('Driver identity not found. Please re-authenticate.');
+      throw new Error(i18n.t('auth.errors.reauthenticate'));
     }
 
     await AsyncStorage.multiSet([
@@ -136,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const role = (res.role || 'DRIVER') as 'DRIVER' | 'ADMIN';
 
     if (role === 'DRIVER' && !res?.driverId) {
-      throw new Error('Driver identity not found. Please sign in again.');
+      throw new Error(i18n.t('auth.errors.driver_not_found'));
     }
 
     await AsyncStorage.multiSet([
@@ -171,11 +172,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const email = res.email;
 
     if (!email) {
-      throw new Error('Missing email from provider. Please try again.');
+      throw new Error(i18n.t('auth.errors.missing_email'));
     }
 
     if (role === 'DRIVER' && !res?.driverId) {
-      throw new Error('Driver identity not found. Please sign in again.');
+      throw new Error(i18n.t('auth.errors.driver_not_found'));
     }
 
     await AsyncStorage.multiSet([

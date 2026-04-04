@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Modal,
   Pressable,
@@ -23,6 +24,7 @@ export default function DriverLogoutMenu({
   onClose,
   onLogout,
 }: DriverLogoutMenuProps) {
+  const { t } = useTranslation();
   return (
     <Modal
       visible={visible}
@@ -40,7 +42,7 @@ export default function DriverLogoutMenu({
         >
           <View style={styles.profileMenuHeader}>
             <Text style={styles.profileMenuEmail} numberOfLines={1}>
-              {userEmail || 'Driver'}
+              {userEmail || t('common.driver')}
             </Text>
           </View>
           <TouchableOpacity
@@ -53,7 +55,7 @@ export default function DriverLogoutMenu({
               size={20}
               color="#ef4444"
             />
-            <Text style={styles.profileMenuTextLogout}>Log Out</Text>
+            <Text style={styles.profileMenuTextLogout}>{t('profile.logout')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

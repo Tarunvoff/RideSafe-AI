@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
@@ -10,6 +11,7 @@ import { useLocation } from '../../context/LocationContext';
 // react-native-svg removed — using pure RN ring
 
 export default function RiskScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { location, refreshLocation } = useLocation();
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
@@ -46,8 +48,8 @@ export default function RiskScreen({ navigation }: any) {
   const riskScore = Math.round(Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5) * 100);
   const locationBlocked = !hasValidLocation && !location.loading;
   const riskLabel = locationBlocked
-    ? 'LOCATION REQUIRED'
-    : riskScore >= 70 ? 'HIGH RISK' : riskScore >= 40 ? 'MODERATE RISK' : 'LOW RISK';
+    ? t('dashboard.loc_required_upper')
+    : riskScore >= 70 ? t('dashboard.high_risk_upper') : riskScore >= 40 ? t('dashboard.mod_risk_upper') : t('dashboard.low_risk_upper');
   const weatherSafe = Math.max(0, 100 - Math.round(Number(zoneRisk?.rainfall ?? 0)));
   const densitySafe = Math.max(0, 100 - Math.round(Number(zoneRisk?.active_riders ?? 0)));
   const platformSafe = Math.max(0, 100 - Math.round(riskScore / 2));
@@ -55,16 +57,16 @@ export default function RiskScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
-      <LoadingOverlay visible={loading} message="Analyzing zone risk..." />
+      <LoadingOverlay visible={loading} message={t('dashboard.analyzing_risk')} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {locationBlocked && (
           <View style={styles.locationNotice}>
             <Ionicons name="location-outline" size={18} color={Theme.colors.primary} />
-            <Text style={styles.locationNoticeText}>Enable GPS to load live risk signals.</Text>
+            <Text style={styles.locationNoticeText}>{t('dashboard.enable_gps_risk')}</Text>
             <TouchableOpacity style={styles.locationNoticeBtn} onPress={() => void refreshLocation()}>
               <Ionicons name="refresh" size={14} color="#0f172a" />
-              <Text style={styles.locationNoticeBtnText}>Retry</Text>
+              <Text style={styles.locationNoticeBtnText}>{t('common.recheck')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -75,7 +77,7 @@ export default function RiskScreen({ navigation }: any) {
             <View style={styles.ringOuter}>
               <View style={styles.ringInner}>
                 <Text style={styles.scoreValue}>{riskScore}</Text>
-                <Text style={styles.scoreLabel}>out of 100</Text>
+                <Text style={styles.scoreLabel}>{t('dashboard.out_of_100')}</Text>
               </View>
             </View>
           </View>
@@ -85,27 +87,27 @@ export default function RiskScreen({ navigation }: any) {
           </View>
 
           <Text style={styles.heroDesc}>
-            Your risk score is calculated based on real-time data from your active zones and platform metrics.
+            {t('dashboard.risk_hero_desc')}
           </Text>
         </View>
 
         {/* Factors Breakdown */}
         <View style={styles.factorsSection}>
-          <Text style={styles.sectionTitle}>Risk Factors Breakdown</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.risk_factors_breakdown')}</Text>
           
           {/* Factor 1 */}
           <View style={styles.factorCard}>
             <View style={styles.factorHeader}>
               <View style={styles.factorTitleRow}>
                 <Ionicons name="partly-sunny" size={20} color={Theme.colors.primary} />
-                <Text style={styles.factorTitle}>Historical Weather</Text>
+                <Text style={styles.factorTitle}>{t('dashboard.historical_weather')}</Text>
               </View>
-              <Text style={styles.factorScore}>{weatherSafe}% Safe</Text>
+              <Text style={styles.factorScore}>{t('dashboard.safe_percentage', { percent: weatherSafe })}</Text>
             </View>
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { width: `${weatherSafe}%` }]} />
             </View>
-            <Text style={styles.factorDesc}>Based on recent rainfall and road conditions in your active zone.</Text>
+            <Text style={styles.factorDesc}>{t('dashboard.weather_desc')}</Text>
           </View>
 
           {/* Factor 2 */}
@@ -113,14 +115,14 @@ export default function RiskScreen({ navigation }: any) {
             <View style={styles.factorHeader}>
               <View style={styles.factorTitleRow}>
                 <Ionicons name="git-network-outline" size={20} color={Theme.colors.primary} />
-                <Text style={styles.factorTitle}>Zone Density</Text>
+                <Text style={styles.factorTitle}>{t('dashboard.zone_density')}</Text>
               </View>
-              <Text style={styles.factorScore}>{densitySafe}% Safe</Text>
+              <Text style={styles.factorScore}>{t('dashboard.safe_percentage', { percent: densitySafe })}</Text>
             </View>
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { width: `${densitySafe}%` }]} />
             </View>
-            <Text style={styles.factorDesc}>Zone density and congestion signals from active riders.</Text>
+            <Text style={styles.factorDesc}>{t('dashboard.density_desc')}</Text>
           </View>
 
           {/* Factor 3 */}
@@ -128,14 +130,14 @@ export default function RiskScreen({ navigation }: any) {
             <View style={styles.factorHeader}>
               <View style={styles.factorTitleRow}>
                 <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />
-                <Text style={styles.factorTitle}>Platform Reliability</Text>
+                <Text style={styles.factorTitle}>{t('dashboard.platform_reliability')}</Text>
               </View>
-              <Text style={styles.factorScore}>{platformSafe}% Safe</Text>
+              <Text style={styles.factorScore}>{t('dashboard.safe_percentage', { percent: platformSafe })}</Text>
             </View>
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { width: `${platformSafe}%` }]} />
             </View>
-            <Text style={styles.factorDesc}>Derived from platform stability and real-time risk signals.</Text>
+            <Text style={styles.factorDesc}>{t('dashboard.platform_desc')}</Text>
           </View>
         </View>
 
@@ -145,9 +147,9 @@ export default function RiskScreen({ navigation }: any) {
             <View style={styles.premiumRow}>
               <Ionicons name="cash-outline" size={24} color={Theme.colors.primary} style={{ marginTop: 2 }} />
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.premiumTitle}>Impact on Premium</Text>
+                <Text style={styles.premiumTitle}>{t('dashboard.impact_premium')}</Text>
                 <Text style={styles.premiumDesc}>
-                  Since your risk score is <Text style={{ fontWeight: 'bold', color: Theme.colors.primary }}>{riskScore}</Text>, your risk multiplier is <Text style={{ fontWeight: 'bold', color: Theme.colors.text }}>{premiumHint}</Text>. Staying in stable zones keeps your premium lower.
+                  {t('dashboard.premium_multiplier_desc', { score: riskScore, multiplier: premiumHint })}
                 </Text>
               </View>
             </View>

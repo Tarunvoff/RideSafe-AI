@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
@@ -9,15 +10,16 @@ const STEP_STATUS_CURRENT = 'current' as const;
 const STEP_STATUS_PENDING = 'pending' as const;
 
 export default function KYCProgressOverviewScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { logout } = useAuth();
 
   const steps = [
-    { title: 'Personal Details', desc: 'Full name, DOB, and contact', icon: 'person' as const, status: STEP_STATUS_CURRENT },
-    { title: 'Residential Address', desc: 'Current proof of residence', icon: 'location' as const, status: 'pending' },
-    { title: 'Identity Verification', desc: 'Passport or Driving License', icon: 'id-card' as const, status: 'pending' },
-    { title: 'Liveness Check', desc: 'Take a quick selfie', icon: 'camera' as const, status: 'pending' },
-    { title: 'Payout Setup', desc: 'Bank account for earnings', icon: 'business' as const, status: 'pending' },
-    { title: 'Final Review', desc: 'Pending submission', icon: 'clipboard' as const, status: 'pending' },
+    { title: t('kyc.overview.steps.personal.title'), desc: t('kyc.overview.steps.personal.desc'), icon: 'person' as const, status: STEP_STATUS_CURRENT },
+    { title: t('kyc.overview.steps.address.title'), desc: t('kyc.overview.steps.address.desc'), icon: 'location' as const, status: 'pending' },
+    { title: t('kyc.overview.steps.identity.title'), desc: t('kyc.overview.steps.identity.desc'), icon: 'id-card' as const, status: 'pending' },
+    { title: t('kyc.overview.steps.liveness.title'), desc: t('kyc.overview.steps.liveness.desc'), icon: 'camera' as const, status: 'pending' },
+    { title: t('kyc.overview.steps.payout.title'), desc: t('kyc.overview.steps.payout.desc'), icon: 'business' as const, status: 'pending' },
+    { title: t('kyc.overview.steps.final.title'), desc: t('kyc.overview.steps.final.desc'), icon: 'clipboard' as const, status: 'pending' },
   ];
 
   return (
@@ -32,7 +34,7 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
             <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
           </TouchableOpacity>
         )}
-        <Text style={styles.headerTitle}>Verification Progress</Text>
+        <Text style={styles.headerTitle}>{t('kyc.overview.header')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -40,8 +42,8 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View>
-              <Text style={styles.cardTitle}>Overall Progress</Text>
-              <Text style={styles.cardSubtitle}>Not started yet</Text>
+              <Text style={styles.cardTitle}>{t('kyc.overview.title')}</Text>
+              <Text style={styles.cardSubtitle}>{t('kyc.overview.not_started')}</Text>
             </View>
             <Text style={styles.cardPercent}>0%</Text>
           </View>
@@ -78,23 +80,21 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
         <View style={styles.secureNotice}>
           <Ionicons name="lock-closed" size={20} color={Theme.colors.primary} />
           <Text style={styles.secureText}>
-            Your data is encrypted and stored securely. We only use this information for identity verification purposes and to ensure the safety of the Aegis community.
+            {t('kyc.overview.secure_box')}
           </Text>
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
         <Button 
-          title="Start Verification" 
+          title={t('kyc.overview.start_verify')} 
           onPress={() => navigation.navigate('KYCBasicIdentity')} 
         />
         <Button 
-          title="Save and continue later" 
+          title={t('kyc.overview.save_later')} 
           variant="outline"
           onPress={() => { if (navigation.canGoBack()) navigation.goBack(); else logout(); }} 
           style={{ marginTop: Theme.spacing.sm, borderWidth: 2 }}
         />
-      </View>
     </SafeAreaView>
   );
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import './src/i18n';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Text } from 'react-native';

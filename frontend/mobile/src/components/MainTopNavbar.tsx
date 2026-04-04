@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Theme } from '../theme';
 
@@ -9,6 +9,7 @@ type MainTopNavbarProps = {
 };
 
 export default function MainTopNavbar({ onProfilePress, onNotificationPress }: MainTopNavbarProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.header}>
       <Image
@@ -16,7 +17,7 @@ export default function MainTopNavbar({ onProfilePress, onNotificationPress }: M
         style={styles.headerBrandIcon}
         resizeMode="contain"
       />
-      <Text style={styles.headerTitle}>Aegis</Text>
+      <Text style={styles.headerTitle}>{t('common.app_name')}</Text>
       <View style={styles.headerActions}>
         {onNotificationPress ? (
           <TouchableOpacity style={styles.iconBtn} onPress={onNotificationPress}>

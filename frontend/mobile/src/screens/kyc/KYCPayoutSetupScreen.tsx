@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -9,6 +10,7 @@ import { kycApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function KYCPayoutSetupScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const [method, setMethod] = useState('UPI');
   const [upiId, setUpiId] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -19,12 +21,12 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
 
   const handleContinue = async () => {
     if (method === 'UPI' && !upiId) {
-      Alert.alert('Error', 'Please enter your UPI ID');
+      Alert.alert(t('common.error'), t('kyc.payout.enter_upi'));
       return;
     }
 
     if (method === 'BANK' && (!accountNumber || !ifscCode || !accountHolder)) {
-      Alert.alert('Error', 'Please fill in all bank details');
+      Alert.alert(t('common.error'), t('kyc.payout.fill_bank'));
       return;
     }
 
@@ -37,7 +39,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
       await refreshKycStatus();
       navigation.navigate('KYCFraudDetection');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save payout setup');
+      Alert.alert(t('common.error'), e.message || t('kyc.payout.save_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +47,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={isLoading} message="Saving payout method..." />
+      <LoadingOverlay visible={isLoading} message={t('kyc.payout.saving')} />
       <View style={styles.header}>
         {navigation.canGoBack() ? (
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -54,12 +56,12 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
         ) : (
           <View style={styles.backButton} />
         )}
-        <Text style={styles.headerTitle}>Step 4 of 4</Text>
+        <Text style={styles.headerTitle}>{t('kyc.common.step', { current: 4, total: 4 })}</Text>
         <View style={{ width: 24 }} />
       </View>
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressText}>Payout Method</Text>
+          <Text style={styles.progressText}>{t('kyc.overview.steps.payout.title')}</Text>
           <Text style={styles.progressPercent}>100%</Text>
         </View>
         <View style={styles.progressBarBg}>
@@ -68,8 +70,8 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>How do you want to get paid?</Text>
-        <Text style={styles.subtitle}>Choose where your weekly earnings will be sent.</Text>
+        <Text style={styles.title}>{t('kyc.payout.title')}</Text>
+        <Text style={styles.subtitle}>{t('kyc.payout.subtitle')}</Text>
 
         <View style={styles.tabsRow}>
           <TouchableOpacity
@@ -90,33 +92,33 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
           {method === 'UPI' ? (
             <View>
               <Input
-                label="UPI ID"
-                placeholder="yourname@gpay"
+                label={t('kyc.payout.upi_label')}
+                placeholder={t('kyc.payout.upi_placeholder')}
                 value={upiId}
                 onChangeText={setUpiId}
               />
               <Text style={styles.helperText}>
-                Find it in your GPay, PhonePe, or Paytm app under Settings → Profile → UPI ID
+                {t('kyc.payout.upi_helper')}
               </Text>
             </View>
           ) : (
             <View>
               <Input
-                label="Account Holder Name"
-                placeholder="Your Name"
+                label={t('kyc.payout.bank_holder_label')}
+                placeholder={t('common.full_name')}
                 value={accountHolder}
                 onChangeText={setAccountHolder}
               />
               <Input
-                label="Account Number"
+                label={t('kyc.payout.bank_account_label')}
                 placeholder="1234567890123456"
                 value={accountNumber}
                 onChangeText={setAccountNumber}
                 keyboardType="numeric"
               />
               <Input
-                label="IFSC Code"
-                placeholder="SBIN0001234"
+                label={t('kyc.payout.bank_ifsc_label')}
+                placeholder="ABCD0123456"
                 value={ifscCode}
                 onChangeText={setIfscCode}
                 autoCapitalize="characters"
@@ -127,7 +129,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
           <View style={styles.secureNotice}>
             <Ionicons name="shield-checkmark" size={20} color={Theme.colors.success} />
             <Text style={styles.secureText}>
-              Your bank details are encrypted and processed securely every Tuesday at 9 AM.
+              {t('kyc.payout.secure_notice')}
             </Text>
           </View>
         </View>
@@ -135,7 +137,7 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
 
       <View style={styles.footer}>
         <Button
-          title={isLoading ? 'Saving...' : 'Finish & Submit'}
+          title={isLoading ? t('common.saving') : t('common.finish_submit')}
           onPress={handleContinue}
           disabled={isLoading || (method === 'UPI' && !upiId) || (method === 'BANK' && (!accountNumber || !ifscCode || !accountHolder))}
         />

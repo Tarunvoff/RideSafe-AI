@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import AuthCard from '../../components/AuthCard';
 import Button from '../../components/Button';
@@ -9,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
 export default function DriverOTPScreen({ navigation, route }: any) {
+  const { t } = useTranslation();
   const { email, provider, redirectUri } = route?.params ?? {};
   const { verifyDriverOtp, loginWithOAuth } = useAuth();
 
@@ -54,7 +57,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
   const handleVerify = async () => {
     const fullCode = code.join('');
     if (fullCode.length < 6) {
-      setError('Please enter the 6-digit code.');
+      setError(t('auth.otp.error_missing'));
       return;
     }
     setLoading(true);
@@ -71,14 +74,14 @@ export default function DriverOTPScreen({ navigation, route }: any) {
       if (result.type === 'cancel') {
         setLoading(false);
         setSuccess(false);
-        Alert.alert('Login Cancelled', 'You cancelled the login process.');
+        Alert.alert(t('common.login_cancelled'), t('common.login_cancelled_msg'));
         return;
       }
 
       if (result.type !== 'success' || !result.url) {
         const message = result.type === 'dismiss'
-          ? 'Login was dismissed. Please try again.'
-          : 'OAuth provider exchange failed.';
+          ? t('common.dismissed_msg')
+          : t('common.oauth_failed');
         throw new Error(message);
       }
 
@@ -91,13 +94,13 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
       if (oauthError) {
         const message = oauthError === 'access_denied'
-          ? 'Consent was denied. Please allow access to continue.'
-          : errorDesc || 'OAuth provider rejected the request.';
+          ? t('auth.errors.consent_denied')
+          : errorDesc || t('auth.errors.oauth_provider_rejected');
         throw new Error(message);
       }
 
       if (!oauthCode || !sessionId) {
-        throw new Error('OAuth token exchange failed: Missing session data.');
+        throw new Error(t('auth.errors.oauth_exchange_failed'));
       }
 
       // 3. Complete Login
@@ -105,7 +108,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
       
       // Success will trigger AuthContext update and navigation automatically
     } catch (err: any) {
-      setError(err.message ?? 'Verification failed.');
+      setError(err.message ?? t('auth.otp.error_failed'));
       setLoading(false);
       setSuccess(false);
     }
@@ -121,7 +124,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={loading} message={success ? "Connecting to platform..." : "Verifying your email..."} />
+      <LoadingOverlay visible={loading} message={success ? t('auth.otp.loading_connecting') : t('auth.otp.loading_verifying')} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} disabled={success || loading}>
           <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
@@ -137,14 +140,14 @@ export default function DriverOTPScreen({ navigation, route }: any) {
               />
             </View>
             
-            <Text style={styles.title}>{success ? "Email Verified" : "Verify Your Email"}</Text>
+            <Text style={styles.title}>{success ? t('auth.otp.title_verified') : t('auth.otp.title_verify')}</Text>
             
             {success ? (
-              <Text style={styles.subtitle}>Connecting to your {provider} account...</Text>
+              <Text style={styles.subtitle}>{t('auth.otp.subtitle_verified', { provider })}</Text>
             ) : (
               <>
                 <Text style={styles.subtitle}>
-                  We've sent a 6-digit code to <Text style={{ fontWeight: 'bold' }}>{email}</Text>. Enter it below to continue.
+                  {t('auth.otp.subtitle_verify', { email })}
                 </Text>
 
                 {error ? (
@@ -172,7 +175,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
                 </View>
 
                 <Button 
-                  title={loading ? "Verifying..." : "Verify & Continue"} 
+                  title={loading ? t('auth.otp.button_verifying') : t('auth.otp.button_verify')} 
                   onPress={handleVerify} 
                   disabled={loading}
                   loading={loading}
@@ -181,10 +184,10 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
                 <View style={styles.resendContainer}>
                   {timer > 0 ? (
-                    <Text style={styles.resendText}>Resend code in <Text style={styles.timerText}>{timer}s</Text></Text>
+                    <Text style={styles.resendText}>{t('auth.otp.resend_in', { timer })}</Text>
                   ) : (
                     <TouchableOpacity onPress={handleResend}>
-                      <Text style={styles.resendLink}>Resend Code</Text>
+                      <Text style={styles.resendLink}>{t('auth.otp.resend_link')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>

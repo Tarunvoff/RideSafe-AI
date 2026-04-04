@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
@@ -7,6 +8,7 @@ import { kycApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function KYCSubmittedScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -22,7 +24,7 @@ export default function KYCSubmittedScreen({ navigation }: any) {
       setIsSubmitted(true);
       await refreshKycStatus();
     } catch (e: any) {
-      setSubmitError(e.message || 'Failed to submit KYC');
+      setSubmitError(e.message || t('kyc.submitted.submit_failed'));
       console.error('KYC submission error:', e);
       setIsSubmitted(true); // Allow proceeding anyway
     } finally {
@@ -41,7 +43,7 @@ export default function KYCSubmittedScreen({ navigation }: any) {
     return (
       <SafeAreaView style={[styles.safeArea, styles.centerContent]}>
         <ActivityIndicator size="large" color={Theme.colors.primary} />
-        <Text style={[styles.title, { marginTop: Theme.spacing.lg }]}>Submitting your details...</Text>
+        <Text style={[styles.title, { marginTop: Theme.spacing.lg }]}>{t('kyc.submitted.submitting')}</Text>
       </SafeAreaView>
     );
   }
@@ -54,13 +56,13 @@ export default function KYCSubmittedScreen({ navigation }: any) {
         </View>
 
         <Text style={styles.title}>
-          {submitError ? 'KYC Details Saved' : 'All Done!'}
+          {submitError ? t('kyc.submitted.saved_title') : t('kyc.submitted.done_title')}
         </Text>
 
         <Text style={styles.subtitle}>
           {submitError
-            ? 'Your details have been saved. You can now access your dashboard.'
-            : 'We have received your KYC submission. Our team will verify and approve it within 24 hours.'}
+            ? t('kyc.submitted.saved_subtitle')
+            : t('kyc.submitted.done_subtitle')}
         </Text>
 
         {submitError && (
@@ -73,26 +75,24 @@ export default function KYCSubmittedScreen({ navigation }: any) {
         <View style={styles.infoBox}>
           <Ionicons name="time" size={20} color={Theme.colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoTitle}>What Happens Next?</Text>
+            <Text style={styles.infoTitle}>{t('kyc.submitted.next_steps_title')}</Text>
             <Text style={styles.infoText}>
-              • Your documents will be reviewed by our team{'\n'}
-              • Approval usually takes 24 hours{'\n'}
-              • You'll get a notification when approved
+              {t('kyc.submitted.next_steps_body')}
             </Text>
           </View>
         </View>
 
         <View style={styles.checklist}>
-          <CheckItem text="Basic Identity Information" />
-          <CheckItem text="Personal Address Details" />
-          <CheckItem text="Identity Verification (Aadhaar & PAN)" />
-          <CheckItem text="Payout Method Setup" />
+          <CheckItem text={t('kyc.submitted.checklist.basic')} />
+          <CheckItem text={t('kyc.submitted.checklist.personal')} />
+          <CheckItem text={t('kyc.submitted.checklist.identity')} />
+          <CheckItem text={t('kyc.submitted.checklist.payout')} />
         </View>
       </View>
 
       <View style={styles.footer}>
         <Button
-          title="Go to Dashboard"
+          title={t('kyc.submitted.dashboard_button')}
           onPress={handleGoToDashboard}
         />
       </View>

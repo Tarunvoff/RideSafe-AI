@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   SafeAreaView,
   ScrollView,
@@ -23,9 +24,9 @@ type CellRisk = {
   h3Id: string;
   rainPct: number;
   aqi: number;
-  floodChance: 'Low' | 'Medium' | 'High';
+  floodChance: string;
   disruptionScore: number; // 0..1
-  trafficStatus: 'Stable Flow' | 'Slow Traffic' | 'Halt';
+  trafficStatus: string;
   riskScore: number; // 0..100
   riskLevel: RiskLevel;
 };
@@ -53,6 +54,7 @@ function riskColors(level: RiskLevel) {
 }
 
 export default function DriverLiveRiskScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const { user } = useAuth();
   const { location, refreshLocation } = useLocation();
@@ -79,9 +81,9 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       h3Id: raw?.h3_cell ?? '—',
       rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
       aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
-      floodChance: riskScore >= 70 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low',
+      floodChance: riskScore >= 70 ? t('common.risk_levels.high') : riskScore >= 40 ? t('common.risk_levels.medium') : t('common.risk_levels.low'),
       disruptionScore: Number(lf.toFixed(2)),
-      trafficStatus: state === 'HALTED' ? 'Halt' : state === 'SLOW' ? 'Slow Traffic' : 'Stable Flow',
+      trafficStatus: state === 'HALTED' ? t('live_risk.traffic.halt') : state === 'SLOW' ? t('live_risk.traffic.slow') : t('live_risk.traffic.stable'),
       riskScore,
       riskLevel: riskLevelFromScore(riskScore),
     };
@@ -139,10 +141,10 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       })
     : '—';
   const locationSource = location.loading
-    ? 'Fetching your location…'
+    ? t('live_risk.fetching_location')
     : hasValidLocation
-      ? 'Live GPS'
-      : 'Location unavailable';
+      ? t('dashboard.live_gps')
+      : t('dashboard.unavailable');
 
   const mapRegion = useMemo(
     () => (coords
@@ -179,7 +181,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
-      <LoadingOverlay visible={loading} message="Refreshing live hex-risk map..." />
+      <LoadingOverlay visible={loading} message={t('live_risk.refreshing')} />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -198,13 +200,13 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
             ) : (
               <View style={styles.mapFallback}>
                 <Ionicons name="location-outline" size={28} color="#9ca3af" />
-                <Text style={styles.mapFallbackTitle}>Location required</Text>
+                <Text style={styles.mapFallbackTitle}>{t('kyc.fraud.location_required')}</Text>
                 <Text style={styles.mapFallbackText}>
-                  We couldn't get your precise GPS coordinates. Please enable location and try again.
+                  {t('live_risk.location_error_desc')}
                 </Text>
                 <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
                   <Ionicons name="refresh" size={14} color="#111827" />
-                  <Text style={styles.mapFallbackBtnText}>Retry</Text>
+                  <Text style={styles.mapFallbackBtnText}>{t('kyc.fraud.retry')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -214,11 +216,11 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
           <View style={styles.legend}>
             <View style={styles.legendRow}>
               <View style={styles.legendDot} />
-              <Text style={styles.legendText}>Secure Grid</Text>
+              <Text style={styles.legendText}>{t('live_risk.legend.secure')}</Text>
             </View>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: '#dc2626' }]} />
-              <Text style={styles.legendText}>High Hazard</Text>
+              <Text style={styles.legendText}>{t('live_risk.legend.hazard')}</Text>
             </View>
           </View>
 
@@ -230,7 +232,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
             </View>
             <View style={styles.liveFeedBadge}>
               <View style={styles.liveFeedPulse} />
-              <Text style={styles.liveFeedText}>Live Feed</Text>
+              <Text style={styles.liveFeedText}>{t('live_risk.live_feed')}</Text>
             </View>
           </View>
         </View>
@@ -238,17 +240,17 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         {/* Cell readout */}
         <View style={styles.readoutGrid}>
           <View style={styles.readoutCard}>
-            <Text style={styles.readoutLabel}>Flood</Text>
+            <Text style={styles.readoutLabel}>{t('live_risk.factors.flood')}</Text>
             <Text style={styles.readoutValue}>
               {selectedCell.floodChance}
             </Text>
           </View>
           <View style={styles.readoutCard}>
-            <Text style={styles.readoutLabel}>AQI Index</Text>
+            <Text style={styles.readoutLabel}>{t('live_risk.factors.aqi')}</Text>
             <Text style={styles.readoutValue}>{selectedCell.aqi}</Text>
           </View>
           <View style={styles.readoutCard}>
-            <Text style={styles.readoutLabel}>Traffic</Text>
+            <Text style={styles.readoutLabel}>{t('live_risk.factors.traffic')}</Text>
             <Text style={styles.readoutValue}>{selectedCell.trafficStatus}</Text>
           </View>
         </View>
@@ -258,43 +260,43 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
           <View style={styles.infoTopRow}>
             <Ionicons name="information-circle" size={18} color="#16a34a" />
             <Text style={styles.infoText}>
-              Hazards are calculated from live environmental pings and attached to the selected H3 grid cell.
+              {t('live_risk.info_box')}
             </Text>
           </View>
 
           <View style={styles.detailGrid}>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Rain</Text>
+              <Text style={styles.detailLabel}>{t('live_risk.factors.rain')}</Text>
               <Text style={styles.detailValue}>{selectedCell.rainPct}%</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Disruption</Text>
+              <Text style={styles.detailLabel}>{t('live_risk.factors.disruption')}</Text>
               <Text style={styles.detailValue}>{selectedCell.disruptionScore.toFixed(2)}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Risk Level</Text>
+              <Text style={styles.detailLabel}>{t('common.risk_level')}</Text>
               <Text style={[styles.detailValue, { color: risk.label }]}>
-                {selectedCell.riskLevel}
+                {t(`dashboard.risk_levels.${selectedCell.riskLevel.toLowerCase()}`)}
               </Text>
             </View>
           </View>
 
           <View style={styles.validationRow}>
             <View style={styles.validationLeft}>
-              <Text style={styles.validationTitleText}>Realtime Location</Text>
+              <Text style={styles.validationTitleText}>{t('dashboard.location_intel')}</Text>
               <View style={[styles.validationChip, hasValidLocation ? styles.validationChipLive : styles.validationChipMock]}>
                 <Ionicons name="checkmark-circle" size={14} color={hasValidLocation ? '#16a34a' : '#f59e0b'} />
                 <Text style={[styles.validationChipText, hasValidLocation ? styles.validationChipTextLive : styles.validationChipTextMock]}>
-                  {location.loading ? 'Fetching location' : hasValidLocation ? 'Valid location confirmed' : 'Location unavailable'}
+                  {location.loading ? t('live_risk.fetching_location_short') : hasValidLocation ? t('live_risk.valid_location') : t('dashboard.unavailable')}
                 </Text>
               </View>
               <Text style={styles.validationMeta}>
                 {hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}
               </Text>
               <Text style={styles.validationMetaSecondary}>
-                {hasValidLocation ? `Fetched at ${lastPing}` : `Location missing • ${lastPing}`}
+                {hasValidLocation ? t('live_risk.fetched_at', { time: lastPing }) : t('live_risk.location_missing', { time: lastPing })}
               </Text>
-              <Text style={styles.validationMetaSecondary}>Accuracy: {accuracyLabel}</Text>
+              <Text style={styles.validationMetaSecondary}>{t('live_risk.accuracy')}: {accuracyLabel}</Text>
               <View style={[styles.sourceBadge, hasValidLocation ? styles.sourceBadgeLive : styles.sourceBadgeMock]}>
                 <Text style={[styles.sourceBadgeText, hasValidLocation ? styles.sourceBadgeTextLive : styles.sourceBadgeTextMock]}>
                   {locationSource}
@@ -309,10 +311,10 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         <View style={styles.ctaCluster}>
           <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9} onPress={handleRecenter}>
             <Ionicons name="refresh" size={18} color="#ffffff" />
-            <Text style={styles.primaryBtnText}>Recheck Location</Text>
+            <Text style={styles.primaryBtnText}>{t('dashboard.recheck_location')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.9}>
-            <Text style={styles.secondaryBtnText}>Details</Text>
+            <Text style={styles.secondaryBtnText}>{t('common.details')}</Text>
           </TouchableOpacity>
         </View>
 

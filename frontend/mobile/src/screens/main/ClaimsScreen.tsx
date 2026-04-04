@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -9,6 +10,7 @@ import { plansApi, type ClaimRecord } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function ClaimsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [claims, setClaims] = useState<ClaimRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function ClaimsScreen() {
       setClaims(mapped);
       setHasProcessing(mapped.some((claim) => claim.status === 'PROCESSING'));
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to load claims');
+      Alert.alert(t('common.error'), e?.message ?? t('claims.load_failed'));
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -75,28 +77,28 @@ export default function ClaimsScreen() {
       : [styles.claimStatusPending, styles.claimStatusTextPending];
 
   const renderStatusLabel = (status: string) => {
-    if (status === 'APPROVED') return 'Paid Out';
-    if (status === 'REJECTED') return 'Rejected';
-    return 'Processing';
+    if (status === 'APPROVED') return t('claims.status.paid_out');
+    if (status === 'REJECTED') return t('claims.status.rejected');
+    return t('claims.status.processing');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
-      <LoadingOverlay visible={loading} message="Fetching claims timeline..." />
+      <LoadingOverlay visible={loading} message={t('claims.loading')} />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Your Claims</Text>
-          <Button title={loading ? 'Loading...' : 'Refresh'} onPress={() => void loadClaims()} style={styles.newClaimBtn} />
+          <Text style={styles.title}>{t('claims.title')}</Text>
+          <Button title={loading ? t('common.loading') : t('common.refresh')} onPress={() => void loadClaims()} style={styles.newClaimBtn} />
         </View>
         {user?.email ? (
-          <Text style={styles.subtitle}>Notification email: {user.email}</Text>
+          <Text style={styles.subtitle}>{t('claims.notification_email')}: {user.email}</Text>
         ) : null}
 
         {claims.length === 0 ? (
           <Card style={styles.claimCard}>
-            <Text style={styles.claimTitle}>No claims yet</Text>
-            <Text style={styles.emptyStateText}>Claims appear here after a verified disruption triggers a payout.</Text>
+            <Text style={styles.claimTitle}>{t('claims.no_claims')}</Text>
+            <Text style={styles.emptyStateText}>{t('claims.empty_state')}</Text>
           </Card>
         ) : (
           claims.map((claim) => {
@@ -114,7 +116,7 @@ export default function ClaimsScreen() {
                 <View style={styles.summaryRow}>
                   <View style={styles.summaryLeft}>
                     <Text style={styles.claimTitle}>{claim.trigger}</Text>
-                    <Text style={styles.claimId}>Claim #{claim.claimId}</Text>
+                    <Text style={styles.claimId}>{t('claims.id_label')} #{claim.claimId}</Text>
                   </View>
                   <View style={styles.amountPill}>
                     <Text style={styles.amountPillText}>
@@ -125,19 +127,19 @@ export default function ClaimsScreen() {
                 <View style={styles.divider} />
                 <View style={styles.detailGrid}>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Reference</Text>
+                    <Text style={styles.detailLabel}>{t('claims.reference')}</Text>
                     <Text style={styles.detailValueFull}>
                       {claim.transactionId ? claim.transactionId : '—'}
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Bank Ref</Text>
+                    <Text style={styles.detailLabel}>{t('claims.bank_ref')}</Text>
                     <Text style={styles.detailValueFull}>
                       {claim.bankReference ? claim.bankReference : '—'}
                     </Text>
                   </View>
                   <View style={styles.detailRowInline}>
-                    <Text style={styles.detailLabel}>Transferred</Text>
+                    <Text style={styles.detailLabel}>{t('claims.transferred_at')}</Text>
                     <Text style={styles.detailValueMuted}>
                       {claim.transferredAt ? new Date(claim.transferredAt).toLocaleString() : '—'}
                     </Text>

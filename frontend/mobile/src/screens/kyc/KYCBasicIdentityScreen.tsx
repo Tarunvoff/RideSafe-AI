@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -11,6 +12,7 @@ import { Theme } from '../../theme';
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'] as const;
 
 export default function KYCBasicIdentityScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState('');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('');
@@ -19,7 +21,7 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
 
   const handleContinue = async () => {
     if (!fullName || !dob || !gender) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('common.required_fields'));
       return;
     }
 
@@ -32,12 +34,12 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
       const [, day, month, year] = match;
       const date = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
       if (isNaN(date.getTime())) {
-        Alert.alert('Error', 'Invalid date entered');
+        Alert.alert(t('common.error'), t('kyc.basic.invalid_date'));
         return;
       }
       formattedDob = date.toISOString();
     } else {
-      Alert.alert('Error', 'Please enter Date of Birth in DD/MM/YYYY format');
+      Alert.alert(t('common.error'), t('kyc.basic.invalid_date_format'));
       return;
     }
 
@@ -51,7 +53,7 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
       await refreshKycStatus();
       navigation.navigate('KYCPersonalDetails');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save basic identity');
+      Alert.alert(t('common.error'), e.message || t('kyc.basic.save_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +61,7 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={isLoading} message="Saving basic identity..." />
+      <LoadingOverlay visible={isLoading} message={t('kyc.basic.saving')} />
       <View style={styles.header}>
         {navigation.canGoBack() ? (
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -68,12 +70,12 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
         ) : (
           <View style={styles.backButton} />
         )}
-        <Text style={styles.headerTitle}>Step 1 of 4</Text>
+        <Text style={styles.headerTitle}>{t('kyc.common.step', { current: 1, total: 4 })}</Text>
         <View style={{ width: 24 }} />
       </View>
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressText}>Basic Information</Text>
+          <Text style={styles.progressText}>{t('kyc.intro.steps.identity')}</Text>
           <Text style={styles.progressPercent}>25%</Text>
         </View>
         <View style={styles.progressBarBg}>
@@ -82,26 +84,26 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Tell us about yourself</Text>
-        <Text style={styles.subtitle}>Let's start with basic information.</Text>
+        <Text style={styles.title}>{t('kyc.basic.title')}</Text>
+        <Text style={styles.subtitle}>{t('kyc.basic.subtitle')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Full Name"
-            placeholder="Enter your full name"
+            label={t('kyc.basic.name_label')}
+            placeholder={t('kyc.basic.name_placeholder')}
             value={fullName}
             onChangeText={setFullName}
           />
 
           <Input
-            label="Date of Birth"
-            placeholder="DD/MM/YYYY"
+            label={t('kyc.basic.dob_label')}
+            placeholder={t('kyc.basic.dob_placeholder')}
             value={dob}
             onChangeText={setDob}
           />
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Gender</Text>
+            <Text style={styles.label}>{t('kyc.basic.gender_label')}</Text>
             <View style={styles.genderRow}>
               {GENDER_OPTIONS.map((g) => (
                 <TouchableOpacity
@@ -110,7 +112,7 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
                   onPress={() => setGender(g)}
                 >
                   <Text style={[styles.genderText, gender === g && styles.genderTextSelected]}>
-                    {g}
+                    {t(`kyc.basic.gender_options.${g.toLowerCase()}`)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -121,7 +123,7 @@ export default function KYCBasicIdentityScreen({ navigation }: any) {
 
       <View style={styles.footer}>
         <Button
-          title={isLoading ? 'Saving...' : 'Continue'}
+          title={isLoading ? t('common.saving') : t('kyc.common.next')}
           onPress={handleContinue}
           disabled={!fullName || !dob || !gender || isLoading}
         />

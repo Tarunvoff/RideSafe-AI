@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
+import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
@@ -22,6 +24,7 @@ import { Theme } from '../../theme';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }: any) {
+  const { t, i18n } = useTranslation();
   const { loginWithOAuth } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
@@ -38,6 +41,12 @@ export default function LoginScreen({ navigation }: any) {
     }, 80);
     return () => clearTimeout(t);
   }, [demoVisible]);
+
+  const toggleLanguage = async () => {
+    const newLang = i18n.language === 'en' ? 'ta' : 'en';
+    await i18n.changeLanguage(newLang);
+    await AsyncStorage.setItem('user-language', newLang);
+  };
 
   const closeAuthModal = () => {
     setModalVisible(false);
@@ -73,7 +82,7 @@ export default function LoginScreen({ navigation }: any) {
     try {
       const trimmedIdentifier = identifier.trim();
       if (!trimmedIdentifier) {
-        Alert.alert('Missing identifier', 'Enter your work email or phone to continue.');
+        Alert.alert(t('auth.login.modal.missing_identifier'), t('auth.login.modal.enter_identifier'));
         return;
       }
       
@@ -94,7 +103,7 @@ export default function LoginScreen({ navigation }: any) {
 
     } catch (error: any) {
       console.error('❌ Login Error:', error);
-      Alert.alert('Login Error', error?.message || 'Failed to start login process');
+      Alert.alert(t('common.login_error'), error?.message || t('common.oauth_failed'));
     } finally {
       setLoading(false);
     }
@@ -102,7 +111,7 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <LoadingOverlay visible={loading} message="Authenticating your account..." />
+      <LoadingOverlay visible={loading} message={t('auth.login.modal.authenticating')} />
       <Modal visible={demoVisible} transparent animationType="fade" onRequestClose={closeDemo}>
         <View style={styles.demoOverlay}>
           <View style={styles.demoShell}>
@@ -131,12 +140,12 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons name="close" size={24} color={Theme.colors.textSecondary} />
             </TouchableOpacity>
 
-            <Text style={styles.modalTitle}>Continue with your platform</Text>
-            <Text style={styles.modalSubtitle}>Choose your delivery partner to sign in securely.</Text>
+            <Text style={styles.modalTitle}>{t('auth.login.modal.title')}</Text>
+            <Text style={styles.modalSubtitle}>{t('auth.login.modal.subtitle')}</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Work email or phone"
+              placeholder={t('auth.login.modal.placeholder')}
               autoCapitalize="none"
               keyboardType="email-address"
               value={identifier}
@@ -187,28 +196,39 @@ export default function LoginScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerLogo}>
           <Image source={require('../../../assets/images/ProductLogo.png')} style={styles.headerLogoIcon} resizeMode="contain" />
-          <Text style={styles.headerTitle}>Aegis</Text>
+          <Text style={styles.headerTitle}>{t('common.app_name')}</Text>
         </View>
-        <View style={styles.headerActions} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.langToggle} 
+            onPress={toggleLanguage}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="language" size={18} color={Theme.colors.primary} />
+            <Text style={styles.langToggleText}>
+              {i18n.language === 'en' ? 'தமிழ்' : 'EN'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.container}>
         <View style={styles.liveBadgeRow}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveBadgeText}>Live Protection Active</Text>
+          <Text style={styles.liveBadgeText}>{t('auth.login.live_protection')}</Text>
         </View>
 
         <View style={styles.heroSection}>
-          <Text style={styles.heroTitle}>Protect Your{`\n`}Weekly Earnings</Text>
+          <Text style={styles.heroTitle}>{t('auth.login.title')}</Text>
           <Text style={styles.heroSubtitle}>
-            AI-powered income protection for rain, heat, and outages.
+            {t('auth.login.subtitle')}
           </Text>
         </View>
 
         <View style={styles.centerActionWrap}>
           <TouchableOpacity style={styles.watchDemoBtn} onPress={showDemo} activeOpacity={0.85}>
             <Ionicons name="play-circle" size={18} color="#0f172a" />
-            <Text style={styles.watchDemoBtnText}>Watch Demo</Text>
+            <Text style={styles.watchDemoBtnText}>{t('auth.login.watch_demo')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -217,7 +237,7 @@ export default function LoginScreen({ navigation }: any) {
             <View style={[styles.cardHeroIconBox, { backgroundColor: `${Theme.colors.primary}15` }]}>
               <Ionicons name="person" size={52} color={Theme.colors.primary} />
             </View>
-            <Text style={styles.cardTitle}>Driver Login</Text>
+            <Text style={styles.cardTitle}>{t('auth.login.driver_login')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -228,7 +248,7 @@ export default function LoginScreen({ navigation }: any) {
             <View style={[styles.cardHeroIconBox, { backgroundColor: `${Theme.colors.primary}15` }]}>
               <Ionicons name="shield-half" size={52} color={Theme.colors.primary} />
             </View>
-            <Text style={styles.cardTitle}>Admin Portal</Text>
+            <Text style={styles.cardTitle}>{t('auth.login.admin_portal')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.wideCard} onPress={() => setModalVisible(true)} activeOpacity={0.85}>
@@ -237,8 +257,8 @@ export default function LoginScreen({ navigation }: any) {
                 <Ionicons name="finger-print" size={20} color={Theme.colors.primary} />
               </View>
               <View>
-                <Text style={styles.wideCardTitle}>Complete KYC</Text>
-                <Text style={styles.wideCardSubtitle}>Verify identity to unlock claims</Text>
+                <Text style={styles.wideCardTitle}>{t('auth.login.complete_kyc')}</Text>
+                <Text style={styles.wideCardSubtitle}>{t('auth.login.verify_identity')}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Theme.colors.textSecondary} />
@@ -247,17 +267,17 @@ export default function LoginScreen({ navigation }: any) {
 
         <TouchableOpacity style={styles.howItWorksStrip} onPress={showDemo} activeOpacity={0.9}>
           <View style={styles.stripStepWrap}>
-            <Text style={styles.stripStepActive}>Connect</Text>
+            <Text style={styles.stripStepActive}>{t('auth.login.steps.connect')}</Text>
             <View style={[styles.stripLine, styles.stripLineActive]} />
           </View>
           <Ionicons name="arrow-forward" size={14} color={Theme.colors.textSecondary} />
           <View style={styles.stripStepWrap}>
-            <Text style={styles.stripStep}>Monitor</Text>
+            <Text style={styles.stripStep}>{t('auth.login.steps.monitor')}</Text>
             <View style={styles.stripLine} />
           </View>
           <Ionicons name="arrow-forward" size={14} color={Theme.colors.textSecondary} />
           <View style={styles.stripStepWrap}>
-            <Text style={styles.stripStep}>Payout</Text>
+            <Text style={styles.stripStep}>{t('auth.login.steps.payout')}</Text>
             <View style={styles.stripLine} />
           </View>
         </TouchableOpacity>
@@ -265,19 +285,19 @@ export default function LoginScreen({ navigation }: any) {
         <View style={styles.valueGrid}>
           <View style={styles.valueChip}>
             <Ionicons name="calendar" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>Weekly Protection</Text>
+            <Text style={styles.valueChipText}>{t('auth.login.features.weekly')}</Text>
           </View>
           <View style={styles.valueChip}>
             <Ionicons name="navigate" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>Hyperlocal Detection</Text>
+            <Text style={styles.valueChipText}>{t('auth.login.features.hyperlocal')}</Text>
           </View>
           <View style={styles.valueChip}>
             <Ionicons name="flash" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>Instant Claims</Text>
+            <Text style={styles.valueChipText}>{t('auth.login.features.instant')}</Text>
           </View>
           <View style={styles.valueChip}>
             <Ionicons name="pulse" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>AI Monitoring</Text>
+            <Text style={styles.valueChipText}>{t('auth.login.features.ai')}</Text>
           </View>
         </View>
       </View>
@@ -339,7 +359,23 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  langToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  langToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Theme.colors.primary,
   },
   container: {
     flex: 1,

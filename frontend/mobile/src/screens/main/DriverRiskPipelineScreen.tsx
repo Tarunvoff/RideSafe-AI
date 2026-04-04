@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
@@ -10,6 +11,7 @@ import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function DriverRiskPipelineScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { logout, user } = useAuth();
   const { location, refreshLocation } = useLocation();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
@@ -27,11 +29,15 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       await logout();
     } catch (e) {
       setProfileMenuVisible(false);
-      Alert.alert('Error', 'Failed to log out');
+      Alert.alert(t('common.error'), t('common.logout_failed'));
     }
   };
 
-  const greetingOptions = ['Drive safe ^_^', 'Keep going ^_^', 'Stay sharp ^_^'];
+  const greetingOptions = [
+    t('dashboard.greetings.safe'),
+    t('dashboard.greetings.keep_going'),
+    t('dashboard.greetings.stay_sharp'),
+  ];
   const minute = new Date().getMinutes();
   const greetingIndex = minute % greetingOptions.length;
   const greetingMessage = greetingOptions[greetingIndex];
@@ -68,10 +74,10 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
         setZoneRisk(zone ?? null);
       } else {
         setZoneRisk(null);
-        setErrorMsg(location.error ?? 'Location unavailable. Enable GPS to continue.');
+        setErrorMsg(location.error ?? t('dashboard.location_unavailable'));
       }
     } catch (e: any) {
-      setErrorMsg(e?.message ?? 'Failed to load dashboard');
+      setErrorMsg(e?.message ?? t('dashboard.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -84,14 +90,19 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const lfScore = Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5);
   const zoneState = zoneRisk?.zone_state ?? zoneRisk?.state ?? 'UNKNOWN';
   const riskScore = Math.round(lfScore * 100);
-  const riskLabel = zoneState === 'HALTED' ? 'HIGH' : lfScore >= 0.6 ? 'MEDIUM' : 'LOW';
+  const riskLabel =
+    zoneState === 'HALTED'
+      ? t('dashboard.risk_levels.high')
+      : lfScore >= 0.6
+      ? t('dashboard.risk_levels.medium')
+      : t('dashboard.risk_levels.low');
   const earnings = profile?.currentWeek?.weeklyEarningsTotal ?? profile?.workSummary?.averageWeeklyEarnings ?? 0;
   const h3Cell = zoneRisk?.h3_cell ?? profile?.lastKnownPosition?.h3_cell ?? '—';
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
-      <LoadingOverlay visible={loading} message="Running live risk pipeline..." />
+      <LoadingOverlay visible={loading} message={t('dashboard.running_pipeline')} />
 
       <DriverLogoutMenu
         visible={profileMenuVisible}
@@ -107,21 +118,21 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           <Text style={styles.greetingTop}>{greetingMessage}</Text>
           <TouchableOpacity style={styles.refreshBtnTop} activeOpacity={0.9} onPress={() => void loadDashboard()}>
             <Ionicons name="refresh" size={16} color="#ffffff" />
-            <Text style={styles.refreshTextTop}>{loading ? 'Loading...' : 'Refresh'}</Text>
+            <Text style={styles.refreshTextTop}>{loading ? t('common.loading') : t('common.refresh')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.statusCard}>
           <View style={styles.statusTopRow}>
             <View>
-              <Text style={styles.cardOverline}>Current Risk Level</Text>
+              <Text style={styles.cardOverline}>{t('dashboard.current_risk')}</Text>
               <View style={styles.riskRow}>
                 <Text style={styles.riskLabel}>{riskLabel}</Text>
                 <View style={styles.liveDot} />
               </View>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.cardOverline}>Risk Score</Text>
+              <Text style={styles.cardOverline}>{t('dashboard.risk_score')}</Text>
               <Text style={styles.scoreText}>{riskScore}/100</Text>
             </View>
           </View>
@@ -129,15 +140,15 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           <View style={styles.statusDivider} />
 
           <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>H3 Cell ID</Text>
+            <Text style={styles.metaLabel}>{t('dashboard.h3_cell')}</Text>
             <Text style={styles.metaValue}>{h3Cell}</Text>
           </View>
           <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Last Ping Time</Text>
-            <Text style={styles.metaValue}>just now</Text>
+            <Text style={styles.metaLabel}>{t('dashboard.last_ping')}</Text>
+            <Text style={styles.metaValue}>{t('dashboard.just_now')}</Text>
           </View>
           <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Weekly Earnings</Text>
+            <Text style={styles.metaLabel}>{t('dashboard.weekly_earnings')}</Text>
             <Text style={styles.metaValue}>₹{Number(earnings || 0).toLocaleString('en-IN')}</Text>
           </View>
         </View>
@@ -146,30 +157,30 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           <View style={styles.locationHeader}>
             <View style={styles.locationTitleRow}>
               <Ionicons name="location-outline" size={18} color="#111827" />
-              <Text style={styles.locationTitle}>Location Intelligence</Text>
+              <Text style={styles.locationTitle}>{t('dashboard.location_intel')}</Text>
             </View>
             <View style={[styles.validBadge, location.isMock ? styles.mockBadge : (hasValidLocation ? styles.liveBadge : styles.mockBadge)]}>
               <View style={[styles.validDot, location.isMock ? styles.mockDot : (hasValidLocation ? styles.liveDot : styles.mockDot)]} />
               <Text style={[styles.validText, location.isMock ? styles.mockText : (hasValidLocation ? styles.liveText : styles.mockText)]} numberOfLines={1}>
-                {location.loading ? 'Fetching…' : location.isMock ? 'Mock' : hasValidLocation ? 'Live GPS' : 'Unavailable'}
+                {location.loading ? t('common.fetching') : location.isMock ? t('dashboard.mock') : hasValidLocation ? t('dashboard.live_gps') : t('dashboard.unavailable')}
               </Text>
             </View>
           </View>
 
           <View style={styles.coordsGrid}>
             <View style={styles.coordBoxWide}>
-              <Text style={styles.coordLabel}>Coordinates</Text>
+              <Text style={styles.coordLabel}>{t('dashboard.coordinates')}</Text>
               <Text style={styles.coordValueInline}>
                 {derivedCoords && derivedCoords.lat != null && derivedCoords.lng != null
-                  ? `Lat: ${(derivedCoords.lat as number).toFixed(4)} | Lon: ${(derivedCoords.lng as number).toFixed(4)}`
-                  : 'Lat: — | Lon: —'}
+                  ? `${t('common.lat')}: ${(derivedCoords.lat as number).toFixed(4)} | ${t('common.lng')}: ${(derivedCoords.lng as number).toFixed(4)}`
+                  : `${t('common.lat')}: — | ${t('common.lng')}: —`}
               </Text>
             </View>
           </View>
 
           <View style={styles.locationActionsRow}>
             <Text style={styles.timestampText}>
-              Last valid location timestamp: {location.fetchedAt
+              {t('dashboard.last_location_timestamp')}: {location.fetchedAt
                 ? location.fetchedAt.toLocaleTimeString('en-IN', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -180,7 +191,7 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
             </Text>
             <TouchableOpacity style={styles.locationRefreshBtn} onPress={() => void refreshLocation()}>
               <Ionicons name="refresh" size={14} color="#ffffff" />
-              <Text style={styles.locationRefreshText}>Recheck</Text>
+              <Text style={styles.locationRefreshText}>{t('common.recheck')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -189,7 +200,7 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           <View style={styles.infoChip}>
             <Ionicons name="checkmark-circle" size={14} color="#111827" />
             <Text style={styles.infoChipText}>
-              {errorMsg ? errorMsg : zoneState === 'HALTED' ? 'Zone HALTED: trigger active' : 'No disruption detected'}
+              {errorMsg ? errorMsg : zoneState === 'HALTED' ? t('dashboard.zone_halted') : t('dashboard.no_disruption')}
             </Text>
           </View>
         </View>

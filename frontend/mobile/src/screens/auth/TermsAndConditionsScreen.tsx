@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   StyleSheet,
   Text,
@@ -22,6 +23,7 @@ import Button from '../../components/Button';
 const { width } = Dimensions.get('window');
 
 export default function TermsAndConditionsScreen() {
+  const { t } = useTranslation();
   const { acceptTerms } = useAuth();
   const [isTicked, setIsTicked] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -104,7 +106,7 @@ export default function TermsAndConditionsScreen() {
                 container.appendChild(canvas);
                 const info = document.createElement('div');
                 info.className = 'page-info';
-                info.innerText = 'Page ' + pageNum + ' of ' + pdf.numPages;
+                info.innerText = '${t('auth.terms.page_x_of_y', { current: "'+pageNum+'", total: "'+pdf.numPages+'" })}';
                 container.appendChild(info);
                 
                 await page.render(renderContext).promise;
@@ -112,7 +114,7 @@ export default function TermsAndConditionsScreen() {
             }
             renderPages();
           }).catch(err => {
-            document.body.innerHTML = '<h3>Error rendering document: ' + err.message + '</h3>';
+            document.body.innerHTML = '<h3>${t('auth.terms.render_error', { message: "'+err.message+'" })}</h3>';
           });
         </script>
       </body>
@@ -129,9 +131,9 @@ export default function TermsAndConditionsScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="shield-checkmark" size={32} color={Theme.colors.primary} />
           </View>
-          <Text style={styles.title}>Professional Driver Agreement</Text>
+          <Text style={styles.title}>{t('auth.terms.title')}</Text>
           <Text style={styles.subtitle}>
-            Please review the policy document and accept the terms to activate your driver dashboard.
+            {t('auth.terms.subtitle')}
           </Text>
         </View>
 
@@ -142,30 +144,30 @@ export default function TermsAndConditionsScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
-            <Text style={styles.sectionTitle}>1. Data Usage & Telemetry</Text>
+            <Text style={styles.sectionTitle}>{t('auth.terms.sections.telemetry_title')}</Text>
             <Text style={styles.bodyText}>
-              By using Aegis, you agree to allow the platform to collect and process your GPS and telemetry data in real-time. This data is used solely for hazard detection, risk assessment, and automated claim verification.
+              {t('auth.terms.sections.telemetry_body')}
             </Text>
 
-            <Text style={styles.sectionTitle}>2. Hazard Monitoring</Text>
+            <Text style={styles.sectionTitle}>{t('auth.terms.sections.hazard_title')}</Text>
             <Text style={styles.bodyText}>
-              The application provides real-time environmental hazard maps. While we strive for accuracy, the data is advisory. Driver safety and adherence to local traffic laws remain your primary responsibility.
+              {t('auth.terms.sections.hazard_body')}
             </Text>
 
-            <Text style={styles.sectionTitle}>3. Payout Eligibility</Text>
+            <Text style={styles.sectionTitle}>{t('auth.terms.sections.payout_title')}</Text>
             <Text style={styles.bodyText}>
-              Purchased plans provide coverage for verified disruptions. Payouts are triggered automatically based on platform signaling and environmental data. Fraudulent behavior will result in immediate account suspension.
+              {t('auth.terms.sections.payout_body')}
             </Text>
 
-            <Text style={styles.sectionTitle}>4. Privacy & Security</Text>
+            <Text style={styles.sectionTitle}>{t('auth.terms.sections.privacy_title')}</Text>
             <Text style={styles.bodyText}>
-              Aegis is committed to protecting your data. All communication is encrypted, and your personal information is never sold to third parties. We comply with standard data protection regulations.
+              {t('auth.terms.sections.privacy_body')}
             </Text>
             
             <View style={styles.fullPolicyLinkContainer}>
               <TouchableOpacity style={styles.fullPolicyBtn} onPress={handleViewPdf}>
                 <Ionicons name="document-text-outline" size={18} color={Theme.colors.primary} />
-                <Text style={styles.fullPolicyBtnText}>View Full PDF Policy</Text>
+                <Text style={styles.fullPolicyBtnText}>{t('auth.terms.view_pdf')}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -182,12 +184,12 @@ export default function TermsAndConditionsScreen() {
               {isTicked && <Ionicons name="checkmark" size={16} color="#fff" />}
             </View>
             <Text style={styles.checkboxLabel}>
-              I have read, understood, and agree to the terms and conditions mentioned above.
+              {t('auth.terms.checkbox')}
             </Text>
           </TouchableOpacity>
 
           <Button
-            title="Accept & Continue"
+            title={t('auth.terms.button_accept')}
             onPress={handleAccept}
             disabled={!isTicked}
             style={[styles.continueBtn, !isTicked && styles.continueBtnDisabled]}
@@ -205,8 +207,8 @@ export default function TermsAndConditionsScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.modalTitle}>Policy Preview</Text>
-              <Text style={styles.modalSubtitle}>Full Document View</Text>
+              <Text style={styles.modalTitle}>{t('auth.terms.pdf_preview')}</Text>
+              <Text style={styles.modalSubtitle}>{t('auth.terms.full_document')}</Text>
             </View>
             <TouchableOpacity 
               onPress={() => setShowPdfModal(false)}
@@ -220,7 +222,7 @@ export default function TermsAndConditionsScreen() {
             {isPdfLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Theme.colors.primary} />
-                <Text style={styles.loadingText}>Initializing high-fidelity viewer...</Text>
+                <Text style={styles.loadingText}>{t('auth.terms.loading_viewer')}</Text>
               </View>
             ) : pdfBase64 ? (
               <WebView
@@ -234,7 +236,7 @@ export default function TermsAndConditionsScreen() {
             ) : (
               <View style={styles.loadingContainer}>
                 <Ionicons name="alert-circle-outline" size={48} color={Theme.colors.error} />
-                <Text style={styles.loadingText}>Failed to load document content. Please check your connection.</Text>
+                <Text style={styles.loadingText}>{t('auth.terms.load_failed')}</Text>
               </View>
             )}
           </View>

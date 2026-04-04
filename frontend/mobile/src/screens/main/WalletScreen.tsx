@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -11,6 +12,7 @@ import { fraudApi, paymentsApi, plansApi, type PayoutRecord } from '../../servic
 import { Theme } from '../../theme';
 
 export default function WalletScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { location, refreshLocation } = useLocation();
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
@@ -40,8 +42,9 @@ export default function WalletScreen() {
           createdAt: p.payout.createdAt,
         }));
       setPayouts(mapped);
+      setPayouts(mapped);
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to load payouts');
+      Alert.alert(t('common.error'), e?.message ?? t('wallet.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -53,26 +56,26 @@ export default function WalletScreen() {
 
   const handleCashOut = async () => {
     if (!activePolicy || !latestDisruption) {
-      Alert.alert('Unavailable', 'No active policy or disruption found for payout.');
+      Alert.alert(t('wallet.unavailable_title'), t('wallet.unavailable_desc'));
       return;
     }
     if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
       await refreshLocation();
-      Alert.alert('Location required', 'Please enable location to cash out.');
+      Alert.alert(t('common.location_required_title'), t('common.location_required_desc'));
       return;
     }
 
     setLoading(true);
     try {
-      const zone = await fraudApi.getZoneRisk(location.latitude, location.longitude);
+      const zone = await fraudApi.getZoneRisk(location.latitude as number, location.longitude as number);
       const h3Cell = zone?.h3_cell;
       if (!h3Cell) {
         throw new Error('Missing H3 cell for payout');
       }
 
       const approvedPayout =
-        activePolicy?.payout?.approvedPayout ??
-        latestDisruption?.expectedPayout ??
+        (activePolicy?.payout?.approvedPayout as number | undefined) ??
+        (latestDisruption?.expectedPayout as number | undefined) ??
         0;
 
       const eventTimestamp = Math.floor(Date.now() / 1000);
@@ -85,13 +88,13 @@ export default function WalletScreen() {
       });
 
       if (res?.success) {
-        Alert.alert('Cashout complete', `Transaction ${res.transactionId ?? 'queued'}`);
+        Alert.alert(t('wallet.cashout_success_title'), t('wallet.cashout_success_desc', { id: res.transactionId ?? 'queued' }));
         await loadPayouts();
       } else {
-        Alert.alert('Cashout failed', 'Please try again.');
+        Alert.alert(t('wallet.cashout_failed_title'), t('common.try_again'));
       }
     } catch (e: any) {
-      Alert.alert('Cashout failed', e?.message ?? 'Unable to process payout');
+      Alert.alert(t('wallet.cashout_failed_title'), e?.message ?? t('wallet.unable_process_payout'));
     } finally {
       setLoading(false);
     }
@@ -102,16 +105,16 @@ export default function WalletScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <MainTopNavbar />
-      <LoadingOverlay visible={loading} message="Syncing wallet transactions..." />
+      <LoadingOverlay visible={loading} message={t('wallet.syncing')} />
       <ScrollView contentContainerStyle={styles.container}>
         
         <Card style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Available Balance</Text>
+          <Text style={styles.balanceLabel}>{t('wallet.available_balance')}</Text>
           <Text style={styles.balanceAmount}>₹{Number(balance || 0).toLocaleString('en-IN')}</Text>
-          <Button title={loading ? 'Loading...' : 'Cash Out'} onPress={() => void handleCashOut()} style={styles.cashOutBtn} />
+          <Button title={loading ? t('common.loading') : t('wallet.cash_out')} onPress={() => void handleCashOut()} style={styles.cashOutBtn} />
         </Card>
 
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
+        <Text style={styles.sectionTitle}>{t('wallet.recent_transactions')}</Text>
         
         <View style={styles.transactionList}>
           {payouts.length === 0 ? (
@@ -120,8 +123,8 @@ export default function WalletScreen() {
                 <Ionicons name="cash-outline" size={20} color={Theme.colors.primary} />
               </View>
               <View style={styles.transactionDetails}>
-                <Text style={styles.transactionTitle}>No payouts yet</Text>
-                <Text style={styles.transactionDate}>Trigger a claim to see payouts</Text>
+                <Text style={styles.transactionTitle}>{t('wallet.payouts.empty_title')}</Text>
+                <Text style={styles.transactionDate}>{t('wallet.payouts.empty_sub')}</Text>
               </View>
               <Text style={styles.transactionAmountPos}>₹0</Text>
             </View>
@@ -141,12 +144,12 @@ export default function WalletScreen() {
                     />
                   </View>
                   <View style={styles.transactionDetails}>
-                    <Text style={styles.transactionTitle}>{isSuccess ? 'Payout credited' : 'Payout pending'}</Text>
+                    <Text style={styles.transactionTitle}>{isSuccess ? t('wallet.payouts.credited') : t('wallet.payouts.pending')}</Text>
                     <Text style={styles.transactionDate}>
                       {payout.createdAt ? new Date(payout.createdAt).toLocaleString() : '—'}
                     </Text>
                     {payout.transactionId ? (
-                      <Text style={styles.transactionDate}>Txn: {payout.transactionId}</Text>
+                      <Text style={styles.transactionDate}>{t('wallet.payouts.txn_label')}: {payout.transactionId}</Text>
                     ) : null}
                   </View>
                   <Text style={isSuccess ? styles.transactionAmountPos : styles.transactionAmountNeg}>
