@@ -1,0 +1,23 @@
+# Python artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Dev / env files
+.env
+.env.*
+*.env
+.git/
+.gitignore
+.idea/
+.vscode/
+*.DS_Store
+
+# Docs
+*.md

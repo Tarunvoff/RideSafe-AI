@@ -30,7 +30,7 @@ import { ZoneMonitoringService } from './zone-monitoring.service';
         options: {
           client: {
             clientId: 'aegis-backend',
-            brokers: [(process.env.KAFKA_BROKER_URL ?? 'localhost:9092')],
+            brokers: [(process.env.KAFKA_BOOTSTRAP_SERVERS ?? process.env.KAFKA_BROKER_URL ?? 'kafka:9092')],
             // ── Producer Config A: acks=all, retries=5 ─────────────────────
             // Applied at the raw KafkaJS level inside KafkaReliableProducerService.
             // ClientKafka does not expose these options directly, so they are

@@ -16,14 +16,11 @@ COPY requirements.txt .
 # Install Python deps
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install missing missing dependencies to make the template work cleanly
-RUN pip install --no-cache-dir aiokafka>=0.10.0 redis>=5.0.4
-
 # Copy app code
 COPY . .
 
 # Expose correct port (change per service)
-EXPOSE 8004
+EXPOSE 8003
 
 # Run FastAPI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]

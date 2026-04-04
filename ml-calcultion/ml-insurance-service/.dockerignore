@@ -1,0 +1,31 @@
+# Python runtime artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments — never copy these into the image
+venv/
+.venv/
+env/
+ENV/
+
+# Trained model files — rebuilt at image build time via train_models.py
+data/*.pkl
+data/*.joblib
+data/*.model
+
+# Development / editor metadata
+.env
+.env.*
+*.env
+.git/
+.gitignore
+.idea/
+.vscode/
+*.DS_Store
+
+# Test & docs
+tests/
+*.md
