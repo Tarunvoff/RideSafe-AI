@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/ProductLogo.png"
+        "foregroundImage": "./assets/images/productlogo.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -22,13 +22,13 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/ProductLogo.png"
+      "favicon": "./assets/images/productlogo.png"
     },
     "plugins": [
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/ProductLogo.png",
+          "image": "./assets/images/productlogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
