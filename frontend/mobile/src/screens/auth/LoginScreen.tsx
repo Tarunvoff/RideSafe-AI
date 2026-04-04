@@ -43,7 +43,9 @@ export default function LoginScreen({ navigation }: any) {
   }, [demoVisible]);
 
   const toggleLanguage = async () => {
-    const newLang = i18n.language === 'en' ? 'ta' : 'en';
+    const langs = ['en', 'hi', 'ta'];
+    const currentIndex = langs.indexOf(i18n.language);
+    const newLang = langs[currentIndex === -1 ? 1 : (currentIndex + 1) % langs.length];
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
@@ -206,7 +208,7 @@ export default function LoginScreen({ navigation }: any) {
           >
             <Ionicons name="language" size={18} color={Theme.colors.primary} />
             <Text style={styles.langToggleText}>
-              {i18n.language === 'en' ? 'தமிழ்' : 'EN'}
+              {i18n.language === 'en' ? 'हिंदी' : i18n.language === 'hi' ? 'தமிழ்' : 'EN'}
             </Text>
           </TouchableOpacity>
         </View>

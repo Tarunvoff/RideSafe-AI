@@ -124,7 +124,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={loading} message={success ? t('auth.otp.loading_connecting') : t('auth.otp.loading_verifying')} />
+      <LoadingOverlay visible={loading} message={success ? t('auth.otp.loading_connecting', { provider }) : t('auth.otp.loading_verifying')} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} disabled={success || loading}>
           <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />

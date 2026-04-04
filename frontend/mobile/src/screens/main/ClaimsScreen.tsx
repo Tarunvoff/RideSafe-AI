@@ -5,17 +5,28 @@ import Button from '../../components/Button';
 import Card from '../../components/Card';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
+import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { plansApi, type ClaimRecord } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function ClaimsScreen() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [claims, setClaims] = useState<ClaimRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasProcessing, setHasProcessing] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      setProfileMenuVisible(false);
+      await logout();
+    } catch {
+      Alert.alert(t('common.error'), t('common.logout_failed'));
+    }
+  };
 
   const driverId = user?.id ?? null;
 
@@ -84,7 +95,13 @@ export default function ClaimsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MainTopNavbar />
+      <DriverLogoutMenu
+        visible={profileMenuVisible}
+        userEmail={user?.email}
+        onClose={() => setProfileMenuVisible(false)}
+        onLogout={() => { void handleLogout(); }}
+      />
+      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading} message={t('claims.loading')} />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>

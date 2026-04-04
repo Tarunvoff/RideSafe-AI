@@ -5,18 +5,29 @@ import { Alert } from 'react-native';
 import { Animated, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
+import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { plansApi, policyApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 export default function PolicyScreen({ navigation }: any) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [policy, setPolicy] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState(t('policy.updating'));
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setProfileMenuVisible(false);
+      await logout();
+    } catch {
+      Alert.alert(t('common.error'), t('common.logout_failed'));
+    }
+  };
 
   const driverId = user?.id ?? null;
   const hasPolicy = !!policy;
@@ -130,7 +141,13 @@ export default function PolicyScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MainTopNavbar />
+      <DriverLogoutMenu
+        visible={profileMenuVisible}
+        userEmail={user?.email}
+        onClose={() => setProfileMenuVisible(false)}
+        onLogout={() => { void handleLogout(); }}
+      />
+      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading || actionLoading} message={actionLoading ? actionMessage : t('policy.loading')} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>

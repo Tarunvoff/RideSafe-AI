@@ -6,6 +6,7 @@ import Button from '../../components/Button';
 import Card from '../../components/Card';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
+import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { fraudApi, paymentsApi, plansApi, type PayoutRecord } from '../../services/api';
@@ -13,12 +14,22 @@ import { Theme } from '../../theme';
 
 export default function WalletScreen() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { location, refreshLocation } = useLocation();
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
   const [latestDisruption, setLatestDisruption] = useState<any | null>(null);
   const [activePolicy, setActivePolicy] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setProfileMenuVisible(false);
+      await logout();
+    } catch {
+      Alert.alert(t('common.error'), t('common.logout_failed'));
+    }
+  };
 
   const driverId = user?.id ?? null;
 
@@ -104,7 +115,13 @@ export default function WalletScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MainTopNavbar />
+      <DriverLogoutMenu
+        visible={profileMenuVisible}
+        userEmail={user?.email}
+        onClose={() => setProfileMenuVisible(false)}
+        onLogout={() => { void handleLogout(); }}
+      />
+      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading} message={t('wallet.syncing')} />
       <ScrollView contentContainerStyle={styles.container}>
         

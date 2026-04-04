@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
 import MapView, { Marker } from 'react-native-maps';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import MainTopNavbar from '../../components/MainTopNavbar';
+import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
@@ -56,13 +58,23 @@ function riskColors(level: RiskLevel) {
 export default function DriverLiveRiskScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { location, refreshLocation } = useLocation();
   const mapRef = React.useRef<MapView | null>(null);
   const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setProfileMenuVisible(false);
+      await logout();
+    } catch {
+      Alert.alert(t('common.error'), t('common.logout_failed'));
+    }
+  };
   const coords = useMemo(
     () => (hasValidLocation ? { lat: location.latitude as number, lng: location.longitude as number } : null),
     [hasValidLocation, location.latitude, location.longitude],
@@ -180,7 +192,13 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MainTopNavbar />
+      <DriverLogoutMenu
+        visible={profileMenuVisible}
+        userEmail={user?.email}
+        onClose={() => setProfileMenuVisible(false)}
+        onLogout={() => { void handleLogout(); }}
+      />
+      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading} message={t('live_risk.refreshing')} />
 
       <ScrollView

@@ -823,6 +823,14 @@ export default function DriverProfileScreen({ navigation }: any) {
             </TouchableOpacity>
             <View style={styles.langDivider} />
             <TouchableOpacity
+              style={[styles.langItem, i18n.language === 'hi' && styles.langItemSelected]}
+              onPress={() => i18n.changeLanguage('hi')}
+            >
+              <Text style={[styles.langText, i18n.language === 'hi' && styles.langTextSelected]}>हिंदी (Hindi)</Text>
+              {i18n.language === 'hi' && <Ionicons name="checkmark" size={18} color="#16a34a" />}
+            </TouchableOpacity>
+            <View style={styles.langDivider} />
+            <TouchableOpacity
               style={[styles.langItem, i18n.language === 'ta' && styles.langItemSelected]}
               onPress={() => i18n.changeLanguage('ta')}
             >
@@ -843,7 +851,7 @@ export default function DriverProfileScreen({ navigation }: any) {
             activeOpacity={0.9}
             onPress={() => { void handleLogout(); }}
           >
-            <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
+            <Text style={styles.logoutButtonText}>{t('profile.logout')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -950,6 +958,39 @@ const styles = StyleSheet.create({
   prefLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   prefTitle: { fontSize: 16, color: '#111827', fontWeight: '600' },
   prefDivider: { height: 1, backgroundColor: '#f3f4f6', marginHorizontal: Theme.spacing.md },
+
+  languageCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: Theme.borderRadius.lg,
+    overflow: 'hidden',
+    shadowColor: '#111827',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  langItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: 18,
+    backgroundColor: '#ffffff',
+    minHeight: 64,
+  },
+  langItemSelected: {
+    backgroundColor: '#f0fdf4',
+  },
+  langText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  langTextSelected: {
+    color: '#16a34a',
+    fontWeight: '800',
+  },
+  langDivider: { height: 1, backgroundColor: '#f3f4f6', marginHorizontal: Theme.spacing.md },
 
   kycButton: {
     width: '100%',

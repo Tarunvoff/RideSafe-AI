@@ -474,7 +474,7 @@
       "title_verify": "Verify OTP",
       "title_verified": "Phone Verified",
       "subtitle_verify": "Enter the 6-digit code sent to {{email}}",
-      "subtitle_verified": "Authentication with {{provider}} successful.",
+      "subtitle_verified": "Authentication successful.",
       "error_missing": "Please enter the full 6-digit code.",
       "error_failed": "Verification failed. Please try again.",
       "button_verify": "Verify & Continue",
@@ -482,7 +482,7 @@
       "resend_in": "Resend in {{timer}}s",
       "resend_link": "Resend Code",
       "loading_verifying": "Verifying OTP...",
-      "loading_connecting": "Connecting to {{provider}}..."
+      "loading_connecting": "Connecting..."
     },
     "terms": {
       "title": "Terms of Service",
