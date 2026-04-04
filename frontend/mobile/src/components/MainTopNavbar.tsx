@@ -13,7 +13,7 @@ export default function MainTopNavbar({ onProfilePress, onNotificationPress }: M
   return (
     <View style={styles.header}>
       <Image
-        source={require('../../assets/images/ProductLogo.png')}
+        source={require('../../assets/images/productlogo.png')}
         style={styles.headerBrandIcon}
         resizeMode="contain"
       />

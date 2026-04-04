@@ -53,7 +53,7 @@ export default function AdminLoginScreen({ navigation }: any) {
           <View style={styles.brandContainer}>
             <View style={styles.logoPlaceholder}>
               <Image
-                source={require('../../../assets/images/ProductLogo.png')}
+                source={require('../../../assets/images/productlogo.png')}
                 style={styles.logoIcon}
                 resizeMode="contain"
               />

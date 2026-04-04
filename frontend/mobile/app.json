@@ -4,7 +4,7 @@
     "slug": "aegis",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/ProductLogo.png",
+    "icon": "./assets/images/productlogo.png",
     "scheme": "ridesafe",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
