@@ -151,8 +151,8 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
             </View>
             <View style={[styles.validBadge, location.isMock ? styles.mockBadge : (hasValidLocation ? styles.liveBadge : styles.mockBadge)]}>
               <View style={[styles.validDot, location.isMock ? styles.mockDot : (hasValidLocation ? styles.liveDot : styles.mockDot)]} />
-              <Text style={[styles.validText, location.isMock ? styles.mockText : (hasValidLocation ? styles.liveText : styles.mockText)]}>
-                {location.loading ? 'Fetching your location…' : location.isMock ? 'Mock Location' : hasValidLocation ? 'Live GPS' : 'Location unavailable'}
+              <Text style={[styles.validText, location.isMock ? styles.mockText : (hasValidLocation ? styles.liveText : styles.mockText)]} numberOfLines={1}>
+                {location.loading ? 'Fetching…' : location.isMock ? 'Mock' : hasValidLocation ? 'Live GPS' : 'Unavailable'}
               </Text>
             </View>
           </View>
@@ -169,9 +169,18 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
           </View>
 
           <View style={styles.locationActionsRow}>
-            <Text style={styles.timestampText}>Last valid location timestamp: 10:42:15 AM</Text>
+            <Text style={styles.timestampText}>
+              Last valid location timestamp: {location.fetchedAt
+                ? location.fetchedAt.toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                  })
+                : '—'}
+            </Text>
             <TouchableOpacity style={styles.locationRefreshBtn} onPress={() => void refreshLocation()}>
-              <Ionicons name="refresh" size={14} color="#111827" />
+              <Ionicons name="refresh" size={14} color="#ffffff" />
               <Text style={styles.locationRefreshText}>Recheck</Text>
             </TouchableOpacity>
           </View>
@@ -248,16 +257,16 @@ const styles = StyleSheet.create({
   metaLabel: { fontSize: 12, color: '#6b7280' },
   metaValue: { fontSize: 12, color: '#111827', fontWeight: '700' },
   locationCard: {
-    backgroundColor: '#f1f3f5',
+    backgroundColor: '#ffffff',
     borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.sm,
+    padding: Theme.spacing.lg,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    marginBottom: Theme.spacing.sm,
+    marginBottom: Theme.spacing.md,
   },
-  locationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.sm },
-  locationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  locationTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  locationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md, gap: 12 },
+  locationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  locationTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
   validBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -266,56 +275,57 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    flexShrink: 1,
+    maxWidth: '55%',
   },
   liveBadge: { backgroundColor: '#e7f7ed' },
   mockBadge: { backgroundColor: '#e5e7eb' },
-  validDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16a34a' },
+  validDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16a34a', flexShrink: 0 },
   validLiveDot: { backgroundColor: '#16a34a' },
   mockDot: { backgroundColor: '#6b7280' },
-  validText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#166534' },
+  validText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: '#166534', letterSpacing: 0.2, flexShrink: 1 },
   liveText: { color: '#166534' },
   mockText: { color: '#4b5563' },
-  coordsGrid: { flexDirection: 'row', gap: 10 },
+  coordsGrid: { flexDirection: 'row', gap: 12, marginBottom: Theme.spacing.md },
   coordBox: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
     borderRadius: Theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: Theme.spacing.sm,
+    borderColor: '#e2e8f0',
+    padding: Theme.spacing.md,
   },
   coordBoxWide: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
     borderRadius: Theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: Theme.spacing.sm,
+    borderColor: '#e2e8f0',
+    padding: Theme.spacing.md,
   },
-  coordLabel: { fontSize: 10, textTransform: 'uppercase', color: '#6b7280', marginBottom: 3 },
-  coordValue: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  coordValueInline: { fontSize: 13, fontWeight: '700', color: '#111827' },
+  coordLabel: { fontSize: 11, textTransform: 'uppercase', color: '#6b7280', marginBottom: 6, fontWeight: '700', letterSpacing: 0.5 },
+  coordValue: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
+  coordValueInline: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
   locationActionsRow: {
-    marginTop: Theme.spacing.sm,
+    marginTop: Theme.spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
   },
   locationRefreshBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ffffff',
+    gap: 8,
+    backgroundColor: Theme.colors.primary,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderWidth: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  locationRefreshText: { fontSize: 10, fontWeight: '800', color: '#111827', textTransform: 'uppercase' },
-  timestampText: { fontSize: 10, color: '#6b7280', fontStyle: 'italic' },
-  infoChipWrap: { alignItems: 'center', marginTop: Theme.spacing.sm, marginBottom: Theme.spacing.sm },
+  locationRefreshText: { fontSize: 13, fontWeight: '800', color: '#ffffff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  timestampText: { fontSize: 12, color: '#6b7280', fontStyle: 'italic', flex: 1 },
+  infoChipWrap: { alignItems: 'center', marginTop: Theme.spacing.md, marginBottom: 0 },
   infoChip: {
     flexDirection: 'row',
     alignItems: 'center',
