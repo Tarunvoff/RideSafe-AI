@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { Theme } from '../../theme';
 import { fraudApi } from '../../services/api';
+import LocationErrorCard from '../../components/LocationErrorCard';
 
 // ────── TYPESCRIPT TYPES ──────────────────────────────────────────────────────
 
@@ -121,6 +122,35 @@ function transformToRiskMap(apiResponse: ZoneNeighborsResponse | null): RiskMap 
 const H3_RESOLUTIONS = [8, 9, 10] as const;
 const VIEW_MODE_MOBILE = 'mobile' as const;
 const VIEW_MODE_WEB = 'web' as const;
+
+// ────── HELPER FUNCTION ──────────────────────────────────────────────────
+
+function getLocationErrorType(
+  errorMessage: string | null
+): 'permission' | 'gps' | 'general' | null {
+  if (!errorMessage) return null;
+
+  const errorLower = errorMessage.toLowerCase();
+
+  if (
+    errorLower.includes('access denied') ||
+    errorLower.includes('permission denied') ||
+    errorLower.includes('not granted')
+  ) {
+    return 'permission';
+  }
+
+  if (
+    errorLower.includes('gps') ||
+    errorLower.includes('signal') ||
+    errorLower.includes('timeout') ||
+    errorLower.includes('unable to determine')
+  ) {
+    return 'gps';
+  }
+
+  return 'general';
+}
 
 export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   const { logout, user } = useAuth();
@@ -857,6 +887,26 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   // ────── RENDER EMPTY STATE ──────────────────────────────────────────────
 
   if (!riskMap || Object.keys(riskMap).length === 0) {
+    const errorType = getLocationErrorType(riskError);
+
+    // If there's a location-related error, show professional error card
+    if (errorType) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+          <View style={styles.centeredContainer}>
+            <LocationErrorCard
+              errorType={errorType}
+              message={riskError || 'Unknown error'}
+              onRetry={() => refreshLocation()}
+            />
+          </View>
+          <DriverBottomNavbar navigation={navigation} activeKey="risk" />
+        </SafeAreaView>
+      );
+    }
+
+    // Generic "no data" state when there's no error (shouldn't happen often)
     return (
       <SafeAreaView style={styles.safeArea}>
         <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
@@ -864,9 +914,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           <Ionicons name="warning-outline" size={48} color="#f59e0b" />
           <Text style={styles.emptyTitle}>No Risk Data Available</Text>
           <Text style={styles.emptySubtitle}>
-            {riskError
-              ? `Error: ${riskError}`
-              : 'Unable to load risk data for your current location.'}
+            Unable to load risk data for your current location.
           </Text>
           <TouchableOpacity
             style={styles.retryBtn}

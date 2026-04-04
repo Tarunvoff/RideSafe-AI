@@ -2,21 +2,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Platform } from 'react-native';
 
-// Dynamically set BASE_URL depending on the platform environment
-// Local network IP (192.168.1.9) is used so physical devices scanning Expo Go can connect.
-const getBaseUrl = () => {
-  // Use the API URL from your local .env file first
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+// Dynamically set BASE_URL from environment — REQUIRED for deployments
+// Use environment variable EXPO_PUBLIC_API_URL
+const getBaseUrl = (): string => {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  
+  if (!apiUrl) {
+    const errorMsg = 
+      'FATAL: EXPO_PUBLIC_API_URL not configured. ' +
+      'Please set EXPO_PUBLIC_API_URL in .env file (e.g., http://192.168.1.9:3001/api)';
+    console.error('❌', errorMsg);
+    throw new Error(errorMsg);
   }
   
-  // Fallback for Web Simulator if .env is missing
-  if (Platform.OS === 'web') {
-    return 'http://localhost:3001/api';
-  }
-  
-  // Final fallback (Ideally this never happens since we have .env)
-  return 'http://127.0.0.1:3001/api';
+  console.log('✅ Using API URL:', apiUrl.replace(/\/api\/?$/, '') + '/api');
+  return apiUrl;
 };
 
 const BASE_URL = getBaseUrl();

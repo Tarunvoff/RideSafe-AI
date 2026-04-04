@@ -41,8 +41,10 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   const setMock = useCallback((reason: string) => {
     // We log the error telemetry here to track how many users are missing location permissions/capabilities
-    console.warn(`Location fetch failed: ${reason}`);
+    console.warn(`❌ Location fetch failed: ${reason}`);
     void telemetryApi.reportLocationFailure({ reason, platform: 'mobile-app' }).catch(() => {});
+    
+    // Store error state WITHOUT fallback coordinates
     setLocation({
       latitude: null,
       longitude: null,
@@ -59,14 +61,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     setLocation((prev) => ({ ...prev, loading: true, error: null }));
 
     if (!ExpoLocation) {
-      setMock('expo-location not available');
+      setMock('Location service unavailable. Please ensure location permissions are enabled.');
       return;
     }
 
     try {
       const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setMock('Location permission denied');
+        setMock(
+          'Location access denied. Please enable location permissions in settings to use the Live Risk map feature.'
+        );
         return;
       }
 
@@ -79,7 +83,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           coords = lastKnown.coords;
         }
       } catch (e) {
-        // Ignore last known errors
+        // Ignore last known errors, try to get current position
       }
 
       if (!coords) {
@@ -89,7 +93,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Location timeout')), timeoutMs),
+          setTimeout(() => reject(new Error('Location request timed out')), timeoutMs),
         );
 
         const result: any = await Promise.race([locationPromise, timeoutPromise]);
@@ -97,10 +101,13 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!coords) {
-        setMock('Location unavailable');
+        setMock(
+          'Unable to determine your location. Please check your GPS signal and try again, or ensure location services are enabled.'
+        );
         return;
       }
 
+      // ✅ Location successfully acquired
       setLocation({
         latitude: coords.latitude,
         longitude: coords.longitude,
@@ -111,8 +118,11 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         loading: false,
         error: null,
       });
+      
+      console.log('✅ Location acquired:', { lat: coords.latitude, lon: coords.longitude });
     } catch (err: any) {
-      setMock(err?.message ?? 'Location fetch failed');
+      const errorMessage = err?.message ?? 'Failed to fetch location';
+      setMock(`Location error: ${errorMessage}. Please try again.`);
     }
   }, [setMock]);
 

@@ -288,7 +288,27 @@ export class DynamicQCommerceService {
     const rawZone = zone.trim();
     const zoneKey = rawZone.toLowerCase();
     const isH3Like = /^[0-9a-f]+$/i.test(zoneKey) && zoneKey.length >= 10;
-    const center = isH3Like ? h3.cellToLatLng(zoneKey) : [12.9716, 77.5946];
+    
+    let center: [number, number];
+    
+    if (isH3Like) {
+      center = h3.cellToLatLng(zoneKey);
+    } else {
+      // Get fallback coordinates from environment or use hardcoded Bangalore as last resort
+      const fallbackLat = process.env.DEFAULT_LAT ? parseFloat(process.env.DEFAULT_LAT) : 12.9716;
+      const fallbackLng = process.env.DEFAULT_LNG ? parseFloat(process.env.DEFAULT_LNG) : 77.5946;
+      
+      // Log warning if using default fallback
+      if (!process.env.DEFAULT_LAT || !process.env.DEFAULT_LNG) {
+        this.logger.warn(
+          `[DynamicQCommerce] Zone key "${zoneKey}" is not H3-like. Using fallback coordinates: [${fallbackLat}, ${fallbackLng}]. ` +
+          `Set DEFAULT_LAT and DEFAULT_LNG to override.`
+        );
+      }
+      
+      center = [fallbackLat, fallbackLng];
+    }
+    
     const [baseLat, baseLng] = center as [number, number];
 
     if (!this.driverRecords.size) {
