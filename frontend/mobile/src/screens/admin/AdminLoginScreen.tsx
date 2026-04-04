@@ -7,6 +7,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 import Input from '../../components/Input';
 import { authApi } from '../../services/api';
 import { Theme } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ export default function AdminLoginScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { adminLogin } = useAuth();
 
   const handleLogin = async () => {
     setError('');
@@ -27,9 +29,8 @@ export default function AdminLoginScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
-      await authApi.adminLogin(email, password);
-      // OTP sent to admin email — navigate with email param
-      navigation.navigate('AdminOTP', { email });
+      await adminLogin(email, password);
+      // Success triggers AuthContext update, which navigates automatically via AppNavigator
     } catch (err: any) {
       setError(err.message ?? 'Login failed. Check your credentials.');
     } finally {

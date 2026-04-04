@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import AuthCard from '../../components/AuthCard';
 import Button from '../../components/Button';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
-export default function AdminOTPScreen({ navigation, route }: any) {
-  const email = route?.params?.email ?? '';
-  const { adminVerifyOtp } = useAuth();
+export default function DriverOTPScreen({ navigation, route }: any) {
+  const { email, provider, redirectUri } = route?.params ?? {};
+  const { verifyDriverOtp, loginWithOAuth } = useAuth();
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,11 @@ export default function AdminOTPScreen({ navigation, route }: any) {
     }
   };
 
+  const getApiBaseUrl = () => {
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    return 'http://127.0.0.1:3001/api';
+  };
+
   const handleVerify = async () => {
     const fullCode = code.join('');
     if (fullCode.length < 6) {
@@ -53,12 +59,55 @@ export default function AdminOTPScreen({ navigation, route }: any) {
     }
     setLoading(true);
     try {
-      await adminVerifyOtp(email, fullCode);
+      // 1. Verify Email OTP
+      await verifyDriverOtp(email, fullCode);
       setSuccess(true);
-      // The AppNavigator will automatically unmount this screen and show the AdminDashboard since `user.role` is now 'ADMIN'.
+
+      // 2. Proceed to OAuth
+      const authUrl = `${getApiBaseUrl()}/auth/${provider.toLowerCase()}/authorize?identifier=${encodeURIComponent(email)}&redirectUri=${encodeURIComponent(redirectUri)}`;
+      
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type === 'cancel') {
+        setLoading(false);
+        setSuccess(false);
+        Alert.alert('Login Cancelled', 'You cancelled the login process.');
+        return;
+      }
+
+      if (result.type !== 'success' || !result.url) {
+        const message = result.type === 'dismiss'
+          ? 'Login was dismissed. Please try again.'
+          : 'OAuth provider exchange failed.';
+        throw new Error(message);
+      }
+
+      const queryParams = new URL(result.url).searchParams;
+      const oauthError = queryParams.get('error');
+      const errorDesc = queryParams.get('error_description');
+      const oauthCode = queryParams.get('code');
+      const sessionId = queryParams.get('sessionId');
+      const state = queryParams.get('state') ?? undefined;
+
+      if (oauthError) {
+        const message = oauthError === 'access_denied'
+          ? 'Consent was denied. Please allow access to continue.'
+          : errorDesc || 'OAuth provider rejected the request.';
+        throw new Error(message);
+      }
+
+      if (!oauthCode || !sessionId) {
+        throw new Error('OAuth token exchange failed: Missing session data.');
+      }
+
+      // 3. Complete Login
+      await loginWithOAuth(provider, { code: oauthCode, sessionId, state, redirectUri });
+      
+      // Success will trigger AuthContext update and navigation automatically
     } catch (err: any) {
-      setError(err.message ?? 'Invalid verification code.');
+      setError(err.message ?? 'Verification failed.');
       setLoading(false);
+      setSuccess(false);
     }
   };
 
@@ -67,12 +116,12 @@ export default function AdminOTPScreen({ navigation, route }: any) {
     setCode(['', '', '', '', '', '']);
     inputs.current[0]?.focus();
     setError('');
+    // Optionally trigger resend API here
   };
 
   return (
-    /* COMMENTED OUT AS PER USER REQUEST - ADMIN 2FA DISABLED
     <SafeAreaView style={styles.safeArea}>
-      <LoadingOverlay visible={loading} message="Verifying admin access..." />
+      <LoadingOverlay visible={loading} message={success ? "Connecting to platform..." : "Verifying your email..."} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} disabled={success || loading}>
           <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
@@ -82,20 +131,20 @@ export default function AdminOTPScreen({ navigation, route }: any) {
           <AuthCard style={styles.card}>
             <View style={styles.iconContainer}>
               <Ionicons 
-                name={success ? "checkmark-circle" : "shield-checkmark"} 
+                name={success ? "checkmark-circle" : "mail-open"} 
                 size={48} 
                 color={success ? Theme.colors.success : Theme.colors.primary} 
               />
             </View>
             
-            <Text style={styles.title}>{success ? "Access Granted" : "Two-Factor Auth"}</Text>
+            <Text style={styles.title}>{success ? "Email Verified" : "Verify Your Email"}</Text>
             
             {success ? (
-              <Text style={styles.subtitle}>Redirecting to Admin Dashboard...</Text>
+              <Text style={styles.subtitle}>Connecting to your {provider} account...</Text>
             ) : (
               <>
                 <Text style={styles.subtitle}>
-                  Enter the 6-digit verification code sent to your admin email.
+                  We've sent a 6-digit code to <Text style={{ fontWeight: 'bold' }}>{email}</Text>. Enter it below to continue.
                 </Text>
 
                 {error ? (
@@ -123,7 +172,7 @@ export default function AdminOTPScreen({ navigation, route }: any) {
                 </View>
 
                 <Button 
-                  title={loading ? "Verifying..." : "Verify Identity"} 
+                  title={loading ? "Verifying..." : "Verify & Continue"} 
                   onPress={handleVerify} 
                   disabled={loading}
                   loading={loading}
@@ -145,8 +194,6 @@ export default function AdminOTPScreen({ navigation, route }: any) {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    */
-    null
   );
 }
 

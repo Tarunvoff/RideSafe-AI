@@ -260,19 +260,35 @@ export class AuthService {
 
     const user = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
 
+    /*
+    // COMMENTED OUT FOR DRIVER REUSE AS REQUESTED
     const otp = generateOTP();
     await this.prisma.user.update({
       where: { id: user.id },
       data: { otpCode: hashOTP(otp), otpExpiresAt: otpExpiresAt() },
     });
-
     // Always deliver admin MFA OTP to the configured admin inbox
     await this.email.sendOTPEmail(adminCreds.email, otp, 'ADMIN_MFA');
     return { message: 'OTP sent to your admin email. Please verify to complete sign-in.' };
+    */
+
+    // Direct Login for Admin as requested
+    const tokens = await this.generateTokens(user);
+    const rtHash = hashOTP(tokens.refreshToken);
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
+
+    return {
+      message: 'Admin sign-in successful.',
+      ...tokens,
+      role: 'ADMIN',
+      userId: user.id,
+    };
   }
 
   // ── ADMIN VERIFY OTP ─────────────────────────────────────────────────────
   async adminVerifyOtp(dto: AdminVerifyOtpDto) {
+    /* 
+    // DISABLED FOR ADMIN - REUSED FOR DRIVER BELOW
     const adminCreds = this.getAdminEnvCreds();
     if (dto.email !== adminCreds.email) {
       throw new UnauthorizedException('Invalid admin credentials');
@@ -295,6 +311,59 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
     return { message: 'Admin sign-in successful.', ...tokens, role: 'ADMIN' };
+    */
+    throw new BadRequestException('Admin 2FA is disabled');
+  }
+
+  // ── DRIVER 2FA (Reusing Admin Logic) ──────────────────────────────────────
+  async startDriverLoginOtp(email: string) {
+    // We don't require the user to exist yet if they are new, 
+    // but typically they enter email then click OAuth.
+    // If they exist, we send to their email. If not, we just send to that email.
+    
+    const otp = generateOTP();
+    const expiry = otpExpiresAt();
+
+    // Store OTP in a temp way or use a placeholder user if needed.
+    // For now, let's assume we want to verify the email before they can even do OAuth.
+    // We can use the User table even if they haven't finished OAuth.
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Create a "shadow" user or just use a dedicated table? 
+      // User table is fine, role=DRIVER, isVerified=false.
+      const tempPass = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12);
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash: tempPass,
+          role: 'DRIVER',
+          isVerified: false,
+        }
+      });
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otpCode: hashOTP(otp), otpExpiresAt: expiry },
+    });
+
+    await this.email.sendOTPEmail(email, otp, 'LOGIN');
+    return { message: 'OTP sent to your email. Please verify to continue.' };
+  }
+
+  async verifyDriverLoginOtp(email: string, otp: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.otpCode || !user.otpExpiresAt) throw new BadRequestException('No OTP requested');
+    if (new Date() > user.otpExpiresAt) throw new BadRequestException('OTP has expired');
+    if (hashOTP(otp) !== user.otpCode) throw new BadRequestException('Invalid OTP');
+
+    // Mark as verified so they can proceed to OAuth
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otpCode: null, otpExpiresAt: null, isVerified: true },
+    });
+
+    return { message: 'Email verified. Proceeding to OAuth...' };
   }
 
   // ── OAUTH FLOW ─────────────────────────────────────────────────────────

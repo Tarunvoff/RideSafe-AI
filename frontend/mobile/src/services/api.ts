@@ -141,9 +141,21 @@ export const authApi = {
     }),
 
   adminLogin: (email: string, password: string) =>
-    request('/auth/admin/login', {
+    request<{ accessToken: string; refreshToken: string; role: string; userId: string; message: string }>('/auth/admin/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+
+  sendDriverOtp: (email: string) =>
+    request<{ message: string }>('/auth/driver/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  verifyDriverOtp: (email: string, otp: string) =>
+    request<{ message: string }>('/auth/driver/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
     }),
 
   adminVerifyOtp: (email: string, otp: string) =>

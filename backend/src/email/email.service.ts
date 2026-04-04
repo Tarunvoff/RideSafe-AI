@@ -17,17 +17,19 @@ export class EmailService {
     });
   }
 
-  async sendOTPEmail(to: string, otp: string, purpose: 'VERIFY' | 'RESET' | 'ADMIN_MFA' = 'VERIFY') {
+  async sendOTPEmail(to: string, otp: string, purpose: 'VERIFY' | 'RESET' | 'ADMIN_MFA' | 'LOGIN' = 'VERIFY') {
     console.log(`[EmailService] Attempting to send ${purpose} OTP to ${to} ...`);
     const subjects = {
       VERIFY: `${process.env.APP_NAME} — Verify your email`,
       RESET: `${process.env.APP_NAME} — Reset your password`,
       ADMIN_MFA: `${process.env.APP_NAME} — Admin MFA Code`,
+      LOGIN: `${process.env.APP_NAME} — Driver Login Code`,
     };
     const intros = {
       VERIFY: 'Use the code below to verify your email address.',
       RESET: 'Use the code below to reset your password.',
       ADMIN_MFA: 'Use this code to complete your admin sign-in.',
+      LOGIN: 'Use this code to complete your driver sign-in.',
     };
 
     await this.transporter.sendMail({

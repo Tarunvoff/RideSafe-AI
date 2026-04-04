@@ -66,6 +66,8 @@ export default function LoginScreen({ navigation }: any) {
       : Linking.createURL('oauth-callback', { scheme: 'ridesafe' });
   };
 
+  const { sendDriverOtp } = useAuth();
+
   const handleOAuthLogin = async (platform: string) => {
     setLoading(true);
     try {
@@ -74,63 +76,25 @@ export default function LoginScreen({ navigation }: any) {
         Alert.alert('Missing identifier', 'Enter your work email or phone to continue.');
         return;
       }
+      
       const provider = platform.trim().toUpperCase();
       const redirectUri = getRedirectUri();
-      const canOpenRedirect = await Linking.canOpenURL(redirectUri);
-      if (!canOpenRedirect) {
-        Alert.alert(
-          'OAuth Error',
-          'Unable to open the redirect link. If you are using Expo Go, make sure it is installed and the device can reach the dev server.'
-        );
-        return;
-      }
-      const authUrl = `${getApiBaseUrl()}/auth/${provider.toLowerCase()}/authorize?identifier=${encodeURIComponent(trimmedIdentifier)}&redirectUri=${encodeURIComponent(redirectUri)}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      // 1. Send OTP to the driver's email
+      // We assume for now the identifier is the email (which is standard for OTP)
+      await sendDriverOtp(trimmedIdentifier);
 
-      if (result.type === 'cancel') {
-        Alert.alert('Login Cancelled', 'You cancelled the login process.');
-        return;
-      }
+      // 2. Navigate to OTP Screen with context
+      setModalVisible(false); // Close the selection modal
+      navigation.navigate('DriverOTP', {
+        email: trimmedIdentifier,
+        provider,
+        redirectUri
+      });
 
-      if (result.type !== 'success' || !result.url) {
-        const message = result.type === 'dismiss'
-          ? 'Login was dismissed. Please try again.'
-          : 'OAuth provider exchange failed.';
-        Alert.alert('OAuth Error', message);
-        return;
-      }
-
-      const queryParams = new URL(result.url).searchParams;
-      const error = queryParams.get('error');
-      const errorDesc = queryParams.get('error_description');
-      const code = queryParams.get('code');
-      const sessionId = queryParams.get('sessionId');
-      const state = queryParams.get('state') ?? undefined;
-
-      if (error) {
-        const message = error === 'access_denied'
-          ? 'Consent was denied. Please allow access to continue.'
-          : errorDesc || 'OAuth provider rejected the request.';
-        Alert.alert('OAuth Error', message);
-        return;
-      }
-
-      if (!code) {
-        Alert.alert('OAuth Error', 'Token exchange failed: Missing authorization code.');
-        return;
-      }
-
-      if (!sessionId) {
-        Alert.alert('OAuth Error', 'Token exchange failed: Missing session ID.');
-        return;
-      }
-
-      await loginWithOAuth(provider, { code, sessionId, state, redirectUri });
-      closeAuthModal();
     } catch (error: any) {
-      console.error('❌ OAuth Error:', error);
-      Alert.alert('OAuth Error', error?.message || 'Failed to authenticate');
+      console.error('❌ Login Error:', error);
+      Alert.alert('Login Error', error?.message || 'Failed to start login process');
     } finally {
       setLoading(false);
     }

@@ -24,6 +24,7 @@ import PolicyScreen from '../screens/main/PolicyScreen';
 import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
 
+import DriverOTPScreen from '../screens/auth/DriverOTPScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -47,15 +48,22 @@ export default function AppNavigator() {
       >
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen
+          name="DriverOTP"
+          component={DriverOTPScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
           name="AdminLogin"
           component={AdminLoginScreen}
           options={{ presentation: 'modal' }}
         />
+        {/*
         <Stack.Screen
           name="AdminOTP"
           component={AdminOTPScreen}
           options={{ presentation: 'modal' }}
         />
+        */}
       </Stack.Navigator>
     );
   }

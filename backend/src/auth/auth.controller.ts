@@ -45,6 +45,18 @@ export class AuthController {
     return this.authService.verifyOtp(dto);
   }
 
+  @Post('driver/send-otp')
+  @HttpCode(HttpStatus.OK)
+  sendDriverOtp(@Body('email') email: string) {
+    return this.authService.startDriverLoginOtp(email);
+  }
+
+  @Post('driver/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  verifyDriverOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyDriverLoginOtp(dto.email, dto.otp);
+  }
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {

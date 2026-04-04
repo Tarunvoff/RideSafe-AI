@@ -23,6 +23,8 @@ interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   adminVerifyOtp: (email: string, otp: string) => Promise<void>;
+  sendDriverOtp: (email: string) => Promise<void>;
+  verifyDriverOtp: (email: string, otp: string) => Promise<void>;
   checkKycStatus: () => Promise<string | null>;
   refreshKycStatus: () => Promise<void>;
   updateDriverName: (name: string) => Promise<void>;
@@ -107,6 +109,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await refreshLocation();
     setUser({ id: res.driverId, email, role: 'DRIVER', driverName: savedName || undefined });
     setKycStatus('NOT_STARTED');
+  };
+
+  const sendDriverOtp = async (email: string) => {
+    await authApi.sendDriverOtp(email);
+  };
+
+  const verifyDriverOtp = async (email: string, otp: string) => {
+    await authApi.verifyDriverOtp(email, otp);
   };
 
   const login = async (email: string, password: string) => {
@@ -204,7 +214,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const adminLogin = async (email: string, password: string) => {
-    await authApi.adminLogin(email, password);
+    const res = await authApi.adminLogin(email, password);
+    
+    await AsyncStorage.multiSet([
+      ['accessToken', res.accessToken],
+      ['refreshToken', res.refreshToken],
+      ['userEmail', email],
+      ['userRole', 'ADMIN'],
+      ['userId', res.userId],
+    ]);
+
+    setUser({ id: res.userId, email, role: 'ADMIN' });
   };
 
   const adminVerifyOtp = async (email: string, otp: string) => {
@@ -270,6 +290,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyOtp,
         adminLogin,
         adminVerifyOtp,
+        sendDriverOtp,
+        verifyDriverOtp,
         checkKycStatus,
         refreshKycStatus,
         updateDriverName,
