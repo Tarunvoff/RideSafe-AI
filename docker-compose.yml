@@ -14,10 +14,15 @@ services:
     ports:
       - "9092:9092"
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: aegis-kafka-1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://aegis-kafka-1:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_CREATE_TOPICS: "aegis-events:1:1"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock   # 🔥 REQUIRED FIX
@@ -43,6 +48,106 @@ services:
       POSTGRES_PASSWORD: 12345678
       POSTGRES_DB: RideSafe_AI
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ridesafe-ai-backend:latest
+    container_name: backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    depends_on:
+      - kafka
+      - redis
+      - timescaledb
+    restart: unless-stopped
+
+  ml-insurance:
+    build:
+      context: ./ml-calcultion/ml-insurance-service
+      dockerfile: Dockerfile
+    image: ridesafe-ai-ml-insurance:latest
+    container_name: ml-insurance
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://aegis-redis-1:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: aegis-kafka-1:9092
+      ML_SERVICE_URL: http://ml-insurance:8000
+      ML_INSURANCE_SERVICE_URL: http://ml-insurance:8000
+      GRID_EVENT_SERVICE_URL: http://grid-event:8003
+      H3_FEATURE_SERVICE_URL: http://h3-feature:8004
+      FRAUD_FEATURE_SERVICE_URL: http://fraud-feature:8002
+      USE_REDIS: "True"
+      STRICT_REALTIME: "false"
+    depends_on:
+      - kafka
+      - redis
+    restart: unless-stopped
+
+  fraud-feature:
+    build:
+      context: ./ml-calcultion/fraud-feature-service
+      dockerfile: Dockerfile
+    image: ridesafe-ai-fraud-feature:latest
+    container_name: fraud-feature
+    ports:
+      - "8002:8002"
+    environment:
+      REDIS_URL: redis://aegis-redis-1:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: aegis-kafka-1:9092
+      ML_SERVICE_URL: http://ml-insurance:8000
+      ML_INSURANCE_SERVICE_URL: http://ml-insurance:8000
+      GRID_EVENT_SERVICE_URL: http://grid-event:8003
+      H3_FEATURE_SERVICE_URL: http://h3-feature:8004
+      FRAUD_FEATURE_SERVICE_URL: http://fraud-feature:8002
+      USE_REDIS: "True"
+      STRICT_REALTIME: "false"
+    depends_on:
+      - kafka
+      - redis
+    restart: unless-stopped
+
+  h3-feature:
+    build:
+      context: ./ml-calcultion/h3-feature-service
+      dockerfile: Dockerfile
+    image: ridesafe-ai-h3-feature:latest
+    container_name: h3-feature
+    ports:
+      - "8004:8004"
+    environment:
+      REDIS_URL: redis://aegis-redis-1:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: aegis-kafka-1:9092
+      ML_INSURANCE_SERVICE_URL: http://ml-insurance:8000
+      KAFKA_STARTUP_DELAY: "15"
+      STRICT_REALTIME: "false"
+    depends_on:
+      - kafka
+      - redis
+    restart: unless-stopped
+
+  grid-event:
+    build:
+      context: ./ml-calcultion/grid-event-service
+      dockerfile: Dockerfile
+    image: ridesafe-ai-grid-event:latest
+    container_name: grid-event
+    ports:
+      - "8003:8003"
+    environment:
+      REDIS_URL: redis://aegis-redis-1:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: aegis-kafka-1:9092
+      ML_SERVICE_URL: http://ml-insurance:8000
+      H3_FEATURE_SERVICE_URL: http://h3-feature:8004
+      USE_REDIS: "True"
+    depends_on:
+      - kafka
+      - redis
+    restart: unless-stopped
+
 volumes:
   redis_data:
 
@@ -64,7 +169,7 @@ volumes:
 #     ports:
 #       - "9092:9092"
 #     environment:
-      KAFKA_BROKER_ID: 1001
+#       KAFKA_BROKER_ID: 1001
 #       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 #       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
 #       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
