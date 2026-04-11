@@ -69,7 +69,7 @@ async def run_kafka_consumer(aggregator: ZoneAggregator):
                     logger.warning("Skipping telemetry sentinel coords (0,0): driver=%s", driver_id)
                     continue
 
-                h3_cell = h3.latlng_to_cell(lat, lng, 8)
+                h3_cell = h3.geo_to_h3(lat, lng, 8)
                 
                 if h3_cell and driver_id:
                     await aggregator.process_ping(h3_cell, driver_id, payload.get("timestamp"), lat=lat, lng=lng)
