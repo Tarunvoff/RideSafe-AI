@@ -80,3 +80,4 @@ env.bak/
 venv.bak/
 /generated/prisma
 .env
+ml-calcultion/.venv/
