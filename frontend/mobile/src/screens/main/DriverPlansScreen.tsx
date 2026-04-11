@@ -249,7 +249,7 @@ export default function DriverPlansScreen({ navigation }: any) {
             return [
               String(plan.id),
               {
-                  amount: Math.min(Number(res?.weeklyPremium ?? plan.price ?? 0), MAX_WEEKLY_PREMIUM_INR),
+                amount: Math.min(Number(res?.weeklyPremium ?? plan.price ?? 0), MAX_WEEKLY_PREMIUM_INR),
                 loading: false,
                 fallback: false,
               },
@@ -258,7 +258,7 @@ export default function DriverPlansScreen({ navigation }: any) {
             return [
               String(plan.id),
               {
-                  amount: Math.min(Number(plan.price ?? 0), fallbackTierCap(plan)),
+                amount: Math.min(Number(plan.price ?? 0), fallbackTierCap(plan)),
                 loading: false,
                 fallback: true,
               },
@@ -404,7 +404,7 @@ export default function DriverPlansScreen({ navigation }: any) {
           razorpay_payment_id: payload.razorpay_payment_id,
           razorpay_signature: payload.razorpay_signature,
         });
-        
+
         if (verifyRes?.success) {
           // Backend confirmed - fetch policies from DB (source of truth)
           await fetchPurchased();
@@ -509,46 +509,46 @@ export default function DriverPlansScreen({ navigation }: any) {
 
                     return (
                       <>
-                  <View style={styles.planTop}>
-                    <View>
-                      <Text style={styles.planName}>{plan.name}</Text>
-                      <Text style={styles.planMeta}>Weekly subscription · {formatRupees(displayAmount)}/week</Text>
-                      {isPremiumLoading ? (
-                        <Text style={styles.planMeta}>Calculating dynamic premium...</Text>
-                      ) : isStandardRate ? (
-                        <Text style={styles.standardRateLabel}>Standard rate</Text>
-                      ) : null}
-                    </View>
-                    <View style={styles.priceBox}>
-                      <Text style={styles.priceText}>{formatRupees(displayAmount)}</Text>
-                      <Text style={styles.priceSub}>/week</Text>
-                    </View>
-                  </View>
+                        <View style={styles.planTop}>
+                          <View>
+                            <Text style={styles.planName}>{plan.name}</Text>
+                            <Text style={styles.planMeta}>Weekly subscription · {formatRupees(displayAmount)}/week</Text>
+                            {isPremiumLoading ? (
+                              <Text style={styles.planMeta}>Calculating dynamic premium...</Text>
+                            ) : isStandardRate ? (
+                              <Text style={styles.standardRateLabel}>Standard rate</Text>
+                            ) : null}
+                          </View>
+                          <View style={styles.priceBox}>
+                            <Text style={styles.priceText}>{formatRupees(displayAmount)}</Text>
+                            <Text style={styles.priceSub}>/week</Text>
+                          </View>
+                        </View>
 
-                  <View style={styles.divider} />
+                        <View style={styles.divider} />
 
-                  <View style={styles.eligibleRow}>
-                    <View style={styles.eligiblePill}>
-                      <Ionicons name="water-outline" size={14} color="#16a34a" />
-                      <Text style={styles.eligibleText}>
-                        Eligible for: {(plan.eligibleDisruptionTypes ?? []).length ? plan.eligibleDisruptionTypes.join(', ') : '—'}
-                      </Text>
-                    </View>
-                    <View style={styles.maxPayoutPill}>
-                      <Ionicons name="gift-outline" size={14} color="#16a34a" />
-                      <Text style={styles.eligibleText}>Up to {formatRupees(plan.maxPayout)} weekly payout</Text>
-                    </View>
-                  </View>
+                        <View style={styles.eligibleRow}>
+                          <View style={styles.eligiblePill}>
+                            <Ionicons name="water-outline" size={14} color="#16a34a" />
+                            <Text style={styles.eligibleText}>
+                              Eligible for: {(plan.eligibleDisruptionTypes ?? []).length ? plan.eligibleDisruptionTypes.join(', ') : '—'}
+                            </Text>
+                          </View>
+                          <View style={styles.maxPayoutPill}>
+                            <Ionicons name="gift-outline" size={14} color="#16a34a" />
+                            <Text style={styles.eligibleText}>Up to {formatRupees(plan.maxPayout)} weekly payout</Text>
+                          </View>
+                        </View>
 
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    style={styles.buyBtn}
-                    onPress={() => startCheckout(plan)}
-                    disabled={loading}
-                  >
-                    <Ionicons name="lock-closed-outline" size={18} color="#ffffff" />
-                    <Text style={styles.buyBtnText}>Pay with Razorpay</Text>
-                  </TouchableOpacity>
+                        <TouchableOpacity
+                          activeOpacity={0.9}
+                          style={styles.buyBtn}
+                          onPress={() => startCheckout(plan)}
+                          disabled={loading}
+                        >
+                          <Ionicons name="lock-closed-outline" size={18} color="#ffffff" />
+                          <Text style={styles.buyBtnText}>Pay with Razorpay</Text>
+                        </TouchableOpacity>
                       </>
                     );
                   })()}
@@ -756,7 +756,7 @@ export default function DriverPlansScreen({ navigation }: any) {
             <Ionicons name="shield-checkmark" size={48} color="#16a34a" style={{ marginBottom: 8 }} />
             <Text style={styles.errorModalTitle}>Your Money is Safe</Text>
             <Text style={styles.errorModalSub}>{paymentErrorData?.message}</Text>
-            
+
             <View style={styles.paymentIdBox}>
               <Text style={styles.paymentIdLabel}>Razorpay Payment ID</Text>
               <Text style={styles.paymentIdValue}>{paymentErrorData?.paymentId}</Text>

@@ -61,8 +61,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  // Use real location if available, otherwise fallback to Bangalore (same as mock)
+  const FALLBACK_LAT = 12.9716;
+  const FALLBACK_LNG = 77.5946;
   const coords = useMemo(
-    () => (hasValidLocation ? { lat: location.latitude as number, lng: location.longitude as number } : null),
+    () => ({
+      lat: (hasValidLocation ? location.latitude : FALLBACK_LAT) as number,
+      lng: (hasValidLocation ? location.longitude : FALLBACK_LNG) as number,
+    }),
     [hasValidLocation, location.latitude, location.longitude],
   );
 
@@ -71,33 +77,42 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const mapH = 260;
 
   const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
-    const lf = Number(raw?.Lf ?? raw?.lf_score ?? 0.5);
-    const riskScore = Math.round(lf * 100);
-    const state = raw?.zone_state ?? raw?.state ?? 'STABLE';
+    let riskScore = 0;
+    if (raw?.riskScore !== undefined) {
+      riskScore = raw.riskScore;
+    } else {
+      const lf = Number(raw?.Lf ?? raw?.lf_score ?? 0.5);
+      riskScore = Math.round(lf * 100);
+    }
+    const state = raw?.zone_state ?? raw?.state ?? raw?.trafficStatus ?? 'STABLE';
+    const lfVal = raw?.disruptionScore !== undefined ? Number(raw.disruptionScore) : riskScore / 100;
+    
     return {
       id,
       h3Id: raw?.h3_cell ?? '—',
       rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
       aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
       floodChance: riskScore >= 70 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low',
-      disruptionScore: Number(lf.toFixed(2)),
-      trafficStatus: state === 'HALTED' ? 'Halt' : state === 'SLOW' ? 'Slow Traffic' : 'Stable Flow',
+      disruptionScore: Number(lfVal.toFixed(2)),
+      trafficStatus: state === 'HALTED' || state === 'Halt' ? 'Halt' : state === 'SLOW' || state === 'Slow Traffic' ? 'Slow Traffic' : 'Stable Flow',
       riskScore,
-      riskLevel: riskLevelFromScore(riskScore),
+      riskLevel: raw?.riskLevel ?? riskLevelFromScore(riskScore),
     };
   }, []);
 
   const loadZones = useCallback(async () => {
     try {
-      if (location.loading || !coords) return;
+      // Always load zones - use real coords if available, fallback if still fetching GPS
       setLoading(true);
-      if (!user?.id) return;
-      await telemetryApi.sendGps({
-        driverId: user.id,
-        lat: coords.lat,
-        lng: coords.lng,
-        platform: 'mobile-app',
-      });
+      if (hasValidLocation && user?.id) {
+        // Fire-and-forget GPS ping — don't block zone loading on this
+        telemetryApi.sendGps({
+          driverId: user.id,
+          lat: coords.lat,
+          lng: coords.lng,
+          platform: 'mobile-app',
+        }).catch(() => {});
+      }
       const res = await fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1);
       const center = toCellRisk(res?.center ?? {}, 'c0');
       const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors.slice(0, 6) : [];
@@ -112,7 +127,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  }, [coords, location.loading, toCellRisk, user?.id]);
+  }, [coords, hasValidLocation, toCellRisk, user?.id]);
 
   useEffect(() => {
     void loadZones();

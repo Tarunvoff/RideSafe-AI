@@ -5,6 +5,11 @@ version: "3.9"
 # Initializes: Infra (Kafka/Redis/PG) + 4 ML Services + Backend
 # =============================================================================
 
+networks:
+  aegis-net:
+    driver: bridge
+    name: aegis-net   # explicit name so ML compose stacks can join with external: true
+
 services:
 
   # ── INFRASTRUCTURE ─────────────────────────────────────────────────────────
@@ -15,6 +20,8 @@ services:
     restart: always
     ports:
       - "2181:2181"
+    networks:
+      - aegis-net
 
   kafka:
     image: wurstmeister/kafka:latest
@@ -23,14 +30,20 @@ services:
     ports:
       - "9092:9092"
     environment:
+      KAFKA_BROKER_ID: 1
       KAFKA_ADVERTISED_HOST_NAME: kafka
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_CREATE_TOPICS: "driver_telemetry:1:1,zone_state_updates:1:1,aegis-events:1:1"
+      KAFKA_CREATE_TOPICS: "aegis-events:1:1,driver_telemetry:1:1,zone_state_updates:1:1"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - zookeeper
+    networks:
+      - aegis-net
 
   redis:
     image: redis:7-alpine
@@ -41,6 +54,8 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    networks:
+      - aegis-net
 
   timescaledb:
     image: timescale/timescaledb:latest-pg15
@@ -54,6 +69,8 @@ services:
       POSTGRES_DB: RideSafe_AI
     volumes:
       - timescale_data:/var/lib/postgresql/data
+    networks:
+      - aegis-net
 
 
   # ── ML MICROSERVICES ───────────────────────────────────────────────────────
@@ -70,6 +87,8 @@ services:
       - ./ml-calcultion/.env
     depends_on:
       - redis
+    networks:
+      - aegis-net
 
   fraud-feature:
     build:
@@ -83,6 +102,8 @@ services:
       - ./ml-calcultion/.env
     depends_on:
       - redis
+    networks:
+      - aegis-net
 
   grid-event:
     build:
@@ -100,6 +121,8 @@ services:
       - kafka
       - redis
       - ml-insurance
+    networks:
+      - aegis-net
 
   h3-feature:
     build:
@@ -117,6 +140,8 @@ services:
       - kafka
       - redis
       - ml-insurance
+    networks:
+      - aegis-net
 
 
   # ── BACKEND ORCHESTRATOR ───────────────────────────────────────────────────
@@ -137,6 +162,8 @@ services:
       - kafka
       - ml-insurance
       - fraud-feature
+    networks:
+      - aegis-net
 
 volumes:
   redis_data:

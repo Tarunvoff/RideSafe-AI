@@ -441,6 +441,9 @@ async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
         raise HTTPException(422, f"lat={request.lat} out of range [-90, 90]")
     if not (-180.0 <= request.lng <= 180.0):
         raise HTTPException(422, f"lng={request.lng} out of range [-180, 180]")
+    if abs(request.lat) < 0.1 and abs(request.lng) < 0.1:
+        logger.warning(f"[tid={trace_id}] Received (0,0) or invalid near-zero coordinates. Rejecting pipeline execution.")
+        raise HTTPException(422, f"Invalid GPS coordinates near (0,0).")
 
     # ── Step 1: GPS → H3 cell ────────────────────────────────────────────────
     h3_cell = h3lib.latlng_to_cell(request.lat, request.lng, H3_RESOLUTION)
@@ -524,6 +527,10 @@ async def run_pipeline_from_kafka(h3_cell: str, lat: float, lng: float,
     This enables: Kafka → ML Pipeline → Redis (without polling /pipeline via HTTP).
     grid_event_service can also use this as a direct fast-path.
     """
+    if abs(lat) < 0.1 and abs(lng) < 0.1:
+        logger.warning("Kafka telemetry skipped for invalid (0,0) coordinates (H3=%s)", h3_cell)
+        return None
+
     req = PipelineRequest(lat=lat, lng=lng, Ew=Ew, Ct=Ct, M=M)
     try:
         result = await run_pipeline(req)

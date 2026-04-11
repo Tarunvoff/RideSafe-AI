@@ -106,6 +106,10 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
         const location = await Location.getCurrentPositionAsync({});
         latitude = location.coords.latitude;
         longitude = location.coords.longitude;
+
+        if (Math.abs(latitude) < 0.1 && Math.abs(longitude) < 0.1) {
+          throw new Error('Suspicious coordinates (0,0) detected. Please ensure GPS lock is established on your device.');
+        }
       } catch (locError: any) {
         setLocationError(locError.message || 'Could not fetch device location. Please try again.');
         setLocationReady(false);

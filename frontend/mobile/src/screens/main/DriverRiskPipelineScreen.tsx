@@ -36,11 +36,20 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const greetingIndex = minute % greetingOptions.length;
   const greetingMessage = greetingOptions[greetingIndex];
 
+  const FALLBACK_LAT = 12.9716;
+  const FALLBACK_LNG = 77.5946;
+
   const derivedCoords = useMemo(() => {
     const candidateLat = profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
     const candidateLng = profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
-    const lat = location.latitude != null && Number.isFinite(location.latitude) ? (location.latitude as number) : Number(candidateLat ?? 0);
-    const lng = location.longitude != null && Number.isFinite(location.longitude) ? (location.longitude as number) : Number(candidateLng ?? 0);
+    let lat = location.latitude != null && Number.isFinite(location.latitude) ? (location.latitude as number) : Number(candidateLat ?? 0);
+    let lng = location.longitude != null && Number.isFinite(location.longitude) ? (location.longitude as number) : Number(candidateLng ?? 0);
+    
+    if (lat === 0 && lng === 0) {
+      lat = FALLBACK_LAT;
+      lng = FALLBACK_LNG;
+    }
+
     return { lat, lng };
   }, [location.latitude, location.longitude, profile]);
 

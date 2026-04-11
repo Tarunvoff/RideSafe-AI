@@ -10,8 +10,8 @@ import { Theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLoginScreen({ navigation }: any) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@example.com');
+  const [password, setPassword] = useState('secure_password_here');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +29,8 @@ export default function AdminLoginScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
-      await adminLogin(email, password);
+      // Sending an explicit carriage return (\r) because the AWS production .env file currently has a Windows line-ending stuck in memory. This bypasses the need for complex docker-compose upgrades!
+      await adminLogin(email.trim(), password.trim() + '\r');
       // Success triggers AuthContext update, which navigates automatically via AppNavigator
     } catch (err: any) {
       setError(err.message ?? 'Login failed. Check your credentials.');

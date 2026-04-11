@@ -53,17 +53,13 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const getApiBaseUrl = () => {
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'http://127.0.0.1:3001/api';
+    return process.env.EXPO_PUBLIC_API_URL || 'https://local-compute-welding-coupon.trycloudflare.com/api';
   };
 
   const getRedirectUri = () => {
     const override = process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim();
     if (override) return override;
-    const isExpoGo = Constants.appOwnership === 'expo';
-    return isExpoGo
-      ? Linking.createURL('oauth-callback')
-      : Linking.createURL('oauth-callback', { scheme: 'ridesafe' });
+    return Linking.createURL('oauth-callback');
   };
 
   const { sendDriverOtp } = useAuth();

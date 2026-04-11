@@ -108,6 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Driver identity not found. Please re-authenticate.');
     }
 
+    const termsAcceptedString = await AsyncStorage.getItem('isTermsAccepted');
+    const isTermsAccepted = termsAcceptedString === 'true';
+
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
@@ -117,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['driverId', res.driverId],
     ]);
     await refreshLocation();
-    setUser({ id: res.driverId, email, role: 'DRIVER', driverName: savedName || undefined });
+    setUser({ id: res.driverId, email, role: 'DRIVER', driverName: savedName || undefined, isTermsAccepted });
     setKycStatus('NOT_STARTED');
   };
 
@@ -148,8 +151,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['driverId', res.driverId || ''],
     ]);
 
+    const termsAcceptedString = await AsyncStorage.getItem('isTermsAccepted');
+    const isTermsAccepted = termsAcceptedString === 'true';
+
     await refreshLocation();
-    setUser({ id: role === 'DRIVER' ? res.driverId : (res.userId || res.id || undefined), email, role, driverName: savedName || undefined });
+    setUser({ id: role === 'DRIVER' ? res.driverId : (res.userId || res.id || undefined), email, role, driverName: savedName || undefined, isTermsAccepted: role === 'DRIVER' ? isTermsAccepted : true });
 
     if (role === 'DRIVER') {
       try {
@@ -178,6 +184,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Driver identity not found. Please sign in again.');
     }
 
+    // Read previously saved values so they are preserved across OAuth logins
+    const savedName = await AsyncStorage.getItem('driverName');
+    const termsAcceptedString = await AsyncStorage.getItem('isTermsAccepted');
+    const isTermsAccepted = termsAcceptedString === 'true';
+
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
@@ -188,9 +199,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['oauthProvider', provider.toUpperCase()],
     ]);
 
-    const savedName = await AsyncStorage.getItem('driverName');
     await refreshLocation();
-    setUser({ id: role === 'DRIVER' ? res.driverId : res.userId || undefined, email, role, driverName: savedName || undefined });
+    setUser({ id: role === 'DRIVER' ? res.driverId : res.userId || undefined, email, role, driverName: savedName || undefined, isTermsAccepted: role === 'DRIVER' ? isTermsAccepted : true });
 
     if (role === 'DRIVER') {
       try {

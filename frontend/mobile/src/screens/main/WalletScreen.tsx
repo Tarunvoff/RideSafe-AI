@@ -67,7 +67,8 @@ export default function WalletScreen() {
       const zone = await fraudApi.getZoneRisk(location.latitude, location.longitude);
       const h3Cell = zone?.h3_cell;
       if (!h3Cell) {
-        throw new Error('Missing H3 cell for payout');
+        Alert.alert(t('common.error'), 'Missing location data. Enable GPS to verify disruption.');
+        return;
       }
 
       const approvedPayout =

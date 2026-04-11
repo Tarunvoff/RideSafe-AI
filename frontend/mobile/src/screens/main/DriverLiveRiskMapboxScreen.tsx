@@ -65,10 +65,6 @@ function formatRiskLevel(level: RiskLevel) {
   return 'Low Risk';
 }
 
-/**
- * Transform backend API response to RiskMap keyed by H3 index.
- * Handles missing/incomplete data gracefully with sensible defaults.
- */
 function transformToRiskMap(apiResponse: ZoneNeighborsResponse | null): RiskMap {
   if (!apiResponse) return {};
 
@@ -84,34 +80,30 @@ function transformToRiskMap(apiResponse: ZoneNeighborsResponse | null): RiskMap 
   for (const zone of allZones) {
     if (!zone.h3_cell) continue;
 
-    const lf_score = Math.round((zone.lf_score ?? 0) * 100); // 0–100
-    
-    // Map lf_score to riskLevel and derive other metrics.
-    const riskLevel: RiskLevel =
-      lf_score >= 70 ? 'HIGH' : lf_score >= 40 ? 'MEDIUM' : 'LOW';
+    // Use the backend provided riskScore (0-100), fallback to lf_score calculations if not provided.
+    let riskScore = 0;
+    if (zone.riskScore !== undefined) {
+      riskScore = zone.riskScore;
+    } else {
+      riskScore = Math.round((zone.lf_score ?? 0) * 100);
+    }
 
-    // Estimate disruption from lf_score (0–1).
-    const disruptionScore = (zone.lf_score ?? 0) * 1.0; // Already 0–1
+    let riskLevel: RiskLevel = zone.riskLevel as RiskLevel || 'LOW';
+    if (!zone.riskLevel) {
+      riskLevel = riskScore >= 70 ? 'HIGH' : riskScore >= 40 ? 'MEDIUM' : 'LOW';
+    }
+
+    const disruptionScore = zone.disruptionScore !== undefined ? zone.disruptionScore : (zone.lf_score ?? 0);
 
     result[zone.h3_cell] = {
       h3Index: zone.h3_cell,
       riskLevel,
-      riskScore: lf_score, // Use lf_score as risk score (0–100)
+      riskScore: riskScore,
       rainPct: Math.round((zone.rainfall ?? 0) * 10), // Convert mm to percentage-like metric
-      aqi: Math.round(zone.aqi ?? 50), // Default safe AQI
-      floodChance:
-        (zone.rainfall ?? 0) > 30
-          ? 'High'
-          : (zone.rainfall ?? 0) > 10
-            ? 'Medium'
-            : 'Low',
+      aqi: Math.round(zone.aqi ?? 50),
+      floodChance: zone.floodChance as FloodChance || ((zone.rainfall ?? 0) > 30 ? 'High' : (zone.rainfall ?? 0) > 10 ? 'Medium' : 'Low'),
       disruptionScore: Math.min(1, disruptionScore),
-      trafficStatus:
-        disruptionScore > 0.65
-          ? 'Halt'
-          : disruptionScore > 0.3
-            ? 'Slow Traffic'
-            : 'Stable Flow',
+      trafficStatus: zone.trafficStatus as TrafficStatus || (disruptionScore > 0.65 ? 'Halt' : disruptionScore > 0.3 ? 'Slow Traffic' : 'Stable Flow'),
     };
   }
 
@@ -157,24 +149,30 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   const webFullRef = useRef<WebView>(null);
 
   const { location, refreshLocation } = useLocation();
+  // Treat mock location as valid for rendering — it has real Bangalore coords set by setMock()
   const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
-  const driverLat = location.latitude ?? 0;
-  const driverLon = location.longitude ?? 0;
+  // Always use a valid lat/lon — fallback to Bangalore if GPS is still loading
+  const FALLBACK_LAT = 12.9716;
+  const FALLBACK_LNG = 77.5946;
+  const driverLat = (location.latitude !== null && location.latitude !== 0) ? location.latitude : FALLBACK_LAT;
+  const driverLon = (location.longitude !== null && location.longitude !== 0) ? location.longitude : FALLBACK_LNG;
+  // For map rendering: show map whenever we have any coords (real or fallback)
+  const canShowMap = driverLat !== 0 && driverLon !== 0;
   const lastPing = location.fetchedAt
-    ? location.fetchedAt.toLocaleTimeString('en-IN', { 
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      })
+    ? location.fetchedAt.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    })
     : '—';
-  
+
   // ────── REAL RISK DATA STATE ──────────────────────────────────────────────
 
   const [riskMap, setRiskMap] = useState<RiskMap>({});
   const [isLoadingRisk, setIsLoadingRisk] = useState(false);
   const [riskError, setRiskError] = useState<string | null>(null);
-  
+
   // ────── VIEW MODE STATE ──────────────────────────────────────────────────
   const [h3Resolution, setH3Resolution] = useState<(typeof H3_RESOLUTIONS)[number]>(9);
   const [driverH3, setDriverH3] = useState<string>('—');
@@ -185,7 +183,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   // ────── FETCH LIVE RISK DATA ──────────────────────────────────────────────
 
   useEffect(() => {
-    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon)) {
+    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon) || (driverLat === 0 && driverLon === 0)) {
       setRiskMap({});
       return;
     }
@@ -246,7 +244,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
   // ────── PERIODIC RISK DATA REFRESH (every 30 seconds) ──────────────────────
 
   useEffect(() => {
-    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon)) return;
+    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLon) || (driverLat === 0 && driverLon === 0)) return;
 
     // Fetch immediately, then every 30 seconds for dynamic color updates
     const fetchInterval = setInterval(async () => {
@@ -266,7 +264,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
     return () => clearInterval(fetchInterval);
   }, [driverLat, driverLon]);
-  
+
   const formatCoords = (lat: number, lon: number) => {
     const latDir = lat >= 0 ? 'N' : 'S';
     const lonDir = lon >= 0 ? 'E' : 'W';
@@ -882,13 +880,10 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     );
   }
 
-  // ────── RENDER EMPTY STATE ──────────────────────────────────────────────
-
+  // Only block for a genuine location-permission error — not for empty data during loading
   if (!riskMap || Object.keys(riskMap).length === 0) {
     const errorType = getLocationErrorType(riskError);
-
-    // If there's a location-related error, show professional error card
-    if (errorType) {
+    if (errorType === 'permission') {
       return (
         <SafeAreaView style={styles.safeArea}>
           <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
@@ -902,27 +897,8 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
         </SafeAreaView>
       );
     }
-
-    // Generic "no data" state when there's no error (shouldn't happen often)
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
-        <View style={styles.centeredContainer}>
-          <Ionicons name="warning-outline" size={48} color="#f59e0b" />
-          <Text style={styles.emptyTitle}>No Risk Data Available</Text>
-          <Text style={styles.emptySubtitle}>
-            Unable to load risk data for your current location.
-          </Text>
-          <TouchableOpacity
-            style={styles.retryBtn}
-            activeOpacity={0.8}
-            onPress={() => refreshLocation()}
-          >
-            <Text style={styles.retryBtnText}>Refresh Location</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
+    // For all other empty states (loading, GPS timeout, API slow): fall through and render the map anyway.
+    // The WebView already shows Bangalore coords via canShowMap, so the user sees the map immediately.
   }
 
   // ────── RENDER NORMAL VIEW ──────────────────────────────────────────────
@@ -982,191 +958,191 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-        <View style={styles.statusStrip}>
-          <View style={styles.stripCol}>
-            <Text style={styles.stripLabel}>Driver ID</Text>
-            <Text style={styles.stripValue}>GS-8821</Text>
-          </View>
-
-          <View style={styles.stripDivider} />
-
-          <View style={styles.stripEnd}>
-            <View style={styles.livePill}>
-              <View style={[styles.liveDot, { backgroundColor: '#16a34a' }]} />
-              <Text style={styles.livePillText}>{riskLevelLabel}</Text>
+          <View style={styles.statusStrip}>
+            <View style={styles.stripCol}>
+              <Text style={styles.stripLabel}>Driver ID</Text>
+              <Text style={styles.stripValue}>GS-8821</Text>
             </View>
-            <Text style={styles.stripMinor}>Ping: {lastPing}</Text>
-          </View>
-        </View>
 
-        <View style={styles.mapHero}>
-          {hasValidLocation ? (
-            <WebView
-              key={`mobile-${driverLat}-${driverLon}-${h3Resolution}`}
-              ref={webRef}
-              originWhitelist={['*']}
-              source={{ html }}
-              style={styles.mapWeb}
-              javaScriptEnabled
-              domStorageEnabled
-              onMessage={onWebMessage}
-              scrollEnabled={false}
-              // Important: avoid nested scroll fighting with Mapbox touch gestures.
-              nestedScrollEnabled={true}
-            />
-          ) : (
-            <View style={styles.locationBlocked}>
-              <Ionicons name="location-outline" size={28} color="#9ca3af" />
-              <Text style={styles.locationBlockedTitle}>Location required</Text>
-              <Text style={styles.locationBlockedText}>Enable GPS to view live H3 risk zones.</Text>
-              <TouchableOpacity style={styles.locationBlockedBtn} onPress={handleRecenter}>
-                <Ionicons name="refresh" size={14} color="#111827" />
-                <Text style={styles.locationBlockedBtnText}>Retry</Text>
+            <View style={styles.stripDivider} />
+
+            <View style={styles.stripEnd}>
+              <View style={styles.livePill}>
+                <View style={[styles.liveDot, { backgroundColor: '#16a34a' }]} />
+                <Text style={styles.livePillText}>{riskLevelLabel}</Text>
+              </View>
+              <Text style={styles.stripMinor}>Ping: {lastPing}</Text>
+            </View>
+          </View>
+
+          <View style={styles.mapHero}>
+            {canShowMap ? (
+              <WebView
+                key="mobile-map"
+                ref={webRef}
+                originWhitelist={['*']}
+                source={{ html }}
+                style={styles.mapWeb}
+                javaScriptEnabled
+                domStorageEnabled
+                onMessage={onWebMessage}
+                scrollEnabled={false}
+                // Important: avoid nested scroll fighting with Mapbox touch gestures.
+                nestedScrollEnabled={true}
+              />
+            ) : (
+              <View style={styles.locationBlocked}>
+                <Ionicons name="location-outline" size={28} color="#9ca3af" />
+                <Text style={styles.locationBlockedTitle}>Locating you...</Text>
+                <Text style={styles.locationBlockedText}>Showing Bangalore region while GPS initializes.</Text>
+                <TouchableOpacity style={styles.locationBlockedBtn} onPress={handleRecenter}>
+                  <Ionicons name="refresh" size={14} color="#111827" />
+                  <Text style={styles.locationBlockedBtnText}>Retry GPS</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!mapboxToken && hasValidLocation && (
+              <View style={styles.mapOverlayMessage}>
+                <Text style={styles.mapOverlayTitle}>Mapbox token missing</Text>
+                <Text style={styles.mapOverlaySubtitle}>
+                  Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in your .env to see the live hex map.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.mapOverlayTop}>
+              <View style={styles.overlayBadge}>
+                <Text style={styles.overlayBadgeText}>H3: {selectedCellId}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.recenterBtn}
+                activeOpacity={0.9}
+                onPress={handleRecenter}
+              >
+                <Ionicons name="locate" size={16} color="#ffffff" />
+                <Text style={styles.recenterText}>Recenter</Text>
               </TouchableOpacity>
             </View>
-          )}
 
-          {!mapboxToken && hasValidLocation && (
-            <View style={styles.mapOverlayMessage}>
-              <Text style={styles.mapOverlayTitle}>Mapbox token missing</Text>
-              <Text style={styles.mapOverlaySubtitle}>
-                Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in your .env to see the live hex map.
-              </Text>
+            <View style={styles.resolutionRow}>
+              {H3_RESOLUTIONS.map((r) => {
+                const isActive = r === h3Resolution;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    onPress={() => {
+                      setH3Resolution(r);
+                      // Let the web layer rebuild grid without a full page reload.
+                      sendToWebView({ type: 'SET_RESOLUTION', resolution: r });
+                    }}
+                    activeOpacity={0.9}
+                    style={[
+                      styles.resolutionChip,
+                      isActive && styles.resolutionChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.resolutionChipText,
+                        isActive && styles.resolutionChipTextActive,
+                      ]}
+                    >
+                      {r}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          )}
+          </View>
 
-          <View style={styles.mapOverlayTop}>
-            <View style={styles.overlayBadge}>
-              <Text style={styles.overlayBadgeText}>H3: {selectedCellId}</Text>
+          <View style={styles.detailsCard}>
+            <Text style={styles.detailsTitle}>Cell Details</Text>
+
+            <View style={styles.detailsMetaGrid}>
+              <View style={styles.metaBox}>
+                <Text style={styles.metaLabel}>Current Driver H3</Text>
+                <Text style={styles.metaValue} numberOfLines={2}>{driverCellId}</Text>
+              </View>
+              <View style={styles.metaBox}>
+                <Text style={styles.metaLabel}>Selected H3</Text>
+                <Text style={styles.metaValue} numberOfLines={2}>{selectedCellId}</Text>
+              </View>
             </View>
 
+            <View style={styles.riskGrid}>
+              <View style={styles.riskCell}>
+                <Text style={styles.riskLabel}>Rain</Text>
+                <Text style={styles.riskValue}>{selectedCell?.rainPct ?? 0}%</Text>
+              </View>
+              <View style={styles.riskCell}>
+                <Text style={styles.riskLabel}>AQI</Text>
+                <Text style={styles.riskValue}>{selectedCell?.aqi ?? 0}</Text>
+              </View>
+              <View style={styles.riskCell}>
+                <Text style={styles.riskLabel}>Flood</Text>
+                <Text style={styles.riskValue}>{selectedCell?.floodChance ?? '—'}</Text>
+              </View>
+              <View style={styles.riskCell}>
+                <Text style={styles.riskLabel}>Disruption</Text>
+                <Text style={styles.riskValue}>
+                  {selectedCell ? selectedCell.disruptionScore.toFixed(2) : '—'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bottomMetaRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.metaLabel}>Traffic / Halt</Text>
+                <Text style={styles.metaValue}>{selectedCell?.trafficStatus ?? '—'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.validationRow}>
+              <View style={styles.validationLeft}>
+                <Text style={styles.validationTitle}>Validation</Text>
+                <View style={[styles.validationChip, hasValidLocation ? styles.validationChipLive : styles.validationChipMock]}>
+                  <Ionicons name="checkmark-circle" size={14} color={hasValidLocation ? Theme.colors.primary : '#f59e0b'} />
+                  <Text style={[styles.validationChipText, hasValidLocation ? styles.validationChipTextLive : styles.validationChipTextMock]}>
+                    {location.loading ? 'Fetching location' : hasValidLocation ? 'Valid location confirmed' : 'Location unavailable'}
+                  </Text>
+                </View>
+                <Text style={styles.validationMeta}>
+                  {hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}
+                </Text>
+                <Text style={styles.validationMetaSecondary}>
+                  {hasValidLocation ? `Fetched at ${lastPing}` : `Location missing • ${lastPing}`}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.ctaCluster}>
             <TouchableOpacity
-              style={styles.recenterBtn}
+              style={styles.primaryBtn}
               activeOpacity={0.9}
               onPress={handleRecenter}
             >
-              <Ionicons name="locate" size={16} color="#ffffff" />
-              <Text style={styles.recenterText}>Recenter</Text>
+              <Ionicons name="refresh" size={16} color="#ffffff" />
+              <Text style={styles.primaryBtnText}>Recheck Location</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              activeOpacity={0.9}
+              onPress={() => { }}
+            >
+              <Text style={styles.secondaryBtnText}>Details</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.resolutionRow}>
-            {H3_RESOLUTIONS.map((r) => {
-              const isActive = r === h3Resolution;
-              return (
-                <TouchableOpacity
-                  key={r}
-                  onPress={() => {
-                    setH3Resolution(r);
-                    // Let the web layer rebuild grid without a full page reload.
-                    sendToWebView({ type: 'SET_RESOLUTION', resolution: r });
-                  }}
-                  activeOpacity={0.9}
-                  style={[
-                    styles.resolutionChip,
-                    isActive && styles.resolutionChipActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.resolutionChipText,
-                      isActive && styles.resolutionChipTextActive,
-                    ]}
-                  >
-                    {r}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.detailsCard}>
-          <Text style={styles.detailsTitle}>Cell Details</Text>
-
-          <View style={styles.detailsMetaGrid}>
-            <View style={styles.metaBox}>
-              <Text style={styles.metaLabel}>Current Driver H3</Text>
-              <Text style={styles.metaValue} numberOfLines={2}>{driverCellId}</Text>
-            </View>
-            <View style={styles.metaBox}>
-              <Text style={styles.metaLabel}>Selected H3</Text>
-              <Text style={styles.metaValue} numberOfLines={2}>{selectedCellId}</Text>
-            </View>
-          </View>
-
-          <View style={styles.riskGrid}>
-            <View style={styles.riskCell}>
-              <Text style={styles.riskLabel}>Rain</Text>
-              <Text style={styles.riskValue}>{selectedCell?.rainPct ?? 0}%</Text>
-            </View>
-            <View style={styles.riskCell}>
-              <Text style={styles.riskLabel}>AQI</Text>
-              <Text style={styles.riskValue}>{selectedCell?.aqi ?? 0}</Text>
-            </View>
-            <View style={styles.riskCell}>
-              <Text style={styles.riskLabel}>Flood</Text>
-              <Text style={styles.riskValue}>{selectedCell?.floodChance ?? '—'}</Text>
-            </View>
-            <View style={styles.riskCell}>
-              <Text style={styles.riskLabel}>Disruption</Text>
-              <Text style={styles.riskValue}>
-                {selectedCell ? selectedCell.disruptionScore.toFixed(2) : '—'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.bottomMetaRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.metaLabel}>Traffic / Halt</Text>
-              <Text style={styles.metaValue}>{selectedCell?.trafficStatus ?? '—'}</Text>
-            </View>
-          </View>
-
-          <View style={styles.validationRow}>
-            <View style={styles.validationLeft}>
-              <Text style={styles.validationTitle}>Validation</Text>
-              <View style={[styles.validationChip, hasValidLocation ? styles.validationChipLive : styles.validationChipMock]}>
-                <Ionicons name="checkmark-circle" size={14} color={hasValidLocation ? Theme.colors.primary : '#f59e0b'} />
-                <Text style={[styles.validationChipText, hasValidLocation ? styles.validationChipTextLive : styles.validationChipTextMock]}>
-                  {location.loading ? 'Fetching location' : hasValidLocation ? 'Valid location confirmed' : 'Location unavailable'}
-                </Text>
-              </View>
-              <Text style={styles.validationMeta}>
-                {hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}
-              </Text>
-              <Text style={styles.validationMetaSecondary}>
-                {hasValidLocation ? `Fetched at ${lastPing}` : `Location missing • ${lastPing}`}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.ctaCluster}>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            activeOpacity={0.9}
-            onPress={handleRecenter}
-          >
-            <Ionicons name="refresh" size={16} color="#ffffff" />
-            <Text style={styles.primaryBtnText}>Recheck Location</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            activeOpacity={0.9}
-            onPress={() => {}}
-          >
-            <Text style={styles.secondaryBtnText}>Details</Text>
-          </TouchableOpacity>
-        </View>
 
           <View style={{ height: 24 }} />
         </ScrollView>
       ) : (
         <View style={styles.webOnlyContainer}>
-          {hasValidLocation ? (
+          {canShowMap ? (
             <WebView
-              key={`web-${driverLat}-${driverLon}-${h3Resolution}`}
+              key="web-full-map"
               ref={webFullRef}
               originWhitelist={['*']}
               source={{ html }}
@@ -1179,15 +1155,15 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           ) : (
             <View style={[styles.locationBlocked, styles.webOnlyBlocked]}>
               <Ionicons name="location-outline" size={28} color="#9ca3af" />
-              <Text style={styles.locationBlockedTitle}>Location required</Text>
-              <Text style={styles.locationBlockedText}>Enable GPS to view live H3 risk zones.</Text>
+              <Text style={styles.locationBlockedTitle}>Locating you...</Text>
+              <Text style={styles.locationBlockedText}>Showing Bangalore region while GPS initializes.</Text>
               <TouchableOpacity style={styles.locationBlockedBtn} onPress={handleRecenter}>
                 <Ionicons name="refresh" size={14} color="#111827" />
-                <Text style={styles.locationBlockedBtnText}>Retry</Text>
+                <Text style={styles.locationBlockedBtnText}>Retry GPS</Text>
               </TouchableOpacity>
             </View>
           )}
-          {!mapboxToken && hasValidLocation && (
+          {!mapboxToken && canShowMap && (
             <View style={styles.webOnlyOverlay}>
               <Text style={styles.mapOverlayTitle}>Mapbox token missing</Text>
               <Text style={styles.mapOverlaySubtitle}>

@@ -47,8 +47,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
   };
 
   const getApiBaseUrl = () => {
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'http://127.0.0.1:3001/api';
+    return process.env.EXPO_PUBLIC_API_URL || 'https://local-compute-welding-coupon.trycloudflare.com/api';
   };
 
   const handleVerify = async () => {
@@ -65,7 +64,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
       // 2. Proceed to OAuth
       const authUrl = `${getApiBaseUrl()}/auth/${provider.toLowerCase()}/authorize?identifier=${encodeURIComponent(email)}&redirectUri=${encodeURIComponent(redirectUri)}`;
-      
+
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (result.type === 'cancel') {
@@ -102,7 +101,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
       // 3. Complete Login
       await loginWithOAuth(provider, { code: oauthCode, sessionId, state, redirectUri });
-      
+
       // Success will trigger AuthContext update and navigation automatically
     } catch (err: any) {
       setError(err.message ?? 'Verification failed.');
@@ -130,15 +129,13 @@ export default function DriverOTPScreen({ navigation, route }: any) {
         <View style={styles.content}>
           <AuthCard style={styles.card}>
             <View style={styles.iconContainer}>
-              <Ionicons 
-                name={success ? "checkmark-circle" : "mail-open"} 
-                size={48} 
-                color={success ? Theme.colors.success : Theme.colors.primary} 
+              <Ionicons
+                name={success ? "checkmark-circle" : "mail-open"}
+                size={48}
+                color={success ? Theme.colors.success : Theme.colors.primary}
               />
             </View>
-            
             <Text style={styles.title}>{success ? "Email Verified" : "Verify Your Email"}</Text>
-            
             {success ? (
               <Text style={styles.subtitle}>Connecting to your {provider} account...</Text>
             ) : (
