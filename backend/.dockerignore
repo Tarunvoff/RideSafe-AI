@@ -1,0 +1,42 @@
+# Node dependency directories
+node_modules/
+
+# TypeScript build output (rebuilt inside Docker)
+dist/
+
+# Prisma migration metadata (not needed in image — migrations run separately)
+prisma/migrations/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Version control
+.git/
+.gitignore
+
+# Editor
+.idea/
+.vscode/
+*.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files
+test/
+**/*.spec.ts
+**/*.test.ts
+
+# Documentation
+*.md
+README*
+
+# Python venv (leftover from dual-language workspace)
+venv/
+.venv/
+
+# Postman collections (dev-only)
+postman-collections/
