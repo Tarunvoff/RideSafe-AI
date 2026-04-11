@@ -167,6 +167,8 @@ def _validate_telemetry(payload: dict) -> tuple[Optional[float], Optional[float]
         return None, None, speed, driver_id
     if not (-180.0 <= lon <= 180.0):
         return None, None, speed, driver_id
+    if abs(lat) < 0.1 and abs(lon) < 0.1:
+        return None, None, speed, driver_id
     if speed < 0.0:
         speed = 0.0  # clamp; don't reject — GPS glitch may give negative delta
     return lat, lon, speed, driver_id

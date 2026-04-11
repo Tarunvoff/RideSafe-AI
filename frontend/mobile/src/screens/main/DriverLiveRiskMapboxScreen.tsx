@@ -42,15 +42,23 @@ type RiskMap = Record<string, RiskCell>;
 
 interface ZoneStateResponse {
   h3_cell: string;
-  state?: string;
-  lf_score?: number;
-  active_riders?: number;
+  // New backend fields from /fraud/zone-neighbors
+  riskScore?: number;       // 0–100
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  disruptionScore?: number; // 0–1
+  floodChance?: string;     // 'Low' | 'Medium' | 'High'
+  trafficStatus?: string;   // 'Stable Flow' | 'Slow Traffic' | 'Halt'
   rainfall?: number;
   temperature?: number;
-  humidity?: number;
   aqi?: number;
+  activeRiders?: number;
+  // Legacy fallback fields (kept for other endpoints that may still use them)
+  state?: string;
+  active_riders?: number;
+  humidity?: number;
   pm25?: number;
   pm10?: number;
+  lf_score?: number; // deprecated – no longer used by zone-neighbors
   [key: string]: any;
 }
 
@@ -84,34 +92,31 @@ function transformToRiskMap(apiResponse: ZoneNeighborsResponse | null): RiskMap 
   for (const zone of allZones) {
     if (!zone.h3_cell) continue;
 
-    const lf_score = Math.round((zone.lf_score ?? 0) * 100); // 0–100
-    
-    // Map lf_score to riskLevel and derive other metrics.
+    // ✅ Read directly from backend response fields (riskScore, riskLevel, etc.)
+    // The /fraud/zone-neighbors endpoint now returns these fields directly.
+    const riskScore: number = zone.riskScore ?? 0; // 0–100, comes from backend
     const riskLevel: RiskLevel =
-      lf_score >= 70 ? 'HIGH' : lf_score >= 40 ? 'MEDIUM' : 'LOW';
+      (zone.riskLevel as RiskLevel) ?? (riskScore >= 70 ? 'HIGH' : riskScore >= 40 ? 'MEDIUM' : 'LOW');
+    const disruptionScore: number = zone.disruptionScore ?? 0; // 0–1, from backend
 
-    // Estimate disruption from lf_score (0–1).
-    const disruptionScore = (zone.lf_score ?? 0) * 1.0; // Already 0–1
+    // floodChance & trafficStatus come directly from backend
+    const rawFloodChance = zone.floodChance ?? 'Low';
+    const floodChance: FloodChance =
+      rawFloodChance === 'High' ? 'High' : rawFloodChance === 'Medium' ? 'Medium' : 'Low';
+
+    const rawTrafficStatus = zone.trafficStatus ?? 'Stable Flow';
+    const trafficStatus: TrafficStatus =
+      rawTrafficStatus === 'Halt' ? 'Halt' : rawTrafficStatus === 'Slow Traffic' ? 'Slow Traffic' : 'Stable Flow';
 
     result[zone.h3_cell] = {
       h3Index: zone.h3_cell,
       riskLevel,
-      riskScore: lf_score, // Use lf_score as risk score (0–100)
-      rainPct: Math.round((zone.rainfall ?? 0) * 10), // Convert mm to percentage-like metric
-      aqi: Math.round(zone.aqi ?? 50), // Default safe AQI
-      floodChance:
-        (zone.rainfall ?? 0) > 30
-          ? 'High'
-          : (zone.rainfall ?? 0) > 10
-            ? 'Medium'
-            : 'Low',
+      riskScore,
+      rainPct: Math.round((zone.rainfall ?? 0) * 10), // mm → percentage-like metric
+      aqi: Math.round(zone.aqi ?? 50),
+      floodChance,
       disruptionScore: Math.min(1, disruptionScore),
-      trafficStatus:
-        disruptionScore > 0.65
-          ? 'Halt'
-          : disruptionScore > 0.3
-            ? 'Slow Traffic'
-            : 'Stable Flow',
+      trafficStatus,
     };
   }
 

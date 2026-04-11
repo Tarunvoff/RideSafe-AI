@@ -85,21 +85,42 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const mapH = 260;
 
   const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
-    const lf = Number(raw?.Lf ?? raw?.lf_score ?? 0.5);
-    const riskScore = Math.round(lf * 100);
-    const state = raw?.zone_state ?? raw?.state ?? 'STABLE';
+    // ✅ Read directly from backend /fraud/zone-neighbors response fields.
+    // riskScore is 0–100, riskLevel is 'LOW'|'MEDIUM'|'HIGH' — both come from backend now.
+    // lf_score / Lf are legacy and no longer present in this endpoint's payload.
+    const riskScore: number = raw?.riskScore ?? 0;
+    const riskLevel: RiskLevel = (raw?.riskLevel as RiskLevel) ?? riskLevelFromScore(riskScore);
+    const disruptionScore: number = Number((raw?.disruptionScore ?? 0).toFixed(2));
+
+    // floodChance & trafficStatus are supplied directly by backend
+    const rawFloodChance: string = raw?.floodChance ?? '';
+    const floodChance =
+      rawFloodChance === 'High'
+        ? t('common.risk_levels.high')
+        : rawFloodChance === 'Medium'
+          ? t('common.risk_levels.medium')
+          : t('common.risk_levels.low');
+
+    const rawTrafficStatus: string = raw?.trafficStatus ?? '';
+    const trafficStatus =
+      rawTrafficStatus === 'Halt'
+        ? t('live_risk.traffic.halt')
+        : rawTrafficStatus === 'Slow Traffic'
+          ? t('live_risk.traffic.slow')
+          : t('live_risk.traffic.stable');
+
     return {
       id,
       h3Id: raw?.h3_cell ?? '—',
       rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
       aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
-      floodChance: riskScore >= 70 ? t('common.risk_levels.high') : riskScore >= 40 ? t('common.risk_levels.medium') : t('common.risk_levels.low'),
-      disruptionScore: Number(lf.toFixed(2)),
-      trafficStatus: state === 'HALTED' ? t('live_risk.traffic.halt') : state === 'SLOW' ? t('live_risk.traffic.slow') : t('live_risk.traffic.stable'),
+      floodChance,
+      disruptionScore,
+      trafficStatus,
       riskScore,
-      riskLevel: riskLevelFromScore(riskScore),
+      riskLevel,
     };
-  }, []);
+  }, [t]);
 
   const loadZones = useCallback(async () => {
     try {

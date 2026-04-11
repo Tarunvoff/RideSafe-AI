@@ -243,9 +243,15 @@ export const fraudApi = {
   getZoneRisk: (lat: number, lng: number) =>
     request<{
       h3_cell: string;
-      state: string;
-      active_riders: number;
-      lf_score: number;
+      state?: string;
+      active_riders?: number;
+      // Legacy Kafka/zone-monitoring fields
+      lf_score?: number;
+      Lf?: number;
+      // New-format fields (forward-compatible)
+      riskScore?: number;
+      riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+      [key: string]: any;
     }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`),
 
   getZoneNeighbors: (lat: number, lng: number, radius = 1) =>

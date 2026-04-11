@@ -45,7 +45,10 @@ export default function RiskScreen({ navigation }: any) {
     void loadRisk();
   }, [loadRisk]);
 
-  const riskScore = Math.round(Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5) * 100);
+  // Prefer riskScore from new-format endpoints; fall back to legacy lf_score (zone-risk endpoint via Kafka)
+  const riskScore = zoneRisk?.riskScore != null
+    ? Number(zoneRisk.riskScore)
+    : Math.round(Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0) * 100);
   const locationBlocked = !hasValidLocation && !location.loading;
   const riskLabel = locationBlocked
     ? t('dashboard.loc_required_upper')

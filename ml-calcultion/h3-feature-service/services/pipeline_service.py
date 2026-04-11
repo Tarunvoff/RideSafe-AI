@@ -262,7 +262,7 @@ async def _execute_pipeline_core(
     # ── Step 2.6: Fetch Live Traffic (TomTom Mock) ───────────────────────────
     try:
         from services.traffic_service import get_traffic_features
-        traffic_data = await get_traffic_features(request.lat, request.lng, h3_cell)
+        traffic_data = await get_traffic_features(features.latitude, features.longitude, h3_cell)
         # We can dynamically inject into Pydantic models with setattr or directly into the request scope
         setattr(features, "is_gridlock", traffic_data.get("is_gridlock", False))
         if traffic_data["avg_speed_kmh"] > 0:
@@ -441,6 +441,15 @@ async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
         raise HTTPException(422, f"lat={request.lat} out of range [-90, 90]")
     if not (-180.0 <= request.lng <= 180.0):
         raise HTTPException(422, f"lng={request.lng} out of range [-180, 180]")
+
+    # Guard against null-island (0, 0) — classic GPS "no fix" sentinel.
+    # No real gig-economy drivers operate in the Gulf of Guinea.
+    if abs(request.lat) < 0.1 and abs(request.lng) < 0.1:
+        raise HTTPException(
+            422,
+            f"GPS coordinates ({request.lat}, {request.lng}) appear to be null-island "
+            f"(no GPS fix). Please provide valid driver coordinates."
+        )
 
     # ── Step 1: GPS → H3 cell ────────────────────────────────────────────────
     h3_cell = h3lib.latlng_to_cell(request.lat, request.lng, H3_RESOLUTION)

@@ -79,21 +79,28 @@ docker ps
 # 🔥 OAUTH FIX STARTS HERE
 # 🔥 ==============================
 
-echo "[4/10] Detecting local IP address..."
+# echo "[4/10] Detecting local IP address..."
 
-LOCAL_IP=$(hostname -I | awk '{print $1}')
+# LOCAL_IP=$(hostname -I | awk '{print $1}')
 
-# fallback method
-if [ -z "$LOCAL_IP" ]; then
-	LOCAL_IP=$(ip route get 1 | awk '{print $7; exit}')
-fi
+# # fallback method
+# if [ -z "$LOCAL_IP" ]; then
+# 	LOCAL_IP=$(ip route get 1 | awk '{print $7; exit}')
+# fi
 
-if [ -z "$LOCAL_IP" ]; then
-	echo "ERROR: Could not determine local IP"
-	exit 1
-fi
+# if [ -z "$LOCAL_IP" ]; then
+# 	echo "ERROR: Could not determine local IP"
+# 	exit 1
+# fi
 
-echo "✅ Local IP detected: $LOCAL_IP"
+# echo "✅ Local IP detected: $LOCAL_IP"
+
+echo "[4/10] Using fixed API IP..."
+
+FIXED_IP="34.201.50.36"
+
+echo "✅ Using API IP: $FIXED_IP"
+
 echo ""
 
 echo "[5/10] Updating frontend .env..."
@@ -107,11 +114,11 @@ else
 	touch "$FRONTEND_ENV_TMP"
 fi
 
-echo "EXPO_PUBLIC_API_URL=http://$LOCAL_IP:3001/api" >> "$FRONTEND_ENV_TMP"
+echo "EXPO_PUBLIC_API_URL=http://$FIXED_IP:3001/api" >> "$FRONTEND_ENV_TMP"
 
 mv "$FRONTEND_ENV_TMP" "$FRONTEND_ENV_FILE"
 
-echo "✅ Expo will connect to: http://$LOCAL_IP:3001/api"
+echo "✅ Expo will connect to: http://$FIXED_IP:3001/api"
 echo ""
 
 # 🔥 ==============================

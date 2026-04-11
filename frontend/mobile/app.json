@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "RideSafe",
-    "slug": "aegis",
+    "slug": "aegis-hyyjuv8s4-am-3yvatvin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/productlogo.png",
@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Allow RideSafe to use your location to calculate real-time safety risks and determine claim viability.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow RideSafe to use your location to calculate real-time safety risks and determine claim viability."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +22,13 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.sriram018.RideSafe"
+      "usesCleartextTraffic": true,
+      "package": "com.sriram018.RideSafe",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE"
+      ]
     },
     "web": {
       "output": "static",
@@ -37,7 +47,24 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow RideSafe to use your location to calculate real-time safety risks and determine claim viability.",
+          "locationWhenInUsePermission": "Allow RideSafe to access your location to show live risk zones.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -45,9 +72,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ac28ea5b-78f4-4dab-aa21-9c833ba31fd3"
+        "projectId": "b0af4d43-bf83-4b20-b61d-94d06becc31c"
       }
     },
-    "owner": "sriram018s-organization"
+    "owner": "sriramvks-organization"
   }
 }

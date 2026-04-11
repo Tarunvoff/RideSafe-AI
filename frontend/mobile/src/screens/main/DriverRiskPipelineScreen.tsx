@@ -87,13 +87,15 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
     void loadDashboard();
   }, [loadDashboard]);
 
-  const lfScore = Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0.5);
+  // Prefer riskScore/riskLevel from new-format endpoints; fall back to legacy lf_score (zone-risk endpoint via Kafka)
+  const lfScore = Number(zoneRisk?.Lf ?? zoneRisk?.lf_score ?? 0);
   const zoneState = zoneRisk?.zone_state ?? zoneRisk?.state ?? 'UNKNOWN';
-  const riskScore = Math.round(lfScore * 100);
+  const riskScore: number = zoneRisk?.riskScore != null ? Number(zoneRisk.riskScore) : Math.round(lfScore * 100);
+  const rawRiskLevel: string = zoneRisk?.riskLevel ?? (zoneState === 'HALTED' ? 'HIGH' : riskScore >= 60 ? 'MEDIUM' : 'LOW');
   const riskLabel =
-    zoneState === 'HALTED'
+    rawRiskLevel === 'HIGH'
       ? t('dashboard.risk_levels.high')
-      : lfScore >= 0.6
+      : rawRiskLevel === 'MEDIUM'
       ? t('dashboard.risk_levels.medium')
       : t('dashboard.risk_levels.low');
   const earnings = profile?.currentWeek?.weeklyEarningsTotal ?? profile?.workSummary?.averageWeeklyEarnings ?? 0;
