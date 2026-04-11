@@ -42,11 +42,24 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
   const greetingIndex = minute % greetingOptions.length;
   const greetingMessage = greetingOptions[greetingIndex];
 
+  const isFiniteCoord = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value);
+
+  const isSentinelZero = (lat: number, lng: number) => lat === 0 && lng === 0;
+
   const derivedCoords = useMemo(() => {
     const candidateLat = profile?.lastKnownPosition?.lat ?? profile?.lastKnownPosition?.latitude;
     const candidateLng = profile?.lastKnownPosition?.lng ?? profile?.lastKnownPosition?.longitude;
-    const lat = location.latitude != null && Number.isFinite(location.latitude) ? (location.latitude as number) : Number(candidateLat ?? 0);
-    const lng = location.longitude != null && Number.isFinite(location.longitude) ? (location.longitude as number) : Number(candidateLng ?? 0);
+    const lat = isFiniteCoord(location.latitude)
+      ? location.latitude
+      : isFiniteCoord(candidateLat)
+        ? candidateLat
+        : null;
+    const lng = isFiniteCoord(location.longitude)
+      ? location.longitude
+      : isFiniteCoord(candidateLng)
+        ? candidateLng
+        : null;
     return { lat, lng };
   }, [location.latitude, location.longitude, profile]);
 
@@ -62,26 +75,39 @@ export default function DriverRiskPipelineScreen({ navigation }: any) {
       const driverProfile = profileRes?.driverProfile ?? null;
       setProfile(driverProfile);
 
-      if (Number.isFinite(derivedLat) && Number.isFinite(derivedLng)) {
+      const profileLat = driverProfile?.lastKnownPosition?.lat ?? driverProfile?.lastKnownPosition?.latitude;
+      const profileLng = driverProfile?.lastKnownPosition?.lng ?? driverProfile?.lastKnownPosition?.longitude;
+      const lat = isFiniteCoord(location.latitude)
+        ? location.latitude
+        : isFiniteCoord(profileLat)
+          ? profileLat
+          : null;
+      const lng = isFiniteCoord(location.longitude)
+        ? location.longitude
+        : isFiniteCoord(profileLng)
+          ? profileLng
+          : null;
+
+      if (lat != null && lng != null && !isSentinelZero(lat, lng)) {
         await telemetryApi.sendGps({
           driverId,
-          lat: derivedLat,
-          lng: derivedLng,
+          lat,
+          lng,
           platform: 'mobile-app',
         });
 
-        const zone = await fraudApi.getZoneRisk(derivedLat, derivedLng);
+        const zone = await fraudApi.getZoneRisk(lat, lng);
         setZoneRisk(zone ?? null);
       } else {
         setZoneRisk(null);
-        setErrorMsg(location.error ?? t('dashboard.location_unavailable'));
+        setErrorMsg(location.error ?? t('dashboard.enable_gps_risk'));
       }
     } catch (e: any) {
       setErrorMsg(e?.message ?? t('dashboard.load_failed'));
     } finally {
       setLoading(false);
     }
-  }, [driverId, derivedLat, derivedLng, location.error]);
+  }, [driverId, location.latitude, location.longitude, location.error, t]);
 
   useEffect(() => {
     void loadDashboard();

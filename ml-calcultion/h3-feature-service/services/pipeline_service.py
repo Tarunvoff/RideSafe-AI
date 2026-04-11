@@ -70,6 +70,16 @@ def _get_redis():
 _inflight: dict[str, asyncio.Future] = {}
 
 
+def _consume_future_exception(fut: asyncio.Future) -> None:
+    """Drain future exceptions to avoid 'Future exception was never retrieved' noise."""
+    try:
+        _ = fut.exception()
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        return
+
+
 def get_zone_state(civic_alert: bool, Lf: float) -> str:
     """
     Canonical zone-state thresholds. Single definition, mirrored nowhere else.
@@ -474,6 +484,7 @@ async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
     # Create a future so concurrent requests for same cell can wait on this one
     loop = asyncio.get_event_loop()
     fut: asyncio.Future = loop.create_future()
+    fut.add_done_callback(_consume_future_exception)
     _inflight[coalesce_key] = fut
 
     try:

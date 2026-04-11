@@ -1,0 +1,6 @@
+services:
+  h3-feature:
+    environment:
+      PLATFORM_API_URL: http://backend:3001/api/platform/activity
+      BACKEND_URL: http://backend:3001
+      TOMTOM_API_KEY: ${TOMTOM_API_KEY}

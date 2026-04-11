@@ -184,6 +184,7 @@ async def get_features(h3_cell: str) -> FeatureResponse:
 
     active_orders = int(platform_data.get("active_orders", platform_data.get("platform_orders", 0)) or 0)
     active_riders = int(kafka_active_riders or platform_data.get("active_riders", 0) or 0)
+    raw_platform_demand_ratio = float(platform_data.get("demand_ratio", 0.0) or 0.0)
     if kafka_active_riders > 0:
         feature_sources["active_riders"] = "kafka"
     else:
@@ -194,12 +195,23 @@ async def get_features(h3_cell: str) -> FeatureResponse:
     else:
         _mark("active_orders", platform_source, fallback=platform_fallback)
 
+    # If platform API responded but there are currently no riders, treat as sparse signal
+    # instead of a hard-missing feature. Mark fallback only when source itself is fallback.
     if active_riders <= 0:
-        _mark("active_riders", feature_sources["active_riders"], fallback=True, missing=True)
+        _mark(
+            "active_riders",
+            feature_sources["active_riders"],
+            fallback=platform_fallback,
+            missing=platform_fallback,
+        )
 
     if active_orders > 0 and active_riders > 0:
         demand_ratio = round(active_orders / max(active_riders, 1), 4)
         _mark("demand_ratio", "kafka+platform", fallback=False)
+    elif raw_platform_demand_ratio > 0:
+        # Trust explicit platform demand ratio when counts are sparse.
+        demand_ratio = round(raw_platform_demand_ratio, 4)
+        _mark("demand_ratio", platform_source, fallback=platform_fallback)
     else:
         demand_ratio = DEFAULT_DEMAND_RATIO
         _mark("demand_ratio", "default", fallback=True, missing=True)

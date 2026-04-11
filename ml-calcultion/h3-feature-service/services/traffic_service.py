@@ -33,7 +33,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # ── TomTom Configuration ─────────────────────────────────────────────────────
-TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "h87zAdzDwN1jJNjE1rzLcbZv8rUsdNAG")
+TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
 TOMTOM_BASE_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
 TOMTOM_TIMEOUT = 5.0  # seconds
 
@@ -43,6 +43,9 @@ async def _fetch_tomtom(lat: float, lng: float) -> dict:
     Call TomTom Traffic Flow Segment Data API.
     Returns the raw flowSegmentData dict or raises on failure.
     """
+    if not TOMTOM_API_KEY:
+        raise ValueError("TOMTOM_API_KEY is not configured")
+
     params = {
         "point": f"{lat},{lng}",
         "key": TOMTOM_API_KEY,
