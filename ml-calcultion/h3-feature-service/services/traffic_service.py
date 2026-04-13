@@ -33,7 +33,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # ── TomTom Configuration ─────────────────────────────────────────────────────
-TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
+TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "h87zAdzDwN1jJNjE1rzLcbZv8rUsdNAG")
 TOMTOM_BASE_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
 TOMTOM_TIMEOUT = 5.0  # seconds
 
