@@ -228,8 +228,8 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     if (Object.keys(riskMap).length === 0) return;
 
     const injectedJS = `
-      console.log('[Injected] Received risk data:', Object.keys(window.__RISK_MAP__).length, 'cells');
       window.__RISK_MAP__ = ${JSON.stringify(riskMap)};
+      console.log('[Injected] Received risk data:', Object.keys(window.__RISK_MAP__ || {}).length, 'cells');
       window.__RISK_LOADED__ = true;
       console.log('[Injected] Updated window.__RISK_MAP__ with', Object.keys(window.__RISK_MAP__).length, 'cells');
       if (window.refreshRiskLayer && typeof window.refreshRiskLayer === 'function') {
@@ -299,7 +299,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
     const targetRef = viewMode === 'web' ? webFullRef.current : webRef.current;
     if (!targetRef) return;
     targetRef.injectJavaScript(
-      `window.__RN_HANDLE__(${msg}); true;`
+      `if (typeof window.__RN_HANDLE__ === 'function') { window.__RN_HANDLE__(${msg}); } true;`
     );
   };
 
@@ -395,7 +395,9 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
     <script>
       const MAPBOX_TOKEN = ${JSON.stringify(token)};
-      mapboxgl.accessToken = MAPBOX_TOKEN;
+      if (typeof mapboxgl !== 'undefined') {
+        mapboxgl.accessToken = MAPBOX_TOKEN;
+      }
 
       const driver = ${JSON.stringify(driver)};
       let resolution = ${JSON.stringify(res)};
@@ -483,20 +485,32 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
       }
 
       function computeDriverH3() {
+        if (typeof h3 === 'undefined') {
+          console.error('h3-js failed to load');
+          return null;
+        }
         // h3-js API differs by version; use best-effort fallbacks.
         if (h3.latLngToCell) return h3.latLngToCell(driver.lat, driver.lon, resolution);
         if (h3.geoToH3) return h3.geoToH3(driver.lat, driver.lon, resolution);
         if (h3.geoToH3String) return h3.geoToH3String(driver.lat, driver.lon, resolution);
-        throw new Error('No geoToH3 function found in h3-js');
+        console.error('No geoToH3 function found in h3-js');
+        return null;
       }
 
       function cellBoundaryGeoJSON(h3Index) {
+        if (typeof h3 === 'undefined') {
+          console.error('h3-js failed to load');
+          return null;
+        }
         // Returns GeoJSON polygon ring in [lng,lat].
         // h3-js boundary returns [{lat,lng}, ...] or [[lat,lng], ...] depending on version.
         let boundary = null;
         if (h3.cellToBoundary) boundary = h3.cellToBoundary(h3Index, true);
         else if (h3.h3ToGeoBoundary) boundary = h3.h3ToGeoBoundary(h3Index, true);
-        else throw new Error('No cellToBoundary found in h3-js');
+        else {
+          console.error('No cellToBoundary found in h3-js');
+          return null;
+        }
 
         // Normalize to array of [lat,lng]
         const ptsLatLng = boundary.map(p => {
@@ -514,6 +528,11 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
 
       function buildGeoJSON() {
         driverH3 = computeDriverH3();
+        if (!driverH3 || typeof h3 === 'undefined') {
+          currentFC = { type: 'FeatureCollection', features: [] };
+          return currentFC;
+        }
+
         const disk = h3.kRing ? h3.kRing(driverH3, gridK) : h3.gridDisk(driverH3, gridK);
         cells = Array.from(disk);
 
@@ -525,6 +544,8 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
           const isDriver = (h3Index === driverH3) ? 1 : 0;
           const isSelected = (h3Index === selectedH3) ? 1 : 0;
           const ring = cellBoundaryGeoJSON(h3Index);
+
+          if (!ring || ring.length === 0) return null;
 
           return {
             type: 'Feature',
@@ -542,7 +563,7 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
             },
             geometry: { type: 'Polygon', coordinates: [ring] }
           };
-        });
+        }).filter(Boolean);
 
         currentFC = { type: 'FeatureCollection', features };
         return currentFC;
@@ -579,6 +600,11 @@ export default function DriverLiveRiskMapboxScreen({ navigation }: any) {
       }
 
       function initMap() {
+        if (typeof mapboxgl === 'undefined') {
+          document.getElementById('h3IdText').textContent = 'Map library failed to load';
+          return;
+        }
+
         map = new mapboxgl.Map({
           container: 'map',
           style: 'mapbox://styles/mapbox/streets-v12',

@@ -9,14 +9,14 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://integrate-browser-classes-sonic.trycloudflare.com/api",
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "YOUR_MAPBOX_ACCESS_TOKEN"
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1Ijoic3VyeWEyMDA3IiwiYSI6ImNtbXhsdWIwZzBuamYycHM0dGg1Mnc2bXYifQ.4fBnenKsvRVZaZn8kTULYw"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://integrate-browser-classes-sonic.trycloudflare.com/api",
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "YOUR_MAPBOX_ACCESS_TOKEN"
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1Ijoic3VyeWEyMDA3IiwiYSI6ImNtbXhsdWIwZzBuamYycHM0dGg1Mnc2bXYifQ.4fBnenKsvRVZaZn8kTULYw"
       }
     },
     "production": {
@@ -24,7 +24,7 @@
       "distribution" : "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://integrate-browser-classes-sonic.trycloudflare.com/api",
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "YOUR_MAPBOX_ACCESS_TOKEN"
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1Ijoic3VyeWEyMDA3IiwiYSI6ImNtbXhsdWIwZzBuamYycHM0dGg1Mnc2bXYifQ.4fBnenKsvRVZaZn8kTULYw"
       }
     }
   },

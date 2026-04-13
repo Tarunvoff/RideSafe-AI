@@ -6,7 +6,7 @@ import { Theme } from '../theme';
 
 import DriverRiskPipelineScreen from '../screens/main/DriverRiskPipelineScreen';
 import ClaimsScreen from '../screens/main/ClaimsScreen';
-import DriverLiveRiskScreen from '../screens/main/DriverLiveRiskScreen';
+import DriverLiveRiskMapboxScreen from '../screens/main/DriverLiveRiskMapboxScreen';
 import DriverActivityScreen from '../screens/main/DriverActivityScreen';
 import DriverPlansScreen from '../screens/main/DriverPlansScreen';
 import DriverProfileScreen from '../screens/main/DriverProfileScreen';
@@ -45,7 +45,7 @@ export default function MainTabNavigator() {
       />
       <Tab.Screen 
         name="Live Risk" 
-        component={DriverLiveRiskScreen} 
+        component={DriverLiveRiskMapboxScreen} 
         options={{ tabBarLabel: t('tabs.live_risk') }}
       />
       <Tab.Screen 

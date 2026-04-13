@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "RideSafe",
-    "slug": "aegis-hyyjuv8s4-am-3yvatvin",
+    "slug": "aegis",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/productlogo.png",
@@ -72,9 +72,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "b0af4d43-bf83-4b20-b61d-94d06becc31c"
+        "projectId": "e78536d5-92cb-4b3a-a51a-8ec1b2932d79"
       }
     },
-    "owner": "sriramvks-organization"
+    "owner": "bitzaura"
   }
 }

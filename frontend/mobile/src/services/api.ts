@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 // Dynamically set BASE_URL from environment — REQUIRED for deployments
 // Use environment variable EXPO_PUBLIC_API_URL
-const getBaseUrl = (): string => {
+const getBaseUrl = (): string | null => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   
   if (!apiUrl) {
@@ -12,7 +12,7 @@ const getBaseUrl = (): string => {
       'FATAL: EXPO_PUBLIC_API_URL not configured. ' +
       'Please set EXPO_PUBLIC_API_URL in .env file (e.g., http://192.168.1.9:3001/api)';
     console.error('❌', errorMsg);
-    throw new Error(errorMsg);
+    return null;
   }
   
   console.log('✅ Using API URL:', apiUrl.replace(/\/api\/?$/, '') + '/api');
@@ -35,6 +35,12 @@ async function request<T>(
   requiresAuth = false,
   _attempt = 0,
 ): Promise<T> {
+  if (!BASE_URL) {
+    throw new Error(
+      'API is not configured. Set EXPO_PUBLIC_API_URL in your Expo environment for this build profile.'
+    );
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
