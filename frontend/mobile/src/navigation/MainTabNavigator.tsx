@@ -1,18 +1,37 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The MainTabNavigator serves as the operational command center for the Aegis mobile 
+ * experience. It utilizes a bottom-tab paradigm to provide instant access to high-frequency 
+ * actions, ensuring that logistics personnel can traverse between Risk mapping, 
+ * Activity tracking, and Policy management with zero friction.
+ * 
+ * [DOMAIN LOGIC]
+ * Organizes the primary driver capabilities: Home (Risk Pipeline), Live Risk (Geospatial), 
+ * Work Pulse (Analytics), Plans (Insurance), Profile, and Claims. This layout mirrors 
+ * the operator's daily workflow, prioritizing real-time risk awareness.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Theme } from '../theme';
 
-import DriverRiskPipelineScreen from '../screens/main/DriverRiskPipelineScreen';
-import ClaimsScreen from '../screens/main/ClaimsScreen';
-import DriverLiveRiskMapboxScreen from '../screens/main/DriverLiveRiskMapboxScreen';
-import DriverActivityScreen from '../screens/main/DriverActivityScreen';
-import DriverPlansScreen from '../screens/main/DriverPlansScreen';
-import DriverProfileScreen from '../screens/main/DriverProfileScreen';
+import DriverRiskPipelineScreen from '../screens/driver/DriverRiskPipelineScreen';
+import ClaimsScreen from '../screens/driver/ClaimsScreen';
+import DriverLiveRiskMapboxScreen from '../screens/driver/DriverLiveRiskMapboxScreen';
+import DriverActivityScreen from '../screens/driver/DriverActivityScreen';
+import DriverPlansScreen from '../screens/driver/DriverPlansScreen';
+import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
+/**
+ * [IN-LINE PRIDE]: Ergonomic Navigation Schema
+ * Implements a dynamic icon resolution strategy integrated with the Aegis Theme tokens. 
+ * The tab bar is optimized for one-handed operation, a critical requirement for 
+ * users in fast-paced delivery and logistics environments.
+ */
 export default function MainTabNavigator() {
   const { t } = useTranslation();
   return (

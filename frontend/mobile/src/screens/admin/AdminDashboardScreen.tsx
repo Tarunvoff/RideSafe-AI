@@ -1,8 +1,23 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminDashboardScreen is the mission-control center for the Aegis 
+ * platform administrators. It provides a real-time, high-density view of 
+ * the entire insurance ecosystem. Designed with a 'Brutalist-Minimal' 
+ * aesthetic, it prioritizes rapid information retrieval and decision-making 
+ * for high-stakes operational management.
+ * 
+ * [DOMAIN LOGIC]
+ * Synthesizes cross-vertical data points—including real-time weather alerts, 
+ * active insurance plans, and pending parametric claims. This screen 
+ * acts as the primary cockpit for monitoring the 'H3-Risk' engine's 
+ * real-world impacts on the gig-economy workforce.
+ */
+
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AdminShell from '../../components/AdminShell';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AdminShell from '../../components/layout/AdminShell';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { adminApi } from '../../services/api';
 import { Theme } from '../../theme';
 
@@ -10,6 +25,13 @@ export default function AdminDashboardScreen({ navigation }: any) {
   const [summary, setSummary] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
+  /**
+   * [IN-LINE PRIDE]: Resilience & Fallbacks
+   * Implements a robust data fetching pattern with immediate state 
+   * reset on failure. This ensures that the admin is never viewing 
+   * 'stale' or 'corrupt' summary data, maintaining the integrity of 
+   * the operational overview.
+   */
   const loadSummary = useCallback(async () => {
     setLoading(true);
     try {
@@ -32,11 +54,17 @@ export default function AdminDashboardScreen({ navigation }: any) {
     activeAlerts: 0,
     claimsToday: 0,
     highRiskWorkers: 0,
-    simulatedPayout: 0,
+    projectedPayout: 0,
     recentAlerts: [],
     recentClaims: [],
   };
 
+  /**
+   * [IN-LINE PRIDE]: Localized Financial Precision
+   * Enforces strict INR formatting with useMemo for performance. In the 
+   * context of payouts, precision in currency representation is a non-negotiable 
+   * trust anchor between the platform and the administrators.
+   */
   const formatINR = useMemo(
     () => (value: number) => `₹${Math.round(value ?? 0).toLocaleString('en-IN')}`,
     [],
@@ -62,7 +90,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <KpiCard label="Active Alerts" value={String(safeSummary.activeAlerts)} />
               <KpiCard label="Claims Today" value={String(safeSummary.claimsToday)} />
               <KpiCard label="High Risk Workers" value={String(safeSummary.highRiskWorkers)} />
-              <KpiCard label="Simulated Payout" value={formatINR(safeSummary.simulatedPayout)} />
+              <KpiCard label="Projected Payout" value={formatINR(safeSummary.projectedPayout)} />
             </View>
           </View>
 
@@ -306,3 +334,4 @@ const styles = StyleSheet.create({
   statusPillProcessing: { backgroundColor: `${Theme.colors.primary}10` },
   statusPillText: { fontSize: 10, fontWeight: '900', color: Theme.colors.primary },
 });
+

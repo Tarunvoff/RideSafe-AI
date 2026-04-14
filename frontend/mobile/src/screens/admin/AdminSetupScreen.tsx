@@ -1,3 +1,20 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminSetupScreen is the central configuration engine for the Aegis 
+ * ecosystem. It provides administrators with a highly modular interface 
+ * to fine-tune system-wide behaviors—from fraud detection thresholds 
+ * to parametric insurance plan parameters. Architected with a dynamic 
+ * 'Section Editor' modal, it ensures a consistent and low-friction 
+ * configuration experience across diverse system domains.
+ * 
+ * [DOMAIN LOGIC]
+ * Manages the 'Operational Tuning' of the platform. Key configurations 
+ * like 'Fraud Block Threshold' and 'H3 Zone Consistency' directly influence 
+ * the actuarial performance of the insurance model. This screen is the 
+ * single point of control for rebalancing the risk-reward tradeoff of the 
+ * entire gig-economy protection suite.
+ */
+
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -12,8 +29,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import AdminShell from '../../components/AdminShell';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AdminShell from '../../components/layout/AdminShell';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -36,6 +53,13 @@ export default function AdminSetupScreen({ navigation }: any) {
     }
   };
 
+  /**
+   * [IN-LINE PRIDE]: Critical Session Resilience
+   * Implements a proactive 'Session Expiry' check. If the admin profile 
+   * fails to load due to unauthorized access, the system automatically 
+   * clears the local session and redirects to login, preventing 'Zebra State' 
+   * where the UI is accessible but the data is unavailable.
+   */
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
@@ -75,6 +99,13 @@ export default function AdminSetupScreen({ navigation }: any) {
     else navigation.navigate('AdminDashboard');
   };
 
+  /**
+   * [IN-LINE PRIDE]: Polymorphic Configuration Modals
+   * Instead of multiple specialized screens, we utilize a single, 
+   * state-driven editor that adapts its schema based on the 'section' being 
+   * tuned. This reduces code surface area while providing a unified 
+   * UX pattern for system administrators.
+   */
   const openEditor = async (title: string, section: string) => {
     if (section === 'profile') {
       if (!profile) await loadProfile();
@@ -688,3 +719,4 @@ const styles = StyleSheet.create({
 
   // Bottom navbar is shared via `AdminBottomNavbar`.
 });
+

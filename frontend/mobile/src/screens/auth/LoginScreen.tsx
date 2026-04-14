@@ -18,7 +18,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -144,17 +144,17 @@ export default function LoginScreen({ navigation }: any) {
 
         {/* Bottom Actions: Driver Login & Admin Portal */}
         <View style={styles.actionCardsRow}>
-          <TouchableOpacity 
-            style={styles.actionCard} 
-            onPress={() => setModalVisible(true)} 
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => setModalVisible(true)}
             activeOpacity={0.8}
           >
             <Ionicons name="person-outline" size={60} color="#000" />
             <Text style={styles.cardLabel}>{t('auth.login.driver_login')}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.actionCard} 
+          <TouchableOpacity
+            style={styles.actionCard}
             onPress={() => navigation.navigate('AdminLogin')}
             activeOpacity={0.8}
           >
@@ -264,23 +264,23 @@ function OAuthButton({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[
-        styles.oauthBtn, 
-        { 
+        styles.oauthBtn,
+        {
           backgroundColor: color,
           borderWidth: color === '#fff' ? 1 : 0,
           borderColor: '#e2e8f0',
         }
-      ]} 
+      ]}
       onPress={onPress}
     >
       <Image
         source={iconSource}
-        style={{ 
-          width: 50 - imagePadding * 2, 
-          height: 50 - imagePadding * 2, 
-          borderRadius: imagePadding === 0 ? 25 : 0 
+        style={{
+          width: 50 - imagePadding * 2,
+          height: 50 - imagePadding * 2,
+          borderRadius: imagePadding === 0 ? 25 : 0
         }}
         resizeMode="contain"
       />
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -40, 
+    marginTop: -40,
   },
   starContainer: {
     width: width * 0.95,
@@ -431,23 +431,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 25,
   },
-  oauthButtonsRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
+  oauthButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     gap: 16,
     marginTop: 10,
   },
-  oauthBtn: { 
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    shadowColor: '#000', 
-    shadowOpacity: 0.15, 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowRadius: 4, 
-    elevation: 3 
+  oauthBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3
   },
   demoOverlay: {
     flex: 1,

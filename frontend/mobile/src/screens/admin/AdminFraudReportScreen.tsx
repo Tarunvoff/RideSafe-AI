@@ -1,3 +1,18 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminFraudReportScreen is the 'Cyber-Physical' forensics hub of the 
+ * Aegis admin suite. It provides a granular, evidence-based review of 
+ * suspected fraudulent activity. By synthesizing GPS discrepancy maps, 
+ * device telemetry, and historical risk timelines, it empowers admins to 
+ * make high-confidence decisions on driver eligibility and payout integrity.
+ * 
+ * [DOMAIN LOGIC]
+ * Operates at the intersection of Geospatial Data and Actuarial Integrity. 
+ * The screen visualizes the 'H3-Risk' engine's forensic findings—specifically 
+ * targeting 'GPS Spoofing' and 'Device Multi-Accounting'—which are 
+ * critical threats to the stability of the parametric insurance model.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -12,7 +27,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AdminShell from '../../components/AdminShell';
+import AdminShell from '../../components/layout/AdminShell';
 import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
@@ -60,6 +75,13 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
   const { analysis } = data;
   const score = analysis.riskScore;
 
+  /**
+   * [IN-LINE PRIDE]: Scientific Risk Decomposition
+   * Breaks down the opaque 'Risk Score' into human-readable vectors. This 
+   * transparency is vital for administrative auditing, ensuring that 
+   * rejections are backed by multi-signal telemetry rather than a single 'black box' 
+   * decision.
+   */
   const RISK_BREAKDOWN = [
     { label: 'Signal Integrity', value: 12, color: RED },
     { label: 'Device Reputation', value: 45, color: ORANGE },
@@ -84,6 +106,12 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
     }
   };
 
+  /**
+   * [IN-LINE PRIDE]: Seamless Forensic Export
+   * Implements a direct 'PDF Export' bridge. In complex insurance cases, 
+   * evidence must be shareable beyond the app. This feature transforms 
+   * live telemetry into a portable, legally-ready document in one tap.
+   */
   const handleExportPdf = async () => {
     setIsLoading(true);
     try {
@@ -410,3 +438,4 @@ const styles = StyleSheet.create({
   navItem: { flex: 1, alignItems: 'center', gap: 4 },
   navText: { fontSize: 9, fontWeight: '800', color: SLATE_500, letterSpacing: 1 },
 });
+

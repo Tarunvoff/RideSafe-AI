@@ -12,7 +12,7 @@ import {
     View,
 } from 'react-native';
 import { Circle, Svg } from 'react-native-svg';
-import AdminShell from '../../components/AdminShell';
+import AdminShell from '../../components/layout/AdminShell';
 import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
@@ -325,3 +325,4 @@ const styles = StyleSheet.create({
   fullReportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12 },
   fullReportBtnText: { fontSize: 14, fontWeight: '800', color: PRIMARY },
 });
+

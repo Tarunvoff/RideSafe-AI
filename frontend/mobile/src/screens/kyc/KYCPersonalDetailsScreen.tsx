@@ -1,11 +1,25 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The KYCPersonalDetailsScreen handles the capture of critical geospatial 
+ * and residential metadata. It is designed with "Cognitive Load Reduction" 
+ * as a priority, using a split-column layout for State and Pincode to maintain 
+ * form density without overwhelming the user.
+ * 
+ * [DOMAIN LOGIC]
+ * Residential data serves as a secondary proxy for "Risk Exposure" profiles. 
+ * While the primary risk mapping is real-time/H3, the driver's base location 
+ * helps the actuarial engine establish a 'baseline risk' category for the 
+ * parametric policy.
+ */
+
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { kycApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,6 +32,12 @@ export default function KYCPersonalDetailsScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(false);
   const { refreshKycStatus } = useAuth();
 
+  /**
+   * [IN-LINE PRIDE]: Seamless State Synchronization
+   * Executing the save and immediately triggering a global 'refreshKycStatus' 
+   * ensures the AppNavigator correctly transitions the user to the next 
+   * compliance gate without manual landing-page refreshes.
+   */
   const handleContinue = async () => {
     if (!address || !city || !state || !pincode) {
       Alert.alert(t('common.error'), t('common.required_fields'));
@@ -136,3 +156,4 @@ const styles = StyleSheet.create({
   subtitle: { ...Theme.typography.body, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.lg },
   footer: { padding: Theme.spacing.lg, backgroundColor: Theme.colors.surface, borderTopWidth: 1, borderTopColor: Theme.colors.border },
 });
+

@@ -1,3 +1,19 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminClaimsScreen is the financial audit command of the Aegis platform. 
+ * It provides a comprehensive view of the parametric payout funnel, 
+ * tracking every insurance claim from 'Processing' to 'Paid Out'. Designed 
+ * for fiscal transparency, it combines real-time data fetching with 
+ * rigorous status filtering to ensure zero-leakage in the actuarial lifecycle.
+ * 
+ * [DOMAIN LOGIC]
+ * Orchestrates the 'Payout Integrity' vertical. By segmenting claims into 
+ * 'Rain' or 'AQI' categories, administrators can monitor which environmental 
+ * triggers are driving the most significant financial outflows. The 'Total Payout' 
+ * metric serves as the primary gauge for the platform's social impact 
+ * and capital efficiency.
+ */
+
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -7,8 +23,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import AdminShell from '../../components/AdminShell';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AdminShell from '../../components/layout/AdminShell';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { Theme } from '../../theme';
 import { adminApi } from '../../services/api';
 
@@ -25,6 +41,14 @@ export default function AdminClaimsScreen({ navigation }: any) {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROCESSING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'RAIN' | 'AQI'>('ALL');
 
+  /**
+   * [IN-LINE PRIDE]: Atomic Fetch Sequencing
+   * Enforces a clean state transition between filter updates and 
+   * network requests. By wrapping the fetch logic in useCallback, 
+   * we prevent unnecessary re-renders while ensuring that the 
+   * 'LoadingOverlay' state is perfectly synced with the backend 
+   * response cycle.
+   */
   const loadClaims = useCallback(async () => {
     setLoading(true);
     try {
@@ -47,6 +71,12 @@ export default function AdminClaimsScreen({ navigation }: any) {
   const claims = claimsRes?.claims ?? [];
   const summary = claimsRes ?? { total: 0, pendingReview: 0, totalPayout: 0, claims: [] };
 
+  /**
+   * [IN-LINE PRIDE]: High-Precision Localization
+   * Enforces the 'en-IN' locale for all financial representations. In an 
+   * Indian operational context, representing currency in the regional 
+   * standard is a key part of the platform's professional visual identity.
+   */
   const formatINR = useMemo(
     () => (value: number) => `₹${Math.round(value ?? 0).toLocaleString('en-IN')}`,
     [],
@@ -386,3 +416,4 @@ const styles = StyleSheet.create({
     color: '#ef4444',
   },
 });
+

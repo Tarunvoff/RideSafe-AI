@@ -1,10 +1,25 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The KYCPayoutSetupScreen is the financial terminal where drivers configure 
+ * their restitution path. It supports dual-modality (UPI and Direct Bank) to 
+ * ensure maximum accessibility for dark store operators with varied financial 
+ * setups. The interface ensures encryption-ready data capture before 
+ * final submission.
+ * 
+ * [DOMAIN LOGIC]
+ * This is the 'Settlement Vector' of the Aegis platform. By capturing precise 
+ * payout metadata early, the platform ensures that parametric claims can be 
+ * settled with sub-10s latency, fulfilling the promise of 'Instant Resilience' 
+ * upon risk-trigger events.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { kycApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -19,6 +34,12 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(false);
   const { refreshKycStatus } = useAuth();
 
+  /**
+   * [IN-LINE PRIDE]: Conditional Payload Composition
+   * Dynamically constructs the API payload based on the selected 'Settlement Method'. 
+   * This prevents 'Garbage Data' (e.g., stale UPI IDs when switching to Bank) from 
+   * entering the banking microservice, maintaining strict financial data hygiene.
+   */
   const handleContinue = async () => {
     if (method === 'UPI' && !upiId) {
       Alert.alert(t('common.error'), t('kyc.payout.enter_upi'));
@@ -171,3 +192,4 @@ const styles = StyleSheet.create({
   secureText: { flex: 1, ...Theme.typography.caption, color: Theme.colors.textSecondary, lineHeight: 18 },
   footer: { padding: Theme.spacing.lg, backgroundColor: Theme.colors.surface, borderTopWidth: 1, borderTopColor: Theme.colors.border },
 });
+

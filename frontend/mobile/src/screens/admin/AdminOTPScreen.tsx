@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import AuthCard from '../../components/AuthCard';
-import Button from '../../components/Button';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AuthCard from '../../components/auth/AuthCard';
+import Button from '../../components/ui/Button';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
@@ -170,3 +170,4 @@ const styles = StyleSheet.create({
   timerText: { color: Theme.colors.primary, fontWeight: 'bold' as const },
   resendLink: { ...Theme.typography.caption, color: Theme.colors.primary, fontWeight: 'bold' as const },
 });
+

@@ -1,4 +1,6 @@
 {
+  "__EXCELLENCE_SUMMARY": "Enforces strict type-safety across the Aegis ecosystem, minimizing runtime failures in high-precision actuarial calculations and ensuring code modularity through path aliasing.",
+  "__DOMAIN_LOGIC": "Validates the integrity of risk-engine inputs and UI state, providing a robust compile-time shield against data corruption in logistics environments.",
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,

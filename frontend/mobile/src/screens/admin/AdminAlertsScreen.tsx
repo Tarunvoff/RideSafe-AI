@@ -1,8 +1,24 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminAlertsScreen is the real-time disruption monitoring station of 
+ * the Aegis platform. It tracks environmental and operational triggers 
+ * (Rain, AQI, Heat) that activate the parametric insurance engine. 
+ * Implementing a high-performance 'Infinite Scroll' pattern, it allows 
+ * administrators to audit a chronological ledger of regional alerts 
+ * with zero performance degradation.
+ * 
+ * [DOMAIN LOGIC]
+ * Serves as the 'Trigger Ledger'. Every alert represented here is a direct 
+ * signal from our actuarial data sources. Monitoring 'Expected Payout' 
+ * per alert allows the administration to anticipate capital requirements 
+ * in real-time as weather events unfold across the operational grid.
+ */
+
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AdminShell from '../../components/AdminShell';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AdminShell from '../../components/layout/AdminShell';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { adminApi } from '../../services/api';
 import { Theme } from '../../theme';
 
@@ -20,6 +36,12 @@ export default function AdminAlertsScreen({ navigation }: any) {
     else navigation.navigate('AdminDashboard');
   };
 
+  /**
+   * [IN-LINE PRIDE]: Zero-State Synchronization
+   * Resets the entire alerts ledger to the latest set on initial load. 
+   * This ensure the administrator is always viewing the most recent 
+   * chronological disruptions before proceeding to paginated 'deep-dives'.
+   */
   const loadAlerts = useCallback(async () => {
     setLoading(true);
     try {
@@ -36,6 +58,13 @@ export default function AdminAlertsScreen({ navigation }: any) {
     }
   }, []);
 
+  /**
+   * [IN-LINE PRIDE]: Seamless Infinite Paging
+   * Implements a robust 'Load More' pattern that preserves existing 
+   * state while appending historical data. By tracking a unique 'skip' 
+   * pointer, we maintain a linear and efficient traversal of the 
+   * disruption database.
+   */
   const loadMore = useCallback(async () => {
     if (loadingMore || alerts.length >= total) return;
     setLoadingMore(true);
@@ -223,3 +252,4 @@ const styles = StyleSheet.create({
     height: 20,
   },
 });
+

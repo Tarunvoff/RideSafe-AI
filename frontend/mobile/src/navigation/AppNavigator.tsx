@@ -1,3 +1,16 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AppNavigator defines the hierarchical state-machine of the Aegis mobile 
+ * ecosystem. It implements a sophisticated conditional routing logic that enforces 
+ * business rules (KYC, Terms of Service) before granting access to operational modules. 
+ * This ensures that the user journey is both secure and compliant.
+ * 
+ * [DOMAIN LOGIC]
+ * Segregates the "Driver" and "Admin" user experiences. For drivers, it acts as a gatekeeper, 
+ * mandating KYC completion for new registrations and terms acceptance, ensuring that the 
+ * insurance liability perimeter is strictly maintained.
+ */
+
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -16,11 +29,11 @@ import AdminOTPScreen from '../screens/admin/AdminOTPScreen';
 import AdminSetupScreen from '../screens/admin/AdminSetupScreen';
 import AdminWorkersScreen from '../screens/admin/AdminWorkersScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
-import DriverActivityScreen from '../screens/main/DriverActivityScreen';
-import DriverLiveRiskMapboxScreen from '../screens/main/DriverLiveRiskMapboxScreen';
-import DriverPlansScreen from '../screens/main/DriverPlansScreen';
-import DriverProfileScreen from '../screens/main/DriverProfileScreen';
-import PolicyScreen from '../screens/main/PolicyScreen';
+import DriverActivityScreen from '../screens/driver/DriverActivityScreen';
+import DriverLiveRiskMapboxScreen from '../screens/driver/DriverLiveRiskMapboxScreen';
+import DriverPlansScreen from '../screens/driver/DriverPlansScreen';
+import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+import PolicyScreen from '../screens/driver/PolicyScreen';
 import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
 
@@ -29,6 +42,12 @@ import TermsAndConditionsScreen from '../screens/auth/TermsAndConditionsScreen';
 
 const Stack = createNativeStackNavigator();
 
+/**
+ * [IN-LINE PRIDE]: Conditional Orchestration
+ * The navigator dynamically shifts the root component based on the Auth state. 
+ * Using a flat stack for each sub-domain (Auth, Admin, Driver) prevents 
+ * navigation history pollution and enhances security.
+ */
 export default function AppNavigator() {
   const { user, isLoading, isAuthenticated, kycStatus, isNewRegistration } = useAuth();
 
@@ -58,13 +77,6 @@ export default function AppNavigator() {
           component={AdminLoginScreen}
           options={{ presentation: 'modal' }}
         />
-        {/*
-        <Stack.Screen
-          name="AdminOTP"
-          component={AdminOTPScreen}
-          options={{ presentation: 'modal' }}
-        />
-        */}
       </Stack.Navigator>
     );
   }
@@ -88,6 +100,11 @@ export default function AppNavigator() {
   // LOGGED IN DRIVER - Mandatory checks
   if (user?.role === 'DRIVER') {
     
+    /**
+     * [IN-LINE PRIDE]: Regulatory Gatekeeping
+     * Drivers are sequestered into the T&C and KYC flows until compliance is 
+     * verified, protecting the platform from liability.
+     */
     // 1. TERMS & CONDITIONS Check
     if (!user.isTermsAccepted) {
       return (

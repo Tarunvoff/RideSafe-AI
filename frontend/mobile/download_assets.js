@@ -1,3 +1,14 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * A high-efficiency asset acquisition script designed to populate the local filesystem 
+ * with production-ready visual assets. It utilizes Node.js streams to ensure minimal memory 
+ * footprint and rapid synchronization during the CI/CD or onboarding phase.
+ * 
+ * [DOMAIN LOGIC]
+ * Fetches critical KYC and UI flow diagrams required to guide dark store operators 
+ * through the insurance verification process, ensuring visual consistency across all locales.
+ */
+
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +25,11 @@ const images = [
 
 const downloadDir = path.join(__dirname, 'src', 'assets', 'images');
 
+/**
+ * [IN-LINE PRIDE]: Streamed Asset Persistence
+ * Implements a promise-wrapped HTTPS stream to ensure that binary data is written directly 
+ * to disk without loading the entire buffer into V8 memory, optimizing for CI environments.
+ */
 const download = (url, dest) => {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest);

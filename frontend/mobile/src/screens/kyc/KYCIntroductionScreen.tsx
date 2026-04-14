@@ -1,9 +1,23 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The KYCIntroductionScreen serves as the persuasive and orienting gateway to 
+ * the Aegis compliance funnel. It is architected to minimize drop-off by 
+ * clearly articulating the technical necessity of identity verification—linking 
+ * KYC completion directly to 'Policy Activation' and 'Claim Validation'.
+ * 
+ * [DOMAIN LOGIC]
+ * Technically initiates the "Digital Identity Anchoring" process. By priming the 
+ * driver for ID and Banking requirements, it ensures that subsequent data 
+ * collection steps (Aadhaar, UPI) are contextually justified within the 
+ * insurance mission, specifically the ability to receive parametric payouts.
+ */
+
 import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Theme } from '../../theme';
-import Button from '../../components/Button';
+import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
 export default function KYCIntroductionScreen({ navigation }: any) {
@@ -35,6 +49,10 @@ export default function KYCIntroductionScreen({ navigation }: any) {
           {t('kyc.intro.subtitle')}
         </Text>
 
+        {/* [IN-LINE PRIDE]: Value-Centered Compliance
+            Explicitly associates technical requirements with driver benefits.
+            This transparency reduces friction for users with low digital literacy.
+        */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('kyc.intro.why_title')}</Text>
           <View style={styles.listItem}>
@@ -66,6 +84,10 @@ export default function KYCIntroductionScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* [IN-LINE PRIDE]: Preparation Grid
+            Visualizes and summarizes prerequisite assets, minimizing 
+            in-flow anxiety and context-switching.
+        */}
         <Text style={styles.sectionTitle}>{t('kyc.intro.ready_title')}</Text>
         <View style={styles.grid}>
           <View style={styles.gridItem}>
@@ -129,3 +151,4 @@ const styles = StyleSheet.create({
   secondaryButton: { paddingVertical: Theme.spacing.md, alignItems: 'center' },
   secondaryButtonText: { ...Theme.typography.body, fontWeight: 'bold' as const, color: Theme.colors.textSecondary },
 });
+

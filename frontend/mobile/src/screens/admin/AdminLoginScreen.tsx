@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AuthCard from '../../components/AuthCard';
-import Button from '../../components/Button';
-import LoadingOverlay from '../../components/LoadingOverlay';
-import Input from '../../components/Input';
+import AuthCard from '../../components/auth/AuthCard';
+import Button from '../../components/ui/Button';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
+import Input from '../../components/ui/Input';
 import { authApi } from '../../services/api';
 import { Theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
@@ -145,3 +145,4 @@ const styles = StyleSheet.create({
   secureText: { ...Theme.typography.caption, color: Theme.colors.textSecondary },
   loginButton: { height: 52, borderRadius: Theme.borderRadius.md },
 });
+

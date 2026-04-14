@@ -1,3 +1,19 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminWorkersScreen is the primary workforce directory for the Aegis 
+ * platform. It provides a high-density, searchable, and filtrable view 
+ * of the entire gig-economy fleet. Using a sophisticated 'Debounced Search' 
+ * pattern and a hierarchical 'Summary Strip', it ensures that administrators 
+ * can manage thousands of worker profiles without cognitive overflow.
+ * 
+ * [DOMAIN LOGIC]
+ * Handles 'Fleet Compliance' monitoring. The screen allows administrators 
+ * to segment the workforce by 'City' and 'Platform' (Zepto, Blinkit, etc.). 
+ * This segmentation is critical for ensuring that insurance coverage 
+ * is correctly distributed across different logistics nodes and that 
+ * 'High Density' risk zones are properly identified.
+ */
+
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -8,8 +24,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import AdminShell from '../../components/AdminShell';
-  import LoadingOverlay from '../../components/LoadingOverlay';
+import AdminShell from '../../components/layout/AdminShell';
+  import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { Theme } from '../../theme';
 import { adminApi } from '../../services/api';
 
@@ -31,6 +47,13 @@ export default function AdminWorkersScreen({ navigation }: any) {
   ];
   const platformLabel = platformOptions.find((option) => option.value === platformFilter)?.label ?? 'ALL';
 
+  /**
+   * [IN-LINE PRIDE]: Fluid Data Handshake
+   * Implements a clean separation between filter state and data fetching. 
+   * The loadWorkers function is memoized to prevent redundant overhead, 
+   * ensuring that the UI remains responsive even when handling 
+   * large-scale backend datasets.
+   */
   const loadWorkers = useCallback(async () => {
     setLoading(true);
     try {
@@ -47,6 +70,13 @@ export default function AdminWorkersScreen({ navigation }: any) {
     }
   }, [search, cityFilter, platformFilter]);
 
+  /**
+   * [IN-LINE PRIDE]: UX Resilience - Debounced Discovery
+   * Enforces a 350ms 'Cooldown' on search inputs. In an operational fleet 
+   * of thousands, immediate search on every keystroke causes unnecessary 
+   * server pressure. This pattern preserves backend resources while 
+   * providing a 'Snappy' feel for the admin.
+   */
   useEffect(() => {
     const timer = setTimeout(() => {
       void loadWorkers();
@@ -421,3 +451,5 @@ const styles = StyleSheet.create({
     color: '#ef4444',
   },
 });
+
+

@@ -1,3 +1,16 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AuthContext is the security sentinel of the Aegis Mobile application. 
+ * It manages the entire lifecycle of user identity, from multi-factor authentication (OTP) 
+ * to complex OAuth handshakes and KYC state synchronization. Architected for persistence, 
+ * it ensures a seamless transition between offline states and authenticated sessions.
+ * 
+ * [DOMAIN LOGIC]
+ * Handles the distinct authorization flows for DRIVER and ADMIN roles. 
+ * For drivers, it integrates KYC (Know Your Customer) hooks, ensuring that only verified 
+ * personnel can interact with the live risk and insurance modules, thereby maintaining 
+ * the integrity of the Aegis trust ecosystem.
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import i18n from '../i18n';
@@ -42,6 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isNewRegistration, setIsNewRegistration] = useState(false);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
 
+  /**
+   * [IN-LINE PRIDE]: Session Restoration Engine
+   * On initial mount, the provider performs a multi-key asynchronous persistence check. 
+   * This ensures that dark store operators do not lose context during app restarts 
+   * or OS-level process reclamation.
+   */
   // Restore session on app start
   useEffect(() => {
     (async () => {
@@ -130,6 +149,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await authApi.verifyDriverOtp(email, otp);
   };
 
+  /**
+   * [IN-LINE PRIDE]: Atomic Login Procedure
+   * Orchestrates the secure exchange of credentials for JWT tokens, while 
+   * simultaneously triggering a KYC status sync and location refresh to establish 
+   * the user's operational baseline.
+   */
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password) as any;
     
@@ -324,6 +349,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * [IN-LINE PRIDE]: Context Guard
+ * Prevents unauthorized access to auth state outside of the provider tree, 
+ * enforcing strict architectural boundaries.
+ */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');

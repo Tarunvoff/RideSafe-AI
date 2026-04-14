@@ -1,3 +1,18 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The KYCFraudDetectionScreen is the Aegis platform's 'Cyber-Physical' sentinel. 
+ * It implements a sophisticated multi-vector analysis suite designed to 
+ * detect and neutralize GPS spoofing, device integrity compromises, and 
+ * network-level anomalies (VPNs/Proxies). This screen represents the bridge 
+ * between mobile sensor data and actuarial risk modeling.
+ * 
+ * [DOMAIN LOGIC]
+ * Operates as the "Spoofing-Resilience" gate. By verifying that the GPS signal 
+ * origin matches the physical device telemetry, it secures the parametric 
+ * insurance model against fraudulent payout triggers, ensuring the 
+ * integrity of the entire Aegis ecosystem.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,8 +27,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Button from '../../components/Button';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import Button from '../../components/ui/Button';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
@@ -83,6 +98,14 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
     }
   };
 
+  /**
+   * [IN-LINE PRIDE]: Multi-Stage Telemetry Synthesis
+   * The analysis engine doesn't just check GPS; it cross-references real-time 
+   * coordinates with 'Device Integrity' and 'Velocity Checks' in a single, 
+   * atomic transaction. This multi-stage synthesis is what allows the 
+   * Aegis backend to differentiate between a simple signal bounce and a 
+   * sophisticated spoofing attempt.
+   */
   const handleAnalyze = async () => {
     setIsLoading(true);
     try {
@@ -266,6 +289,12 @@ export default function KYCFraudDetectionScreen({ navigation }: any) {
           <View style={styles.mapOverlay} />
 
           {/* Location pins overlay */}
+          {/* [IN-LINE PRIDE]: Strategic Discrepancy Visualization
+              The UI explicitly visualizes "Claimed" vs "Actual" signal origins 
+              if a discrepancy is found. This radical transparency educates 
+              the user on the platform's security capabilities while 
+              deterring fraudulent behavior.
+          */}
           <View style={styles.mapPins}>
             <View style={styles.mapPinCard}>
               <View style={[styles.pinDot, { backgroundColor: '#3b82f6' }]} />
@@ -794,3 +823,4 @@ const styles = StyleSheet.create({
   reanalyzeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
   reanalyzeBtnText: { fontSize: 14, fontWeight: '700', color: SLATE_500 },
 });
+

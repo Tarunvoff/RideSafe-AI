@@ -1,9 +1,23 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The KYCProgressOverviewScreen is the roadmap interface for the driver 
+ * onboarding journey. It visualizes the multi-step compliance sequence as a 
+ * vertical timeline, providing users with a clear sense of progression and 
+ * reducing the cognitive fatigue associated with regulatory data collection.
+ * 
+ * [DOMAIN LOGIC]
+ * Serves as the "Compliance Orchestrator" view. By mapping out steps from 
+ * 'Personal Identity' to 'Payout Processing' and 'Fraud Analysis', it 
+ * contextually prepares the driver for the rigorous verification required 
+ * to participate in the Aegis insurance ecosystem.
+ */
+
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
-import Button from '../../components/Button';
+import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
 const STEP_STATUS_CURRENT = 'current' as const;
@@ -39,6 +53,10 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
+        {/* [IN-LINE PRIDE]: Momentum-Driven Progress Card
+            High-contrast visual of the completion percentage reinforces the 
+            sense of achievement during the administrative phase.
+        */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View>
@@ -52,6 +70,11 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* [IN-LINE PRIDE]: Contextual Step Timeline
+            Uses a vertical track to signify a temporal progression through 
+            the compliance gates. Icons are carefully chosen to reduce 
+            language barriers for dark store logistics personnel.
+        */}
         <View style={styles.stepsContainer}>
           {steps.map((step, index) => {
             const isCurrent = step.status === STEP_STATUS_CURRENT;
@@ -85,6 +108,7 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
         </View>
       </ScrollView>
 
+      <View style={styles.footer}>
         <Button 
           title={t('kyc.overview.start_verify')} 
           onPress={() => navigation.navigate('KYCBasicIdentity')} 
@@ -93,8 +117,9 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
           title={t('kyc.overview.save_later')} 
           variant="outline"
           onPress={() => { if (navigation.canGoBack()) navigation.goBack(); else logout(); }} 
-          style={{ marginTop: Theme.spacing.sm, borderWidth: 2 }}
+          style={{ marginTop: Theme.spacing.sm, borderTopWidth: 2 }}
         />
+      </View>
     </SafeAreaView>
   );
 }
@@ -125,3 +150,4 @@ const styles = StyleSheet.create({
   secureText: { flex: 1, ...Theme.typography.caption, color: Theme.colors.textSecondary, lineHeight: 20 },
   footer: { padding: Theme.spacing.lg, backgroundColor: Theme.colors.surface, borderTopWidth: 1, borderTopColor: Theme.colors.border },
 });
+

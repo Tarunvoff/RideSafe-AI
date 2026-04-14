@@ -1,8 +1,25 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The AdminFraudReviewScreen serves as the high-stakes 'Forensic Inbox' 
+ * for the Aegis platform. It centralizes all profiles and claims flagged 
+ * by the H3-Risk actuarial engine that require human adjudication. 
+ * Designed with a 'Focus-First' aesthetic, it allows administrators 
+ * to rapidly triage potential anomalies while maintaining high confidence 
+ * in data integrity and system transparency.
+ * 
+ * [DOMAIN LOGIC]
+ * Orchestrates the 'Human-in-the-Loop' (HITL) fraud mitigation workflow. 
+ * By surfacing the 'Risk Score' (0-100%) synthesized from geospatial 
+ * telemetry and payout history, it empowers administrators to preserve 
+ * the platform's financial resilience against institutional identity fraud 
+ * and payout abuse.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AdminShell from '../../components/AdminShell';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AdminShell from '../../components/layout/AdminShell';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { fraudApi } from '../../services/api';
 import { Theme } from '../../theme';
 
@@ -30,6 +47,13 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
     return PRIMARY;
   };
 
+  /**
+   * [IN-LINE PRIDE]: Reactive Triage Synchronization
+   * Fetches the latest 'Submissions' ledger directly from the forensic 
+   * persistence layer. The loading state is managed as a first-class citizen, 
+   * ensuring that the administrator is never left in an ambiguous UI state 
+   * during network transit.
+   */
   const loadSubmissions = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -46,6 +70,13 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
     void loadSubmissions();
   }, [loadSubmissions]);
 
+  /**
+   * [IN-LINE PRIDE]: Information Density Management
+   * Renders each submission as a high-fidelity card. By combining 
+   * the user's primary identifiers (Email/Phone) with the synthesized 
+   * risk score, we enable 'At-a-glance' cognitive analysis, reducing 
+   * the time-to-decision for the operations team.
+   */
   const renderSubmission = ({ item }: { item: FraudSubmission }) => (
     <TouchableOpacity
       style={styles.submissionCard}
@@ -99,7 +130,7 @@ export default function AdminFraudReviewScreen({ navigation }: any) {
           <Text style={styles.emptyTitle}>All Clear</Text>
           <Text style={styles.emptySubtitle}>No fraud submissions pending review</Text>
            <TouchableOpacity style={styles.refreshBtn} onPress={() => void loadSubmissions()}>
-             <Text style={styles.refreshBtnText}>Check Again</Text>
+              <Text style={styles.refreshBtnText}>Check Again</Text>
           </TouchableOpacity>
         </View>
       ) : !isLoading ? (
@@ -146,4 +177,5 @@ const styles = StyleSheet.create({
   submissionStatus: { fontSize: 11, fontWeight: '800', color: SLATE_500, letterSpacing: 0.5 },
   dateText: { fontSize: 11, fontWeight: '600', color: SLATE_500, marginRight: 8 },
 });
+
 

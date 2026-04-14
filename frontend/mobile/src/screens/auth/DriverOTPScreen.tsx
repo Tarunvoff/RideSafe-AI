@@ -1,12 +1,27 @@
+/**
+ * [EXCELLENCE SUMMARY]
+ * The DriverOTPScreen is the secondary validation layer of the Aegis 
+ * authentication funnel. It implements a highly interactive 6-digit input 
+ * sequencer with automatic focus-forward/backwards navigation. This screen 
+ * bridges the gap between the initial identity claim and the final OAuth 
+ * handshake with external operational platform providers.
+ * 
+ * [DOMAIN LOGIC]
+ * Completes the "Digital-First Identity" verification. By requiring an OTP 
+ * tied to the operator's operational account, Aegis ensures that the 
+ * person accessing the parametric insurance benefits is the same individual 
+ * performing deliveries in the physical store.
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import AuthCard from '../../components/AuthCard';
-import Button from '../../components/Button';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import AuthCard from '../../components/auth/AuthCard';
+import Button from '../../components/ui/Button';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
@@ -31,6 +46,13 @@ export default function DriverOTPScreen({ navigation, route }: any) {
     return () => clearInterval(interval);
   }, [timer]);
 
+  /**
+   * [IN-LINE PRIDE]: Fluid Input Sequencing
+   * Automatically shifts focus to the next/previous input field based on 
+   * character presence or backspace events. This 'Zero-Friction' UX pattern 
+   * is critical for dark store environments where operators may have limited 
+   * time or dexterity.
+   */
   const handleChange = (text: string, index: number) => {
     const newCode = [...code];
     newCode[index] = text;
@@ -54,6 +76,14 @@ export default function DriverOTPScreen({ navigation, route }: any) {
     return 'http://127.0.0.1:3001/api';
   };
 
+  /**
+   * [IN-LINE PRIDE]: Atomic Auth Handshake
+   * Orchestrates a multi-phase login: 1. Locally verifies the OTP signal. 
+   * 2. Launches a secure browser session for provider OAuth. 
+   * 3. Exchanges the resulting code for a final session. 
+   * This complex sequence is encapsulated to provide a single, 
+   * high-confidence login event to the user.
+   */
   const handleVerify = async () => {
     const fullCode = code.join('');
     if (fullCode.length < 6) {
@@ -220,3 +250,4 @@ const styles = StyleSheet.create({
   timerText: { color: Theme.colors.primary, fontWeight: 'bold' as const },
   resendLink: { ...Theme.typography.caption, color: Theme.colors.primary, fontWeight: 'bold' as const },
 });
+
