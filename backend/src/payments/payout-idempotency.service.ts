@@ -55,11 +55,10 @@ export class PayoutIdempotencyService {
     h3Cell: string,
     eventTimestamp: number,
   ): Promise<IdempotencyCheckResult> {
-    const prisma = this.prisma as any;
     const key = this.buildKey(userId, h3Cell, eventTimestamp);
 
     // 1. Look up an existing record
-    const existing = await prisma.payoutIdempotencyKey.findUnique({
+    const existing = await this.prisma.payoutIdempotencyKey.findUnique({
       where: { userId_h3Cell_eventTimestamp: { userId, h3Cell: h3Cell, eventTimestamp } },
     });
 
@@ -77,7 +76,7 @@ export class PayoutIdempotencyService {
       if (existing.payoutState === 'PROCESSING') {
         // Previous attempt crashed mid-flight — mark as FAILED so caller can retry
         this.logger.warn(`[idempotency] ⚠️  Key ${key} stuck in PROCESSING → resetting to FAILED`);
-        const reset = await prisma.payoutIdempotencyKey.update({
+        const reset = await this.prisma.payoutIdempotencyKey.update({
           where: { id: existing.id },
           data: { payoutState: 'FAILED', errorMessage: 'Process interrupted — reset by idempotency guard' },
         });
@@ -91,14 +90,14 @@ export class PayoutIdempotencyService {
 
     // 2. Create a new record with PENDING state
     try {
-      const created = await prisma.payoutIdempotencyKey.create({
+      const created = await this.prisma.payoutIdempotencyKey.create({
         data: { userId, h3Cell, eventTimestamp, payoutState: 'PENDING' },
       });
       this.logger.log(`[idempotency] 🆕 Key ${key} created → PENDING`);
       return { shouldProcess: true, idempotencyId: created.id, state: 'PENDING' };
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Unique constraint violation: another request raced us — re-read
-      if (err?.code === 'P2002') {
+      if (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === 'P2002') {
         this.logger.warn(`[idempotency] Race detected for key ${key} — re-reading`);
         return this.checkOrCreate(userId, h3Cell, eventTimestamp);
       }
@@ -108,8 +107,7 @@ export class PayoutIdempotencyService {
 
   /** Transition record to PROCESSING (atomically before hitting the payment gateway). */
   async markProcessing(idempotencyId: string): Promise<void> {
-    const prisma = this.prisma as any;
-    await prisma.payoutIdempotencyKey.update({
+    await this.prisma.payoutIdempotencyKey.update({
       where: { id: idempotencyId },
       data: { payoutState: 'PROCESSING' },
     });
@@ -117,8 +115,7 @@ export class PayoutIdempotencyService {
 
   /** Transition record to SUCCESS and store the gateway payout ID. */
   async markSuccess(idempotencyId: string, payoutId: string): Promise<void> {
-    const prisma = this.prisma as any;
-    await prisma.payoutIdempotencyKey.update({
+    await this.prisma.payoutIdempotencyKey.update({
       where: { id: idempotencyId },
       data: { payoutState: 'SUCCESS', payoutId },
     });
@@ -127,8 +124,7 @@ export class PayoutIdempotencyService {
 
   /** Transition record to FAILED and record the error reason. */
   async markFailed(idempotencyId: string, errorMessage: string): Promise<void> {
-    const prisma = this.prisma as any;
-    await prisma.payoutIdempotencyKey.update({
+    await this.prisma.payoutIdempotencyKey.update({
       where: { id: idempotencyId },
       data: { payoutState: 'FAILED', errorMessage },
     });

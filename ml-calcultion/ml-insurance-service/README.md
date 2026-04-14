@@ -2,6 +2,21 @@
 
 This service provides the risk score (Lf) and premium pricing models used by the H3 pipeline. It does **not** decide payouts; the backend enforces policy + HALTED rules.
 
+## Service Ownership
+- Owns calibrated model scoring for risk, pricing, fraud, and trigger support.
+- Owns training artifacts in `data/` and runtime model selection/fallback behavior.
+- Does not own policy lifecycle, payments, or payout idempotency.
+
+## External Dependencies
+- Redis for risk smoothing state.
+- Python ML stack: XGBoost, LightGBM, scikit-learn, SHAP.
+- FastAPI HTTP interface consumed by backend services.
+
+## Failure Behavior
+- If risk model loading/inference fails, service falls back to deterministic heuristic scoring and logs `scoring_path=fallback`.
+- If fraud explainability (SHAP) fails, fraud score is still returned with model/rule reason.
+- If Redis is unavailable, in-memory Lf smoothing is used for current process lifetime.
+
 ## Endpoints
 ### POST /risk-score
 Calculates Loss Fraction (Lf) and risk_level.

@@ -5,10 +5,13 @@ import { RedisStateService } from '../state/redis-state.service';
 import { ctForPlan } from '../insurance/policy-tiers';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 import { createInternalDriverId } from '../dynamic-qcommerce/utils/dynamic-data.factory';
-
-const PREMIUM_MARGIN = 0.1;
-const PREMIUM_RATE = 0.015;
-const MAX_WEEKLY_PREMIUM_INR = 50;
+import {
+  applyPremiumBounds,
+  computeRawWeeklyPremium,
+  resolveEarningsWithFallback,
+  resolveTierCap,
+  MINIMUM_WEEKLY_PREMIUM_INR,
+} from './premium-calculation.util';
 
 @Injectable()
 export class PremiumService {
@@ -40,9 +43,28 @@ export class PremiumService {
     );
   }
 
+  /**
+   * Returns earnings baseline for low-history drivers where Ew is unstable or zero.
+   */
+  private resolveEarningsWithNewDriverFallback(profile: any, activeDays: number): number {
+    const weekly = this.resolveWeeklyEarnings(profile);
+    const cohortCandidate = Number(profile?.workSummary?.averageWeeklyEarnings ?? 0);
+    const baseline = resolveEarningsWithFallback({
+      weeklyEarnings: weekly,
+      cohortAverageWeeklyEarnings: cohortCandidate,
+      activeDays,
+    });
+    if (baseline !== weekly) {
+      this.logger.warn(
+        `New driver earnings fallback applied: active_days=${activeDays}, weekly=${weekly}, baseline=${baseline}`,
+      );
+    }
+    return baseline;
+  }
+
   private async resolveCtForDriver(driverId: string): Promise<number | null> {
     const now = new Date();
-    const activePolicy = await (this.prisma as any).policy.findFirst({
+    const activePolicy = await this.prisma.policy.findFirst({
       where: {
         userId: driverId,
         status: 'ACTIVE',
@@ -57,7 +79,7 @@ export class PremiumService {
   }
 
   private async resolveCtForPlanId(planId: string): Promise<number | null> {
-    const plan = await (this.prisma as any).weeklyPlan.findUnique({
+    const plan = await this.prisma.weeklyPlan.findUnique({
       where: { id: planId },
       select: { key: true },
     });
@@ -65,9 +87,7 @@ export class PremiumService {
   }
 
   private resolveTierCap(Ct: number): number {
-    // Keep all plans <= ₹50 while preserving plan-level differentiation.
-    const cap = 30 + Ct * 25; // BASIC(0.4)=40, STANDARD(0.6)=45, PREMIUM(0.8)=50
-    return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round(cap * 100) / 100);
+    return resolveTierCap(Ct);
   }
 
   private async resolveProfileDriverId(driverOrUserId: string): Promise<string> {
@@ -76,7 +96,7 @@ export class PremiumService {
       return driverOrUserId;
     } catch {
       // Fallback for app JWT user IDs: derive deterministic dynamic profile from user identity.
-      const user = await (this.prisma as any).user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: driverOrUserId },
         select: { email: true, phone: true, platform: true },
       });
@@ -105,26 +125,14 @@ export class PremiumService {
   async calculateWeeklyPremium(driverId: string, planId?: string) {
     const profileDriverId = await this.resolveProfileDriverId(driverId);
     const profile = (await this.dynamicQCommerce.getDriverProfile(profileDriverId)).driverProfile;
-    const Ew = this.resolveWeeklyEarnings(profile);
     const activeDays = this.resolveActiveDays(profile);
+    const Ew = this.resolveEarningsWithNewDriverFallback(profile, activeDays);
 
     const Ct = planId
       ? await this.resolveCtForPlanId(planId)
       : await this.resolveCtForDriver(driverId);
     if (Ct == null) {
-      return {
-        driverId,
-        Ew,
-        Lf: 0,
-        Ct: null,
-        active_days: activeDays,
-        scaling_factor: 0,
-        premium: 0,
-        bounds: {
-          min: 0,
-          max: 0,
-        },
-      };
+      throw new Error('AEGIS_ERR_301: Unable to resolve policy tier for premium calculation');
     }
 
     let Lf = 0.5;
@@ -141,14 +149,13 @@ export class PremiumService {
       }
     }
 
-    let premium = Ew * PREMIUM_RATE * Lf * Ct * (1 + PREMIUM_MARGIN);
-    premium = Math.round(premium * 100) / 100;
+    const rawPremium = computeRawWeeklyPremium({ Ew, Lf, Ct });
     const tierCap = this.resolveTierCap(Ct);
-    if (premium > tierCap) {
+    const premium = applyPremiumBounds(rawPremium, tierCap);
+    if (premium !== rawPremium) {
       this.logger.warn(
-        `Weekly premium exceeded tier cap for ${driverId}: computed=${premium}, capped=${tierCap}`,
+        `Weekly premium bounded for ${driverId}: raw=${rawPremium}, final=${premium}, cap=${tierCap}`,
       );
-      premium = tierCap;
     }
 
     this.logger.log(
@@ -164,7 +171,7 @@ export class PremiumService {
       scaling_factor: 1,
       premium,
       bounds: {
-        min: 0,
+        min: MINIMUM_WEEKLY_PREMIUM_INR,
         max: tierCap,
       },
     };

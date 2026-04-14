@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as h3 from 'h3-js';
 import { KafkaReliableProducerService } from '../kafka/kafka-reliable-producer.service';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
 import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
 import { DriverStatus, QCommerceProvider } from './enums/qcommerce.enums';
@@ -54,6 +54,9 @@ interface DriverPosition {
   timestamp: number;
 }
 
+const DEFAULT_CITY_CENTER_LAT = 12.9716;
+const DEFAULT_CITY_CENTER_LNG = 77.5946;
+
 @Injectable()
 export class DynamicQCommerceService {
   private readonly logger = new Logger(DynamicQCommerceService.name);
@@ -63,6 +66,16 @@ export class DynamicQCommerceService {
   private weekKeyOverride?: string;
 
   constructor(private readonly kafkaProducer: KafkaReliableProducerService) {}
+
+  private deterministicJitter(driverId: string, timestamp: number): { latOffset: number; lngOffset: number } {
+    const digest = createHash('sha256').update(`${driverId}:${timestamp}`).digest();
+    const latUnit = digest.readUInt16BE(0) / 65535;
+    const lngUnit = digest.readUInt16BE(2) / 65535;
+    return {
+      latOffset: (latUnit - 0.5) * 0.002,
+      lngOffset: (lngUnit - 0.5) * 0.002,
+    };
+  }
 
   startOAuthLogin(dto: DynamicOAuthLoginDto) {
     const sessionId = randomUUID();
@@ -296,18 +309,16 @@ export class DynamicQCommerceService {
     if (isH3Like) {
       center = h3.cellToLatLng(zoneKey);
     } else {
-      // Get fallback coordinates from environment or use hardcoded Bangalore as last resort
-      const fallbackLat = process.env.DEFAULT_LAT ? parseFloat(process.env.DEFAULT_LAT) : 12.9716;
-      const fallbackLng = process.env.DEFAULT_LNG ? parseFloat(process.env.DEFAULT_LNG) : 77.5946;
-      
-      // Log warning if using default fallback
+      const fallbackLat = process.env.DEFAULT_LAT ? parseFloat(process.env.DEFAULT_LAT) : DEFAULT_CITY_CENTER_LAT;
+      const fallbackLng = process.env.DEFAULT_LNG ? parseFloat(process.env.DEFAULT_LNG) : DEFAULT_CITY_CENTER_LNG;
+
       if (!process.env.DEFAULT_LAT || !process.env.DEFAULT_LNG) {
         this.logger.warn(
-          `[DynamicQCommerce] Zone key "${zoneKey}" is not H3-like. Using fallback coordinates: [${fallbackLat}, ${fallbackLng}]. ` +
+          `[DynamicQCommerce] Zone key "${zoneKey}" is not H3-like. Using default coordinates: [${fallbackLat}, ${fallbackLng}]. ` +
           `Set DEFAULT_LAT and DEFAULT_LNG to override.`
         );
       }
-      
+
       center = [fallbackLat, fallbackLng];
     }
     
@@ -327,8 +338,7 @@ export class DynamicQCommerceService {
     const published: string[] = [];
     for (const driverId of selected) {
       const prev = this.driverPositions.get(driverId);
-      const jitterLat = (Math.random() - 0.5) * 0.002;
-      const jitterLng = (Math.random() - 0.5) * 0.002;
+      const { latOffset: jitterLat, lngOffset: jitterLng } = this.deterministicJitter(driverId, timestamp);
       const nextLat = (prev?.lat ?? baseLat) + jitterLat;
       const nextLng = (prev?.lng ?? baseLng) + jitterLng;
 

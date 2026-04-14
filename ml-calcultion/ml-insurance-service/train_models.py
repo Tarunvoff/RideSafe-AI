@@ -1,93 +1,319 @@
+import json
 import os
+from datetime import datetime, timezone
+
 import joblib
+import lightgbm as lgb
 import numpy as np
 import xgboost as xgb
-import lightgbm as lgb
-from sklearn.ensemble import IsolationForest, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, IsolationForest
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-ENABLE_SYNTHETIC_TRAINING = os.getenv("ENABLE_SYNTHETIC_TRAINING", "false").lower() == "true"
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+MODEL_VERSION = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
-def train_and_save():
+# Calibrated from urban India gig-economy field patterns and Fairwork India reports.
+MEDIAN_WEEKLY_EARNINGS_INR = 7200.0
+EARNINGS_LOG_SIGMA = 0.38
+FRAUD_BASE_RATE = 0.08
+NORMAL_SPEED_MEAN_KMH = 28.0
+NORMAL_SPEED_STD_KMH = 9.0
+
+
+def _clip(arr: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    return np.minimum(np.maximum(arr, lo), hi)
+
+
+def _generate_risk_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    rng = np.random.default_rng(42)
+    rainfall = _clip(rng.gamma(shape=2.2, scale=8.0, size=n_samples), 0, 220)
+    aqi = _clip(rng.normal(loc=118, scale=52, size=n_samples), 20, 450)
+    demand_factor = _clip(rng.normal(loc=1.1, scale=0.25, size=n_samples), 0.4, 2.8)
+    hour_of_day = rng.integers(0, 24, size=n_samples)
+    day_of_week = rng.integers(0, 7, size=n_samples)
+    zone_historical_risk = _clip(rng.beta(a=2.3, b=4.8, size=n_samples), 0, 1)
+    driver_tenure_days = _clip(rng.lognormal(mean=np.log(220), sigma=0.9, size=n_samples), 1, 3650)
+
+    risk_linear = (
+        0.012 * rainfall
+        + 0.0048 * aqi
+        + 0.68 * (demand_factor - 1.0)
+        + 0.75 * zone_historical_risk
+        + 0.00055 * (365 - np.minimum(driver_tenure_days, 365))
+        + 0.06 * np.isin(hour_of_day, [8, 9, 10, 18, 19, 20]).astype(float)
+        + 0.04 * np.isin(day_of_week, [5, 6]).astype(float)
+        - 1.8
+    )
+    probabilities = 1.0 / (1.0 + np.exp(-risk_linear))
+    y = (rng.random(n_samples) < probabilities).astype(int)
+
+    features = np.column_stack(
+        [
+            rainfall,
+            aqi,
+            demand_factor,
+            hour_of_day,
+            day_of_week,
+            zone_historical_risk,
+            driver_tenure_days,
+        ]
+    )
+    names = [
+        "rainfall_mm",
+        "aqi_index",
+        "demand_factor",
+        "hour_of_day",
+        "day_of_week",
+        "zone_historical_risk",
+        "driver_tenure_days",
+    ]
+    return features, y, names
+
+
+def _generate_pricing_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(7)
+    earnings = _clip(
+        rng.lognormal(mean=np.log(MEDIAN_WEEKLY_EARNINGS_INR), sigma=EARNINGS_LOG_SIGMA, size=n_samples),
+        2200,
+        22000,
+    )
+    lf = _clip(rng.beta(a=2.0, b=2.6, size=n_samples), 0.05, 0.95)
+    ct = rng.choice([0.4, 0.6, 0.8], size=n_samples, p=[0.35, 0.45, 0.2])
+    margin = _clip(rng.normal(loc=0.105, scale=0.018, size=n_samples), 0.08, 0.15)
+
+    # Premium formula anchored on alpha=0.015 used in backend pricing.
+    premium = earnings * 0.015 * lf * ct * (1.0 + margin)
+    premium = _clip(premium, 50.0, 260.0)
+    return np.column_stack([earnings, lf, ct, margin]), premium
+
+
+def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarray, list[str], dict[str, int]]:
+    rng = np.random.default_rng(99)
+
+    speeds = _clip(rng.normal(NORMAL_SPEED_MEAN_KMH, NORMAL_SPEED_STD_KMH, n_samples), 0, 180)
+    claims_filed = rng.poisson(lam=0.35, size=n_samples)
+    claims_rejected = np.minimum(claims_filed, rng.binomial(np.maximum(claims_filed, 1), 0.15))
+    mismatch = rng.binomial(1, 0.04, size=n_samples)
+    h3_consistency = _clip(rng.normal(0.94, 0.07, n_samples), 0, 1)
+    delta_distance_m = _clip(rng.normal(58, 32, n_samples), 0, 5000)
+    delta_t_s = _clip(rng.normal(210, 110, n_samples), 1, 5000)
+    shared_drivers = np.maximum(1, rng.poisson(lam=1.2, size=n_samples))
+    weekly_earnings = _clip(
+        rng.lognormal(mean=np.log(MEDIAN_WEEKLY_EARNINGS_INR), sigma=EARNINGS_LOG_SIGMA, size=n_samples),
+        1500,
+        60000,
+    )
+
+    fraud = np.zeros(n_samples, dtype=int)
+    fraud_count = int(n_samples * FRAUD_BASE_RATE)
+    fraud_idx = rng.choice(np.arange(n_samples), size=fraud_count, replace=False)
+    fraud[fraud_idx] = 1
+
+    pattern_counts = {
+        "gps_teleport": 0,
+        "claim_burst": 0,
+        "device_sharing": 0,
+        "earnings_anomaly": 0,
+    }
+
+    for idx in fraud_idx:
+        pattern = rng.choice(["gps_teleport", "claim_burst", "device_sharing", "earnings_anomaly"])
+        pattern_counts[pattern] += 1
+
+        if pattern == "gps_teleport":
+            delta_distance_m[idx] = rng.uniform(220, 1200)
+            delta_t_s[idx] = rng.uniform(0.4, 1.8)
+            speeds[idx] = _clip(delta_distance_m[idx] / max(delta_t_s[idx], 0.4) * 3.6, 95, 220)
+            mismatch[idx] = 1
+            h3_consistency[idx] = rng.uniform(0.2, 0.65)
+        elif pattern == "claim_burst":
+            claims_filed[idx] = rng.integers(3, 8)
+            claims_rejected[idx] = rng.integers(1, claims_filed[idx] + 1)
+            h3_consistency[idx] = rng.uniform(0.45, 0.88)
+        elif pattern == "device_sharing":
+            shared_drivers[idx] = rng.integers(5, 13)
+            mismatch[idx] = 1
+            claims_filed[idx] = rng.integers(1, 6)
+            claims_rejected[idx] = rng.integers(0, claims_filed[idx] + 1)
+        elif pattern == "earnings_anomaly":
+            weekly_earnings[idx] = _clip(weekly_earnings[idx] * rng.uniform(9.5, 12.0), 20000, 90000)
+            h3_consistency[idx] = rng.uniform(0.55, 0.95)
+
+    claims_rate = claims_rejected / np.maximum(claims_filed, 1)
+    velocity_z = (speeds - NORMAL_SPEED_MEAN_KMH) / NORMAL_SPEED_STD_KMH
+    teleport_ratio = delta_distance_m / np.maximum(delta_t_s, 0.5)
+    earnings_ratio = weekly_earnings / MEDIAN_WEEKLY_EARNINGS_INR
+
+    features = np.column_stack(
+        [
+            speeds,
+            claims_rate,
+            mismatch.astype(float),
+            velocity_z,
+            claims_filed.astype(float),
+            claims_rejected.astype(float),
+            h3_consistency,
+            delta_distance_m,
+            delta_t_s,
+            shared_drivers.astype(float),
+            teleport_ratio,
+            earnings_ratio,
+        ]
+    )
+
+    names = [
+        "speed_kmh",
+        "claims_rejection_rate",
+        "device_mismatch",
+        "velocity_z",
+        "claims_filed",
+        "claims_rejected",
+        "h3_zone_consistency",
+        "delta_distance_m",
+        "delta_t_s",
+        "shared_driver_count_24h",
+        "teleport_ratio",
+        "earnings_ratio",
+    ]
+    return features, fraud, names, pattern_counts
+
+
+def _cross_val_auc(model, X: np.ndarray, y: np.ndarray) -> dict:
+    fold = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scores = []
+    for train_idx, test_idx in fold.split(X, y):
+        model.fit(X[train_idx], y[train_idx])
+        proba = model.predict_proba(X[test_idx])[:, 1]
+        scores.append(float(roc_auc_score(y[test_idx], proba)))
+    return {"mean_auc": float(np.mean(scores)), "std_auc": float(np.std(scores))}
+
+
+def train_and_save() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
-    
-    if not ENABLE_SYNTHETIC_TRAINING:
-        print("Synthetic training disabled. Risk and pricing use heuristic models in runtime.")
-    else:
-        np.random.seed(42)
 
-        # 1. XGBoost Risk Model (synthetic) — disabled by default
-        print("Training XGBoost Risk Model (synthetic)...")
-        X_risk = np.random.rand(1000, 6)
-        y_risk_1 = np.random.randint(0, 2, 1000)
-        y_risk_2 = np.random.randint(0, 2, 1000)
-        y_risk_3 = np.random.randint(0, 2, 1000)
-        model_xgb_rain = xgb.XGBClassifier(n_estimators=10, random_state=42)
-        model_xgb_rain.fit(X_risk, y_risk_1)
-        model_xgb_aqi = xgb.XGBClassifier(n_estimators=10, random_state=42)
-        model_xgb_aqi.fit(X_risk, y_risk_2)
-        model_xgb_temp = xgb.XGBClassifier(n_estimators=10, random_state=42)
-        model_xgb_temp.fit(X_risk, y_risk_3)
-        joblib.dump({"rain": model_xgb_rain, "aqi": model_xgb_aqi, "temp": model_xgb_temp}, os.path.join(DATA_DIR, 'risk_xgb_models.pkl'))
+    X_risk, y_risk, risk_feature_names = _generate_risk_dataset()
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_risk,
+        y_risk,
+        test_size=0.2,
+        random_state=42,
+        stratify=y_risk,
+    )
+    risk_model = xgb.XGBClassifier(
+        n_estimators=180,
+        max_depth=5,
+        learning_rate=0.05,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        eval_metric="logloss",
+        random_state=42,
+    )
+    risk_model.fit(X_train, y_train)
+    risk_test_auc = float(roc_auc_score(y_test, risk_model.predict_proba(X_test)[:, 1]))
+    risk_cv = _cross_val_auc(
+        xgb.XGBClassifier(
+            n_estimators=140,
+            max_depth=4,
+            learning_rate=0.06,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            eval_metric="logloss",
+            random_state=42,
+        ),
+        X_risk,
+        y_risk,
+    )
 
-        # 2. LightGBM Pricing Model (synthetic) — disabled by default
-        print("Training LightGBM Pricing Model (synthetic)...")
-        X_price = np.random.rand(1000, 4) # Ew, Lf, Ct, M_base
-        y_price = np.random.uniform(15, 150, 1000)
-        model_lgb = lgb.LGBMRegressor(n_estimators=10, random_state=42)
-        model_lgb.fit(X_price, y_price)
-        joblib.dump(model_lgb, os.path.join(DATA_DIR, 'price_lgb.pkl'))
+    risk_artifact = {
+        "model": risk_model,
+        "feature_names": risk_feature_names,
+        "version": MODEL_VERSION,
+    }
+    joblib.dump(risk_artifact, os.path.join(DATA_DIR, "risk_xgb_models.pkl"))
+    joblib.dump(risk_artifact, os.path.join(DATA_DIR, f"risk_xgb_model_{MODEL_VERSION}.pkl"))
 
-    # 3. Isolation Forest (Anomaly Detection for Fraud)
-    # Features MUST match fraud_service.py exactly:
-    #   [speed, claims_rate, mismatch, velocity_z]
-    print("Training IsolationForest Anomaly Model...")
+    X_price, y_price = _generate_pricing_dataset()
+    price_model = lgb.LGBMRegressor(n_estimators=220, learning_rate=0.05, random_state=42)
+    price_model.fit(X_price, y_price)
+    joblib.dump(price_model, os.path.join(DATA_DIR, "price_lgb.pkl"))
+    joblib.dump(price_model, os.path.join(DATA_DIR, f"price_lgb_{MODEL_VERSION}.pkl"))
 
-    n_normal, n_fraud = 900, 100
+    X_fraud, y_fraud, fraud_feature_names, pattern_counts = _inject_fraud_patterns()
+    Xf_train, Xf_test, yf_train, yf_test = train_test_split(
+        X_fraud,
+        y_fraud,
+        test_size=0.2,
+        random_state=42,
+        stratify=y_fraud,
+    )
 
-    # Normal users: low speed, low rejection rate, no mismatch
-    speed_normal      = np.random.uniform(0, 60, n_normal)          # km/h
-    claims_rate_norm  = np.random.uniform(0, 0.2, n_normal)          # <20% rejection
-    mismatch_normal   = np.zeros(n_normal)                            # no mismatch
-    velocity_z_normal = (speed_normal - 60.0) / 20.0                  # z-score
+    anomaly_model = IsolationForest(
+        n_estimators=240,
+        contamination=FRAUD_BASE_RATE,
+        random_state=42,
+    )
+    anomaly_model.fit(Xf_train)
+    joblib.dump(anomaly_model, os.path.join(DATA_DIR, "fraud_if.pkl"))
+    joblib.dump(anomaly_model, os.path.join(DATA_DIR, f"fraud_if_{MODEL_VERSION}.pkl"))
 
-    # Fraud users: high speed, high rejection rate, mismatch
-    speed_fraud       = np.random.uniform(100, 200, n_fraud)         # GPS spoof
-    claims_rate_fraud = np.random.uniform(0.5, 1.0, n_fraud)          # >50% rejection
-    mismatch_fraud    = np.ones(n_fraud)                               # mismatch
-    velocity_z_fraud  = (speed_fraud - 60.0) / 20.0                   # z-score
+    fraud_classifier = GradientBoostingClassifier(
+        n_estimators=240,
+        learning_rate=0.05,
+        max_depth=3,
+        random_state=42,
+    )
+    fraud_classifier.fit(Xf_train, yf_train)
+    fraud_auc = float(roc_auc_score(yf_test, fraud_classifier.predict_proba(Xf_test)[:, 1]))
+    fraud_cv = _cross_val_auc(
+        GradientBoostingClassifier(n_estimators=180, learning_rate=0.05, max_depth=3, random_state=42),
+        X_fraud,
+        y_fraud,
+    )
+    fraud_artifact = {
+        "model": fraud_classifier,
+        "feature_names": fraud_feature_names,
+        "version": MODEL_VERSION,
+    }
+    joblib.dump(fraud_artifact, os.path.join(DATA_DIR, "fraud_gb.pkl"))
+    joblib.dump(fraud_artifact, os.path.join(DATA_DIR, f"fraud_gb_{MODEL_VERSION}.pkl"))
 
-    X_anomaly = np.vstack([
-        np.column_stack([speed_normal, claims_rate_norm, mismatch_normal, velocity_z_normal]),
-        np.column_stack([speed_fraud, claims_rate_fraud, mismatch_fraud, velocity_z_fraud]),
-    ])
+    metadata = {
+        "model_version": MODEL_VERSION,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "risk": {
+            "train_rows": int(X_train.shape[0]),
+            "test_rows": int(X_test.shape[0]),
+            "test_auc": risk_test_auc,
+            "cross_validation": risk_cv,
+            "feature_importance": {
+                risk_feature_names[idx]: float(score)
+                for idx, score in enumerate(getattr(risk_model, "feature_importances_", []))
+            },
+        },
+        "fraud": {
+            "train_rows": int(Xf_train.shape[0]),
+            "test_rows": int(Xf_test.shape[0]),
+            "base_rate": FRAUD_BASE_RATE,
+            "test_auc": fraud_auc,
+            "cross_validation": fraud_cv,
+            "pattern_injection_counts": pattern_counts,
+            "feature_importance": {
+                fraud_feature_names[idx]: float(score)
+                for idx, score in enumerate(getattr(fraud_classifier, "feature_importances_", []))
+            },
+        },
+        "pricing": {
+            "train_rows": int(X_price.shape[0]),
+            "feature_names": ["weekly_earnings", "lf", "ct", "margin"],
+        },
+    }
 
-    model_if = IsolationForest(n_estimators=100, contamination=0.1, random_state=42)
-    model_if.fit(X_anomaly)
-    joblib.dump(model_if, os.path.join(DATA_DIR, 'fraud_if.pkl'))
+    with open(os.path.join(DATA_DIR, "model_metadata.json"), "w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2)
 
-    # 4. GradientBoosting Classifier (Supervised Fraud)
-    # Features: claims_filed, claims_rejected, device_mismatch
-    print("Training GradientBoostingClassifier Fraud Model...")
-    X_fraud = np.zeros((1000, 3))
-    y_fraud = np.zeros(1000)
-    
-    # Normal users: few claims, no rejections, no mismatch
-    X_fraud[:800, 0] = np.random.randint(0, 3, 800)
-    X_fraud[:800, 1] = 0
-    X_fraud[:800, 2] = 0
-    
-    # Fraud users: high claims, high rejections, device mismatch
-    X_fraud[800:, 0] = np.random.randint(3, 10, 200)
-    X_fraud[800:, 1] = np.random.randint(1, 6, 200)
-    X_fraud[800:, 2] = 1
-    y_fraud[800:] = 1
-    
-    model_gb = GradientBoostingClassifier(n_estimators=10, random_state=42)
-    model_gb.fit(X_fraud, y_fraud)
-    joblib.dump(model_gb, os.path.join(DATA_DIR, 'fraud_gb.pkl'))
+    print(f"Training complete. Model version: {MODEL_VERSION}")
 
-    print("All models trained and saved to data/")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     train_and_save()

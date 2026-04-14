@@ -19,6 +19,23 @@ export class PaymentsService {
     private readonly notifications: NotificationsService,
   ) {}
 
+  /**
+   * Retries external payment-gateway calls for transient failures.
+   */
+  private async withRetry<T>(operation: () => Promise<T>, retries = 2): Promise<T> {
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
+      try {
+        return await operation();
+      } catch (err) {
+        lastError = err;
+        if (attempt > retries) break;
+        this.logger.warn(`Gateway call failed on attempt ${attempt}; retrying...`);
+      }
+    }
+    throw lastError;
+  }
+
   private getRazorpayClient(): any {
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -58,14 +75,9 @@ export class PaymentsService {
     return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round(cap * 100) / 100);
   }
   /**
-   * Generates a Razorpay-format payout reference for sandbox/demo environments.
-   * Format mirrors real Razorpay payout IDs (pout_<base62>, 18 chars after prefix)
-   * so downstream systems, audit logs, and the demo UI look production-realistic.
-   *
-   * Replace this with a real razorpay.payouts.create() call when live credentials
-   * and fund account IDs are available.
+   * Generates a realistic payout reference for synthetic transfer mode.
    */
-  private generateSandboxPayoutId(): string {
+  private generateSyntheticPayoutReference(): string {
     const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     const bytes = crypto.randomBytes(18);
     let result = '';
@@ -76,8 +88,7 @@ export class PaymentsService {
   }
 
   async createOrder(userId: string, weeklyPlanId: string) {
-    const prisma = this.prisma as any;
-    const plan = await prisma.weeklyPlan.findUnique({ where: { id: weeklyPlanId } });
+    const plan = await this.prisma.weeklyPlan.findUnique({ where: { id: weeklyPlanId } });
     if (!plan) throw new BadRequestException('Weekly plan not found');
 
     const razorpay = this.getRazorpayClient();
@@ -100,14 +111,18 @@ export class PaymentsService {
     // Razorpay requires `receipt` length <= 40 characters.
     const receipt = `rcpt_${plan.key}_${Date.now()}`;
 
-    const order: any = await razorpay.orders.create({
-      amount: amountPaise,
-      currency: 'INR',
-      receipt,
-      payment_capture: true,
-    });
+    const order = await this.withRetry<any>(
+      () =>
+        razorpay.orders.create({
+          amount: amountPaise,
+          currency: 'INR',
+          receipt,
+          payment_capture: true,
+        }),
+      2,
+    );
 
-    await prisma.razorpayOrder.create({
+    await this.prisma.razorpayOrder.create({
       data: {
         userId,
         weeklyPlanId: plan.id,
@@ -126,10 +141,9 @@ export class PaymentsService {
   }
 
   async verifyPayment(userId: string, dto: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
-    const prisma = this.prisma as any;
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = dto;
 
-    const razorpayOrder = await prisma.razorpayOrder.findUnique({
+    const razorpayOrder = await this.prisma.razorpayOrder.findUnique({
       where: { razorpayOrderId: razorpay_order_id },
       include: { weeklyPlan: true },
     });
@@ -143,7 +157,7 @@ export class PaymentsService {
 
     // Idempotency: if already successful, just return the existing active policy (if any).
     if (razorpayOrder.status === 'SUCCESS') {
-      const activePolicy = await prisma.policy.findFirst({
+      const activePolicy = await this.prisma.policy.findFirst({
         where: { userId, weeklyPlanId: razorpayOrder.weeklyPlanId, status: 'ACTIVE', endDate: { gt: new Date() } },
         orderBy: { createdAt: 'desc' },
       });
@@ -156,7 +170,7 @@ export class PaymentsService {
 
     const isValid = this.verifyRazorpaySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
     if (!isValid) {
-      await prisma.razorpayOrder.update({
+      await this.prisma.razorpayOrder.update({
         where: { id: razorpayOrder.id },
         data: { status: 'FAILED', razorpayPaymentId: razorpay_payment_id, razorpaySignature: razorpay_signature },
       });
@@ -171,7 +185,7 @@ export class PaymentsService {
     const endDate = new Date(now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
     try {
-      const result = await prisma.$transaction(async (tx: any) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         await tx.policy.updateMany({
           where: {
             userId,
@@ -217,7 +231,7 @@ export class PaymentsService {
       try {
         // The transaction rolled back, so the 'SUCCESS' update was undone, but the payment is verified.
         // Update the order status to FAILED outside the transaction to preserve the payment details.
-        await prisma.razorpayOrder.update({
+        await this.prisma.razorpayOrder.update({
           where: { id: razorpayOrder.id },
           data: {
             status: 'FAILED',
@@ -228,7 +242,7 @@ export class PaymentsService {
 
         // Insert into our DLQ table so the ML/event pipeline or admin reconciliation jobs 
         // are explicitly aware of the missing policy.
-        await prisma.kafkaDLQ.create({
+        await this.prisma.kafkaDLQ.create({
           data: {
             topic: 'PAYMENT_VERIFIED_POLICY_FAILED',
             eventKey: userId,
@@ -271,7 +285,6 @@ export class PaymentsService {
     h3Cell: string;
     approvedPayout: number;
   }) {
-    const prisma = this.prisma as any;
     const { userId, policyId, disruptionEventId, eventTimestamp, h3Cell, approvedPayout } = dto;
 
     // 1. Guard against duplicate events
@@ -287,7 +300,7 @@ export class PaymentsService {
 
     try {
       // If a payout already exists for this policy + disruption, return it as idempotent success.
-      const existingPayout = await prisma.payout.findUnique({
+      const existingPayout = await this.prisma.payout.findUnique({
         where: { policyId_disruptionEventId: { policyId, disruptionEventId } },
       });
       if (existingPayout) {
@@ -302,7 +315,7 @@ export class PaymentsService {
       }
 
       // 3. Create the Database Payout record
-      const payout = await prisma.payout.create({
+      const payout = await this.prisma.payout.create({
         data: {
           policyId,
           disruptionEventId,
@@ -314,46 +327,50 @@ export class PaymentsService {
         },
       });
 
-      // 4. Generate a sandbox payout reference in real Razorpay format.
-      //    Replace with razorpay.payouts.create() when live fund account IDs are available.
-      const sandboxPayoutId = this.generateSandboxPayoutId();
-      this.logger.log(`Parametric payout reference generated: ${sandboxPayoutId}`);
+      const payoutReference = this.generateSyntheticPayoutReference();
+      this.logger.log(`Parametric payout reference generated: ${payoutReference}`);
 
       // 5. Mark as SUCCESS in both places
-      await prisma.payout.update({
+      await this.prisma.payout.update({
         where: { id: payout.id },
         data: {
           status: 'APPROVED',
-          transactionId: sandboxPayoutId,
+          transactionId: payoutReference,
         },
       });
 
-      const bankReference = `BANK_${sandboxPayoutId}`;
-      await prisma.payout.update({
+      const bankReference = `BANK_${payoutReference}`;
+      await this.prisma.payout.update({
         where: { id: payout.id },
         data: {
           bankReference,
           transferredAt: new Date(),
         },
       });
-      this.logger.log(`Mock bank transfer complete: ${bankReference}`);
+      this.logger.log(`Synthetic bank transfer complete: ${bankReference}`);
 
-      const user = await prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { email: true, driverName: true },
       });
 
-      const disruption = await prisma.disruptionEvent.findUnique({
+      const disruption = await this.prisma.disruptionEvent.findUnique({
         where: { id: disruptionEventId },
         select: { type: true },
       });
 
       if (user?.email) {
-        await this.notifications.sendClaimApproved(user.email, {
+        await this.notifications.send({
+          channel: 'EMAIL',
+          type: 'CLAIM_APPROVED',
+          recipient: user.email,
+          payload: {
           driverName: user.driverName ?? 'Driver',
           amount: approvedPayout,
-          transactionId: sandboxPayoutId,
+          transactionId: payoutReference,
           disruptionType: disruption?.type ?? 'Weather Event',
+          },
+          context: { user_id: userId, policy_id: policyId, event_type: disruption?.type ?? 'Weather Event' },
         });
       }
 
@@ -364,7 +381,7 @@ export class PaymentsService {
         cached: false,
         state: 'SUCCESS',
         payoutId: payout.id,
-        transactionId: sandboxPayoutId,
+        transactionId: payoutReference,
       };
     } catch (err: any) {
       // 6. If anything fails (DB or gateway) → mark FAILED
@@ -372,11 +389,11 @@ export class PaymentsService {
 
       // Attempt to record failure in the Payout table if it was created
       try {
-        const existingPayout = await prisma.payout.findFirst({
+        const existingPayout = await this.prisma.payout.findFirst({
           where: { policyId, disruptionEventId },
         });
         if (existingPayout) {
-          await prisma.payout.update({
+          await this.prisma.payout.update({
             where: { id: existingPayout.id },
             data: { status: 'REJECTED' },
           });

@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
   constructor() {
@@ -18,7 +19,7 @@ export class EmailService {
   }
 
   async sendOTPEmail(to: string, otp: string, purpose: 'VERIFY' | 'RESET' | 'ADMIN_MFA' | 'LOGIN' = 'VERIFY') {
-    console.log(`[EmailService] Attempting to send ${purpose} OTP to ${to} ...`);
+    this.logger.log(`Sending ${purpose} OTP email to ${to}`);
     const subjects = {
       VERIFY: `${process.env.APP_NAME} — Verify your email`,
       RESET: `${process.env.APP_NAME} — Reset your password`,
@@ -58,7 +59,7 @@ export class EmailService {
     to: string,
     payload: { driverName: string; amount: number; transactionId: string; disruptionType: string },
   ) {
-    console.log(`[EmailService] Sending claim approval email to ${to} ...`);
+    this.logger.log(`Sending claim approval email to ${to}`);
 
     const subject = `${process.env.APP_NAME} - Claim Approved`;
     const amount = Number(payload.amount || 0).toLocaleString('en-IN');

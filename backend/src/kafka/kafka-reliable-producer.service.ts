@@ -42,6 +42,9 @@ type LastLocation = {
 };
 
 const EARTH_RADIUS_KM = 6371;
+const FALLBACK_SPEED_KMH_MIN = 12;
+const FALLBACK_SPEED_KMH_MAX = 30;
+const URBAN_BASE_SPEED_KMH = 19;
 
 const toRadians = (value: number) => (value * Math.PI) / 180;
 
@@ -54,6 +57,14 @@ const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => 
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return EARTH_RADIUS_KM * c;
+};
+
+const fallbackSpeedFromTimestamp = (timestamp: number): number => {
+  const hour = new Date(timestamp * 1000).getUTCHours();
+  const rushHourPenalty = [7, 8, 9, 17, 18, 19].includes(hour) ? 4 : 0;
+  const nightBoost = [23, 0, 1, 2, 3, 4, 5].includes(hour) ? 3 : 0;
+  const inferred = URBAN_BASE_SPEED_KMH - rushHourPenalty + nightBoost;
+  return Math.max(FALLBACK_SPEED_KMH_MIN, Math.min(FALLBACK_SPEED_KMH_MAX, inferred));
 };
 
 const DLQ_TOPIC = 'driver_telemetry_dlq';
@@ -151,7 +162,7 @@ export class KafkaReliableProducerService implements OnModuleInit, OnModuleDestr
         speed = hours > 0 ? distanceKm / hours : 0;
       }
       if (!speed || speed <= 0) {
-        speed = 10 + Math.random() * 30;
+        speed = fallbackSpeedFromTimestamp(now);
       }
       speed = Math.round(speed * 10) / 10;
     }

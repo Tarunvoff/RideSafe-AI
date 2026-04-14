@@ -100,6 +100,16 @@ const AGE_BANDS = ['21-24', '25-29', '30-34', '35-40'];
 const GENDERS: Array<'MALE' | 'FEMALE' | 'OTHER'> = ['MALE', 'FEMALE'];
 const SHIFT_TAGS: DriverOrderHistoryItem['shiftTag'][] = ['MORNING', 'AFTERNOON', 'EVENING', 'NIGHT'];
 
+// Calibrated synthetic constants from urban India gig-delivery behavior ranges.
+const OFF_DAY_PROBABILITY = 0.16;
+const ACTIVE_DAY_ASSIGNED_ORDERS_MIN = 16;
+const ACTIVE_DAY_ASSIGNED_ORDERS_MAX = 36;
+const EARNINGS_PER_ORDER_MEDIAN_INR = 63;
+const EARNINGS_PER_ORDER_LOG_SIGMA = 0.18;
+const INCENTIVE_PER_COMPLETED_ORDER_INR = 4.5;
+const PENALTY_SKIP_THRESHOLD = 4;
+const PENALTY_CAP_INR = 90;
+
 const formatCurrency = (value: number) => Math.round(value * 100) / 100;
 
 const maskValue = (value: string, visible = 4, maskChar = 'X') => {
@@ -119,14 +129,14 @@ const createVehicleNumber = (stateCode: string, random: SeededRandom) => {
 };
 
 const getIsoWeekInfo = (date: Date) => {
-  const temp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const dayNum = temp.getUTCDay() || 7;
-  temp.setUTCDate(temp.getUTCDate() + 4 - dayNum);
-  const year = temp.getUTCFullYear();
+  const isoCursor = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = isoCursor.getUTCDay() || 7;
+  isoCursor.setUTCDate(isoCursor.getUTCDate() + 4 - dayNum);
+  const year = isoCursor.getUTCFullYear();
   const yearStart = new Date(Date.UTC(year, 0, 1));
-  const week = Math.ceil(((temp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  const weekStart = new Date(temp);
-  weekStart.setUTCDate(temp.getUTCDate() - (temp.getUTCDay() || 7) + 1);
+  const week = Math.ceil(((isoCursor.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  const weekStart = new Date(isoCursor);
+  weekStart.setUTCDate(isoCursor.getUTCDate() - (isoCursor.getUTCDay() || 7) + 1);
   return { year, week, weekStart };
 };
 
@@ -152,6 +162,14 @@ const deriveWeekStartFromKey = (weekKey: string): Date => {
 };
 
 const ensurePositive = (value: number) => (value < 0 ? 0 : value);
+
+const sampleLogNormal = (random: SeededRandom, median: number, sigma: number): number => {
+  // Box-Muller transform from deterministic seeded RNG for reproducible synthetic distributions.
+  const u1 = Math.max(random.nextFloat(), 1e-9);
+  const u2 = Math.max(random.nextFloat(), 1e-9);
+  const standardNormal = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return Math.exp(Math.log(median) + sigma * standardNormal);
+};
 
 const generateDailyBreakdown = (
   random: SeededRandom,
@@ -184,9 +202,11 @@ const generateDailyBreakdown = (
   for (let i = 0; i < 7; i += 1) {
     const currentDay = new Date(start);
     currentDay.setUTCDate(start.getUTCDate() + i);
-    const isOffDay = random.nextFloat() < 0.18;
+    const isOffDay = random.nextFloat() < OFF_DAY_PROBABILITY;
 
-    const ordersAssigned = isOffDay ? random.nextInt(0, 4) : random.nextInt(18, 38);
+    const ordersAssigned = isOffDay
+      ? random.nextInt(0, 4)
+      : random.nextInt(ACTIVE_DAY_ASSIGNED_ORDERS_MIN, ACTIVE_DAY_ASSIGNED_ORDERS_MAX);
     const ordersSkipped = isOffDay ? random.nextInt(0, 2) : random.nextInt(1, Math.floor(ordersAssigned * 0.18) + 1);
     const ordersRejected = isOffDay ? random.nextInt(0, 1) : random.nextInt(0, Math.max(1, Math.floor(ordersAssigned * 0.05)));
     let ordersAccepted = ensurePositive(ordersAssigned - ordersSkipped - ordersRejected);
@@ -196,9 +216,14 @@ const generateDailyBreakdown = (
     const totalCancelledAfterAccept = ordersAccepted ? random.nextInt(0, Math.max(1, Math.floor(ordersAccepted * 0.08))) : 0;
     const completedDeliveries = ensurePositive(ordersAccepted - totalCancelledAfterAccept);
     const hoursWorked = ordersAssigned ? random.nextInt(6, 10) : 0;
-    const baseEarnings = formatCurrency(completedDeliveries * random.nextInt(55, 75));
-    const incentives = completedDeliveries > 20 ? formatCurrency(random.nextInt(120, 350)) : formatCurrency(random.nextInt(0, 140));
-    const penalties = ordersSkipped > 4 ? formatCurrency(random.nextInt(0, 80)) : formatCurrency(random.nextInt(0, 20));
+    const earningsPerOrder = sampleLogNormal(random, EARNINGS_PER_ORDER_MEDIAN_INR, EARNINGS_PER_ORDER_LOG_SIGMA);
+    const baseEarnings = formatCurrency(completedDeliveries * earningsPerOrder);
+    const incentives = formatCurrency(
+      completedDeliveries * INCENTIVE_PER_COMPLETED_ORDER_INR + (completedDeliveries > 22 ? random.nextInt(40, 120) : 0),
+    );
+    const penalties = formatCurrency(
+      ordersSkipped > PENALTY_SKIP_THRESHOLD ? random.nextInt(20, PENALTY_CAP_INR) : random.nextInt(0, 20),
+    );
     const totalEarnings = formatCurrency(baseEarnings + incentives - penalties);
 
     const storesServedCount = completedDeliveries ? random.nextInt(1, Math.min(3, darkStores.length)) : 0;

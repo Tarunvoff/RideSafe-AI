@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:reset-seed": "prisma migrate reset --force && prisma db seed"
+    "db:reset-seed": "prisma migrate reset --force && prisma db seed",
+    "test:unit": "node --test -r ts-node/register src/**/*.spec.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

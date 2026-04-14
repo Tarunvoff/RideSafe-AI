@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.service';
@@ -23,8 +25,12 @@ import {
 } from './dto/auth.dto';
 import { createInternalDriverId } from '../dynamic-qcommerce/utils/dynamic-data.factory';
 
+const OTP_MIN = 100000;
+const OTP_MAX_EXCLUSIVE = 1000000;
+const AEGIS_ERR_ADMIN_2FA_DISABLED = 'AEGIS_ERR_401';
+
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(OTP_MIN, OTP_MAX_EXCLUSIVE).toString();
 }
 
 function hashOTP(otp: string): string {
@@ -37,6 +43,8 @@ function otpExpiresAt(): Date {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -75,7 +83,7 @@ export class AuthService {
 
     if (!needsRoleUpdate && !needsVerifyUpdate && passwordMatches) return existing;
 
-    const data: any = {};
+    const data: Prisma.UserUpdateInput = {};
     if (needsRoleUpdate) data.role = 'ADMIN';
     if (needsVerifyUpdate) data.isVerified = true;
     if (!passwordMatches) data.passwordHash = await bcrypt.hash(password, 12);
@@ -100,7 +108,7 @@ export class AuthService {
       },
     });
 
-    // Create KYC profile placeholder
+    // Create KYC profile baseline record for onboarding state tracking.
     await this.prisma.kYCProfile.create({
       data: { userId: user.id, status: 'NOT_STARTED' },
     });
@@ -260,19 +268,7 @@ export class AuthService {
 
     const user = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
 
-    /*
-    // COMMENTED OUT FOR DRIVER REUSE AS REQUESTED
-    const otp = generateOTP();
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { otpCode: hashOTP(otp), otpExpiresAt: otpExpiresAt() },
-    });
-    // Always deliver admin MFA OTP to the configured admin inbox
-    await this.email.sendOTPEmail(adminCreds.email, otp, 'ADMIN_MFA');
-    return { message: 'OTP sent to your admin email. Please verify to complete sign-in.' };
-    */
-
-    // Direct Login for Admin as requested
+    // Admin sign-in is configured as password-only for this deployment profile.
     const tokens = await this.generateTokens(user);
     const rtHash = hashOTP(tokens.refreshToken);
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
@@ -287,55 +283,26 @@ export class AuthService {
 
   // ── ADMIN VERIFY OTP ─────────────────────────────────────────────────────
   async adminVerifyOtp(dto: AdminVerifyOtpDto) {
-    /* 
-    // DISABLED FOR ADMIN - REUSED FOR DRIVER BELOW
-    const adminCreds = this.getAdminEnvCreds();
-    if (dto.email !== adminCreds.email) {
-      throw new UnauthorizedException('Invalid admin credentials');
-    }
-
-    const user = await this.prisma.user.findFirst({
-      where: { email: adminCreds.email, role: 'ADMIN' },
+    void dto;
+    throw new BadRequestException({
+      code: AEGIS_ERR_ADMIN_2FA_DISABLED,
+      message: 'Admin 2FA is disabled for this deployment profile',
     });
-    if (!user || !user.otpCode || !user.otpExpiresAt) throw new BadRequestException('No OTP requested');
-    if (new Date() > user.otpExpiresAt) throw new BadRequestException('OTP has expired');
-    if (hashOTP(dto.otp) !== user.otpCode) throw new BadRequestException('Invalid OTP');
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { otpCode: null, otpExpiresAt: null, isVerified: true },
-    });
-
-    const tokens = await this.generateTokens(user);
-    const rtHash = hashOTP(tokens.refreshToken);
-    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
-
-    return { message: 'Admin sign-in successful.', ...tokens, role: 'ADMIN' };
-    */
-    throw new BadRequestException('Admin 2FA is disabled');
   }
 
   // ── DRIVER 2FA (Reusing Admin Logic) ──────────────────────────────────────
   async startDriverLoginOtp(email: string) {
-    // We don't require the user to exist yet if they are new, 
-    // but typically they enter email then click OAuth.
-    // If they exist, we send to their email. If not, we just send to that email.
-    
     const otp = generateOTP();
     const expiry = otpExpiresAt();
 
-    // Store OTP in a temp way or use a placeholder user if needed.
-    // For now, let's assume we want to verify the email before they can even do OAuth.
-    // We can use the User table even if they haven't finished OAuth.
+    // Store OTP on the user record so email ownership can be verified pre-OAuth.
     let user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
-      // Create a "shadow" user or just use a dedicated table? 
-      // User table is fine, role=DRIVER, isVerified=false.
-      const tempPass = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12);
+      const bootstrapPasswordHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12);
       user = await this.prisma.user.create({
         data: {
           email,
-          passwordHash: tempPass,
+          passwordHash: bootstrapPasswordHash,
           role: 'DRIVER',
           isVerified: false,
         }
@@ -385,8 +352,8 @@ export class AuthService {
 
     let user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
-      const tempPassword = crypto.randomBytes(16).toString('hex');
-      const passwordHash = await bcrypt.hash(tempPassword, 12);
+      const bootstrapPasswordSeed = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(bootstrapPasswordSeed, 12);
       user = await this.prisma.user.create({
         data: {
           email,
@@ -402,6 +369,7 @@ export class AuthService {
       await this.prisma.kYCProfile.create({
         data: { userId: user.id, status: 'NOT_STARTED' },
       });
+      this.logger.log(`Created first-party driver account from provider callback for ${email}`);
     } else if (!user.isVerified) {
       await this.prisma.user.update({ where: { id: user.id }, data: { isVerified: true, platform: provider } });
       user = await this.prisma.user.findUnique({ where: { id: user.id } });
