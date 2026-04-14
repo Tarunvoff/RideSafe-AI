@@ -5,8 +5,59 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class IngestionService {
   private readonly logger = new Logger(IngestionService.name);
+  private static readonly NEWSDATA_TIMEOUT_MS = 20000;
+  private static readonly GEMINI_TIMEOUT_MS = 20000;
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private async fetchWithTimeout(
+    url: string,
+    options: RequestInit,
+    timeoutMs: number,
+    source: string,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        throw new Error(`${source} request timed out after ${timeoutMs}ms`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async safeParseJsonResponse(res: Response, source: string): Promise<any | null> {
+    const raw = await res.text();
+    const contentType = res.headers.get('content-type') || '';
+
+    if (!res.ok) {
+      this.logger.warn(
+        `${source} returned HTTP ${res.status} (${res.statusText}). Body preview: ${raw.slice(0, 180)}`,
+      );
+      return null;
+    }
+
+    if (!contentType.toLowerCase().includes('application/json')) {
+      this.logger.warn(
+        `${source} returned non-JSON content-type=${contentType}. Body preview: ${raw.slice(0, 180)}`,
+      );
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      this.logger.warn(
+        `${source} returned invalid JSON. Body preview: ${raw.slice(0, 180)}`,
+      );
+      return null;
+    }
+  }
 
   /**
    * Automatically executes every 10 minutes to ingest live APIs (Newsdata.io) 
@@ -26,8 +77,21 @@ export class IngestionService {
     try {
       // 1. Fetch live raw Tamil + English domestic news specifically querying disruption keywords.
       const url = `https://newsdata.io/api/1/latest?apikey=${apiKey}&category=domestic&language=en,ta&q=strike OR protest OR flood OR curfew OR bandh OR heavy rain OR cyclone`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const res = await this.fetchWithTimeout(
+        url,
+        { method: 'GET' },
+        IngestionService.NEWSDATA_TIMEOUT_MS,
+        'NewsData.io',
+      );
+      const data = await this.safeParseJsonResponse(res, 'NewsData.io');
+      if (!data) {
+        return;
+      }
+
+      if (data.status && data.status !== 'success') {
+        this.logger.warn(`NewsData.io returned status=${data.status}. message=${data.message || 'n/a'}`);
+        return;
+      }
       
       if (!data.results || data.results.length === 0) {
          this.logger.log('No civil disruptions detected in the 10-minute sweep.');
@@ -66,7 +130,13 @@ export class IngestionService {
       }
 
     } catch (e) {
-      this.logger.error('Fatal pipeline error during NewsData.io ingestion.', e);
+      const message = e instanceof Error ? e.message : String(e);
+      const lower = message.toLowerCase();
+      if (lower.includes('fetch failed') || lower.includes('timed out')) {
+        this.logger.warn(`NewsData.io ingestion skipped due to upstream network failure: ${message}`);
+        return;
+      }
+      this.logger.error('Fatal pipeline error during NewsData.io ingestion.', e as Error);
     }
   }
 
@@ -97,12 +167,18 @@ export class IngestionService {
 
       try {
           // Fallback to Native Node fetch (No SDK needed, hyper-fast and lightweight)
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+          const res = await this.fetchWithTimeout(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+            {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-          const jsonRes = await res.json();
+              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+            },
+            IngestionService.GEMINI_TIMEOUT_MS,
+            'Gemini API',
+          );
+            const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
+            if (!jsonRes) return null;
           
           if (!jsonRes.candidates || !jsonRes.candidates[0].content) return null;
           

@@ -22,7 +22,7 @@ import time
 from typing import Optional
 
 from aiokafka import AIOKafkaConsumer  # type: ignore
-from aiokafka.errors import KafkaError  # type: ignore
+from aiokafka.errors import GroupCoordinatorNotAvailableError, KafkaError  # type: ignore
 
 import h3  # type: ignore
 
@@ -217,19 +217,37 @@ async def run_h3_kafka_consumer():
         group_id="h3-feature-service",
         auto_offset_reset="latest",
         enable_auto_commit=True,
+        retry_backoff_ms=3000,
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     )
 
+    aiokafka_group_logger = logging.getLogger("aiokafka.consumer.group_coordinator")
+
     retry_delay = 2
     while True:
+        previous_level = aiokafka_group_logger.level
         try:
+            # During broker warm-up, coordinator discovery can spam logs very fast.
+            aiokafka_group_logger.setLevel(logging.CRITICAL)
             await consumer.start()
             logger.info("H3 Kafka consumer connected ✅")
             break
+        except GroupCoordinatorNotAvailableError as exc:
+            logger.warning(
+                "Kafka coordinator unavailable for group=h3-feature-service "
+                "broker=%s topic=driver_telemetry. Retrying in %ds... (%s)",
+                KAFKA_BOOTSTRAP_SERVERS,
+                retry_delay,
+                exc,
+            )
+            await asyncio.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 30)
         except KafkaError as exc:
             logger.warning("Kafka not ready, retrying in %ds... (%s)", retry_delay, exc)
             await asyncio.sleep(retry_delay)
             retry_delay = min(retry_delay * 2, 30)
+        finally:
+            aiokafka_group_logger.setLevel(previous_level)
 
     try:
         async for msg in consumer:

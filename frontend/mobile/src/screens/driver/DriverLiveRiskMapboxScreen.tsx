@@ -27,7 +27,7 @@ import {
   useWindowDimensions,
   ImageBackground
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';

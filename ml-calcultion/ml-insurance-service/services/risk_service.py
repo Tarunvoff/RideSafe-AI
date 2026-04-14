@@ -139,7 +139,12 @@ def calculate_risk_score(request: RiskScoreRequest) -> RiskScoreResponse:
         request.h3_cell, Lf, risk_level, rain_cluster, aqi_cluster, temp_cluster, demand_cluster, speed_cluster
     )
 
+    # Confidence reflects signal richness after combining live and prior features.
+    confidence = max(0.55, min(0.98, 1.0 - (0.4 * abs(p_history - p_demand)) - (0.2 * p_volatility)))
+
     return RiskScoreResponse(
         Lf=round(Lf, 4),
-        risk_level=risk_level
+        risk_level=risk_level,
+        confidence=round(confidence, 4),
+        scoring_path="heuristic_v2",
     )

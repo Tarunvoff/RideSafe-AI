@@ -70,6 +70,10 @@ def _get_redis():
 _inflight: dict[str, asyncio.Future] = {}
 
 
+def _clamp(value: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, value))
+
+
 def _consume_future_exception(fut: asyncio.Future) -> None:
     """Drain future exceptions to avoid 'Future exception was never retrieved' noise."""
     try:
@@ -283,18 +287,35 @@ async def _execute_pipeline_core(
         setattr(features, "is_gridlock", False)
 
     # ── Step 3: Features → /risk-score (circuit breaker guarded) ─────────────
-    historical_freq = min(1.0, max(0.0, features.avg_delivery_delay_min / 60.0))
-    zone_volatility = min(1.0, max(0.0, features.sla_breach_rate))
+    historical_freq = _clamp(features.avg_delivery_delay_min / 60.0, 0.0, 1.0)
+    zone_volatility = _clamp(features.sla_breach_rate, 0.0, 1.0)
+
+    rainfall = _clamp(float(features.rainfall), 0.0, 500.0)
+    temperature = _clamp(float(features.temperature), -10.0, 60.0)
+    aqi = _clamp(float(features.aqi), 0.0, 500.0)
+    demand_ratio = _clamp(float(features.demand_ratio), 0.0, 5.0)
+    avg_speed_kmh = _clamp(float(avg_speed), 0.0, 180.0)
+    active_riders = int(_clamp(float(features.active_riders), 0.0, 5000.0))
+
+    if demand_ratio != float(features.demand_ratio) or zone_volatility != float(features.sla_breach_rate):
+        logger.warning(
+            "[tid=%s] Clamped ML payload: demand_ratio %.4f→%.4f, zone_volatility %.4f→%.4f",
+            trace_id,
+            float(features.demand_ratio),
+            demand_ratio,
+            float(features.sla_breach_rate),
+            zone_volatility,
+        )
 
     risk_payload = {
         "h3_cell":   h3_cell,
-        "weather":   {"rainfall": features.rainfall, "temperature": features.temperature},
-        "aqi":       features.aqi,
-        "demand_ratio": features.demand_ratio,
+        "weather":   {"rainfall": rainfall, "temperature": temperature},
+        "aqi":       aqi,
+        "demand_ratio": demand_ratio,
         "historical_disruption_frequency": historical_freq,
         "zone_volatility": zone_volatility,
-        "avg_speed_kmh":   avg_speed,
-        "active_riders":   features.active_riders,
+        "avg_speed_kmh":   avg_speed_kmh,
+        "active_riders":   active_riders,
     }
 
     Lf: float          = 0.0
@@ -358,7 +379,7 @@ async def _execute_pipeline_core(
                 "Ct": request.Ct,
                 "M":  request.M,
                 "platform": getattr(request, "platform", None),
-                "demand_ratio": features.demand_ratio,
+                "demand_ratio": demand_ratio,
                 "zone_volatility": zone_volatility,
             }
             async with httpx.AsyncClient(timeout=ML_TIMEOUT) as client:

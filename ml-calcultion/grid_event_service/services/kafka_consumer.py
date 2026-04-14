@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from aiokafka import AIOKafkaConsumer # type: ignore
-from aiokafka.errors import KafkaError # type: ignore
+from aiokafka.errors import GroupCoordinatorNotAvailableError, KafkaError # type: ignore
 
 from config import (
     KAFKA_BOOTSTRAP_SERVERS,
@@ -25,16 +25,42 @@ async def run_kafka_consumer(aggregator: ZoneAggregator):
         group_id=KAFKA_CONSUMER_GROUP,
         auto_offset_reset="latest",
         enable_auto_commit=True,
+        retry_backoff_ms=3000,
     )
 
+    aiokafka_group_logger = logging.getLogger("aiokafka.consumer.group_coordinator")
+
     while True:
+        previous_level = aiokafka_group_logger.level
         try:
+            # aiokafka retries coordinator discovery very aggressively by default,
+            # which can flood logs while Kafka is warming up.
+            aiokafka_group_logger.setLevel(logging.CRITICAL)
             await consumer.start()
             logger.info(f"Kafka consumer started on topic: {KAFKA_TOPIC_TELEMETRY}")
             break
-        except KafkaError as e:
-            logger.warning(f"Kafka not ready, retrying in 5 seconds... ({e})")
+        except GroupCoordinatorNotAvailableError as e:
+            logger.warning(
+                "Kafka group coordinator unavailable for group '%s'. "
+                "bootstrap=%s topic=%s. Retrying in 5 seconds... (%s)",
+                KAFKA_CONSUMER_GROUP,
+                KAFKA_BOOTSTRAP_SERVERS,
+                KAFKA_TOPIC_TELEMETRY,
+                e,
+            )
             await asyncio.sleep(5)
+        except KafkaError as e:
+            logger.warning(
+                "Kafka not ready for bootstrap=%s topic=%s group=%s. "
+                "Retrying in 5 seconds... (%s)",
+                KAFKA_BOOTSTRAP_SERVERS,
+                KAFKA_TOPIC_TELEMETRY,
+                KAFKA_CONSUMER_GROUP,
+                e,
+            )
+            await asyncio.sleep(5)
+        finally:
+            aiokafka_group_logger.setLevel(previous_level)
 
     try:
         async for msg in consumer:

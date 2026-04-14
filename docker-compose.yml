@@ -14,11 +14,12 @@ services:
     ports:
       - "9092:9092"
     environment:
+      KAFKA_BROKER_ID: 1
       KAFKA_ADVERTISED_HOST_NAME: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_CREATE_TOPICS: "aegis-events:1:1"
+      KAFKA_CREATE_TOPICS: "aegis-events:1:1,driver_telemetry:1:1,zone_state_updates:1:1,driver_telemetry_dlq:1:1"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock   # 🔥 REQUIRED FIX
     depends_on:
