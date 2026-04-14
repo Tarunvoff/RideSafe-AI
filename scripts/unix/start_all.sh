@@ -304,9 +304,16 @@ ensure_node_deps() {
         echo "   - Installing Node deps for $(basename "$service_dir")"
         cd "$service_dir"
         if [ -f "$lock_file" ]; then
-            npm ci
+            if ! npm ci; then
+                echo "   - npm ci failed for $(basename "$service_dir"); falling back to npm install"
+                npm install
+            fi
         else
             npm install
+        fi
+        current_hash="$(hash_file "$package_json")"
+        if [ -f "$lock_file" ]; then
+            current_hash+="-$(hash_file "$lock_file")"
         fi
         mkdir -p "$node_modules_dir"
         echo "$current_hash" > "$marker_file"
@@ -328,6 +335,10 @@ EXTRA_KILL_PORTS="${EXTRA_KILL_PORTS:-}"
 LAUNCH_MODE="${LAUNCH_MODE:-easy}"
 TMUX_SESSION_NAME="${TMUX_SESSION_NAME:-aegis}"
 SKIP_TMUX_ATTACH="${SKIP_TMUX_ATTACH:-0}"
+API_URL_OVERRIDE="${API_URL_OVERRIDE:-}"
+PUBLIC_API_HOST="${PUBLIC_API_HOST:-}"
+PLATFORM_API_URL_OVERRIDE="${PLATFORM_API_URL_OVERRIDE:-}"
+EXPO_START_CMD="${EXPO_START_CMD:-npx expo start --clear}"
 RUNTIME_ENV_FILE="$PROJECT_ROOT/.tmp/start.runtime.env"
 LOG_DIR="$PROJECT_ROOT/.logs"
 
@@ -356,6 +367,16 @@ fi
 
 FRONTEND_ENV_FILE="$PROJECT_ROOT/frontend/mobile/.env"
 
+if [ -n "$PUBLIC_API_HOST" ]; then
+    BACKEND_PUBLIC_BASE_URL="http://${PUBLIC_API_HOST}:${BACKEND_PORT}/api"
+else
+    BACKEND_PUBLIC_BASE_URL="http://${LOCAL_IP}:${BACKEND_PORT}/api"
+fi
+
+if [ -n "$API_URL_OVERRIDE" ]; then
+    BACKEND_PUBLIC_BASE_URL="$API_URL_OVERRIDE"
+fi
+
 if [ -f "$FRONTEND_ENV_FILE" ]; then
     # Portable sed removal (deletes existing line)
     sed -i.bak '/EXPO_PUBLIC_API_URL/d' "$FRONTEND_ENV_FILE" && rm -f "${FRONTEND_ENV_FILE}.bak"
@@ -363,8 +384,8 @@ else
     touch "$FRONTEND_ENV_FILE"
 fi
 
-echo "EXPO_PUBLIC_API_URL=http://$LOCAL_IP:3001/api" >> "$FRONTEND_ENV_FILE"
-echo "✅ Backend configured at http://$LOCAL_IP:3001/api"
+echo "EXPO_PUBLIC_API_URL=$BACKEND_PUBLIC_BASE_URL" >> "$FRONTEND_ENV_FILE"
+echo "✅ Backend configured at $BACKEND_PUBLIC_BASE_URL"
 
 # Host-run services must use host-exposed ports, not Docker DNS container names.
 export DATABASE_URL="postgresql://postgres:12345678@${DB_HOST}:${DB_PORT}/RideSafe_AI"
@@ -376,7 +397,13 @@ export ML_INSURANCE_SERVICE_URL="http://127.0.0.1:8000"
 export FRAUD_FEATURE_SERVICE_URL="http://127.0.0.1:8002"
 export GRID_EVENT_SERVICE_URL="http://127.0.0.1:8003"
 export H3_FEATURE_SERVICE_URL="http://127.0.0.1:8004"
-export PLATFORM_API_URL="http://${LOCAL_IP}:${BACKEND_PORT}/api/platform/activity"
+if [ -n "$PLATFORM_API_URL_OVERRIDE" ]; then
+    export PLATFORM_API_URL="$PLATFORM_API_URL_OVERRIDE"
+elif [ -n "$PUBLIC_API_HOST" ]; then
+    export PLATFORM_API_URL="http://${PUBLIC_API_HOST}:${BACKEND_PORT}/api/platform/activity"
+else
+    export PLATFORM_API_URL="http://${LOCAL_IP}:${BACKEND_PORT}/api/platform/activity"
+fi
 write_runtime_env_file
 
 # 3. Runtime prerequisite checks
@@ -448,12 +475,12 @@ echo "[7/8] Starting Expo Mobile Application..."
 cd "$PROJECT_ROOT/frontend/mobile"
 ensure_node_deps "$PROJECT_ROOT/frontend/mobile"
 if [ "$LAUNCH_MODE" = "tmux" ]; then
-    start_in_tmux_window "$TMUX_SESSION_NAME" "mobile" "$PROJECT_ROOT/frontend/mobile" "npx expo start --clear"
+    start_in_tmux_window "$TMUX_SESSION_NAME" "mobile" "$PROJECT_ROOT/frontend/mobile" "$EXPO_START_CMD"
     echo "   - mobile started in tmux window 'mobile'"
 elif [ "$LAUNCH_MODE" = "inline" ]; then
-    npx expo start --clear &
+    bash -lc "$EXPO_START_CMD" &
 else
-    start_detached_process "mobile" "$PROJECT_ROOT/frontend/mobile" "npx expo start --clear"
+    start_detached_process "mobile" "$PROJECT_ROOT/frontend/mobile" "$EXPO_START_CMD"
 fi
 
 echo ""
