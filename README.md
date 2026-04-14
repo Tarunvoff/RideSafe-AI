@@ -2,7 +2,7 @@
 
 **AI-Powered Parametric Income Insurance for India's Gig Delivery Workers** -->
 
-<img src="./docs/banner.png" style="border-radius:15px;" />
+<img src="./docs/AegisPlatformHero.png" style="border-radius:15px;" />
 
 If a rider's zone goes unserviceable, money hits their account automatically. No claim forms, no waiting, no explaining yourself to anyone.
 
@@ -207,7 +207,7 @@ The part-timer still pays ₹15, but their `Ct` rises to compensate — meaning 
 
 ---
 
-![Premium Setup & Quote Engine](./docs/workprofiling.jpeg)
+![Premium Setup & Quote Engine](./docs/DriverPerformanceMatrix.jpeg)
 
 ### Policy Tiers
 
@@ -250,7 +250,7 @@ The part-timer still pays ₹15, but their `Ct` rises to compensate — meaning 
 
 Polyglot microservices — NestJS handles identity, policy and orchestration; Python services cover ML, zone logic and pricing; Kafka as the event bus; Redis as the Feature Store.
 
-![System Architecture](./docs/mainarc.jpeg)
+![System Architecture](./docs/SystemArchitectureSchema.jpeg)
 
 ### Component Responsibilities
 
@@ -322,7 +322,7 @@ For reference, resolution 8 is what Uber itself uses in production for surge pri
 
 Standard KYC flows have ~85% drop-off. Aegis skips all manual entry through **simulated platform OAuth** — mocking the identity and earnings API for the hackathon prototype.
 
-![Worker Onboarding Flow](./docs/kyc.jpeg)
+![Worker Onboarding Flow](./docs/IdentityVerificationFramework.jpeg)
 
 Onboarding takes about 4 seconds. No typing. Identity, earnings baseline and H3 zone come pre-filled from the mocked platform API response, simulating what a real Zepto or Blinkit OAuth would return in production.
 
@@ -330,23 +330,23 @@ KYC state machine: `NOT_STARTED → IN_PROGRESS → SUBMITTED → APPROVED / REJ
 
 ### 2. Real-Time Disruption Monitoring
 
-![Real-Time Disruption Monitoring](./docs/disp.jpeg)
+![Real-Time Disruption Monitoring](./docs/RealTimeDisruptionProtocol.jpeg)
 
 Zone reopens at 50% capacity first, then scales to 100% after 15 minutes of confirmed stability.
 
 ### 3. Automatic Payout on HALTED Event
 
-![Automatic Payout Flow](./docs/claim_flow.jpeg)
+![Automatic Payout Flow](./docs/ActuarialClaimsWorkflow.jpeg)
 
 ### 4. Risk Pool Feedback Loop
 
-![Risk Pool Feedback Loop](./docs/model_s3_flow.jpeg)
+![Risk Pool Feedback Loop](./docs/PredictiveModelingPipeline.jpeg)
 
 ---
 
 ## Tech Stack
 
-![Tech Stack](./docs/TECH_STACK.png)
+![Tech Stack](./docs/AegisTechnicalManifesto.png)
 
 ---
 
@@ -405,11 +405,11 @@ All models versioned through **MLflow**, served via **BentoML**, retrained weekl
 
 ### Risk Assessment Pipeline
 
-![Risk Assessment Pipeline](./docs/risk_asses.jpeg)
+![Risk Assessment Pipeline](./docs/GeospatialRiskIntelligence.jpeg)
 
 ### Fraud Detection Pipeline
 
-![Fraud Detection Pipeline](./docs/fraud_detection.jpeg)
+![Fraud Detection Pipeline](./docs/ParametricFraudAnalysis.jpeg)
 
 ---
 
