@@ -5,6 +5,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
 
+# Locate docker-compose.yml
 if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
 	for d in "$SCRIPT_DIR"/*; do
 		if [ -f "$d/docker-compose.yml" ]; then
@@ -20,7 +21,7 @@ if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
 fi
 
 echo "========================================================"
-echo "STARTING RIDESAFE-AI DISTRIBUTED ENGINE (PHASE 2)"
+echo "STARTING RIDESAFE-AI DISTRIBUTED ENGINE (FIXED VERSION)"
 echo "========================================================"
 echo ""
 
@@ -30,15 +31,25 @@ if ! docker info > /dev/null 2>&1; then
 	exit 1
 fi
 
-# 1. Start Docker containers
-echo "[1/10] Starting Docker containers..."
+# 🔥 CLEAN OLD PORTS (VERY IMPORTANT)
+echo "Cleaning old ports..."
+for port in 8000 8002 8003 8004; do
+  fuser -k $port/tcp 2>/dev/null || true
+done
+
+# 🔥 STOP OLD CONTAINERS
+echo "Stopping old containers..."
+docker compose down
+
+# 1. Start ONLY infra (NOT ML services)
+echo "[1/10] Starting infra containers..."
 cd "$PROJECT_DIR"
-docker compose up -d
+docker compose up -d kafka zookeeper redis timescaledb backend
 
 echo "Waiting for containers..."
 sleep 10
 
-# 🔥 AUTO-DETECT KAFKA CONTAINER
+# Detect Kafka container
 echo "Detecting Kafka container..."
 KAFKA_CONTAINER=$(docker ps --format "{{.Names}}" | grep -i kafka | head -n 1)
 
@@ -50,7 +61,7 @@ fi
 
 echo "Kafka container: $KAFKA_CONTAINER"
 
-# 2. Wait for Kafka readiness
+# Wait for Kafka readiness
 echo "Checking Kafka readiness..."
 until docker exec "$KAFKA_CONTAINER" bash -c "kafka-topics.sh --bootstrap-server localhost:9092 --list" > /dev/null 2>&1; do
 	echo "Kafka not ready yet..."
@@ -59,7 +70,7 @@ done
 
 echo "Kafka is READY"
 
-# 3. Create topic
+# Create topic
 echo "[2/10] Creating Kafka topic..."
 docker exec "$KAFKA_CONTAINER" kafka-topics.sh \
 	--create \
@@ -71,39 +82,13 @@ docker exec "$KAFKA_CONTAINER" kafka-topics.sh \
 
 echo "Kafka topic ready"
 
-# 4. Show containers
+# Show containers
 echo "[3/10] Running containers:"
 docker ps
 
-# 🔥 ==============================
-# 🔥 OAUTH FIX STARTS HERE
-# 🔥 ==============================
-
-# echo "[4/10] Detecting local IP address..."
-
-# LOCAL_IP=$(hostname -I | awk '{print $1}')
-
-# # fallback method
-# if [ -z "$LOCAL_IP" ]; then
-# 	LOCAL_IP=$(ip route get 1 | awk '{print $7; exit}')
-# fi
-
-# if [ -z "$LOCAL_IP" ]; then
-# 	echo "ERROR: Could not determine local IP"
-# 	exit 1
-# fi
-
-# echo "✅ Local IP detected: $LOCAL_IP"
-
+# API config
 echo "[4/10] Using fixed API IP..."
-
 FIXED_IP="34.201.50.36"
-
-echo "✅ Using API IP: $FIXED_IP"
-
-echo ""
-
-echo "[5/10] Updating frontend .env..."
 
 FRONTEND_ENV_FILE="$PROJECT_DIR/frontend/mobile/.env"
 FRONTEND_ENV_TMP="$PROJECT_DIR/frontend/mobile/.env.tmp"
@@ -115,26 +100,21 @@ else
 fi
 
 echo "EXPO_PUBLIC_API_URL=http://$FIXED_IP:3001/api" >> "$FRONTEND_ENV_TMP"
-
 mv "$FRONTEND_ENV_TMP" "$FRONTEND_ENV_FILE"
 
 echo "✅ Expo will connect to: http://$FIXED_IP:3001/api"
 echo ""
 
-# 🔥 ==============================
-# 🔥 OAUTH FIX ENDS HERE
-# 🔥 ==============================
-
-# 6. Setup Python venv
-echo "[6/10] Setting up Python venv..."
+# Python venv
+echo "[5/10] Setting up Python venv..."
 if [ ! -f "$PROJECT_DIR/ml-calcultion/.venv/bin/activate" ]; then
 	python3 -m venv "$PROJECT_DIR/ml-calcultion/.venv"
 fi
 
 "$PROJECT_DIR/ml-calcultion/.venv/bin/pip" install --upgrade pip
 
-# 7. Install dependencies
-echo "[7/10] Installing Python dependencies..."
+# Install dependencies
+echo "[6/10] Installing Python dependencies..."
 pip_path="$PROJECT_DIR/ml-calcultion/.venv/bin/pip"
 
 $pip_path install -r "$PROJECT_DIR/ml-calcultion/ml-insurance-service/requirements.txt"
@@ -142,8 +122,8 @@ $pip_path install -r "$PROJECT_DIR/ml-calcultion/fraud-feature-service/requireme
 $pip_path install -r "$PROJECT_DIR/ml-calcultion/h3-feature-service/requirements.txt"
 $pip_path install -r "$PROJECT_DIR/ml-calcultion/grid_event_service/requirements.txt"
 
-# 8. Start ML services
-echo "[8/10] Starting ML services..."
+# Start ML services (LOCAL ONLY)
+echo "[7/10] Starting ML services locally..."
 
 gnome-terminal -- bash -c "
 cd '$PROJECT_DIR/ml-calcultion' && source .venv/bin/activate &&
@@ -171,8 +151,8 @@ exec bash"
 
 sleep 5
 
-# 9. Start backend
-echo "[9/10] Starting backend..."
+# Backend
+echo "[8/10] Starting backend..."
 gnome-terminal -- bash -c "
 export NVM_DIR=\$HOME/.nvm &&
 source \$NVM_DIR/nvm.sh &&
@@ -183,8 +163,8 @@ exec bash"
 
 sleep 3
 
-# 10. Start mobile app
-echo "[10/10] Starting mobile app..."
+# Frontend
+echo "[9/10] Starting mobile app..."
 gnome-terminal -- bash -c "
 export NVM_DIR=\$HOME/.nvm &&
 source \$NVM_DIR/nvm.sh &&
@@ -195,5 +175,5 @@ exec bash"
 
 echo ""
 echo "========================================================"
-echo "ALL SERVICES RUNNING 🚀"
+echo "ALL SERVICES RUNNING CLEANLY 🚀"
 echo "========================================================"
