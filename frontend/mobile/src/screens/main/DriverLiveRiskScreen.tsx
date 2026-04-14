@@ -10,10 +10,10 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
+  ImageBackground
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import LoadingOverlay from '../../components/LoadingOverlay';
-import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
@@ -27,9 +27,9 @@ type CellRisk = {
   rainPct: number;
   aqi: number;
   floodChance: string;
-  disruptionScore: number; // 0..1
+  disruptionScore: number;
   trafficStatus: string;
-  riskScore: number; // 0..100
+  riskScore: number;
   riskLevel: RiskLevel;
 };
 
@@ -43,17 +43,8 @@ function riskLevelFromScore(score: number): RiskLevel {
   return 'LOW';
 }
 
-function riskColors(level: RiskLevel) {
-  switch (level) {
-    case 'HIGH':
-      return { fill: '#dc2626', stroke: '#dc2626', label: '#b91c1c' };
-    case 'MEDIUM':
-      return { fill: '#f59e0b', stroke: '#f59e0b', label: '#b45309' };
-    case 'LOW':
-    default:
-      return { fill: '#16a34a', stroke: '#16a34a', label: '#166534' };
-  }
-}
+const BRAND_BG = '#ff6b53';
+const CARD_BG = '#f0ecce';
 
 export default function DriverLiveRiskScreen({ navigation }: any) {
   const { t } = useTranslation();
@@ -75,39 +66,35 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       Alert.alert(t('common.error'), t('common.logout_failed'));
     }
   };
+
   const coords = useMemo(
     () => (hasValidLocation ? { lat: location.latitude as number, lng: location.longitude as number } : null),
     [hasValidLocation, location.latitude, location.longitude],
   );
 
-  // Fixed map size for stable tap targets across devices.
   const mapW = clamp(width - 48, 320, 380);
   const mapH = 260;
 
   const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
-    // ✅ Read directly from backend /fraud/zone-neighbors response fields.
-    // riskScore is 0–100, riskLevel is 'LOW'|'MEDIUM'|'HIGH' — both come from backend now.
-    // lf_score / Lf are legacy and no longer present in this endpoint's payload.
     const riskScore: number = raw?.riskScore ?? 0;
     const riskLevel: RiskLevel = (raw?.riskLevel as RiskLevel) ?? riskLevelFromScore(riskScore);
     const disruptionScore: number = Number((raw?.disruptionScore ?? 0).toFixed(2));
 
-    // floodChance & trafficStatus are supplied directly by backend
     const rawFloodChance: string = raw?.floodChance ?? '';
     const floodChance =
       rawFloodChance === 'High'
-        ? t('common.risk_levels.high')
+        ? 'High'
         : rawFloodChance === 'Medium'
-          ? t('common.risk_levels.medium')
-          : t('common.risk_levels.low');
+          ? 'Medium'
+          : 'Low';
 
     const rawTrafficStatus: string = raw?.trafficStatus ?? '';
     const trafficStatus =
       rawTrafficStatus === 'Halt'
-        ? t('live_risk.traffic.halt')
+        ? 'Halt'
         : rawTrafficStatus === 'Slow Traffic'
-          ? t('live_risk.traffic.slow')
-          : t('live_risk.traffic.stable');
+          ? 'Slow Traffic'
+          : 'Stable Flow';
 
     return {
       id,
@@ -120,7 +107,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       riskScore,
       riskLevel,
     };
-  }, [t]);
+  }, []);
 
   const loadZones = useCallback(async () => {
     try {
@@ -160,24 +147,18 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   const selectedCell: CellRisk = useMemo(() => cells.current, [cells.current]);
 
-  const risk = useMemo(() => riskColors(selectedCell.riskLevel), [selectedCell.riskLevel]);
-
   const driverLat = coords?.lat ?? 0;
   const driverLon = coords?.lng ?? 0;
   const accuracyLabel = location.accuracy != null ? `${Math.round(location.accuracy)} m` : '—';
+  
   const lastPing = location.fetchedAt
     ? location.fetchedAt.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
+        hour: 'numeric',
         minute: '2-digit',
         second: '2-digit',
         hour12: true,
       })
     : '—';
-  const locationSource = location.loading
-    ? t('live_risk.fetching_location')
-    : hasValidLocation
-      ? t('dashboard.live_gps')
-      : t('dashboard.unavailable');
 
   const mapRegion = useMemo(
     () => (coords
@@ -219,16 +200,25 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         onClose={() => setProfileMenuVisible(false)}
         onLogout={() => { void handleLogout(); }}
       />
-      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading} message={t('live_risk.refreshing')} />
 
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Status Strip */}
-        <View style={styles.statusStrip}>
-          {/* Hero Map */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="umbrella" size={28} color="#000" style={{ transform: [{ rotate: '-15deg' }] }} />
+          <Text style={styles.headerTitle}>Aegis</Text>
+        </View>
+        <TouchableOpacity style={styles.avatarContainer} onPress={() => setProfileMenuVisible(true)}>
+          <ImageBackground
+            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }}
+            style={styles.avatar}
+          />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        
+        {/* MAP CARD */}
+        <View style={[styles.neoCard, styles.mapCardWrapper]}>
           <View style={styles.mapHero}>
             {coords && mapRegion ? (
               <MapView
@@ -237,202 +227,173 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                 initialRegion={mapRegion}
               />
             ) : (
-              <View style={styles.mapFallback}>
-                <Ionicons name="location-outline" size={28} color="#9ca3af" />
-                <Text style={styles.mapFallbackTitle}>{t('kyc.fraud.location_required')}</Text>
-                <Text style={styles.mapFallbackText}>
-                  {t('live_risk.location_error_desc')}
-                </Text>
-                <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
-                  <Ionicons name="refresh" size={14} color="#111827" />
-                  <Text style={styles.mapFallbackBtnText}>{t('kyc.fraud.retry')}</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={styles.mapFallback}>
+                  <Ionicons name="location-outline" size={28} color="#9ca3af" />
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>Location Required</Text>
+                  <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
+                    <Ionicons name="refresh" size={14} color="#111827" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
             )}
-          </View>
-
-          {/* Legend */}
-          <View style={styles.legend}>
-            <View style={styles.legendRow}>
-              <View style={styles.legendDot} />
-              <Text style={styles.legendText}>{t('live_risk.legend.secure')}</Text>
-            </View>
-            <View style={styles.legendRow}>
-              <View style={[styles.legendDot, { backgroundColor: '#dc2626' }]} />
-              <Text style={styles.legendText}>{t('live_risk.legend.hazard')}</Text>
-            </View>
-          </View>
-
-          {/* Top left H3 badge */}
-          <View style={styles.h3BadgeRow}>
-            <View style={styles.h3Badge}>
-              <Ionicons name="location-outline" size={14} color="#16a34a" />
-              <Text style={styles.h3BadgeText}>H3: {selectedCell.h3Id}</Text>
-            </View>
+            
+            {/* Overlays */}
             <View style={styles.liveFeedBadge}>
-              <View style={styles.liveFeedPulse} />
-              <Text style={styles.liveFeedText}>{t('live_risk.live_feed')}</Text>
+              <Ionicons name="radio-outline" size={14} color="#fff" />
+              <Text style={styles.liveFeedText}>Live Feed</Text>
+            </View>
+            
+            <View style={styles.h3CenterBadgeBox}>
+              <Text style={styles.h3CenterText}>H3</Text>
+            </View>
+
+            <View style={styles.secureGridBadge}>
+              <Text style={styles.secureGridText}>Secure Grid</Text>
+            </View>
+            
+            <View style={styles.highHazardBadge}>
+              <Text style={styles.highHazardText}>High Hazard</Text>
             </View>
           </View>
         </View>
 
-        {/* Cell readout */}
+        {/* READOUT GRID 1 */}
         <View style={styles.readoutGrid}>
-          <View style={styles.readoutCard}>
-            <Text style={styles.readoutLabel}>{t('live_risk.factors.flood')}</Text>
-            <Text style={styles.readoutValue}>
-              {selectedCell.floodChance}
-            </Text>
+          <View style={[styles.neoCard, styles.readoutCard]}>
+            <View style={styles.readoutHeader}>
+              <Ionicons name="water-outline" size={16} color="#000" />
+              <Text style={styles.readoutLabel}>FLOOD</Text>
+            </View>
+            <Text style={styles.readoutValue}>{selectedCell.floodChance}</Text>
           </View>
-          <View style={styles.readoutCard}>
-            <Text style={styles.readoutLabel}>{t('live_risk.factors.aqi')}</Text>
-            <Text style={styles.readoutValue}>{selectedCell.aqi}</Text>
+          <View style={[styles.neoCard, styles.readoutCard]}>
+            <View style={styles.readoutHeader}>
+              <Text style={styles.readoutLabel}>AQI INDEX</Text>
+            </View>
+            <Text style={[styles.readoutValue, { fontSize: 20 }]}>{selectedCell.aqi}</Text>
           </View>
-          <View style={styles.readoutCard}>
-            <Text style={styles.readoutLabel}>{t('live_risk.factors.traffic')}</Text>
+          <View style={[styles.neoCard, styles.readoutCard]}>
+            <View style={styles.readoutHeader}>
+              <Ionicons name="car-outline" size={14} color="#000" />
+              <Text style={styles.readoutLabel}>TRAFFIC</Text>
+            </View>
             <Text style={styles.readoutValue}>{selectedCell.trafficStatus}</Text>
           </View>
         </View>
 
-        {/* Selected cell details */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoTopRow}>
-            <Ionicons name="information-circle" size={18} color="#16a34a" />
-            <Text style={styles.infoText}>
-              {t('live_risk.info_box')}
+        {/* INFO BOX */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <Text style={styles.infoIconText}>i</Text>
+          </View>
+          <Text style={styles.infoText}>Hazards are calculated from live environmental pings and attached to the selected H3 grid cell.</Text>
+        </View>
+
+        {/* READOUT GRID 2 */}
+        <View style={styles.readoutGrid}>
+          <View style={[styles.neoCard, styles.readoutCard]}>
+            <Text style={styles.readoutLabel}>RAIN</Text>
+            <Text style={[styles.readoutValue, { fontSize: 18 }]}>{selectedCell.rainPct}%</Text>
+          </View>
+          <View style={[styles.neoCard, styles.readoutCard]}>
+            <Text style={styles.readoutLabel}>DISRUPTION</Text>
+            <Text style={[styles.readoutValue, { fontSize: 18 }]}>{selectedCell.disruptionScore.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.neoCard, styles.readoutCard]}>
+            <Text style={styles.readoutLabel}>RISK LEVEL</Text>
+            <Text style={[styles.readoutValue, { color: '#E87D25', fontSize: 18 }]}>
+              {selectedCell.riskLevel}
             </Text>
           </View>
+        </View>
 
-          <View style={styles.detailGrid}>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>{t('live_risk.factors.rain')}</Text>
-              <Text style={styles.detailValue}>{selectedCell.rainPct}%</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>{t('live_risk.factors.disruption')}</Text>
-              <Text style={styles.detailValue}>{selectedCell.disruptionScore.toFixed(2)}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>{t('common.risk_level')}</Text>
-              <Text style={[styles.detailValue, { color: risk.label }]}>
-                {t(`dashboard.risk_levels.${selectedCell.riskLevel.toLowerCase()}`)}
-              </Text>
-            </View>
+        {/* REALTIME LOCATION */}
+        <View style={[styles.neoCard, styles.locationCard]}>
+          <View style={styles.locationHeaderRow}>
+            <Text style={styles.locationHeaderTitle}>REALTIME LOCATION</Text>
+            <Ionicons name="share-social" size={20} color="#000" />
           </View>
-
+          
           <View style={styles.validationRow}>
-            <View style={styles.validationLeft}>
-              <Text style={styles.validationTitleText}>{t('dashboard.location_intel')}</Text>
-              <View style={[styles.validationChip, hasValidLocation ? styles.validationChipLive : styles.validationChipMock]}>
-                <Ionicons name="checkmark-circle" size={14} color={hasValidLocation ? '#16a34a' : '#f59e0b'} />
-                <Text style={[styles.validationChipText, hasValidLocation ? styles.validationChipTextLive : styles.validationChipTextMock]}>
-                  {location.loading ? t('live_risk.fetching_location_short') : hasValidLocation ? t('live_risk.valid_location') : t('dashboard.unavailable')}
-                </Text>
-              </View>
-              <Text style={styles.validationMeta}>
-                {hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}
-              </Text>
-              <Text style={styles.validationMetaSecondary}>
-                {hasValidLocation ? t('live_risk.fetched_at', { time: lastPing }) : t('live_risk.location_missing', { time: lastPing })}
-              </Text>
-              <Text style={styles.validationMetaSecondary}>{t('live_risk.accuracy')}: {accuracyLabel}</Text>
-              <View style={[styles.sourceBadge, hasValidLocation ? styles.sourceBadgeLive : styles.sourceBadgeMock]}>
-                <Text style={[styles.sourceBadgeText, hasValidLocation ? styles.sourceBadgeTextLive : styles.sourceBadgeTextMock]}>
-                  {locationSource}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="share-outline" size={20} color="#6b7280" />
+            <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+            <Text style={styles.validationText}>VALID LOCATION CONFIRMED</Text>
           </View>
+
+          <Text style={styles.coordsText}>{hasValidLocation ? formatCoords(driverLat, driverLon) : '—'}</Text>
+          <Text style={styles.timeText}>Fetched at {lastPing}</Text>
+          <Text style={styles.timeText}>Accuracy: {accuracyLabel}</Text>
         </View>
 
-        {/* CTA Cluster */}
-        <View style={styles.ctaCluster}>
-          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.9} onPress={handleRecenter}>
-            <Ionicons name="refresh" size={18} color="#ffffff" />
-            <Text style={styles.primaryBtnText}>{t('dashboard.recheck_location')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.9}>
-            <Text style={styles.secondaryBtnText}>{t('common.details')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 12 }} />
       </ScrollView>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
-  container: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 120,
-  },
-
-  statusStrip: {
+  safeArea: { flex: 1, backgroundColor: BRAND_BG },
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f2f3ff',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(215, 235, 232, 0.6)',
   },
-  statusCol: { flex: 1 },
-  statusColEnd: { flex: 1, alignItems: 'flex-end' },
-  stripDivider: { width: 1, height: 24, backgroundColor: '#d1d5db' },
-  stripLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    color: '#6b7280',
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#000',
+    marginLeft: 8,
   },
-  stripValue: { fontSize: 14, fontWeight: '900', color: '#0f172a', marginTop: 4 },
-  stripMinor: { fontSize: 10, fontWeight: '600', color: '#9ca3af', marginTop: 6 },
-  scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 },
-  scoreValue: { fontSize: 14, fontWeight: '900', color: '#16a34a' },
-  riskPillRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  pingDotWrap: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pingDot: { width: 10, height: 10, borderRadius: 5 },
-  riskPillText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-
-  mapHero: {
-    minHeight: 220,
-    borderRadius: 20,
-    backgroundColor: '#f7f9fa',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  avatarContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#000',
     overflow: 'hidden',
-    position: 'relative' as const,
-    marginBottom: 12,
+    backgroundColor: '#fff'
+  },
+  avatar: { width: '100%', height: '100%' },
+
+  container: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  
+  neoCard: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1.5,
+    borderColor: '#000',
+    borderRadius: 16,
+  },
+
+  mapCardWrapper: {
+    padding: 0,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  mapHero: {
+    height: 260,
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 14,
   },
   mapView: {
-    borderRadius: 20,
+    flex: 1,
+    borderRadius: 14,
   },
   mapFallback: {
     flex: 1,
     backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 16,
   },
-  mapFallbackTitle: { fontSize: 14, fontWeight: '800', color: '#111827' },
-  mapFallbackText: { fontSize: 12, color: '#6b7280', textAlign: 'center' },
   mapFallbackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -442,183 +403,147 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#e2e8f0',
   },
-  mapFallbackBtnText: { fontSize: 12, fontWeight: '700', color: '#111827' },
-  mockMarkerBadge: {
-    position: 'absolute' as const,
-    top: 12,
-    right: 12,
-    backgroundColor: '#fef3c7',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#f59e0b',
-  },
-  mockMarkerText: { fontSize: 10, fontWeight: '900', color: '#b45309', textTransform: 'uppercase' },
-
-  legend: {
-    position: 'absolute' as const,
-    left: 16,
-    bottom: 14,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(209, 213, 219, 0.4)',
-  },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  legendDot: { width: 10, height: 10, borderRadius: 3, backgroundColor: '#16a34a', opacity: 0.25, borderWidth: 1, borderColor: '#16a34a' },
-  legendText: { fontSize: 10, fontWeight: '700', color: '#6b7280' },
-
-  h3BadgeRow: {
-    position: 'absolute' as const,
+  
+  liveFeedBadge: {
+    position: 'absolute',
     top: 12,
     left: 12,
+    backgroundColor: '#16A34A',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  liveFeedText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  
+  h3CenterBadgeBox: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -24 }, { translateY: -24 }],
+    width: 48,
+    height: 48,
+    backgroundColor: '#A7F3D0',
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  h3CenterText: { color: '#000', fontSize: 14, fontWeight: '900' },
+
+  secureGridBadge: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#000',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  secureGridText: { color: '#000', fontSize: 12, fontWeight: '800' },
+  
+  highHazardBadge: {
+    position: 'absolute',
+    bottom: 12,
     right: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#000',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  h3Badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(209, 213, 219, 0.4)',
-  },
-  h3BadgeText: { fontSize: 10, fontWeight: '900', color: '#0f172a' },
-  liveFeedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#16a34a',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  liveFeedPulse: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#ffffff',
-  },
-  liveFeedText: { fontSize: 10, fontWeight: '900', color: '#ffffff' },
+  highHazardText: { color: '#000', fontSize: 12, fontWeight: '800' },
 
   readoutGrid: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
   },
   readoutCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  readoutLabel: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  readoutValue: { fontSize: 14, fontWeight: '900', color: '#0f172a' },
-
-  infoCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 14,
-  },
-  infoTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  infoText: { flex: 1, fontSize: 12, fontWeight: '600', color: '#6b7280', lineHeight: 18 },
-
-  detailGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    gap: 10,
-  },
-  detailItem: { flex: 1, alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 14, paddingVertical: 10 },
-  detailLabel: { fontSize: 10, fontWeight: '900', color: '#6b7280', textTransform: 'uppercase' },
-  detailValue: { fontSize: 14, fontWeight: '900', color: '#0f172a', marginTop: 6 },
-
-  validationRow: {
-    marginTop: 12,
+  readoutHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    paddingTop: 12,
-    gap: 12,
+    gap: 4,
   },
-  validationLeft: { flex: 1 },
-  validationTitleText: { fontSize: 10, fontWeight: '900', color: '#6b7280', textTransform: 'uppercase' },
-  validationChip: {
+  readoutLabel: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  readoutValue: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 4,
+    textAlign: 'center'
+  },
+  
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  infoIconWrap: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  infoIconText: { color: BRAND_BG, fontSize: 12, fontWeight: '900', fontStyle: 'italic' },
+  infoText: { flex: 1, color: '#000', fontSize: 12, fontWeight: '600', lineHeight: 18 },
+
+  locationCard: {
+    padding: 16,
+    marginBottom: 16,
+  },
+  locationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locationHeaderTitle: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  validationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignSelf: 'flex-start',
-    marginTop: 8,
+    marginBottom: 8,
   },
-  validationChipLive: { backgroundColor: '#dcfce7' },
-  validationChipMock: { backgroundColor: '#fef3c7' },
-  validationChipText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  validationChipTextLive: { color: '#166534' },
-  validationChipTextMock: { color: '#b45309' },
-  validationMeta: { marginTop: 6, fontSize: 12, color: '#6b7280', fontWeight: '600', fontFamily: 'monospace' },
-  validationMetaSecondary: { marginTop: 4, fontSize: 11, color: '#9ca3af', fontWeight: '600', fontFamily: 'monospace' },
-  sourceBadge: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  validationText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '900',
   },
-  sourceBadgeLive: { backgroundColor: '#dcfce7' },
-  sourceBadgeMock: { backgroundColor: '#e5e7eb' },
-  sourceBadgeText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  sourceBadgeTextLive: { color: '#166534' },
-  sourceBadgeTextMock: { color: '#4b5563' },
-
-  ctaCluster: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-    marginBottom: 12,
+  coordsText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 4,
   },
-  primaryBtn: {
-    flex: 1,
-    backgroundColor: '#16a34a',
-    borderRadius: 18,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+  timeText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  primaryBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '900' },
-  secondaryBtn: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryBtnText: { fontSize: 13, fontWeight: '900', color: '#0f172a' },
 });
-

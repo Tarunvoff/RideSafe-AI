@@ -3,14 +3,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, ImageBackground } from 'react-native';
 import { WebView } from 'react-native-webview';
-import MainTopNavbar from '../../components/MainTopNavbar';
 import DriverLogoutMenu from '../../components/DriverLogoutMenu';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { Theme } from '../../theme';
 import { plansApi, premiumApi, type PurchasedPolicy, type WeeklyPlan } from '../../services/api';
+
+const BRAND_BG = '#ff6b53';
+const CARD_BG = '#f0ecce';
+const GREEN_ACCENT = '#1b8b48'; // Exact green from mock
+const BORDER_DARK = '#000000';
 
 type PlansTabKey = 'available' | 'purchased';
 type PlanPremiumMap = Record<string, { amount: number; loading: boolean; fallback: boolean }>;
@@ -56,30 +59,6 @@ async function savePurchasedToStorage(email: string | null | undefined, policies
   }
 }
 
-function buildLocalPolicy(plan: WeeklyPlan): PurchasedPolicy {
-  const now = new Date();
-  const endDate = new Date(now.getTime() + (plan.durationDays ?? 7) * 24 * 60 * 60 * 1000);
-  return {
-    policyId: `local_${plan.id}_${now.getTime()}`,
-    plan: {
-      id: plan.id,
-      key: plan.key ?? 'unknown',
-      name: plan.name,
-      price: plan.price,
-      maxPayout: plan.maxPayout,
-    },
-    status: 'ACTIVE',
-    startDate: now.toISOString(),
-    endDate: endDate.toISOString(),
-    eligibility: {
-      eligibleForLatestDisruption: false,
-      claimStatus: 'PENDING',
-    },
-    payout: null,
-  };
-}
-
-/** Merge backend (source of truth) + local (fallback for in-flight verify). Dedupe by plan.id, backend wins. */
 function mergePurchasedPolicies(backend: PurchasedPolicy[], local: PurchasedPolicy[]): PurchasedPolicy[] {
   const byPlanId = new Map<string, PurchasedPolicy>();
   for (const p of backend) {
@@ -111,8 +90,6 @@ function getRazorpayCheckoutHTML(opts: {
   failedMessage: string;
 }) {
   const { keyId, orderId, amount, currency, email, contact, name, description } = opts;
-
-  // Razorpay expects integer amount in paise.
   return `<!DOCTYPE html>
 <html>
   <head>
@@ -150,7 +127,6 @@ function getRazorpayCheckoutHTML(opts: {
           theme: { color: '#16a34a' },
           modal: { ondismiss: function() { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DISMISSED' })); } },
           handler: function(response) {
-            // handler provides: razorpay_payment_id, razorpay_order_id, razorpay_signature
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'PAYMENT_SUCCESS',
               razorpay_payment_id: response.razorpay_payment_id,
@@ -209,7 +185,6 @@ export default function DriverPlansScreen({ navigation }: any) {
       // Auth/network failure: fall back to local only
     }
     const local = await loadPurchasedFromStorage(user?.email);
-    // Backend is source of truth when it succeeds (clears stale local). Local only when backend fails.
     const merged =
       backendRes != null
         ? (backendRes.purchasedPolicies ?? [])
@@ -295,7 +270,6 @@ export default function DriverPlansScreen({ navigation }: any) {
         return;
       }
       Alert.alert(t('common.error'), msg);
-      // Still try to load purchased (may have local fallback)
       await Promise.all([fetchPurchased(), fetchPremiumPreview()]);
     } finally {
       setLoading(false);
@@ -307,7 +281,6 @@ export default function DriverPlansScreen({ navigation }: any) {
     void fetchPlanPremiums(availablePlans as WeeklyPlan[]);
   }, [availablePlans, driverId, fetchPlanPremiums]);
 
-  // Refetch plans from DB every time this screen gains focus (e.g. tapping Plans tab)
   useFocusEffect(
     useCallback(() => {
       void refresh();
@@ -337,7 +310,6 @@ export default function DriverPlansScreen({ navigation }: any) {
     try {
       await logout();
     } catch {
-      // Ignore and clear local state in AuthContext.
     } finally {
       setProfileMenuVisible(false);
     }
@@ -398,10 +370,8 @@ export default function DriverPlansScreen({ navigation }: any) {
         return;
       }
 
-      // Show processing overlay - DO NOT create local policy yet
       setCheckoutProcessing(true);
 
-      // Verify on backend → creates Policy in DB → sync from backend ONLY
       try {
         const verifyRes = await plansApi.verifyRazorpayPayment({
           razorpay_order_id: payload.razorpay_order_id,
@@ -410,7 +380,6 @@ export default function DriverPlansScreen({ navigation }: any) {
         });
         
         if (verifyRes?.success) {
-          // Backend confirmed - fetch policies from DB (source of truth)
           await fetchPurchased();
           setCheckout(null);
           setCheckoutProcessing(false);
@@ -420,10 +389,8 @@ export default function DriverPlansScreen({ navigation }: any) {
           throw new Error('Payment verification failed');
         }
       } catch (err: any) {
-        // Verify failed (network etc): keep local policy, user still sees purchase (unless it's our explicit rejection)
         const errorData = err?.response?.data;
         if (errorData?.error === 'POLICY_CREATION_FAILED' && errorData?.razorpay_payment_id) {
-          // Explicit UI flow intercept for "Money is safe" Drop
           setPaymentErrorData({
             paymentId: errorData.razorpay_payment_id,
             message: errorData.message || 'Payment verified but policy creation failed.',
@@ -435,7 +402,6 @@ export default function DriverPlansScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
       <LoadingOverlay visible={loading} message={t('plans.syncing')} />
 
       <DriverLogoutMenu
@@ -445,6 +411,20 @@ export default function DriverPlansScreen({ navigation }: any) {
         onLogout={() => void handleLogout()}
       />
 
+      {/* Neo Custom Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="umbrella" size={28} color="#000" style={{ transform: [{ rotate: '-15deg' }] }} />
+          <Text style={styles.headerTitle}>Aegis</Text>
+        </View>
+        <TouchableOpacity style={styles.avatarContainer} onPress={() => setProfileMenuVisible(true)}>
+          <ImageBackground
+            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }}
+            style={styles.avatar}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -452,138 +432,97 @@ export default function DriverPlansScreen({ navigation }: any) {
           <RefreshControl
             refreshing={loading}
             onRefresh={() => void refresh()}
-            tintColor="#16a34a"
+            tintColor="#000"
           />
         }
       >
-        <View style={styles.titleRow}>
-          <View style={styles.titleLeft}>
-            <Ionicons name="card-outline" size={20} color="#16a34a" />
-            <Text style={styles.title}>{t('plans.title')}</Text>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.managePolicyBtn}
-            onPress={() => navigation.navigate('Policy')}
-          >
-            <Ionicons name="shield-checkmark-outline" size={14} color="#15803d" />
-            <Text style={styles.managePolicyBtnText}>{t('plans.manage_policy')}</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.pageTitle}>Plans</Text>
 
-        <View style={styles.subTag}>
-          <Text style={styles.subTagText}>{t('plans.subtitle')}</Text>
-        </View>
-
-        <View style={styles.tabsRow}>
+        <View style={styles.tabsWrapper}>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => setTab('available')}
             style={[styles.tabBtn, isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>{t('plans.tabs.available')}</Text>
+            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>Available Plans</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => setTab('purchased')}
             style={[styles.tabBtn, !isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>{t('plans.tabs.purchased')}</Text>
+            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>Purchased Plans</Text>
           </TouchableOpacity>
         </View>
 
         {isAvailableTab ? (
-          <View style={{ gap: 12 }}>
-            {loading ? (
-              <Text style={styles.loadingText}>{t('plans.loading_list')}</Text>
-            ) : filteredAvailablePlans.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="shield-checkmark" size={28} color="#16a34a" />
-                <Text style={styles.emptyTitle}>{t('plans.empty.available_title')}</Text>
-                <Text style={styles.emptySub}>{t('plans.empty.available_sub')}</Text>
+          <View style={{ gap: 16 }}>
+            {filteredAvailablePlans.length === 0 && !loading ? (
+              <View style={[styles.neoCard, styles.emptyState]}>
+                <Text style={styles.emptyTitle}>No plans available</Text>
+                <Text style={styles.emptySub}>You may have already purchased all active plans.</Text>
               </View>
             ) : (
-              filteredAvailablePlans.map((plan) => (
-                <View key={plan.id} style={styles.planCard}>
-                  {(() => {
-                    const premiumMeta = planPremiums[String(plan.id)];
-                    const displayAmount = Number(premiumMeta?.amount ?? plan.price ?? 0);
-                    const isPremiumLoading = !!premiumMeta?.loading;
-                    const isStandardRate = !!premiumMeta?.fallback;
+              filteredAvailablePlans.map((plan) => {
+                const premiumMeta = planPremiums[String(plan.id)];
+                const displayAmount = Number(premiumMeta?.amount ?? plan.price ?? 0);
+                const isPremiumLoading = !!premiumMeta?.loading;
+                
+                return (
+                  <View key={plan.id} style={styles.neoCard}>
+                    <Text style={styles.planName}>{plan.name}</Text>
+                    <Text style={styles.planPrice}>
+                      {formatRupees(displayAmount)}/week
+                    </Text>
 
-                    return (
-                      <>
-                      <View style={styles.planTop}>
-                        <View>
-                          <Text style={styles.planName}>{plan.name}</Text>
-                          <Text style={styles.planMeta}>{t('plans.weekly_sub')} · {formatRupees(displayAmount)}/{t('common.week')}</Text>
-                          {isPremiumLoading ? (
-                            <Text style={styles.planMeta}>{t('plans.calculating_premium')}</Text>
-                          ) : isStandardRate ? (
-                            <Text style={styles.standardRateLabel}>{t('plans.standard_rate')}</Text>
-                          ) : null}
-                        </View>
-                        <View style={styles.priceBox}>
-                          <Text style={styles.priceText}>{formatRupees(displayAmount)}</Text>
-                          <Text style={styles.priceSub}>/{t('common.week')}</Text>
-                        </View>
+                    <View style={styles.featuresList}>
+                      <View style={styles.featureRow}>
+                        <Ionicons name="water-outline" size={20} color="#000" />
+                        <Text style={styles.featureText}>Eligible for: {(plan.eligibleDisruptionTypes ?? []).join(', ')}</Text>
                       </View>
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.eligibleRow}>
-                    <View style={styles.eligiblePill}>
-                      <Ionicons name="water-outline" size={14} color="#16a34a" />
-                      <Text style={styles.eligibleText}>
-                        {t('plans.eligible_for')}: {(plan.eligibleDisruptionTypes ?? []).length ? plan.eligibleDisruptionTypes.join(', ') : '—'}
-                      </Text>
+                      <View style={styles.featureRow}>
+                        <Ionicons name="gift-outline" size={20} color="#000" />
+                        <Text style={styles.featureText}>Up to {formatRupees(plan.maxPayout)} weekly payout</Text>
+                      </View>
                     </View>
-                    <View style={styles.maxPayoutPill}>
-                      <Ionicons name="gift-outline" size={14} color="#16a34a" />
-                      <Text style={styles.eligibleText}>{t('plans.max_payout_hint', { amount: formatRupees(plan.maxPayout) })}</Text>
-                    </View>
+
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      style={styles.buyBtn}
+                      onPress={() => startCheckout(plan)}
+                      disabled={loading || isPremiumLoading}
+                    >
+                      <Text style={styles.buyBtnText}>{isPremiumLoading ? 'Calculating...' : 'Pay with Razorpay'}</Text>
+                    </TouchableOpacity>
                   </View>
-
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    style={styles.buyBtn}
-                    onPress={() => startCheckout(plan)}
-                    disabled={loading}
-                  >
-                    <Ionicons name="lock-closed-outline" size={18} color="#ffffff" />
-                    <Text style={styles.buyBtnText}>{t('plans.pay_with_razorpay')}</Text>
-                  </TouchableOpacity>
-                      </>
-                    );
-                  })()}
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         ) : (
-          <View style={{ gap: 12 }}>
-            <View style={styles.premiumPreviewCard}>
-              <Text style={styles.premiumPreviewTitle}>{t('plans.premium_breakdown')}</Text>
+          <View style={{ gap: 16 }}>
+            <View style={[styles.neoCard, { padding: 16, backgroundColor: CARD_BG }]}>
+              <Text style={{ fontSize: 16, fontWeight: '900', marginBottom: 12, color: '#000' }}>{t('plans.premium_breakdown')}</Text>
               <View style={styles.premiumPreviewRow}>
-                <Text style={styles.premiumPreviewLabel}>Ew</Text>
+                <Text style={styles.premiumPreviewLabel}>Ew (Expected Wages)</Text>
                 <Text style={styles.premiumPreviewValue}>₹{Number(premiumPreview?.Ew ?? 0).toLocaleString('en-IN')}</Text>
               </View>
               <View style={styles.premiumPreviewRow}>
-                <Text style={styles.premiumPreviewLabel}>Lf</Text>
+                <Text style={styles.premiumPreviewLabel}>Lf (Loss Factor)</Text>
                 <Text style={styles.premiumPreviewValue}>{Number(premiumPreview?.Lf ?? 0).toFixed(2)}</Text>
               </View>
               <View style={styles.premiumPreviewRow}>
-                <Text style={styles.premiumPreviewLabel}>Ct</Text>
+                <Text style={styles.premiumPreviewLabel}>Ct (Coverage Tier)</Text>
                 <Text style={styles.premiumPreviewValue}>{premiumPreview?.Ct ?? '—'}</Text>
               </View>
-              <View style={styles.premiumPreviewRow}>
-                <Text style={styles.premiumPreviewLabel}>{t('plans.premium_label')}</Text>
-                <Text style={styles.premiumPreviewValue}>₹{Number(premiumPreview?.premium ?? 0).toLocaleString('en-IN')}</Text>
+              <View style={[styles.premiumPreviewRow, { marginTop: 8, paddingTop: 8, borderTopWidth: 1.5, borderColor: '#000' }]}>
+                <Text style={[styles.premiumPreviewLabel, { color: '#000' }]}>{t('plans.premium_label')}</Text>
+                <Text style={[styles.premiumPreviewValue, { color: GREEN_ACCENT }]}>₹{Number(premiumPreview?.premium ?? 0).toLocaleString('en-IN')}</Text>
               </View>
             </View>
 
             {!latestDisruption ? (
-              <View style={styles.disruptionBanner}>
+              <View style={[styles.neoCard, styles.disruptionBanner]}>
                 <View style={styles.disruptionDot} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.disruptionTitle}>{t('plans.disruption_events')}</Text>
@@ -593,7 +532,7 @@ export default function DriverPlansScreen({ navigation }: any) {
                 </View>
               </View>
             ) : (
-              <View style={styles.disruptionBanner}>
+              <View style={[styles.neoCard, styles.disruptionBanner]}>
                 <View style={styles.disruptionDot} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.disruptionTitle}>{latestDisruption.title}</Text>
@@ -608,10 +547,9 @@ export default function DriverPlansScreen({ navigation }: any) {
             )}
 
             {loading ? (
-              <Text style={styles.loadingText}>{t('plans.loading_purchased')}</Text>
+              <Text style={{ textAlign: 'center', fontWeight: '800', marginTop: 20 }}>{t('plans.loading_purchased')}</Text>
             ) : purchasedPolicies.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="briefcase-outline" size={28} color="#16a34a" />
+              <View style={[styles.neoCard, styles.emptyState]}>
                 <Text style={styles.emptyTitle}>{t('plans.empty.purchased_title')}</Text>
                 <Text style={styles.emptySub}>{t('plans.empty.purchased_sub')}</Text>
               </View>
@@ -625,65 +563,30 @@ export default function DriverPlansScreen({ navigation }: any) {
                   ? (eligible ? t('plans.eligible_for_payout', { type: latestDisruption.type }) : t('plans.not_eligible_event'))
                   : t('plans.awaiting_events');
 
-                const eligibilityPillBg = eligible ? '#DCFCE7' : '#F3F4F6';
-                const eligibilityPillColor = eligible ? '#16a34a' : '#6b7280';
-
-                const payoutPillText =
-                  payoutStatus === 'APPROVED'
-                    ? t('plans.payout_approved')
-                    : payoutStatus === 'PROCESSING'
-                      ? t('plans.payout_processing')
-                      : '—';
-
-                const payoutPillBg = payoutStatus === 'APPROVED' ? '#DCFCE7' : payoutStatus === 'PROCESSING' ? '#F0FDF4' : '#F3F4F6';
-                const payoutPillColor = payoutStatus === 'APPROVED' ? '#16a34a' : payoutStatus === 'PROCESSING' ? '#15803d' : '#6b7280';
-
                 return (
-                  <View key={p.policyId} style={styles.policyCard}>
-                    <View style={styles.policyTop}>
-                      <View>
-                        <Text style={styles.policyName}>{p.plan.name}</Text>
-                        <Text style={styles.policyMeta}>{t('plans.active_until')} {new Date(p.endDate).toLocaleDateString()}</Text>
+                  <View key={p.policyId} style={styles.neoCard}>
+                    <Text style={styles.planName}>{p.plan.name}</Text>
+                    <Text style={styles.planPrice}>{formatRupees(p.plan.price)}/week</Text>
+
+                    <View style={styles.featuresList}>
+                      <View style={styles.featureRow}>
+                        <Ionicons name={eligible ? 'checkmark-circle' : 'alert-circle'} size={20} color="#000" />
+                        <Text style={styles.featureText}>{eligibilityPillText}</Text>
                       </View>
-                      <View style={styles.policyPrice}>
-                        <Text style={styles.policyPriceVal}>{formatRupees(p.plan.price)}</Text>
-                        <Text style={styles.policyPriceSub}>/{t('common.week')}</Text>
+                      <View style={styles.featureRow}>
+                        <Ionicons name={payoutStatus === 'APPROVED' ? 'gift-outline' : 'time-outline'} size={20} color="#000" />
+                        <Text style={styles.featureText}>{payoutStatus === 'APPROVED' ? t('plans.payout_approved') : payoutStatus === 'PROCESSING' ? t('plans.payout_processing') : 'No Active Payouts'}</Text>
                       </View>
                     </View>
-
-                    <View style={styles.divider} />
-
-                    <View style={styles.pillsRow}>
-                      <View style={[styles.pill, { backgroundColor: eligibilityPillBg, borderColor: 'transparent' }]}>
-                        <Ionicons name={eligible ? 'checkmark-circle' : 'alert-circle'} size={14} color={eligibilityPillColor} />
-                        <Text style={[styles.pillText, { color: eligibilityPillColor }]}>{eligibilityPillText}</Text>
-                      </View>
-
-                      <View style={[styles.pill, { backgroundColor: payoutPillBg, borderColor: 'transparent' }]}>
-                        <Ionicons name={payoutStatus === 'APPROVED' ? 'gift-outline' : 'time-outline'} size={14} color={payoutPillColor} />
-                        <Text style={[styles.pillText, { color: payoutPillColor }]}>{payoutStatus === 'APPROVED' ? t('plans.payout_approved') : payoutStatus === 'PROCESSING' ? t('plans.payout_processing') : '—'}</Text>
-                      </View>
-                    </View>
-
-                    {payoutStatus ? (
-                      <View style={styles.detailGrid}>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>{t('plans.estimated_loss')}</Text>
-                          <Text style={styles.detailValue}>{formatRupees(p.payout.estimatedLoss)}</Text>
-                        </View>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>{t('plans.approved_payout')}</Text>
-                          <Text style={styles.detailValue}>{formatRupees(p.payout.approvedPayout)}</Text>
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={styles.detailGrid}>
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>{t('plans.claim_status')}</Text>
-                          <Text style={styles.detailValue}>{claimStatus ?? '—'}</Text>
-                        </View>
-                      </View>
-                    )}
+                    
+                    {/* Navigation to Manage Policy */}
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      style={[styles.buyBtn, { backgroundColor: '#000' }]}
+                      onPress={() => navigation.navigate('Policy')}
+                    >
+                      <Text style={styles.buyBtnText}>{t('plans.manage_policy')}</Text>
+                    </TouchableOpacity>
                   </View>
                 );
               })
@@ -694,13 +597,8 @@ export default function DriverPlansScreen({ navigation }: any) {
         )}
       </ScrollView>
 
-
-      <Modal
-        visible={!!checkout}
-        onRequestClose={() => setCheckout(null)}
-        transparent={false}
-        animationType="slide"
-      >
+      {/* Razorpay HTML Modal (Unstyled, functional) */}
+      <Modal visible={!!checkout} onRequestClose={() => setCheckout(null)} transparent={false} animationType="slide">
         <SafeAreaView style={styles.checkoutSafeArea}>
           <View style={styles.checkoutHeader}>
             <TouchableOpacity style={styles.checkoutClose} onPress={() => setCheckout(null)} disabled={checkoutProcessing} activeOpacity={0.85}>
@@ -710,11 +608,7 @@ export default function DriverPlansScreen({ navigation }: any) {
               <Text style={styles.checkoutTitle}>Razorpay Checkout</Text>
               <Text style={styles.checkoutSub}>{checkout?.plan?.name ?? ''}</Text>
             </View>
-            <View style={styles.checkoutMetaPill}>
-              <Text style={styles.checkoutMetaPillText}>{formatRupees((checkout?.amount ?? 0) / 100)}</Text>
-            </View>
           </View>
-
           {checkoutProcessing && (
             <View style={styles.checkoutProcessingOverlay}>
               <View style={styles.checkoutProcessingCard}>
@@ -724,7 +618,6 @@ export default function DriverPlansScreen({ navigation }: any) {
               </View>
             </View>
           )}
-
           {checkout && (
             <WebView
               source={{
@@ -751,32 +644,22 @@ export default function DriverPlansScreen({ navigation }: any) {
         </SafeAreaView>
       </Modal>
 
-      <Modal
-        visible={!!paymentErrorData}
-        onRequestClose={() => setPaymentErrorData(null)}
-        transparent={true}
-        animationType="fade"
-      >
+      {/* Payment Error Modal (Functional) */}
+      <Modal visible={!!paymentErrorData} onRequestClose={() => setPaymentErrorData(null)} transparent={true} animationType="fade">
         <View style={styles.errorModalOverlay}>
           <View style={styles.errorModalContent}>
-            <Ionicons name="shield-checkmark" size={48} color="#16a34a" style={{ marginBottom: 8 }} />
+            <Ionicons name="shield-checkmark" size={48} color="#000" style={{ marginBottom: 8 }} />
             <Text style={styles.errorModalTitle}>{t('plans.money_safe_title')}</Text>
             <Text style={styles.errorModalSub}>{paymentErrorData?.message}</Text>
-            
-            <View style={styles.paymentIdBox}>
-              <Text style={styles.paymentIdLabel}>{t('plans.razorpay_payment_id')}</Text>
-              <Text style={styles.paymentIdValue}>{paymentErrorData?.paymentId}</Text>
+            <View style={{ backgroundColor: '#f0ecce', borderWidth: 1.5, borderColor: '#000', borderRadius: 12, padding: 16, width: '100%', marginBottom: 20 }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#000', textTransform: 'uppercase', marginBottom: 4 }}>{t('plans.razorpay_payment_id')}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: GREEN_ACCENT }}>{paymentErrorData?.paymentId}</Text>
             </View>
-
-            <TouchableOpacity activeOpacity={0.85} style={styles.supportBtn} onPress={() => {
-              setPaymentErrorData(null);
-              Alert.alert(t('plans.ticket_created_title'), t('plans.ticket_created_desc', { id: paymentErrorData?.paymentId }));
-            }}>
-              <Text style={styles.supportBtnText}>{t('common.contact_support')}</Text>
+            <TouchableOpacity activeOpacity={0.85} style={[styles.buyBtn, { width: '100%', backgroundColor: '#000', marginBottom: 12 }]} onPress={() => { setPaymentErrorData(null); Alert.alert(t('plans.ticket_created_title'), t('plans.ticket_created_desc', { id: paymentErrorData?.paymentId })); }}>
+              <Text style={styles.buyBtnText}>{t('common.contact_support')}</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity activeOpacity={0.85} style={styles.dismissBtn} onPress={() => setPaymentErrorData(null)}>
-              <Text style={styles.dismissBtnText}>{t('common.dismiss')}</Text>
+            <TouchableOpacity activeOpacity={0.85} style={{ padding: 10 }} onPress={() => setPaymentErrorData(null)}>
+              <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>{t('common.dismiss')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -787,248 +670,153 @@ export default function DriverPlansScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
+  safeArea: { flex: 1, backgroundColor: BRAND_BG },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#000',
+    marginLeft: 8,
+  },
+  avatarContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#000',
+    overflow: 'hidden',
+    backgroundColor: '#fff'
+  },
+  avatar: { width: '100%', height: '100%' },
+
   container: {
-    flexGrow: 1,
-    paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: 96,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 100,
+    gap: 16,
   },
 
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Theme.spacing.md },
-  titleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 22, fontWeight: '900', color: '#111827' },
-  managePolicyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#DCFCE7',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  pageTitle: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#000',
+    letterSpacing: -0.5,
+    marginBottom: 0,
   },
-  managePolicyBtnText: { color: '#15803d', fontWeight: '900', fontSize: 12 },
-  subTag: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  subTagText: { color: '#15803d', fontWeight: '800', fontSize: 12 },
 
-  tabsRow: {
+  tabsWrapper: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: Theme.borderRadius.lg,
+    backgroundColor: CARD_BG,
+    borderWidth: 2,
+    borderColor: BORDER_DARK,
+    borderRadius: 14,
     padding: 6,
-    marginBottom: Theme.spacing.md,
+    marginBottom: 8,
   },
-  tabBtn: { flex: 1, paddingVertical: 12, borderRadius: Theme.borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  tabBtnActive: { backgroundColor: '#16a34a' },
-  tabText: { fontWeight: '800', fontSize: 12, color: '#6b7280' },
-  tabTextActive: { color: '#ffffff' },
-
-  planCard: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.md,
-    gap: 12,
-  },
-  planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 },
-  planName: { fontSize: 18, fontWeight: '900', color: '#111827' },
-  planMeta: { marginTop: 4, fontSize: 12, color: '#6b7280', fontWeight: '700' },
-  standardRateLabel: { marginTop: 4, fontSize: 11, color: '#92400e', fontWeight: '800' },
-
-  priceBox: { alignItems: 'flex-end' },
-  priceText: { fontSize: 22, fontWeight: '900', color: '#16a34a' },
-  priceSub: { fontSize: 12, fontWeight: '800', color: '#6b7280' },
-
-  divider: { height: 1, backgroundColor: '#e5e7eb' },
-  eligibleRow: { gap: 10 },
-
-  eligiblePill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e5e7eb' },
-  maxPayoutPill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#DCFCE7', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'transparent' },
-  eligibleText: { fontSize: 12, fontWeight: '800', color: '#111827', flex: 1 },
-
-  buyBtn: {
-    height: 52,
-    borderRadius: Theme.borderRadius.lg,
-    backgroundColor: '#16a34a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  buyBtnText: { color: '#ffffff', fontWeight: '900', fontSize: 13 },
-
-  loadingText: { textAlign: 'center', color: '#6b7280', fontWeight: '800' },
-  emptyState: { paddingVertical: 44, alignItems: 'center', gap: 8 },
-  emptyTitle: { fontWeight: '900', fontSize: 16, color: '#111827' },
-  emptySub: { fontWeight: '700', fontSize: 12, color: '#6b7280', textAlign: 'center', maxWidth: 260 },
-
-  premiumPreviewCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: Theme.borderRadius.lg,
-    padding: Theme.spacing.md,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-    gap: 8,
-  },
-  premiumPreviewTitle: { fontSize: 12, fontWeight: '900', color: '#e2e8f0', letterSpacing: 0.8, textTransform: 'uppercase' },
-  premiumPreviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  premiumPreviewLabel: { fontSize: 12, fontWeight: '700', color: '#94a3b8' },
-  premiumPreviewValue: { fontSize: 14, fontWeight: '900', color: '#f8fafc' },
-
-  disruptionBanner: {
-    backgroundColor: '#ffffff',
-    borderRadius: Theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: Theme.spacing.md,
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-  },
-  disruptionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#16a34a' },
-  disruptionTitle: { fontSize: 15, fontWeight: '900', color: '#111827' },
-  disruptionSub: { fontSize: 12, fontWeight: '700', color: '#6b7280', marginTop: 4 },
-  disruptionPill: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  disruptionPillText: { fontSize: 12, color: '#15803d', fontWeight: '900' },
-
-  policyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: Theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: Theme.spacing.md,
-    gap: 12,
-  },
-  policyTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 },
-  policyName: { fontSize: 18, fontWeight: '900', color: '#111827' },
-  policyMeta: { marginTop: 4, fontSize: 12, color: '#6b7280', fontWeight: '700' },
-  policyPrice: { alignItems: 'flex-end' },
-  policyPriceVal: { fontSize: 20, fontWeight: '900', color: '#16a34a' },
-  policyPriceSub: { fontSize: 12, fontWeight: '800', color: '#6b7280' },
-
-  pillsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-  pillText: { fontSize: 12, fontWeight: '900' },
-
-  detailGrid: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  detailItem: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e5e7eb' },
-  detailLabel: { fontSize: 11, color: '#6b7280', fontWeight: '800' },
-  detailValue: { marginTop: 6, fontSize: 14, color: '#111827', fontWeight: '900' },
-
-  // Checkout
-  checkoutSafeArea: { flex: 1, backgroundColor: '#ffffff' },
-  checkoutHeader: {
-    height: 64,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingHorizontal: Theme.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  checkoutClose: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  checkoutTitle: { fontSize: 14, fontWeight: '900', color: '#111827' },
-  checkoutSub: { fontSize: 12, fontWeight: '700', color: '#6b7280', marginTop: 2 },
-  checkoutMetaPill: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  checkoutMetaPillText: { color: '#15803d', fontWeight: '900', fontSize: 12 },
-  checkoutProcessingOverlay: {
-    position: 'absolute',
-    top: 64,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  checkoutProcessingCard: { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 18, width: '82%', alignItems: 'center' },
-  checkoutProcessingTitle: { marginTop: 10, fontWeight: '900', fontSize: 16, color: '#111827' },
-  checkoutProcessingSub: { marginTop: 6, fontWeight: '700', fontSize: 12, color: '#6b7280', textAlign: 'center' },
-
-  // Error Payment Modal UX
-  errorModalOverlay: {
+  tabBtn: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: Theme.spacing.lg,
   },
-  errorModalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: Theme.borderRadius.xl,
-    padding: 24,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+  tabBtnActive: {
+    backgroundColor: GREEN_ACCENT,
   },
-  errorModalTitle: {
+  tabText: {
+    fontWeight: '800',
+    fontSize: 14,
+    color: '#000',
+  },
+  tabTextActive: {
+    color: '#ffffff',
+  },
+
+  neoCard: {
+    backgroundColor: CARD_BG,
+    borderWidth: 2,
+    borderColor: BORDER_DARK,
+    borderRadius: 16,
+    padding: 20,
+  },
+  planName: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#000',
+  },
+  planPrice: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#111827',
-    marginBottom: 8,
-    textAlign: 'center',
+    color: GREEN_ACCENT,
+    marginTop: 2,
   },
-  errorModalSub: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
-    textAlign: 'center',
+  featuresList: {
+    marginTop: 20,
     marginBottom: 20,
-    lineHeight: 20,
+    gap: 12,
   },
-  paymentIdBox: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: Theme.borderRadius.lg,
-    padding: 16,
-    width: '100%',
-    marginBottom: 20,
-  },
-  paymentIdLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  paymentIdValue: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#16a34a',
-    letterSpacing: 0.5,
-  },
-  supportBtn: {
-    backgroundColor: '#16a34a',
-    borderRadius: Theme.borderRadius.lg,
-    paddingVertical: 14,
-    width: '100%',
+  featureRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 12,
   },
-  supportBtnText: {
-    color: '#ffffff',
+  featureText: {
     fontSize: 15,
-    fontWeight: '900',
+    color: '#000',
+    fontWeight: '600',
+    flex: 1,
   },
-  dismissBtn: {
-    paddingVertical: 10,
-    width: '100%',
+  buyBtn: {
+    backgroundColor: GREEN_ACCENT,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  dismissBtnText: {
-    color: '#64748b',
-    fontSize: 14,
-    fontWeight: '800',
+  buyBtnText: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 15,
   },
-});
 
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
+  emptyTitle: { fontWeight: '900', fontSize: 18, color: '#000', marginBottom: 6 },
+  emptySub: { fontWeight: '700', fontSize: 13, color: '#000', textAlign: 'center' },
+
+  premiumPreviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  premiumPreviewLabel: { fontSize: 13, fontWeight: '700', color: '#000' },
+  premiumPreviewValue: { fontSize: 15, fontWeight: '900', color: '#000' },
+
+  disruptionBanner: { flexDirection: 'row', padding: 16, alignItems: 'center', gap: 12 },
+  disruptionDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: GREEN_ACCENT },
+  disruptionTitle: { fontSize: 16, fontWeight: '900', color: '#000' },
+  disruptionSub: { fontSize: 13, fontWeight: '700', color: '#000', marginTop: 2 },
+  disruptionPill: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#000', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  disruptionPillText: { fontSize: 12, color: GREEN_ACCENT, fontWeight: '900' },
+
+  checkoutSafeArea: { flex: 1, backgroundColor: '#ffffff' },
+  checkoutHeader: { height: 60, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  checkoutClose: { padding: 8 },
+  checkoutTitle: { fontSize: 15, fontWeight: '900', color: '#111827' },
+  checkoutSub: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
+  checkoutProcessingOverlay: { position: 'absolute', top: 60, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+  checkoutProcessingCard: { backgroundColor: CARD_BG, borderRadius: 16, borderWidth: 2, borderColor: '#000', padding: 20, width: '80%', alignItems: 'center' },
+  checkoutProcessingTitle: { marginTop: 12, fontWeight: '900', fontSize: 16, color: '#000' },
+  checkoutProcessingSub: { marginTop: 6, fontWeight: '700', fontSize: 13, color: '#000', textAlign: 'center' },
+  
+  errorModalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorModalContent: { backgroundColor: CARD_BG, borderRadius: 16, borderWidth: 2, borderColor: '#000', padding: 24, width: '100%', alignItems: 'center' },
+  errorModalTitle: { fontSize: 22, fontWeight: '900', color: '#000', marginBottom: 8, textAlign: 'center' },
+  errorModalSub: { fontSize: 14, fontWeight: '700', color: '#000', textAlign: 'center', marginBottom: 20 },
+});

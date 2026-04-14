@@ -2,71 +2,54 @@ import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Modal,
   Image,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
+  Dimensions,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { Theme } from '../../theme';
 
-WebBrowser.maybeCompleteAuthSession();
+const { width } = Dimensions.get('window');
+
+// Colors from the image
+const COLORS = {
+  background: '#FF5C39', // Vibrant Orange-Red
+  highlight: '#EFEBDC',  // Cream / Off-white (cards and buttons)
+  textPrimary: '#000000',
+  backgroundText: 'rgba(0, 0, 0, 0.08)', // Faded black for background text
+};
 
 export default function LoginScreen({ navigation }: any) {
-  const { t, i18n } = useTranslation();
-  const { loginWithOAuth } = useAuth();
-  const [modalVisible, setModalVisible] = useState(false);
+  const { t } = useTranslation();
   const [demoVisible, setDemoVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
+  const { sendDriverOtp } = useAuth();
   const demoVideoRef = useRef<any>(null);
 
-  // Some platforms (especially with Modal mount + autoplay policies) won't reliably start with `shouldPlay`.
-  // Calling playAsync() right after opening the modal makes playback deterministic.
   useEffect(() => {
     if (!demoVisible) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       demoVideoRef.current?.playAsync?.();
     }, 80);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [demoVisible]);
 
-  const toggleLanguage = async () => {
-    const langs = ['en', 'hi', 'ta'];
-    const currentIndex = langs.indexOf(i18n.language);
-    const newLang = langs[currentIndex === -1 ? 1 : (currentIndex + 1) % langs.length];
-    await i18n.changeLanguage(newLang);
-    await AsyncStorage.setItem('user-language', newLang);
-  };
-
-  const closeAuthModal = () => {
-    setModalVisible(false);
-    setIdentifier('');
-  };
-
-  const showDemo = () => {
-    setDemoVisible(true);
-  };
-
-  const closeDemo = () => {
-    setDemoVisible(false);
-  };
-
-  const getApiBaseUrl = () => {
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'http://127.0.0.1:3001/api';
-  };
+  const showDemo = () => setDemoVisible(true);
+  const closeDemo = () => setDemoVisible(false);
 
   const getRedirectUri = () => {
     const override = process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim();
@@ -77,8 +60,6 @@ export default function LoginScreen({ navigation }: any) {
       : Linking.createURL('oauth-callback', { scheme: 'ridesafe' });
   };
 
-  const { sendDriverOtp } = useAuth();
-
   const handleOAuthLogin = async (platform: string) => {
     setLoading(true);
     try {
@@ -87,22 +68,15 @@ export default function LoginScreen({ navigation }: any) {
         Alert.alert(t('auth.login.modal.missing_identifier'), t('auth.login.modal.enter_identifier'));
         return;
       }
-      
       const provider = platform.trim().toUpperCase();
       const redirectUri = getRedirectUri();
-
-      // 1. Send OTP to the driver's email
-      // We assume for now the identifier is the email (which is standard for OTP)
       await sendDriverOtp(trimmedIdentifier);
-
-      // 2. Navigate to OTP Screen with context
-      setModalVisible(false); // Close the selection modal
+      setModalVisible(false);
       navigation.navigate('DriverOTP', {
         email: trimmedIdentifier,
         provider,
         redirectUri
       });
-
     } catch (error: any) {
       console.error('❌ Login Error:', error);
       Alert.alert(t('common.login_error'), error?.message || t('common.oauth_failed'));
@@ -111,9 +85,147 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  // Background Text List
+  const bgWords = [
+    'Security',
+    'Protection',
+    'Aegis',
+    'Intelligence',
+    'Reliability',
+    'Resilience',
+    'Trust',
+    'Safety',
+    'Security',
+    'Protection',
+    'Aegis',
+    'Intelligence',
+  ];
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message={t('auth.login.modal.authenticating')} />
+
+      {/* Background Decorative Text Layer */}
+      <View style={styles.backgroundLayer} pointerEvents="none">
+        {bgWords.map((word, index) => (
+          <Text key={index} style={styles.bgText}>
+            {word}
+          </Text>
+        ))}
+      </View>
+
+      <View style={styles.container}>
+        {/* Center Section: Logo & Star */}
+        <View style={styles.heroWrapper}>
+          <View style={styles.starContainer}>
+            <Svg width={width * 0.95} height={width * 1.2} viewBox="0 0 100 130">
+              <Path
+                d="M 50 0 Q 62 58 100 65 Q 62 72 50 130 Q 38 72 0 65 Q 38 58 50 0 Z"
+                fill={COLORS.highlight}
+              />
+            </Svg>
+            <View style={styles.logoOverlay}>
+              <Image
+                source={require('../../../assets/images/productlogo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+
+          {/* Watch Demo Button */}
+          <TouchableOpacity style={styles.watchDemoBtn} onPress={showDemo} activeOpacity={0.9}>
+            <Text style={styles.watchDemoText}>{t('auth.login.watch_demo')}</Text>
+            <View style={styles.playIconCircle}>
+              <Ionicons name="play" size={16} color={COLORS.highlight} style={{ marginLeft: 2 }} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Actions: Driver Login & Admin Portal */}
+        <View style={styles.actionCardsRow}>
+          <TouchableOpacity 
+            style={styles.actionCard} 
+            onPress={() => setModalVisible(true)} 
+            activeOpacity={0.8}
+          >
+            <Ionicons name="person-outline" size={60} color="#000" />
+            <Text style={styles.cardLabel}>{t('auth.login.driver_login')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionCard} 
+            onPress={() => navigation.navigate('AdminLogin')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="shield-outline" size={60} color="#000" />
+            <Text style={styles.cardLabel}>{t('auth.login.admin_portal')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Auth Modal */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.modalClose} onPress={() => setModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>{t('auth.login.modal.title')}</Text>
+            <Text style={styles.modalSubtitle}>{t('auth.login.modal.subtitle')}</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder={t('auth.login.modal.placeholder')}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={identifier}
+              onChangeText={setIdentifier}
+            />
+
+            <View style={styles.oauthButtonsRow}>
+              <OAuthButton
+                name="Zepto"
+                color="#29075c"
+                iconSource={require('../../../assets/images/zepto.png')}
+                imagePadding={8}
+                onPress={() => handleOAuthLogin('Zepto')}
+              />
+              <OAuthButton
+                name="Blinkit"
+                color="#F8CB19"
+                iconSource={require('../../../assets/images/blinkit.png')}
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('Blinkit')}
+              />
+              <OAuthButton
+                name="Instamart"
+                color="#fff"
+                iconSource={require('../../../assets/images/instamart.png')}
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('Instamart')}
+              />
+              <OAuthButton
+                name="BigBasket"
+                color="#fff"
+                iconSource={require('../../../assets/images/bigbasket.png')}
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('BigBasket')}
+              />
+              <OAuthButton
+                name="JioMart"
+                color="#fff"
+                iconSource={require('../../../assets/images/jiomart.png')}
+                imagePadding={0}
+                onPress={() => handleOAuthLogin('JioMart')}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Demo Modal */}
       <Modal visible={demoVisible} transparent animationType="fade" onRequestClose={closeDemo}>
         <View style={styles.demoOverlay}>
           <View style={styles.demoShell}>
@@ -134,198 +246,43 @@ export default function LoginScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
-
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeAuthModal}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.modalClose} onPress={closeAuthModal}>
-              <Ionicons name="close" size={24} color={Theme.colors.textSecondary} />
-            </TouchableOpacity>
-
-            <Text style={styles.modalTitle}>{t('auth.login.modal.title')}</Text>
-            <Text style={styles.modalSubtitle}>{t('auth.login.modal.subtitle')}</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder={t('auth.login.modal.placeholder')}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={identifier}
-              onChangeText={setIdentifier}
-            />
-
-            <View style={styles.oauthButtonsRow}>
-              <OAuthButton 
-                name="Zepto" 
-                color="#29075c" 
-                iconSource={require('../../../assets/images/zepto.png')} 
-                imagePadding={8}
-                onPress={() => handleOAuthLogin('Zepto')} 
-              />
-              <OAuthButton 
-                name="Blinkit" 
-                color="#F8CB19" 
-                iconSource={require('../../../assets/images/blinkit.png')} 
-                imagePadding={0}
-                onPress={() => handleOAuthLogin('Blinkit')} 
-              />
-              <OAuthButton 
-                name="Instamart" 
-                color="#fff" 
-                iconSource={require('../../../assets/images/instamart.png')} 
-                imagePadding={0}
-                onPress={() => handleOAuthLogin('Instamart')} 
-              />
-              <OAuthButton 
-                name="BigBasket" 
-                color="#fff" 
-                iconSource={require('../../../assets/images/bigbasket.png')} 
-                imagePadding={0}
-                onPress={() => handleOAuthLogin('BigBasket')} 
-              />
-              <OAuthButton 
-                name="JioMart" 
-                color="#fff" 
-                iconSource={require('../../../assets/images/jiomart.png')} 
-                imagePadding={0}
-                onPress={() => handleOAuthLogin('JioMart')} 
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <View style={styles.header}>
-        <View style={styles.headerLogo}>
-          <Image source={require('../../../assets/images/productlogo.png')} style={styles.headerLogoIcon} resizeMode="contain" />
-          <Text style={styles.headerTitle}>{t('common.app_name')}</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.langToggle} 
-            onPress={toggleLanguage}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="language" size={18} color={Theme.colors.primary} />
-            <Text style={styles.langToggleText}>
-              {i18n.language === 'en' ? 'हिंदी' : i18n.language === 'hi' ? 'தமிழ்' : 'EN'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.container}>
-        <View style={styles.liveBadgeRow}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveBadgeText}>{t('auth.login.live_protection')}</Text>
-        </View>
-
-        <View style={styles.heroSection}>
-          <Text style={styles.heroTitle}>{t('auth.login.title')}</Text>
-          <Text style={styles.heroSubtitle}>
-            {t('auth.login.subtitle')}
-          </Text>
-        </View>
-
-        <View style={styles.centerActionWrap}>
-          <TouchableOpacity style={styles.watchDemoBtn} onPress={showDemo} activeOpacity={0.85}>
-            <Ionicons name="play-circle" size={18} color="#0f172a" />
-            <Text style={styles.watchDemoBtnText}>{t('auth.login.watch_demo')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.quickGrid}>
-          <TouchableOpacity style={styles.largeCard} onPress={() => setModalVisible(true)} activeOpacity={0.85}>
-            <View style={[styles.cardHeroIconBox, { backgroundColor: `${Theme.colors.primary}15` }]}>
-              <Ionicons name="person" size={52} color={Theme.colors.primary} />
-            </View>
-            <Text style={styles.cardTitle}>{t('auth.login.driver_login')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.largeCard}
-            onPress={() => navigation.navigate('AdminLogin')}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.cardHeroIconBox, { backgroundColor: `${Theme.colors.primary}15` }]}>
-              <Ionicons name="shield-half" size={52} color={Theme.colors.primary} />
-            </View>
-            <Text style={styles.cardTitle}>{t('auth.login.admin_portal')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.wideCard} onPress={() => setModalVisible(true)} activeOpacity={0.85}>
-            <View style={styles.wideCardLeft}>
-              <View style={styles.wideCardIcon}>
-                <Ionicons name="finger-print" size={20} color={Theme.colors.primary} />
-              </View>
-              <View>
-                <Text style={styles.wideCardTitle}>{t('auth.login.complete_kyc')}</Text>
-                <Text style={styles.wideCardSubtitle}>{t('auth.login.verify_identity')}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.howItWorksStrip} onPress={showDemo} activeOpacity={0.9}>
-          <View style={styles.stripStepWrap}>
-            <Text style={styles.stripStepActive}>{t('auth.login.steps.connect')}</Text>
-            <View style={[styles.stripLine, styles.stripLineActive]} />
-          </View>
-          <Ionicons name="arrow-forward" size={14} color={Theme.colors.textSecondary} />
-          <View style={styles.stripStepWrap}>
-            <Text style={styles.stripStep}>{t('auth.login.steps.monitor')}</Text>
-            <View style={styles.stripLine} />
-          </View>
-          <Ionicons name="arrow-forward" size={14} color={Theme.colors.textSecondary} />
-          <View style={styles.stripStepWrap}>
-            <Text style={styles.stripStep}>{t('auth.login.steps.payout')}</Text>
-            <View style={styles.stripLine} />
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.valueGrid}>
-          <View style={styles.valueChip}>
-            <Ionicons name="calendar" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>{t('auth.login.features.weekly')}</Text>
-          </View>
-          <View style={styles.valueChip}>
-            <Ionicons name="navigate" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>{t('auth.login.features.hyperlocal')}</Text>
-          </View>
-          <View style={styles.valueChip}>
-            <Ionicons name="flash" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>{t('auth.login.features.instant')}</Text>
-          </View>
-          <View style={styles.valueChip}>
-            <Ionicons name="pulse" size={20} color={Theme.colors.primary} />
-            <Text style={styles.valueChipText}>{t('auth.login.features.ai')}</Text>
-          </View>
-        </View>
-      </View>
     </SafeAreaView>
   );
 }
 
-function OAuthButton({ 
-  name, 
-  color, 
-  iconSource, 
+function OAuthButton({
+  name,
+  color,
+  iconSource,
   imagePadding = 0,
-  onPress 
-}: { 
-  name: string; 
-  color: string; 
-  iconSource: any; 
+  onPress
+}: {
+  name: string;
+  color: string;
+  iconSource: any;
   imagePadding?: number;
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={[styles.oauthBtn, { backgroundColor: color, overflow: 'hidden' }]} onPress={onPress}>
-      <Image 
-        source={iconSource} 
-        style={{ width: 44 - imagePadding * 2, height: 44 - imagePadding * 2, borderRadius: imagePadding === 0 ? 22 : 0 }} 
-        resizeMode="contain" 
+    <TouchableOpacity 
+      style={[
+        styles.oauthBtn, 
+        { 
+          backgroundColor: color,
+          borderWidth: color === '#fff' ? 1 : 0,
+          borderColor: '#e2e8f0',
+        }
+      ]} 
+      onPress={onPress}
+    >
+      <Image
+        source={iconSource}
+        style={{ 
+          width: 50 - imagePadding * 2, 
+          height: 50 - imagePadding * 2, 
+          borderRadius: imagePadding === 0 ? 25 : 0 
+        }}
+        resizeMode="contain"
       />
     </TouchableOpacity>
   );
@@ -334,253 +291,170 @@ function OAuthButton({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.sm,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#edf0f2',
+  backgroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+    paddingTop: 0,
+    paddingLeft: 20,
+    zIndex: -1,
+    justifyContent: 'center',
   },
-  headerLogo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerLogoIcon: { width: 28, height: 28 },
-  headerTitle: {
-    ...Theme.typography.h3,
-    color: '#0f172a',
-    fontWeight: '900' as const,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  langToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  langToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Theme.colors.primary,
+  bgText: {
+    fontSize: 100,
+    fontWeight: '800',
+    color: 'rgba(0, 0, 0, 0.12)',
+    lineHeight: 110,
+    letterSpacing: -4,
+    textTransform: 'none',
+    textAlign: 'center',
+    width: width,
   },
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.md,
     justifyContent: 'space-between',
+    paddingBottom: 40,
   },
-  liveBadgeRow: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
+  heroWrapper: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#eef2ff',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
+    marginTop: -40, 
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2563eb',
-  },
-  liveBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: '#475569',
-    textTransform: 'uppercase',
-  },
-  heroSection: {
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 30,
-    lineHeight: 35,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#64748b',
-    maxWidth: 290,
-  },
-  centerActionWrap: {
+  starContainer: {
+    width: width * 0.95,
+    height: width * 1.3,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: -40,
+  },
+  logoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: width * 0.1, // Offset slightly upwards to visual center
+  },
+  logoImage: {
+    width: width * 0.28,
+    height: width * 0.28,
   },
   watchDemoBtn: {
-    minWidth: 190,
-    height: 50,
-    borderRadius: Theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#d7dde3',
-    backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.highlight,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  watchDemoText: {
+    fontSize: 22,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
+  },
+  playIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#000',
     justifyContent: 'center',
-    gap: 8,
+    alignItems: 'center',
   },
-  watchDemoBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  quickGrid: {
+  actionCardsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'center',
+    gap: 20,
+    paddingHorizontal: 20,
+  },
+  actionCard: {
+    flex: 1,
+    aspectRatio: 1,
+    maxWidth: (width - 60) / 2,
+    backgroundColor: COLORS.highlight,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  cardLabel: {
+    marginTop: 15,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.highlight,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    padding: 30,
+    paddingBottom: 60,
+    alignItems: 'center',
+    minHeight: 350,
+  },
+  modalClose: {
+    alignSelf: 'flex-end',
     marginBottom: 10,
   },
-  largeCard: {
-    width: '48%',
-    aspectRatio: 0.8,
-    backgroundColor: '#fff',
-    borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: '#edf1f4',
-    padding: 10,
-    justifyContent: 'space-between',
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#000',
+    marginBottom: 10,
   },
-  cardHeroIconBox: {
-    flex: 1,
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  input: {
     width: '100%',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+    height: 55,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 15,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    marginBottom: 25,
   },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0f172a',
+  oauthButtonsRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    gap: 16,
+    marginTop: 10,
   },
-  wideCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: '#edf1f4',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  wideCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  wideCardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#dbe8ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wideCardTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  wideCardSubtitle: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  valueGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    minHeight: 176,
-    alignContent: 'space-between',
-    marginBottom: Theme.spacing.sm,
-  },
-  valueChip: {
-    width: '48.6%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    minHeight: 82,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#e9eef2',
-    borderWidth: 1,
-    borderColor: '#dde5ec',
-  },
-  valueChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#445365',
-    flex: 1,
-  },
-  howItWorksStrip: {
-    backgroundColor: '#fff',
-    borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: '#edf1f4',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stripStepWrap: {
-    alignItems: 'center',
-    gap: 3,
-  },
-  stripStepActive: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Theme.colors.primary,
-    textTransform: 'uppercase',
-  },
-  stripStep: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748b',
-    textTransform: 'uppercase',
-  },
-  stripLine: {
-    width: 30,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: '#cbd5e1',
-  },
-  stripLineActive: {
-    backgroundColor: Theme.colors.primary,
+  oauthBtn: { 
+    width: 50, 
+    height: 50, 
+    borderRadius: 25, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    shadowColor: '#000', 
+    shadowOpacity: 0.15, 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowRadius: 4, 
+    elevation: 3 
   },
   demoOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Theme.spacing.lg,
+    padding: 20,
   },
   demoShell: {
     width: '100%',
@@ -589,9 +463,8 @@ const styles = StyleSheet.create({
   demoCard: {
     width: '100%',
     aspectRatio: 16 / 9,
-    maxHeight: '78%',
     backgroundColor: '#000',
-    borderRadius: Theme.borderRadius.xl,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   demoVideo: {
@@ -602,55 +475,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Theme.spacing.lg,
-  },
-  modalContent: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: Theme.borderRadius.xl,
-    padding: Theme.spacing.xl,
-    alignItems: 'center',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: Theme.spacing.lg,
-    right: Theme.spacing.lg,
-    zIndex: 1,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: Theme.spacing.sm,
-    marginTop: Theme.spacing.md,
-  },
-  modalSubtitle: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: Theme.colors.textSecondary,
-    marginBottom: Theme.spacing.lg,
-  },
-  input: {
-    width: '100%',
-    height: 52,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    borderRadius: Theme.borderRadius.lg,
-    paddingHorizontal: Theme.spacing.md,
-    marginBottom: Theme.spacing.lg,
-    fontSize: 15,
-    color: '#0f172a',
-  },
-  oauthButtonsRow: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
-  oauthBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 3, elevation: 2 },
 });

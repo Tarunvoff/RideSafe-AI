@@ -87,22 +87,9 @@ echo "[3/10] Running containers:"
 docker ps
 
 # API config
-echo "[4/10] Using fixed API IP..."
-FIXED_IP="34.201.50.36"
-
-FRONTEND_ENV_FILE="$PROJECT_DIR/frontend/mobile/.env"
-FRONTEND_ENV_TMP="$PROJECT_DIR/frontend/mobile/.env.tmp"
-
-if [ -f "$FRONTEND_ENV_FILE" ]; then
-	grep -v "EXPO_PUBLIC_API_URL" "$FRONTEND_ENV_FILE" > "$FRONTEND_ENV_TMP"
-else
-	touch "$FRONTEND_ENV_TMP"
-fi
-
-echo "EXPO_PUBLIC_API_URL=http://$FIXED_IP:3001/api" >> "$FRONTEND_ENV_TMP"
-mv "$FRONTEND_ENV_TMP" "$FRONTEND_ENV_FILE"
-
-echo "✅ Expo will connect to: http://$FIXED_IP:3001/api"
+# API config (NO ENV MODIFICATION)
+echo "[4/10] Using existing frontend .env configuration..."
+echo "⚠️ Make sure EXPO_PUBLIC_API_URL is already set correctly in frontend/mobile/.env"
 echo ""
 
 # Python venv
