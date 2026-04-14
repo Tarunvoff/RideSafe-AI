@@ -1,5 +1,5 @@
 {
-  "name": "ridesafe-backend",
+  "name": "aegis-backend",
   "version": "1.0.0",
   "description": "Aegis NestJS backend - Auth + KYC",
   "scripts": {

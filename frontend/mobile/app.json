@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "RideSafe",
+    "name": "Aegis",
     "slug": "aegis",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/productlogo.png",
-    "scheme": "ridesafe",
+    "scheme": "aegis",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Allow RideSafe to use your location to calculate real-time safety risks and determine claim viability.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow RideSafe to use your location to calculate real-time safety risks and determine claim viability."
+        "NSLocationWhenInUseUsageDescription": "Allow Aegis to use your location to calculate real-time safety risks and determine claim viability.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Aegis to use your location to calculate real-time safety risks and determine claim viability."
       }
     },
     "android": {
@@ -23,7 +23,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": true,
-      "package": "com.sriram018.RideSafe",
+      "package": "com.aegis.app",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -59,8 +59,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow RideSafe to use your location to calculate real-time safety risks and determine claim viability.",
-          "locationWhenInUsePermission": "Allow RideSafe to access your location to show live risk zones.",
+          "locationAlwaysAndWhenInUsePermission": "Allow Aegis to use your location to calculate real-time safety risks and determine claim viability.",
+          "locationWhenInUsePermission": "Allow Aegis to access your location to show live risk zones.",
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false
         }

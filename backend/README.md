@@ -1,4 +1,4 @@
-# RideSafe-AI Backend (NestJS)
+# Aegis-AI Backend (NestJS)
 
 This service is the system of record for policies, payouts, fraud checks, and telemetry. It enforces the policy rules and payout gating logic.
 

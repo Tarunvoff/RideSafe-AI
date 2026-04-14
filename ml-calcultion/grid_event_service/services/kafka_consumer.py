@@ -46,7 +46,7 @@ async def run_kafka_consumer(aggregator: ZoneAggregator):
                 #   "lng": 56.78,
                 #   "speed": 32.5,
                 #   "timestamp": 1234567890.1,
-                #   "platform": "RideSafe",
+                #   "platform": "Aegis",
                 #   "h3_cell": "8860144b61fffff"
                 # }
                 payload = json.loads(msg.value)

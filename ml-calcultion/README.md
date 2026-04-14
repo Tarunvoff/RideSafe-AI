@@ -1,4 +1,4 @@
-# RideSafe-AI ML Microservices
+# Aegis-AI ML Microservices
 
 This directory contains the real-time ML and signal aggregation services that power pricing, risk scoring, fraud features, and zone state. All location data is mapped to **Uber H3 (resolution 8)** and processed per cell.
 

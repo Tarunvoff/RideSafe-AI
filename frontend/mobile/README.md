@@ -1,7 +1,7 @@
 # Frontend Production Readiness Audit (Team of 3)
 
 Date: April 3, 2026
-Scope: RideSafe-AI frontend mobile app
+Scope: Aegis-AI frontend mobile app
 Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parallel tracks.
 
 ## Summary
@@ -17,7 +17,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### A. OAuth and Login (Mock Removal)
 - Replace mock OAuth flow with real provider exchange.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx#L82)
+  - File: [Aegis-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx](Aegis-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx#L82)
   - Tasks:
     - Implement provider login (web auth or deep link) and exchange code via backend.
     - Remove mock email/password creation and auto register fallback.
@@ -27,8 +27,8 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### B. Identity Handling (No Email-as-ID, No Hardcoded Provider)
 - Stop using email as userId and remove BLINKIT hardcoding.
-  - File: [RideSafe-AI/frontend/mobile/src/context/AuthContext.tsx](RideSafe-AI/frontend/mobile/src/context/AuthContext.tsx#L105)
-  - File: [RideSafe-AI/frontend/mobile/src/context/AuthContext.tsx](RideSafe-AI/frontend/mobile/src/context/AuthContext.tsx#L55)
+  - File: [Aegis-AI/frontend/mobile/src/context/AuthContext.tsx](Aegis-AI/frontend/mobile/src/context/AuthContext.tsx#L105)
+  - File: [Aegis-AI/frontend/mobile/src/context/AuthContext.tsx](Aegis-AI/frontend/mobile/src/context/AuthContext.tsx#L55)
   - Tasks:
     - Persist server-provided userId and driverId.
     - Pass provider from actual login context to createDriver.
@@ -38,8 +38,8 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### C. KYC Fraud Detection (Real Signals)
 - Remove default coordinates and static signals.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx#L82)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx#L40)
+  - File: [Aegis-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx](Aegis-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx#L82)
+  - File: [Aegis-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx](Aegis-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx#L40)
   - Tasks:
     - Block analysis if permission denied or location is unavailable.
     - Replace static SIGNALS list with backend response.
@@ -49,7 +49,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### D. Location Integrity (No Mock Location in Prod)
 - Remove mock fallback for location failures.
-  - File: [RideSafe-AI/frontend/mobile/src/context/LocationContext.tsx](RideSafe-AI/frontend/mobile/src/context/LocationContext.tsx#L18)
+  - File: [Aegis-AI/frontend/mobile/src/context/LocationContext.tsx](Aegis-AI/frontend/mobile/src/context/LocationContext.tsx#L18)
   - Tasks:
     - If ExpoLocation missing or permission denied, show blocking error state.
     - Gate risk pipelines when location is invalid.
@@ -59,8 +59,8 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### E. Notification and Help UI (Fake Alerts)
 - Replace alert-only notifications and static support flows.
-  - File: [RideSafe-AI/frontend/mobile/src/components/AdminShell.tsx](RideSafe-AI/frontend/mobile/src/components/AdminShell.tsx#L34)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx#L76)
+  - File: [Aegis-AI/frontend/mobile/src/components/AdminShell.tsx](Aegis-AI/frontend/mobile/src/components/AdminShell.tsx#L34)
+  - File: [Aegis-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx](Aegis-AI/frontend/mobile/src/screens/auth/LoginScreen.tsx#L76)
   - Tasks:
     - Connect notifications to backend feed or remove button until ready.
     - Remove static "No new alerts" alerts that imply real data.
@@ -69,7 +69,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### F. Static Support and Legal Content
 - Move static support/legal strings to backend or config service.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverProfileScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverProfileScreen.tsx#L171)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverProfileScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverProfileScreen.tsx#L171)
   - Tasks:
     - Load support contacts, app version, legal text from API or remote config.
     - Add fallback for offline with clear "cached" indicator.
@@ -80,8 +80,8 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### A. Razorpay Checkout (Production Integrity)
 - Remove test checkout and stop local policy injection.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx#L134)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx#L334)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx#L134)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx#L334)
   - Tasks:
     - Remove test labels and test VPA.
     - Do not create local policy before server verification.
@@ -91,7 +91,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### B. Local Fallback Removal (Purchased Plans)
 - Remove local policy as source of truth.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx#L24)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverPlansScreen.tsx#L24)
   - Tasks:
     - Keep local storage as read-only cache at most.
     - Ensure purchased list comes from backend only.
@@ -100,7 +100,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### C. Claims Trigger (No Hardcoded Event/Amount)
 - Replace hardcoded claim trigger with real flow.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx#L41)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx#L41)
   - Tasks:
     - Replace hardcoded claimAmount and eventType with user input or server-driven claim.
     - Add validation and error handling.
@@ -109,7 +109,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### D. Plans Data Integrity
 - Enforce schema validation and error display.
-  - File: [RideSafe-AI/frontend/mobile/src/services/api.ts](RideSafe-AI/frontend/mobile/src/services/api.ts#L469)
+  - File: [Aegis-AI/frontend/mobile/src/services/api.ts](Aegis-AI/frontend/mobile/src/services/api.ts#L469)
   - Tasks:
     - Validate response shapes for plans and payouts.
     - Show explicit error UI if response is incomplete.
@@ -118,8 +118,8 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### E. Policy and Claims UI (Simulated Copy)
 - Remove hardcoded copy that implies actions succeeded when they did not.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/PolicyScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/PolicyScreen.tsx#L118)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx#L78)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/PolicyScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/PolicyScreen.tsx#L118)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/ClaimsScreen.tsx#L78)
   - Tasks:
     - Replace any delayed or simulated success with server-verified status.
     - Ensure claim status and policy state come from backend only.
@@ -130,8 +130,8 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### A. Admin Fraud Detail and Report
 - Replace mocked admin fraud data with real API integration.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx#L33)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx#L30)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx#L33)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx#L30)
   - Tasks:
     - Use fraudApi.getSubmissionDetails to fetch detail.
     - Use fraudApi.reviewSubmission for approve/reject.
@@ -141,7 +141,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### B. Admin Actions (Export, Share, Escalate)
 - Implement or remove all non-functional CTAs.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx#L92)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx#L92)
   - Tasks:
     - Implement Export PDF (backend endpoint).
     - Implement Share and Escalate actions or remove UI until ready.
@@ -150,7 +150,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### C. Live Risk Mapbox (No Risk Mock)
 - Remove mock risk generation in WebView.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverLiveRiskMapboxScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverLiveRiskMapboxScreen.tsx#L193)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverLiveRiskMapboxScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverLiveRiskMapboxScreen.tsx#L193)
   - Tasks:
     - Generate risk map from backend risk API.
     - Inject risk map into WebView.
@@ -160,7 +160,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### D. Admin Setup Screen (Stub Actions)
 - Replace onPress stubs with backend config calls.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminSetupScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminSetupScreen.tsx#L53)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminSetupScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminSetupScreen.tsx#L53)
   - Tasks:
     - Wire each setup item to real API or remove item.
   - Done when:
@@ -168,7 +168,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### E. Admin Mock Dataset Removal
 - Remove or gate admin mock dataset.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/adminMockData.ts](RideSafe-AI/frontend/mobile/src/screens/admin/adminMockData.ts#L61)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/adminMockData.ts](Aegis-AI/frontend/mobile/src/screens/admin/adminMockData.ts#L61)
   - Tasks:
     - Delete mock data file or guard usage behind __DEV__.
     - Ensure admin screens never import mock data in production builds.
@@ -177,7 +177,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### F. Admin Dashboard Placeholder
 - Replace risk chart placeholder with real analytics data.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminDashboardScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminDashboardScreen.tsx#L102)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminDashboardScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminDashboardScreen.tsx#L102)
   - Tasks:
     - Replace placeholder card with real chart component and API data.
     - Handle empty state when analytics are not yet computed.
@@ -188,7 +188,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### A. Environment and Secrets
 - Remove committed secrets and local URLs from runtime config.
-  - File: [RideSafe-AI/frontend/mobile/.env](RideSafe-AI/frontend/mobile/.env#L4)
+  - File: [Aegis-AI/frontend/mobile/.env](Aegis-AI/frontend/mobile/.env#L4)
   - Tasks:
     - Move secrets to secure environment management.
     - Remove localhost fallbacks for production builds.
@@ -210,9 +210,9 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### D. Hardcoded Timestamps and "Just Now" Strings
 - Replace static timestamps with real data.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx#L137)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx#L169)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/HomeScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/HomeScreen.tsx#L90)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx#L137)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/DriverRiskPipelineScreen.tsx#L169)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/HomeScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/HomeScreen.tsx#L90)
   - Tasks:
     - Bind timestamps to backend or telemetry clock.
     - Remove static copy like "Updated just now" unless derived from data.
@@ -221,7 +221,7 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### E. Simulated UI Actions
 - Replace UI-only alerts with real integrations.
-  - File: [RideSafe-AI/frontend/mobile/src/screens/main/HomeScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/main/HomeScreen.tsx#L116)
+  - File: [Aegis-AI/frontend/mobile/src/screens/main/HomeScreen.tsx](Aegis-AI/frontend/mobile/src/screens/main/HomeScreen.tsx#L116)
   - Tasks:
     - Replace "Call Lead" alert with a real tel: link or backend-driven call flow.
   - Done when:
@@ -229,10 +229,10 @@ Goal: Remove mocked, hardcoded, and non-production logic. Ship-ready in 3 parall
 
 ### F. Static Remote Images and Placeholder Maps
 - Replace static image URLs used as placeholders for maps or avatars.
-  - File: [RideSafe-AI/frontend/mobile/src/components/MainTopNavbar.tsx](RideSafe-AI/frontend/mobile/src/components/MainTopNavbar.tsx#L19)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx#L143)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx#L139)
-  - File: [RideSafe-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx](RideSafe-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx#L147)
+  - File: [Aegis-AI/frontend/mobile/src/components/MainTopNavbar.tsx](Aegis-AI/frontend/mobile/src/components/MainTopNavbar.tsx#L19)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudDetailScreen.tsx#L143)
+  - File: [Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx](Aegis-AI/frontend/mobile/src/screens/admin/AdminFraudReportScreen.tsx#L139)
+  - File: [Aegis-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx](Aegis-AI/frontend/mobile/src/screens/kyc/KYCFraudDetectionScreen.tsx#L147)
   - Tasks:
     - Replace static map images with real map components or backend-rendered tiles.
     - Replace static avatar URLs with user profile images or initial-based fallback.

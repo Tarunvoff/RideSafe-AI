@@ -78,7 +78,7 @@ export default function LoginScreen({ navigation }: any) {
     const isExpoGo = Constants.appOwnership === 'expo';
     return isExpoGo
       ? Linking.createURL('oauth-callback')
-      : Linking.createURL('oauth-callback', { scheme: 'ridesafe' });
+      : Linking.createURL('oauth-callback', { scheme: 'aegis' });
   };
 
   /**

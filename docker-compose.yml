@@ -41,7 +41,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 12345678
-      POSTGRES_DB: RideSafe_AI
+      POSTGRES_DB: Aegis_DB
 
 volumes:
   redis_data:
@@ -88,7 +88,7 @@ volumes:
 #     environment:
 #       POSTGRES_USER: postgres
 #       POSTGRES_PASSWORD: 12345678
-#       POSTGRES_DB: RideSafe_AI
+#       POSTGRES_DB: Aegis_DB
 
 # volumes:
 #   redis_data:

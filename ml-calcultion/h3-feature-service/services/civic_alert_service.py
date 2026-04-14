@@ -31,7 +31,7 @@ async def _reverse_geocode_city(lat: float, lng: float, h3_cell: str) -> str:
             resp = await client.get(
                 "https://nominatim.openstreetmap.org/reverse",
                 params={"lat": lat, "lon": lng, "format": "json"},
-                headers={"User-Agent": "RideSafe-AI/1.0"},
+                headers={"User-Agent": "Aegis-AI/1.0"},
             )
             resp.raise_for_status()
             data = resp.json()
