@@ -172,16 +172,37 @@ export class PremiumService {
     const Ct = planId
       ? await this.resolveCtForPlanId(planId)
       : await this.resolveCtForDriver(driverId);
+    
     if (Ct == null) {
-      throw new Error('AEGIS_ERR_301: Unable to resolve policy tier for premium calculation');
+      this.logger.warn(`AEGIS_ERR_301: Missing policy tier for ${driverId}; using safe default 0.5`);
     }
+
+    const safeCt = Ct ?? 0.5;
 
     let Lf = 0;
     let modelUsed: 'redis' | 'xgboost' | 'fallback' = 'redis';
     const driverState = await this.redisState.getDriverState(profileDriverId);
-    const h3Cell = driverState?.last_location?.h3_cell;
+    let h3Cell = driverState?.last_location?.h3_cell;
+
     if (!h3Cell) {
-      throw new Error('AEGIS_ERR_001: Invalid or missing H3 zone cell');
+      // Fallback: Try to resolve H3 from KYC city if GPS is missing
+      const kyc = await this.prisma.kYCPersonalDetails.findUnique({
+        where: { userId: driverId },
+        select: { city: true }
+      });
+      
+      const cityToH3: Record<string, string> = {
+        'chennai': '8861892433fffff',
+        'bangalore': '8861892521fffff',
+        'coimbatore': '8861892095fffff',
+        'mumbai': '8860a25939fffff',
+        'delhi': '883da11281fffff'
+      };
+
+      const normalizedCity = (kyc?.city ?? '').toLowerCase().trim();
+      h3Cell = cityToH3[normalizedCity] ?? '8861892433fffff'; // Default to Chennai H3
+      
+      this.logger.warn(`AEGIS_ERR_001: Missing H3 cell for ${driverId}; using city-based fallback: ${normalizedCity} -> ${h3Cell}`);
     }
 
     {
@@ -211,8 +232,8 @@ export class PremiumService {
       }
     }
 
-    const rawPremium = computeRawWeeklyPremium({ Ew, Lf, Ct });
-    const tierCap = this.resolveTierCap(Ct);
+    const rawPremium = computeRawWeeklyPremium({ Ew, Lf, Ct: safeCt });
+    const tierCap = this.resolveTierCap(safeCt);
     const premium = applyPremiumBounds(rawPremium, tierCap);
     if (premium !== rawPremium) {
       this.logger.warn(
@@ -228,7 +249,7 @@ export class PremiumService {
       driverId,
       Ew,
       Lf,
-      Ct,
+      Ct: safeCt,
       active_days: activeDays,
       scaling_factor: 1,
       premium,

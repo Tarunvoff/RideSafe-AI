@@ -7,16 +7,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { StateModule } from '../state/state.module';
 import { InsuranceModule } from '../insurance/insurance.module';
 
-import { KafkaProducerService } from './kafka.producer.service';           // kept for backward compat
+import { KafkaProducerService } from './kafka.producer.service';
 import { KafkaReliableProducerService } from './kafka-reliable-producer.service';
 import { KafkaDlqService } from './kafka-dlq.service';
 import { RedisFallbackQueueService } from './redis-fallback-queue.service';
 import { ZoneMonitoringService } from './zone-monitoring.service';
-
-// ── Topic declarations ────────────────────────────────────────────────────────
-// These are referenced by consumers — not changed as per spec.
-//   driver_telemetry     → original topic
-//   driver_telemetry_dlq → new DLQ topic
+import { KafkaAdminService } from './kafka-admin.service';
+import { logLevel } from 'kafkajs';
 
 @Module({
   imports: [
@@ -29,15 +26,28 @@ import { ZoneMonitoringService } from './zone-monitoring.service';
         transport: Transport.KAFKA,
         options: {
           client: {
-            clientId: 'aegis-backend',
+            clientId: 'aegis-backend-client',
             brokers: [(process.env.KAFKA_BROKER_URL ?? 'localhost:9092')],
-            // ── Producer Config A: acks=all, retries=5 ─────────────────────
-            // Applied at the raw KafkaJS level inside KafkaReliableProducerService.
-            // ClientKafka does not expose these options directly, so they are
-            // configured in the service constructor.
+            logLevel: logLevel.ERROR,
+            logCreator: () => ({ label, log }) => {
+                const { message, error } = log;
+                if (message?.includes('leadership election') || error?.includes('leadership election')) return;
+                if (message?.includes('no leader') || error?.includes('no leader')) return;
+                console.debug(`[Kafka-Client] ${label}: ${message}`);
+            },
+            retry: {
+              retries: 5,
+              initialRetryTime: 500,
+              maxRetryTime: 10000,
+              factor: 2,
+            },
           },
           consumer: {
-            groupId: 'aegis-backend-producer-group',
+            groupId: 'aegis-backend-producer-group-client',
+            retry: {
+              retries: 5,
+              initialRetryTime: 500,
+            },
           },
           producer: {
             // Idempotency guard — prevents duplicate messages on retry
@@ -49,6 +59,7 @@ import { ZoneMonitoringService } from './zone-monitoring.service';
     ]),
   ],
   providers: [
+    KafkaAdminService,
     KafkaProducerService,           // preserved — used by FraudModule
     KafkaReliableProducerService,   // new — used by any service needing reliability
     KafkaDlqService,                // new — DB-backed DLQ
@@ -57,6 +68,7 @@ import { ZoneMonitoringService } from './zone-monitoring.service';
   ],
   exports: [
     ClientsModule,
+    KafkaAdminService,
     KafkaProducerService,
     KafkaReliableProducerService,
     KafkaDlqService,

@@ -263,6 +263,12 @@ export class IngestionService {
         'Gemini API',
       );
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        this.logger.warn(`Gemini API failed with status ${res.status}. Error: ${errorText.slice(0, 100)}`);
+        return null;
+      }
+
       const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
       if (!jsonRes || !jsonRes.candidates || !jsonRes.candidates[0].content) return null;
 
@@ -308,7 +314,7 @@ export class IngestionService {
 
       return null;
     } catch (e) {
-      this.logger.error('Gemini Classification API Failed', e);
+      this.logger.error('Gemini Classification API Failed.', e);
       return null;
     }
   }

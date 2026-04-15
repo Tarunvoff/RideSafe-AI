@@ -19,7 +19,7 @@ import {
   OnModuleInit,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { Kafka, Producer, ProducerRecord, CompressionTypes } from 'kafkajs';
+import { Kafka, Producer, ProducerRecord, CompressionTypes, logLevel } from 'kafkajs';
 import * as h3 from 'h3-js';
 import { KafkaDlqService } from './kafka-dlq.service';
 import { RedisFallbackQueueService } from './redis-fallback-queue.service';
@@ -118,28 +118,50 @@ export class KafkaReliableProducerService implements OnModuleInit, OnModuleDestr
     const kafka = new Kafka({
       clientId: 'aegis-reliable-producer',
       brokers,
+      logLevel: logLevel.ERROR,
+      logCreator: () => ({ label, log }) => {
+          const { message, error } = log;
+          if (message?.includes('leadership election') || error?.includes('leadership election')) return;
+          if (message?.includes('no leader') || error?.includes('no leader')) return;
+          this.logger.verbose(`[Kafka] ${label}: ${message}`);
+      },
       retry: {
-        // ── Producer Config A: retries=5 ────────────────────────────────────
-        retries: 5,
-        initialRetryTime: 300,
+        retries: 8,
+        initialRetryTime: 500,
         factor: 2,
+        restartOnFailure: async (error: any) => {
+          const isTransient = error?.message?.includes('middle of a leadership election') || 
+                              error?.message?.includes('Broker not available');
+          if (isTransient) {
+            return true;
+          }
+          return false;
+        }
       },
     });
 
     this.producer = kafka.producer({
-      // ── Producer Config A: acks=all (idempotent implies acks=-1) ────────────
-      idempotent: true, // enables acks=-1 + exactly-once on broker side
+      idempotent: true,
       maxInFlightRequests: 1,
       transactionTimeout: 30_000,
     });
 
-    try {
-      await this.producer.connect();
-      this.kafkaAvailable = true;
-      this.logger.log(`✅ Reliable Kafka producer connected → ${brokers.join(', ')}`);
-    } catch (err) {
-      this.kafkaAvailable = false;
-      this.logger.warn(`⚠️  Kafka unavailable on startup: ${err} — will use Redis/DB fallback`);
+    for (let i = 0; i < 3; i++) {
+      try {
+        await this.producer.connect();
+        this.kafkaAvailable = true;
+        this.logger.log(`✅ Reliable Kafka producer connected → ${brokers.join(', ')}`);
+        return;
+      } catch (err: any) {
+        if (err?.message?.includes('middle of a leadership election') && i < 2) {
+          this.logger.debug(`[Kafka] Waiting for topic leadership election... (attempt ${i + 1})`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          continue;
+        }
+        this.kafkaAvailable = false;
+        this.logger.warn(`⚠️  Kafka unavailable on startup: ${err.message} — will use Redis/DB fallback`);
+        break;
+      }
     }
   }
 

@@ -46,7 +46,7 @@ move /y "%FRONTEND_ENV_TMP_FILE%" "%FRONTEND_ENV_FILE%" >nul
 echo [1/8] Booting Docker Containers (Kafka, Redis, Postres)...
 cd /d %~dp0..\..\
 docker compose up -d
-timeout /t 5 >nul
+timeout /t 15 >nul
 
 :: 5. Setup Python Venv if needed
 echo [2/8] Preparing Python virtual environment...

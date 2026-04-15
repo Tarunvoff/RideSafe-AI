@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Kafka, Consumer } from 'kafkajs';
+import { Kafka, Consumer, logLevel } from 'kafkajs';
 import { ClaimOrchestratorService } from '../insurance/claim-orchestrator.service';
 import { RedisStateService } from '../state/redis-state.service';
 
@@ -41,67 +41,83 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
         const kafka = new Kafka({
             clientId: 'aegis-zone-monitor',
             brokers,
+            logLevel: logLevel.ERROR,
+            logCreator: () => ({ label, log }) => {
+                const { message, error } = log;
+                if (message?.includes('leadership election') || error?.includes('leadership election')) return;
+                if (message?.includes('no leader') || error?.includes('no leader')) return;
+                this.logger.verbose(`[Kafka] ${label}: ${message}`);
+            },
         });
 
         this.consumer = kafka.consumer({
             groupId: process.env.ZONE_STATE_CONSUMER_GROUP ?? 'aegis-zone-state-consumer',
         });
 
-        try {
-            await this.consumer.connect();
-            await this.consumer.subscribe({ topic: 'zone_state_updates', fromBeginning: false });
-            await this.consumer.run({
-                eachMessage: async ({ message }) => {
-                    if (!message.value) return;
-                    let payload: ZoneStateUpdatePayload | null = null;
-                    try {
-                        payload = JSON.parse(message.value.toString());
-                    } catch (err) {
-                        this.logger.warn(`[zone-monitor] Invalid JSON payload: ${err}`);
-                        return;
-                    }
+        for (let i = 0; i < 3; i++) {
+            try {
+                await this.consumer.connect();
+                await this.consumer.subscribe({ topic: 'zone_state_updates', fromBeginning: false });
+                await this.consumer.run({
+                    eachMessage: async ({ message }) => {
+                        if (!message.value) return;
+                        let payload: ZoneStateUpdatePayload | null = null;
+                        try {
+                            payload = JSON.parse(message.value.toString());
+                        } catch (err) {
+                            this.logger.warn(`[zone-monitor] Invalid JSON payload: ${err}`);
+                            return;
+                        }
 
-                    const h3Cell = payload?.h3_cell;
-                    if (!h3Cell) return;
+                        const h3Cell = payload?.h3_cell;
+                        if (!h3Cell) return;
 
-                    const newState = (payload?.new_state ?? '').toUpperCase();
-                    const previousState = (this.zoneState.get(h3Cell) ?? payload?.old_state ?? '').toUpperCase();
+                        const newState = (payload?.new_state ?? '').toUpperCase();
+                        const previousState = (this.zoneState.get(h3Cell) ?? payload?.old_state ?? '').toUpperCase();
 
-                    this.zoneState.set(h3Cell, newState || previousState || 'UNKNOWN');
-                    this.zoneCache.set(h3Cell, {
-                        h3_cell: h3Cell,
-                        state: newState || previousState || 'UNKNOWN',
-                        lf_score: payload?.lf_score ?? 0,
-                        timestamp: payload?.timestamp ?? Math.floor(Date.now() / 1000),
-                        source: 'kafka-zone-state-updates',
-                    });
+                        this.zoneState.set(h3Cell, newState || previousState || 'UNKNOWN');
+                        this.zoneCache.set(h3Cell, {
+                            h3_cell: h3Cell,
+                            state: newState || previousState || 'UNKNOWN',
+                            lf_score: payload?.lf_score ?? 0,
+                            timestamp: payload?.timestamp ?? Math.floor(Date.now() / 1000),
+                            source: 'kafka-zone-state-updates',
+                        });
 
-                    const zonePayload = {
-                        h3_cell: h3Cell,
-                        Lf: payload?.lf_score ?? 0,
-                        zone_state: newState || previousState || 'UNKNOWN',
-                        updated_at: new Date().toISOString(),
-                        source: 'kafka-zone-state-updates',
-                    };
-                    await this.redisState.setZoneState(h3Cell, zonePayload);
-                    this.logger.log(
-                        `Zone ${h3Cell} state updated: Lf=${zonePayload.Lf}, state=${zonePayload.zone_state}`,
-                    );
+                        const zonePayload = {
+                            h3_cell: h3Cell,
+                            Lf: payload?.lf_score ?? 0,
+                            zone_state: newState || previousState || 'UNKNOWN',
+                            updated_at: new Date().toISOString(),
+                            source: 'kafka-zone-state-updates',
+                        };
+                        await this.redisState.setZoneState(h3Cell, zonePayload);
+                        this.logger.log(
+                            `Zone ${h3Cell} state updated: Lf=${zonePayload.Lf}, state=${zonePayload.zone_state}`,
+                        );
 
-                    if (newState === 'HALTED' && previousState !== 'HALTED') {
-                        const eventTimestamp = payload?.timestamp
-                            ? Math.floor(payload.timestamp)
-                            : Math.floor(Date.now() / 1000);
-                        this.logger.log(`Zone ${h3Cell} entered HALTED → triggering auto-claims`);
-                        await this.claimOrchestrator.orchestrateZoneClaims(h3Cell, eventTimestamp);
-                    }
-                },
-            });
+                        if (newState === 'HALTED' && previousState !== 'HALTED') {
+                            const eventTimestamp = payload?.timestamp
+                                ? Math.floor(payload.timestamp)
+                                : Math.floor(Date.now() / 1000);
+                            this.logger.log(`Zone ${h3Cell} entered HALTED → triggering auto-claims`);
+                            await this.claimOrchestrator.orchestrateZoneClaims(h3Cell, eventTimestamp);
+                        }
+                    },
+                });
 
-            this.logger.log(`[zone-monitor] Kafka consumer connected → ${brokers.join(', ')}`);
-        } catch (err) {
-            this.logger.warn(`[zone-monitor] Kafka consumer unavailable: ${err}`);
-            this.consumer = null;
+                this.logger.log(`[zone-monitor] Kafka consumer connected → ${brokers.join(', ')}`);
+                return;
+            } catch (err: any) {
+                if (err?.message?.includes('middle of a leadership election') && i < 2) {
+                    this.logger.debug(`[zone-monitor] Waiting for leadership election... (attempt ${i + 1})`);
+                    await new Promise(resolve => setTimeout(resolve, 4000));
+                    continue;
+                }
+                this.logger.warn(`[zone-monitor] Kafka consumer unavailable: ${err.message}`);
+                this.consumer = null;
+                break;
+            }
         }
     }
 

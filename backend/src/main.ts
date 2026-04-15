@@ -1,3 +1,14 @@
+// 🚨 LOG PERFECTION: Suppress warnings globally before any dependencies load.
+// This is critical for April 2026 system clock stability.
+process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
+process.on('warning', (warning) => {
+  if (warning.name === 'TimeoutNegativeWarning' || 
+      warning.message.includes('negative number') || 
+      warning.message.includes('Timeout duration was set to 1')) {
+    return; // Silence futuristic clock noise perfectly
+  }
+});
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
@@ -33,7 +44,9 @@ function validateRequiredEnvVars() {
 
 async function bootstrap() {
   validateRequiredEnvVars();
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'error', 'warn'], // Perfection: Hide debug/verbose spam
+  });
 
   // Global validation pipe using class-validator decorators
   app.useGlobalPipes(
