@@ -22,8 +22,8 @@ cd ../..
 
 # Setup Python
 echo "🐍 Preparing Python ML environment..."
-if [ ! -d "ml-calcultion/.venv" ]; then
-    python3 -m venv ml-calcultion/.venv
+if [ ! -d "ml-services/.venv" ]; then
+    python3 -m venv ml-services/.venv
 fi
 
 echo ""

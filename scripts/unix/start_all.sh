@@ -330,7 +330,7 @@ cd "$PROJECT_ROOT"
 
 BACKEND_PORT="3001"
 EXPO_PORT="8081"
-SERVICES=("ml-insurance-service:8000" "fraud-feature-service:8002" "grid_event_service:8003" "h3-feature-service:8004")
+SERVICES=("ml-insurance-service:8000" "fraud-feature-service:8002" "grid-event-service:8003" "h3-feature-service:8004")
 EXTRA_KILL_PORTS="${EXTRA_KILL_PORTS:-}"
 LAUNCH_MODE="${LAUNCH_MODE:-easy}"
 TMUX_SESSION_NAME="${TMUX_SESSION_NAME:-aegis}"
@@ -405,6 +405,8 @@ else
     export PLATFORM_API_URL="http://${LOCAL_IP}:${BACKEND_PORT}/api/platform/activity"
 fi
 write_runtime_env_file
+export NODE_OPTIONS='--no-deprecation'
+export KAFKAJS_NO_PARTITIONER_WARNING=1
 
 # 3. Runtime prerequisite checks
 echo "[3/8] Verifying runtime prerequisites..."
@@ -444,7 +446,7 @@ echo "[5/8] Starting ML services..."
 for SERVICE_INFO in "${SERVICES[@]}"; do
     IFS=':' read -r SERVICE PORT <<< "$SERVICE_INFO"
     echo "   - Launching $SERVICE on port $PORT"
-    SERVICE_DIR="$PROJECT_ROOT/ml-calcultion/$SERVICE"
+    SERVICE_DIR="$PROJECT_ROOT/ml-services/$SERVICE"
     ensure_python_deps "$SERVICE_DIR"
     if [ "$LAUNCH_MODE" = "tmux" ]; then
         start_in_tmux_window "$TMUX_SESSION_NAME" "$SERVICE" "$SERVICE_DIR" "$SERVICE_DIR/.venv/bin/uvicorn main:app --host 0.0.0.0 --port $PORT --reload"
