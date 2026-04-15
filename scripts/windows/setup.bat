@@ -31,8 +31,8 @@ cd ..\..
 
 :: Setup Python
 echo 🐍 Preparing Python ML environment...
-if not exist ml-calcultion\.venv\Scripts\activate.bat (
-    pushd ml-calcultion
+if not exist ml-services\.venv\Scripts\activate.bat (
+    pushd ml-services
     python -m venv .venv
     popd
 )
