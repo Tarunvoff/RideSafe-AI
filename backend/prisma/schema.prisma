@@ -49,6 +49,7 @@ model User {
   kycIdentityVerification KYCIdentityVerification?
   kycPayoutSetup        KYCPayoutSetup?
   fraudAnalysis         FraudAnalysis?
+  claimFingerprints     ClaimFingerprint[]
   policies              Policy[]
   razorpayOrders       RazorpayOrder[]
 
@@ -144,6 +145,24 @@ model FraudAnalysis {
   updatedAt         DateTime @updatedAt
 
   @@map("fraud_analysis")
+}
+
+model ClaimFingerprint {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  h3Cell         String   @map("h3_cell")
+  eventType      String   @map("event_type")
+  claimAmount    Float    @default(0) @map("claim_amount")
+  amountBucket   Int      @map("amount_bucket")
+  timeBucket     Int      @map("time_bucket")
+  fingerprintHash String  @map("fingerprint_hash")
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, fingerprintHash, timeBucket])
+  @@index([fingerprintHash, createdAt])
+  @@index([userId, createdAt])
+  @@map("claim_fingerprints")
 }
 
 model WeeklyPlan {

@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
+import * as h3 from 'h3-js';
 
 // ── Python Fraud Feature Service (port 8002) ──────────────────────────────────
 const FRAUD_FEATURE_URL =
@@ -45,6 +47,20 @@ interface FraudMlScoreResponse {
   ml_classifier_score: number;
   top_signals: string[];
   model_used: 'hybrid' | 'rules_only';
+}
+
+interface DuplicateClaimSignal {
+  isDuplicate: boolean;
+  isCrossUserBurst: boolean;
+  recentClaimCount: number;
+  windowHours: number;
+  matchedPayoutId?: string;
+  matchedAmount?: number;
+  matchedDisruptionType?: string | null;
+  fingerprintHash?: string;
+  fingerprintCount?: number;
+  distinctUserCount?: number;
+  signalScore: number;
 }
 
 @Injectable()
@@ -96,12 +112,20 @@ export class FraudService {
 
   // ── Main analysis entry point ─────────────────────────────────────────────
   async analyzeFraud(userId: string, dto: AnalyzeFraudDto) {
+    const duplicateSignal = await this.detectDuplicateClaim(userId, dto);
+
     // 1. Fetch ML feature vector from Python service
     const features = await this.fetchFraudFeatures(userId, dto);
 
     if (!features) {
-      const fallbackScore = this.scoreFallback(dto);
+      const fallbackScore = this.applyDuplicateClaimPenalty(
+        this.scoreFallback(dto),
+        duplicateSignal,
+      );
       const fallbackStatus = fallbackScore >= 75 ? 'AUTO_REJECTED' : fallbackScore >= 45 ? 'INCONCLUSIVE' : 'APPROVED';
+      const topSignals = duplicateSignal.isDuplicate
+        ? ['DUPLICATE_CLAIM_SIGNAL', 'FEATURE_SERVICE_UNAVAILABLE']
+        : ['FEATURE_SERVICE_UNAVAILABLE'];
       return {
         message: 'Fraud analysis completed (fallback)',
         data: {
@@ -109,8 +133,10 @@ export class FraudService {
           riskScore: fallbackScore,
           status: fallbackStatus,
           featureSource: 'heuristic-fallback',
-          topSignals: ['FEATURE_SERVICE_UNAVAILABLE'],
-          fraudReason: 'Feature service unavailable; rule fallback applied',
+          topSignals,
+          fraudReason: duplicateSignal.isDuplicate
+            ? 'Duplicate-claim signal detected; rule fallback applied'
+            : 'Feature service unavailable; rule fallback applied',
           features: null,
         },
       };
@@ -131,9 +157,16 @@ export class FraudService {
         model_used: 'rules_only',
       };
     }
-    const riskScore = Number(mlScore.fraud_score);
+    let riskScore = Number(mlScore.fraud_score);
+    riskScore = this.applyDuplicateClaimPenalty(riskScore, duplicateSignal);
     const featureSource = `ml-insurance-service:${mlScore.model_used}`;
     const topSignals = mlScore.top_signals ?? [];
+    if (duplicateSignal.isDuplicate) {
+      topSignals.push('DUPLICATE_CLAIM_SIGNAL');
+    }
+    if (duplicateSignal.isCrossUserBurst) {
+      topSignals.push('DUPLICATE_CLAIM_BURST');
+    }
     const fraudReason = topSignals.length ? topSignals.join(', ') : 'MODEL_ANOMALY_SIGNAL';
 
     const status = riskScore >= 75
@@ -151,7 +184,7 @@ export class FraudService {
     if (!existingUser) {
       const analysisDetails = JSON.stringify(
         {
-          ...this.buildDetails(dto, riskScore, features, featureSource),
+          ...this.buildDetails(dto, riskScore, features, featureSource, duplicateSignal),
           top_signals: topSignals,
           fraud_reason: fraudReason,
           rule_score: mlScore.rule_score,
@@ -186,7 +219,7 @@ export class FraudService {
 
     const analysisDetails = JSON.stringify(
       {
-        ...this.buildDetails(dto, riskScore, features, featureSource),
+        ...this.buildDetails(dto, riskScore, features, featureSource, duplicateSignal),
         top_signals: topSignals,
         fraud_reason: fraudReason,
         rule_score: mlScore.rule_score,
@@ -322,6 +355,7 @@ export class FraudService {
     riskScore: number,
     features: FraudFeatureResponse | null,
     featureSource: string,
+    duplicateSignal?: DuplicateClaimSignal,
   ) {
     const riskFactors: string[] = [];
 
@@ -362,11 +396,151 @@ export class FraudService {
         riskFactors.push('Premium VPN detected');
     }
 
+    if (duplicateSignal?.isDuplicate) {
+      const amountPart = duplicateSignal.matchedAmount
+        ? `; amount ~= ${duplicateSignal.matchedAmount}`
+        : '';
+      const typePart = duplicateSignal.matchedDisruptionType
+        ? `; type=${duplicateSignal.matchedDisruptionType}`
+        : '';
+      riskFactors.push(
+        `Duplicate-claim pattern: ${duplicateSignal.recentClaimCount} payouts in last ${duplicateSignal.windowHours}h${amountPart}${typePart}`,
+      );
+    }
+
+    if (duplicateSignal?.isCrossUserBurst) {
+      riskFactors.push(
+        `Cross-user duplicate burst: ${duplicateSignal.distinctUserCount ?? '?'} users filed matching claims in same time bucket`,
+      );
+    }
+
     return {
       featureSource,
       gpsCoordinates: `${dto.gpsLatitude}, ${dto.gpsLongitude}`,
       mlFeatures:     features ?? 'unavailable',
       riskFactors,
+      duplicateClaimSignal: duplicateSignal ?? { isDuplicate: false },
+    };
+  }
+
+  private applyDuplicateClaimPenalty(riskScore: number, signal: DuplicateClaimSignal) {
+    if (!signal.isDuplicate || signal.signalScore <= 0) {
+      return Math.min(riskScore, 100);
+    }
+    return Math.min(100, riskScore + signal.signalScore);
+  }
+
+  private async detectDuplicateClaim(
+    userId: string,
+    dto: AnalyzeFraudDto,
+  ): Promise<DuplicateClaimSignal> {
+    const windowHours = Number(process.env.DUPLICATE_CLAIM_WINDOW_HOURS ?? 24);
+    const amountVariance = Number(process.env.DUPLICATE_CLAIM_AMOUNT_VARIANCE ?? 0.15);
+    const amountBucketSize = Number(process.env.DUPLICATE_CLAIM_AMOUNT_BUCKET ?? 50);
+    const timeBucketMinutes = Number(process.env.DUPLICATE_CLAIM_TIME_BUCKET_MINUTES ?? 30);
+    const crossUserThreshold = Number(process.env.DUPLICATE_CLAIM_CROSS_USER_THRESHOLD ?? 3);
+    const windowStart = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+    const isClaimEvent = Boolean(dto.eventType?.toUpperCase().includes('CLAIM')) || Boolean(dto.claimAmount);
+    if (!isClaimEvent) {
+      return {
+        isDuplicate: false,
+        isCrossUserBurst: false,
+        recentClaimCount: 0,
+        windowHours,
+        signalScore: 0,
+      };
+    }
+
+    const eventType = dto.eventType ?? 'CLAIM_EVENT';
+    const h3Cell = h3.latLngToCell(dto.gpsLatitude, dto.gpsLongitude, 8);
+    const claimAmount = dto.claimAmount ?? 0;
+    const amountBucket = amountBucketSize > 0
+      ? Math.round(claimAmount / amountBucketSize) * amountBucketSize
+      : Math.round(claimAmount);
+    const epochMinutes = Math.floor(Date.now() / 60000);
+    const timeBucket = Math.floor(epochMinutes / timeBucketMinutes) * timeBucketMinutes;
+    const fingerprintSource = `${eventType}|${h3Cell}|${amountBucket}|${timeBucket}`;
+    const fingerprintHash = createHash('sha256').update(fingerprintSource).digest('hex');
+
+    const fingerprintMatches = await this.prisma.claimFingerprint.findMany({
+      where: {
+        fingerprintHash,
+        createdAt: { gte: windowStart },
+      },
+      select: { userId: true },
+    });
+
+    const distinctUsers = new Set(fingerprintMatches.map((match) => match.userId));
+    const sameUserCount = fingerprintMatches.filter((match) => match.userId === userId).length;
+    const isCrossUserBurst = distinctUsers.size >= crossUserThreshold;
+
+    const recentPayouts = await this.prisma.payout.findMany({
+      where: {
+        policy: { userId },
+        createdAt: { gte: windowStart },
+      },
+      include: { disruptionEvent: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    const isDuplicate = isCrossUserBurst || sameUserCount > 0 || recentPayouts.length > 0;
+    const matchedAmount = claimAmount
+      ? recentPayouts.find((p) => {
+          const approved = Number(p.approvedPayout ?? p.estimatedLoss ?? 0);
+          if (!approved || approved <= 0) return false;
+          const delta = Math.abs(approved - claimAmount);
+          return delta / Math.max(1, claimAmount) <= amountVariance;
+        })
+      : null;
+
+    const matchedDisruption = dto.eventType
+      ? recentPayouts.find((p) => p.disruptionEvent?.type === dto.eventType)
+      : null;
+
+    let signalScore = 0;
+    if (recentPayouts.length >= 2) signalScore += 25;
+    else if (recentPayouts.length === 1) signalScore += 15;
+    if (sameUserCount > 0) signalScore += 20;
+    if (isCrossUserBurst) signalScore += 20;
+    if (matchedAmount) signalScore += 20;
+    if (matchedDisruption) signalScore += 10;
+
+    try {
+      await this.prisma.claimFingerprint.create({
+        data: {
+          userId,
+          h3Cell,
+          eventType,
+          claimAmount,
+          amountBucket,
+          timeBucket,
+          fingerprintHash,
+        },
+      });
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === 'P2002') {
+        // Ignore duplicate fingerprint insert for same user/time bucket.
+      } else {
+        this.logger.warn(`Claim fingerprint insert failed for ${userId}: ${String(err)}`);
+      }
+    }
+
+    return {
+      isDuplicate,
+      isCrossUserBurst,
+      recentClaimCount: recentPayouts.length,
+      windowHours,
+      matchedPayoutId: matchedAmount?.id ?? recentPayouts[0]?.id,
+      matchedAmount: matchedAmount
+        ? Number(matchedAmount.approvedPayout ?? matchedAmount.estimatedLoss ?? 0)
+        : undefined,
+      matchedDisruptionType: matchedDisruption?.disruptionEvent?.type ?? null,
+      fingerprintHash,
+      fingerprintCount: fingerprintMatches.length,
+      distinctUserCount: distinctUsers.size,
+      signalScore: Math.min(60, signalScore),
     };
   }
 
