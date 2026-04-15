@@ -88,7 +88,7 @@ def _generate_pricing_dataset(n_samples: int = 6000):
     return np.column_stack([earnings, lf, ct, margin]), premium
 
 # Load models
-path = "c:\\projects\\Aegis\\ml-calcultion\\ml-insurance-service\\data"
+path = os.path.join(os.path.dirname(__file__), "data")
 risk_art = joblib.load(os.path.join(path, "risk_xgb_models.pkl"))
 risk_model = risk_art["model"]
 fraud_if = joblib.load(os.path.join(path, "fraud_if.pkl"))
