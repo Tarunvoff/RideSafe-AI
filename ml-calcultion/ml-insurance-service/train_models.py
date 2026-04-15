@@ -25,7 +25,7 @@ def _clip(arr: np.ndarray, lo: float, hi: float) -> np.ndarray:
     return np.minimum(np.maximum(arr, lo), hi)
 
 
-def _generate_risk_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.ndarray, list[str]]:
+def _generate_risk_dataset(n_samples: int = 50000) -> tuple[np.ndarray, np.ndarray, list[str]]:
     rng = np.random.default_rng(42)
     rainfall = _clip(rng.gamma(shape=2.2, scale=8.0, size=n_samples), 0, 220)
     aqi = _clip(rng.normal(loc=118, scale=52, size=n_samples), 20, 450)
@@ -35,15 +35,16 @@ def _generate_risk_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.ndarra
     zone_historical_risk = _clip(rng.beta(a=2.3, b=4.8, size=n_samples), 0, 1)
     driver_tenure_days = _clip(rng.lognormal(mean=np.log(220), sigma=0.9, size=n_samples), 1, 3650)
 
+    # Amplified coefficients to survive sigmoid transformation and binomial noise
     risk_linear = (
-        0.012 * rainfall
-        + 0.0048 * aqi
-        + 0.68 * (demand_factor - 1.0)
-        + 0.75 * zone_historical_risk
-        + 0.00055 * (365 - np.minimum(driver_tenure_days, 365))
-        + 0.06 * np.isin(hour_of_day, [8, 9, 10, 18, 19, 20]).astype(float)
-        + 0.04 * np.isin(day_of_week, [5, 6]).astype(float)
-        - 1.8
+        0.85 * (rainfall / 20.0)      # Grouped into units of 20mm for robust scaling
+        + 0.45 * (aqi / 100.0)        # Grouped into units of 100 AQI
+        + 1.25 * (demand_factor - 1.0)
+        + 1.15 * zone_historical_risk
+        + 0.15 * (365 - np.minimum(driver_tenure_days, 365)) / 365.0
+        + 0.35 * np.isin(hour_of_day, [8, 9, 10, 18, 19, 20]).astype(float)
+        + 0.25 * np.isin(day_of_week, [5, 6]).astype(float)
+        - 2.8
     )
     probabilities = 1.0 / (1.0 + np.exp(-risk_linear))
     y = (rng.random(n_samples) < probabilities).astype(int)
@@ -122,29 +123,32 @@ def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarr
         pattern_counts[pattern] += 1
 
         if pattern == "gps_teleport":
-            delta_distance_m[idx] = rng.uniform(220, 1200)
-            delta_t_s[idx] = rng.uniform(0.4, 1.8)
-            speeds[idx] = _clip(delta_distance_m[idx] / max(delta_t_s[idx], 0.4) * 3.6, 95, 220)
+            # Overlapping ranges to force model to look at clusters of features
+            delta_distance_m[idx] = rng.uniform(120, 650)
+            delta_t_s[idx] = rng.uniform(15, 85)
+            # Impossible speed but within reachable highway bounds [60, 130]
+            speeds[idx] = _clip(delta_distance_m[idx] / max(delta_t_s[idx], 0.4) * 3.6, 65, 135)
             mismatch[idx] = 1
-            h3_consistency[idx] = rng.uniform(0.2, 0.65)
+            h3_consistency[idx] = rng.uniform(0.65, 0.85)
         elif pattern == "claim_burst":
-            claims_filed[idx] = rng.integers(3, 8)
+            claims_filed[idx] = rng.integers(2, 5)
             claims_rejected[idx] = rng.integers(1, claims_filed[idx] + 1)
-            h3_consistency[idx] = rng.uniform(0.45, 0.88)
+            h3_consistency[idx] = rng.uniform(0.75, 0.92)
         elif pattern == "device_sharing":
-            shared_drivers[idx] = rng.integers(5, 13)
+            shared_drivers[idx] = rng.integers(3, 7)
             mismatch[idx] = 1
-            claims_filed[idx] = rng.integers(1, 6)
+            claims_filed[idx] = rng.integers(1, 4)
             claims_rejected[idx] = rng.integers(0, claims_filed[idx] + 1)
         elif pattern == "earnings_anomaly":
-            weekly_earnings[idx] = _clip(weekly_earnings[idx] * rng.uniform(9.5, 12.0), 20000, 90000)
-            h3_consistency[idx] = rng.uniform(0.55, 0.95)
+            # Changed massive outliers (9.5x) to subtle realistic multipliers (1.2x-1.8x)
+            weekly_earnings[idx] = _clip(weekly_earnings[idx] * rng.uniform(1.2, 1.8), 2000, 75000)
+            h3_consistency[idx] = rng.uniform(0.85, 0.98)
 
     claims_rate = claims_rejected / np.maximum(claims_filed, 1)
     velocity_z = (speeds - NORMAL_SPEED_MEAN_KMH) / NORMAL_SPEED_STD_KMH
     teleport_ratio = delta_distance_m / np.maximum(delta_t_s, 0.5)
-    earnings_ratio = weekly_earnings / MEDIAN_WEEKLY_EARNINGS_INR
 
+    # REMOVED: earnings_ratio (explicit proxy for the label)
     features = np.column_stack(
         [
             speeds,
@@ -158,7 +162,6 @@ def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarr
             delta_t_s,
             shared_drivers.astype(float),
             teleport_ratio,
-            earnings_ratio,
         ]
     )
 
@@ -174,7 +177,6 @@ def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarr
         "delta_t_s",
         "shared_driver_count_24h",
         "teleport_ratio",
-        "earnings_ratio",
     ]
     return features, fraud, names, pattern_counts
 

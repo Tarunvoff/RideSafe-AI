@@ -67,7 +67,6 @@ export class IngestionService {
   async ingestFromNewsData() {
     this.logger.log('Executing NewsData.io Civil Disruption Sweep...');
     
-    // Using environment variables explicitly loaded via `.env`
     const apiKey = process.env.NEWSDATA_API_KEY;
     if (!apiKey) {
       this.logger.warn('Skipping Ingestion: NEWSDATA_API_KEY is missing from .env');
@@ -84,9 +83,7 @@ export class IngestionService {
         'NewsData.io',
       );
       const data = await this.safeParseJsonResponse(res, 'NewsData.io');
-      if (!data) {
-        return;
-      }
+      if (!data) return;
 
       if (data.status && data.status !== 'success') {
         this.logger.warn(`NewsData.io returned status=${data.status}. message=${data.message || 'n/a'}`);
@@ -98,51 +95,65 @@ export class IngestionService {
          return;
       }
 
-      // 2. Send the chaotic raw string texts through Gemini to structure into Parametric Data
-      const articles = data.results.map((r: any) => ({ title: r.title, desc: r.description, link: r.link }));
-      this.logger.log(`Found ${articles.length} potential disruption articles. Routing to Gemini AI for deterministic verification...`);
+      // 2. Routing to Gemini AI for deterministic verification...
+      const articles = data.results.map((r: any) => ({ 
+        title: r.title, 
+        desc: r.description, 
+        link: r.link,
+        city: r.country && r.country.length > 0 ? r.country[0] : "India" 
+      }));
       
+      this.logger.log(`Found ${articles.length} potential disruption articles. Routing to Agentic Gemini AI...`);
       const geminiResult = await this.analyzeWithGemini(articles);
       
-      // 3. Drop extracted verified strikes/floods right into TimescaleDB / Postgres!
+      // 3. Drop extracted verified strikes/floods right into Postgres
       if (geminiResult && geminiResult.disruptions) {
          for (const event of geminiResult.disruptions) {
-            
-            // Check if we already logged this exact protest/flood in the DB recently
-            const duplicate = await (this.prisma as any).disruptionEvent.findFirst({
-               where: { title: event.title }
-            });
+            try {
+               const duplicate = await (this.prisma as any).disruptionEvent.findFirst({
+                  where: { title: event.title }
+               });
 
-            if (!duplicate) {
-                await (this.prisma as any).disruptionEvent.create({
-                   data: {
-                      type: event.type, // 'Civic Bandh / Strike', 'Heavy Rain (>60mm)', 'Flood / Zone Inundation'
-                      title: event.title,
-                      expectedLoss: Math.round(event.severityScore * 800), // AI severity mapping
-                      expectedPayout: Math.round(event.severityScore * 400),
-                      verified: true,
-                      occurredAt: new Date(),
-                   }
-                });
-                this.logger.log(`🚨 [AUTO-TRIGGER] Inserted Verified Disruption: [${event.type}] ${event.title}`);
+               if (!duplicate) {
+                   await (this.prisma as any).disruptionEvent.create({
+                      data: {
+                         type: event.type,
+                         title: event.title,
+                         expectedLoss: Math.round(event.severityScore * 800),
+                         expectedPayout: Math.round(event.severityScore * 400),
+                         verified: true,
+                         occurredAt: new Date(),
+                      }
+                   });
+                   this.logger.log(`🚨 [AUTO-TRIGGER] Inserted Verified Disruption: [${event.type}] ${event.title}`);
+               }
+            } catch (dbErr) {
+               this.logger.error(`DATABASE_INSERT_FAILURE for event "${event.title}":`, dbErr);
             }
          }
       }
 
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      const lower = message.toLowerCase();
-      if (lower.includes('fetch failed') || lower.includes('timed out')) {
-        this.logger.warn(`NewsData.io ingestion skipped due to upstream network failure: ${message}`);
-        return;
-      }
       this.logger.error('Fatal pipeline error during NewsData.io ingestion.', e as Error);
     }
   }
 
   /**
-   * AI Data Extraction Layer (Gemini LLM)
-   * Prevents false-positives (e.g., "Company strikes a deal" vs "Protest Strike")
+   * Tool: Verify if a city has active driver H3 zones
+   */
+  private async verifyH3Location(city: string): Promise<boolean> {
+      try {
+          const count = await (this.prisma as any).kYCPersonalDetails.count({
+              where: { city: { contains: city, mode: 'insensitive' } }
+          });
+          return count > 0;
+      } catch {
+          return false;
+      }
+  }
+
+  /**
+   * AI Data Extraction Layer (Gemini 1.5 Flash with Agentic Tools & Structured Outputs)
    */
   private async analyzeWithGemini(articles: any[]) {
       const geminiKey = process.env.GEMINI_API_KEY;
@@ -155,36 +166,127 @@ export class IngestionService {
       You are the Aegis Machine Learning Engine protecting gig drivers. Read these live real-world news articles:
       ${JSON.stringify(articles)}
       
-      Identify if the articles confidently confirm a real, physical disruption happening right now in India (such as Chennai, Bangalore, etc).
+      Identify if the articles confirm a real, physical disruption happening right now in India.
       Disregard sports, movies, politics, or financial "strikes/deals" that do not affect physical logistics.
+
+      ### Few-Shot Examples for Calibration:
       
-      Return ONLY a pure JSON object mapping strictly to these Aegis DB Types: 
-      "Civic Bandh / Strike", "Local Protest / Curfew", "Heavy Rain (>60mm)", "Flood / Zone Inundation".
+      Example 1 (True Positive - Physical):
+      Input: "Heavy rains lash Chennai, major subways flooded, public transport halted."
+      Output: { "disruptions": [ { "type": "Flood / Zone Inundation", "title": "Chennai Subway Flooding", "severityScore": 0.88 } ] }
       
-      Format exactly like this strictly valid JSON string: 
-      { "disruptions": [ { "type": "Civic Bandh / Strike", "title": "Chennai Transport Strike starts today", "severityScore": 0.85 } ] }
+      Example 2 (False Positive - Non-Physical):
+      Input: "Software engineers strike a major deal with tech giants for hybrid work."
+      Output: { "disruptions": [] }
+      
+      Example 3 (True Positive - Ambiguous):
+      Input: "Bharat Bandh: Farmers block highways in Bangalore, trade unions join strike."
+      Output: { "disruptions": [ { "type": "Civic Bandh / Strike", "title": "Bharat Bandh: Highway Blockade", "severityScore": 0.95 } ] }
+      
+      Example 4 (False Positive - Policy/News):
+      Input: "Government announces new insurance policy for Zomato and Swiggy workers."
+      Output: { "disruptions": [] }
+      
+      CRITICAL: Use the verify_h3_location tool for any city mentioned in high-severity articles to ensure we possess active driver coverage there.
       `;
 
+      // Define Schema for Structured Output
+      const responseSchema = {
+          type: "object",
+          properties: {
+              disruptions: {
+                  type: "array",
+                  items: {
+                      type: "object",
+                      properties: {
+                          type: { 
+                              type: "string", 
+                              enum: ["Civic Bandh / Strike", "Local Protest / Curfew", "Heavy Rain (>60mm)", "Flood / Zone Inundation"] 
+                          },
+                          title: { type: "string" },
+                          severityScore: { type: "number", description: "Scale 0.0 to 1.0" }
+                      },
+                      required: ["type", "title", "severityScore"]
+                  }
+              }
+          }
+      };
+
       try {
-          // Fallback to Native Node fetch (No SDK needed, hyper-fast and lightweight)
+          const body = {
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                  response_mime_type: "application/json",
+                  response_schema: responseSchema
+              },
+              tools: [{
+                  function_declarations: [{
+                      name: "verify_h3_location",
+                      description: "Check if Aegis has active driver zones in a specific city in India.",
+                      parameters: {
+                          type: "object",
+                          properties: { city: { type: "string" } },
+                          required: ["city"]
+                      }
+                  }]
+              }]
+          };
+
           const res = await this.fetchWithTimeout(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+              body: JSON.stringify(body),
             },
             IngestionService.GEMINI_TIMEOUT_MS,
             'Gemini API',
           );
-            const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
-            if (!jsonRes) return null;
+
+          const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
+          if (!jsonRes || !jsonRes.candidates || !jsonRes.candidates[0].content) return null;
           
-          if (!jsonRes.candidates || !jsonRes.candidates[0].content) return null;
+          const content = jsonRes.candidates[0].content;
+
+          // ── Agentic Tool Calling Logic ─────────────────────────────────────────
+          if (content.parts[0].functionCall) {
+              const call = content.parts[0].functionCall;
+              if (call.name === 'verify_h3_location') {
+                  const city = call.args.city;
+                  const isCovered = await this.verifyH3Location(city);
+                  
+                  this.logger.log(`Agent called verify_h3_location("${city}") -> Result: ${isCovered}`);
+
+                  // Follow-up with the tool result to get final structured output
+                  const toolResponseRes = await this.fetchWithTimeout(
+                      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+                      {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              contents: [
+                                  { parts: [{ text: prompt }] },
+                                  content,
+                                  { parts: [{ functionResponse: { name: 'verify_h3_location', response: { content: isCovered } } }] }
+                              ],
+                              generationConfig: { response_mime_type: "application/json", response_schema: responseSchema }
+                          }),
+                      },
+                      IngestionService.GEMINI_TIMEOUT_MS,
+                      'Gemini Tool Followup',
+                  );
+                  const followUpJson = await this.safeParseJsonResponse(toolResponseRes, 'Gemini Tool Followup');
+                  if (!followUpJson?.candidates?.[0]?.content?.parts?.[0]?.text) return null;
+                  return JSON.parse(followUpJson.candidates[0].content.parts[0].text);
+              }
+          }
+
+          // Native Structured Output (no tool call needed)
+          if (content.parts[0].text) {
+              return JSON.parse(content.parts[0].text);
+          }
           
-          const text = jsonRes.candidates[0].content.parts[0].text;
-          const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-          return JSON.parse(cleanJson);
+          return null;
       } catch (e) {
           this.logger.error('Gemini Classification API Failed', e);
           return null;

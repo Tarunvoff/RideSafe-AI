@@ -1,0 +1,60 @@
+{
+  "model_version": "20260415T102033Z",
+  "generated_at": "2026-04-15T10:20:52.187412+00:00",
+  "risk": {
+    "train_rows": 40000,
+    "test_rows": 10000,
+    "test_auc": 0.6763021866246528,
+    "cross_validation": {
+      "mean_auc": 0.680842159965054,
+      "std_auc": 0.0029677199620298713
+    },
+    "feature_importance": {
+      "rainfall_mm": 0.36281681060791016,
+      "aqi_index": 0.13551901280879974,
+      "demand_factor": 0.1702505499124527,
+      "hour_of_day": 0.09096965193748474,
+      "day_of_week": 0.07716264575719833,
+      "zone_historical_risk": 0.0986681580543518,
+      "driver_tenure_days": 0.06461326032876968
+    }
+  },
+  "fraud": {
+    "train_rows": 8000,
+    "test_rows": 2000,
+    "base_rate": 0.08,
+    "test_auc": 0.9164979619565217,
+    "cross_validation": {
+      "mean_auc": 0.9231144701086956,
+      "std_auc": 0.009845402894054993
+    },
+    "pattern_injection_counts": {
+      "gps_teleport": 207,
+      "claim_burst": 187,
+      "device_sharing": 203,
+      "earnings_anomaly": 203
+    },
+    "feature_importance": {
+      "speed_kmh": 0.03898463247276527,
+      "claims_rejection_rate": 0.022312457593746816,
+      "device_mismatch": 0.3395724986773839,
+      "velocity_z": 0.10351951158697358,
+      "claims_filed": 0.12420708207255098,
+      "claims_rejected": 0.12979815716741205,
+      "h3_zone_consistency": 0.06504489727688781,
+      "delta_distance_m": 0.005835468369213913,
+      "delta_t_s": 0.005758622665721875,
+      "shared_driver_count_24h": 0.15857613833616682,
+      "teleport_ratio": 0.006390533781176969
+    }
+  },
+  "pricing": {
+    "train_rows": 6000,
+    "feature_names": [
+      "weekly_earnings",
+      "lf",
+      "ct",
+      "margin"
+    ]
+  }
+}

@@ -55,14 +55,14 @@ async def _reverse_geocode_city(lat: float, lng: float, h3_cell: str) -> str:
 async def check_civic_alert(city: str = "Bangalore") -> dict:
     """
     Returns {"civic_alert": bool, "is_fallback": bool, "source": str}.
-    Uses Newsdata.io directly based on the user's platform integration.
-    City is derived dynamically (passed from feature_service via _reverse_geocode_city).
+    Enforces a fail-closed architecture: never fakes data if API fails or keys are missing.
     """
-    try:
-        if USE_MOCK_DATA or NEWSDATA_API_KEY == "demo_key":
-            import random
-            return {"civic_alert": random.random() < 0.05, "is_fallback": True, "source": "mock"}
+    # ── Step 1: Enforce Environment Integrity ──────────────────────────────────
+    if not NEWSDATA_API_KEY or NEWSDATA_API_KEY == "demo_key":
+        logger.error("INGESTION_CRITICAL: NewsData API Key is missing or invalid. Aborting civic check for %s.", city)
+        return {"civic_alert": False, "is_fallback": True, "source": "fail_closed_config"}
 
+    try:
         params = {
             "apikey": NEWSDATA_API_KEY,
             "category": "domestic",
@@ -71,14 +71,29 @@ async def check_civic_alert(city: str = "Bangalore") -> dict:
         }
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(NEWSDATA_URL, params=params)
+            
+            # Explicitly log 5xx errors from the upstream provider
+            if resp.status_code >= 500:
+                logger.error("UPSTREAM_ERROR: NewsData.io returned HTTP %d for %s. Aborting run.", resp.status_code, city)
+                return {"civic_alert": False, "is_fallback": True, "source": "fail_closed_upstream"}
+
             resp.raise_for_status()
             data = resp.json()
+
+            if data.get("status") == "error":
+                logger.error("API_VALIDATION_ERROR: %s", data.get("message", "Unknown error"))
+                return {"civic_alert": False, "is_fallback": True, "source": "fail_closed_api"}
+
             total = data.get("totalResults", 0)
             if total > 0:
-                logger.info("Civic alert detected for %s: %d results", city, total)
+                logger.info("Civic alert verified for %s: %d results", city, total)
                 return {"civic_alert": True, "is_fallback": False, "source": "newsdata"}
+            
             return {"civic_alert": False, "is_fallback": False, "source": "newsdata"}
 
+    except httpx.TimeoutException:
+        logger.error("NETWORK_TIMEOUT: NewsData.io timed out for %s. Fail-closed to False.", city)
+        return {"civic_alert": False, "is_fallback": True, "source": "fail_closed_timeout"}
     except Exception as exc:
-        logger.warning("Civic alert check failed for %s: %s", city, exc)
-        return {"civic_alert": False, "is_fallback": True, "source": "default"}
+        logger.critical("UNEXPECTED_PIPELINE_ERROR during civic alert check for %s: %s", city, exc)
+        return {"civic_alert": False, "is_fallback": True, "source": "fail_closed_critical"}
