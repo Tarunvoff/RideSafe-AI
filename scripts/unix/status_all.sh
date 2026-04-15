@@ -34,7 +34,7 @@ for item in "${SERVICES[@]}"; do
 
   port_status="down"
   if command -v ss >/dev/null 2>&1; then
-    if ss -ltn 2>/dev/null | awk -v p=":$port" '$4 ~ p {found=1} END {exit found ? 0 : 1}'; then
+    if ss -ltn 2>/dev/null | awk -v target="$port" 'NR>1 {split($4, a, ":"); p=a[length(a)]; if (p==target) {found=1}} END {exit found ? 0 : 1}'; then
       port_status="listening"
     fi
   elif command -v lsof >/dev/null 2>&1; then

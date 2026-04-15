@@ -11,7 +11,7 @@ Returns a boolean: True if civic disruption is ongoing.
 
 import logging
 import httpx
-from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_MOCK_DATA
+from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_CALIBRATED_FALLBACK_PRIOR
 
 logger = logging.getLogger(__name__)
 

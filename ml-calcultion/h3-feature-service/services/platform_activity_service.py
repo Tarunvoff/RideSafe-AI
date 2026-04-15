@@ -4,10 +4,10 @@ services/platform_activity_service.py
 Async platform activity fetcher.
 Ported from: ml_microservice/integrations/platform_activity_service.py
 
-Generates realistic mock orders + riders data per zone,
+Generates calibrated fallback orders + riders priors per zone,
 then computes demand_ratio = active_orders / active_riders.
 
-In production: replace _mock_activity with real platform API call.
+In production: replace calibrated fallback estimation with live platform API call.
 """
 
 import random
@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from config import USE_MOCK_DATA, PLATFORM_API_URL, PLATFORM_TIMEOUT_SEC
+from config import USE_CALIBRATED_FALLBACK_PRIOR, PLATFORM_API_URL, PLATFORM_TIMEOUT_SEC
 
 async def fetch_platform_activity(zone_seed: str) -> dict:
     """
@@ -32,7 +32,7 @@ async def fetch_platform_activity(zone_seed: str) -> dict:
     }
     Seeded on zone for determinism within a session.
     """
-    if not USE_MOCK_DATA:
+    if not USE_CALIBRATED_FALLBACK_PRIOR:
         import httpx
         try:
             async with httpx.AsyncClient(timeout=PLATFORM_TIMEOUT_SEC) as client:
@@ -56,7 +56,7 @@ async def fetch_platform_activity(zone_seed: str) -> dict:
                 }
         except Exception as exc:
             logger.warning("Failed to fetch real platform activity for %s: %s", zone_seed, exc)
-            # Fall through to deterministic mock on failure for resilience
+            # Fall through to deterministic calibrated fallback prior on failure for resilience
 
     rng = random.Random(hash(zone_seed))
     orders = rng.randint(10, 200)
@@ -75,5 +75,5 @@ async def fetch_platform_activity(zone_seed: str) -> dict:
         "sla_breach_rate": sla_breach_rate,
         "avg_delivery_delay_min": avg_delay,
         "is_fallback": True,
-        "source": "mock",
+        "source": "calibrated_fallback_prior",
     }

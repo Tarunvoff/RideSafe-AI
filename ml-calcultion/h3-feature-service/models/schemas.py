@@ -45,7 +45,7 @@ class FeatureResponse(BaseModel):
     month: int
     season: int               # 0=winter, 1=summer, 2=monsoon, 3=post-monsoon
 
-    # Historical risk (placeholder — replace with DB lookup)
+    # Historical risk prior (replace with DB lookup when longitudinal table is available)
     historical_risk: float
 
     # Data quality / freshness

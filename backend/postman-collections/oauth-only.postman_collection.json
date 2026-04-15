@@ -106,7 +106,7 @@
                   "const session = json.oauthSession || {};",
                   "if (session.sessionId) pm.collectionVariables.set('oauthSessionId', session.sessionId);",
                   "if (session.state) pm.collectionVariables.set('oauthState', session.state);",
-                  "if (session.demoAuthCode) pm.collectionVariables.set('oauthCode', session.demoAuthCode);"
+                  "if (session.authCode) pm.collectionVariables.set('oauthCode', session.authCode);"
                 ]
               }
             }

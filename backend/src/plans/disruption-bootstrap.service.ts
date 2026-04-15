@@ -13,7 +13,7 @@ export class DisruptionBootstrapService implements OnModuleInit {
 
   private async ensureDefaultDisruptionExists() {
     const now = Date.now();
-    const existingCount = await (this.prisma as any).disruptionEvent.count({
+    const existingCount = await this.prisma.disruptionEvent.count({
       where: {
         verified: true,
         OR: [
@@ -27,7 +27,7 @@ export class DisruptionBootstrapService implements OnModuleInit {
       const occurredAt = new Date(now - 10 * 60 * 1000);
       const expiresAt = new Date(now + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-      await (this.prisma as any).disruptionEvent.create({
+      await this.prisma.disruptionEvent.create({
         data: {
           type: 'RAIN',
           title: 'Heavy Rain Warning - Bengaluru',

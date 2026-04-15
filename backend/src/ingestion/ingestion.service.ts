@@ -1,6 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { z } from 'zod';
+
+const LOSS_CURVE = {
+  RAIN: { loss_per_severity: 650, payout_ratio: 0.75 },
+  FLOOD: { loss_per_severity: 1800, payout_ratio: 0.65 },
+  PROTEST: { loss_per_severity: 400, payout_ratio: 0.8 },
+  STRIKE: { loss_per_severity: 350, payout_ratio: 0.85 },
+  OTHER: { loss_per_severity: 300, payout_ratio: 0.7 },
+} as const;
+
+const DisruptionSchema = z.object({
+  type: z.enum(['RAIN', 'FLOOD', 'PROTEST', 'STRIKE', 'OTHER']),
+  title: z.string().min(5).max(100),
+  severityScore: z.number().min(0).max(1),
+  affectedZones: z.array(z.string()).optional(),
+});
+
+const GeminiDisruptionEnvelopeSchema = z.object({
+  disruptions: z.array(DisruptionSchema),
+});
 
 @Injectable()
 export class IngestionService {
@@ -8,7 +28,7 @@ export class IngestionService {
   private static readonly NEWSDATA_TIMEOUT_MS = 20000;
   private static readonly GEMINI_TIMEOUT_MS = 20000;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private async fetchWithTimeout(
     url: string,
@@ -66,7 +86,7 @@ export class IngestionService {
   @Cron(CronExpression.EVERY_10_MINUTES)
   async ingestFromNewsData() {
     this.logger.log('Executing NewsData.io Civil Disruption Sweep...');
-    
+
     const apiKey = process.env.NEWSDATA_API_KEY;
     if (!apiKey) {
       this.logger.warn('Skipping Ingestion: NEWSDATA_API_KEY is missing from .env');
@@ -89,48 +109,48 @@ export class IngestionService {
         this.logger.warn(`NewsData.io returned status=${data.status}. message=${data.message || 'n/a'}`);
         return;
       }
-      
+
       if (!data.results || data.results.length === 0) {
-         this.logger.log('No civil disruptions detected in the 10-minute sweep.');
-         return;
+        this.logger.log('No civil disruptions detected in the 10-minute sweep.');
+        return;
       }
 
       // 2. Routing to Gemini AI for deterministic verification...
-      const articles = data.results.map((r: any) => ({ 
-        title: r.title, 
-        desc: r.description, 
+      const articles = data.results.map((r: any) => ({
+        title: r.title,
+        desc: r.description,
         link: r.link,
-        city: r.country && r.country.length > 0 ? r.country[0] : "India" 
+        city: r.country && r.country.length > 0 ? r.country[0] : "India"
       }));
-      
+
       this.logger.log(`Found ${articles.length} potential disruption articles. Routing to Agentic Gemini AI...`);
       const geminiResult = await this.analyzeWithGemini(articles);
-      
+
       // 3. Drop extracted verified strikes/floods right into Postgres
       if (geminiResult && geminiResult.disruptions) {
-         for (const event of geminiResult.disruptions) {
-            try {
-               const duplicate = await (this.prisma as any).disruptionEvent.findFirst({
-                  where: { title: event.title }
-               });
+        for (const event of geminiResult.disruptions) {
+          try {
+            const duplicate = await (this.prisma as any).disruptionEvent.findFirst({
+              where: { title: event.title }
+            });
 
-               if (!duplicate) {
-                   await (this.prisma as any).disruptionEvent.create({
-                      data: {
-                         type: event.type,
-                         title: event.title,
-                         expectedLoss: Math.round(event.severityScore * 800),
-                         expectedPayout: Math.round(event.severityScore * 400),
-                         verified: true,
-                         occurredAt: new Date(),
-                      }
-                   });
-                   this.logger.log(`🚨 [AUTO-TRIGGER] Inserted Verified Disruption: [${event.type}] ${event.title}`);
-               }
-            } catch (dbErr) {
-               this.logger.error(`DATABASE_INSERT_FAILURE for event "${event.title}":`, dbErr);
+            if (!duplicate) {
+              await (this.prisma as any).disruptionEvent.create({
+                data: {
+                  type: event.type,
+                  title: event.title,
+                  expectedLoss: Math.round(event.severityScore * 800),
+                  expectedPayout: Math.round(event.severityScore * 400),
+                  verified: true,
+                  occurredAt: new Date(),
+                }
+              });
+              this.logger.log(`🚨 [AUTO-TRIGGER] Inserted Verified Disruption: [${event.type}] ${event.title}`);
             }
-         }
+          } catch (dbErr) {
+            this.logger.error(`DATABASE_INSERT_FAILURE for event "${event.title}":`, dbErr);
+          }
+        }
       }
 
     } catch (e) {
@@ -142,27 +162,27 @@ export class IngestionService {
    * Tool: Verify if a city has active driver H3 zones
    */
   private async verifyH3Location(city: string): Promise<boolean> {
-      try {
-          const count = await (this.prisma as any).kYCPersonalDetails.count({
-              where: { city: { contains: city, mode: 'insensitive' } }
-          });
-          return count > 0;
-      } catch {
-          return false;
-      }
+    try {
+      const count = await (this.prisma as any).kYCPersonalDetails.count({
+        where: { city: { contains: city, mode: 'insensitive' } }
+      });
+      return count > 0;
+    } catch {
+      return false;
+    }
   }
 
   /**
    * AI Data Extraction Layer (Gemini 1.5 Flash with Agentic Tools & Structured Outputs)
    */
   private async analyzeWithGemini(articles: any[]) {
-      const geminiKey = process.env.GEMINI_API_KEY;
-      if (!geminiKey) {
-          this.logger.warn('Skipping AI Filter: GEMINI_API_KEY is missing.');
-          return null;
-      }
-      
-      const prompt = `
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      this.logger.warn('Skipping AI Filter: GEMINI_API_KEY is missing.');
+      return null;
+    }
+
+    const prompt = `
       You are the Aegis Machine Learning Engine protecting gig drivers. Read these live real-world news articles:
       ${JSON.stringify(articles)}
       
@@ -190,106 +210,106 @@ export class IngestionService {
       CRITICAL: Use the verify_h3_location tool for any city mentioned in high-severity articles to ensure we possess active driver coverage there.
       `;
 
-      // Define Schema for Structured Output
-      const responseSchema = {
-          type: "object",
-          properties: {
-              disruptions: {
-                  type: "array",
-                  items: {
-                      type: "object",
-                      properties: {
-                          type: { 
-                              type: "string", 
-                              enum: ["Civic Bandh / Strike", "Local Protest / Curfew", "Heavy Rain (>60mm)", "Flood / Zone Inundation"] 
-                          },
-                          title: { type: "string" },
-                          severityScore: { type: "number", description: "Scale 0.0 to 1.0" }
-                      },
-                      required: ["type", "title", "severityScore"]
-                  }
-              }
+    // Define Schema for Structured Output
+    const responseSchema = {
+      type: "object",
+      properties: {
+        disruptions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: {
+                type: "string",
+                enum: ["Civic Bandh / Strike", "Local Protest / Curfew", "Heavy Rain (>60mm)", "Flood / Zone Inundation"]
+              },
+              title: { type: "string" },
+              severityScore: { type: "number", description: "Scale 0.0 to 1.0" }
+            },
+            required: ["type", "title", "severityScore"]
           }
+        }
+      }
+    };
+
+    try {
+      const body = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          response_mime_type: "application/json",
+          response_schema: responseSchema
+        },
+        tools: [{
+          function_declarations: [{
+            name: "verify_h3_location",
+            description: "Check if Aegis has active driver zones in a specific city in India.",
+            parameters: {
+              type: "object",
+              properties: { city: { type: "string" } },
+              required: ["city"]
+            }
+          }]
+        }]
       };
 
-      try {
-          const body = {
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                  response_mime_type: "application/json",
-                  response_schema: responseSchema
-              },
-              tools: [{
-                  function_declarations: [{
-                      name: "verify_h3_location",
-                      description: "Check if Aegis has active driver zones in a specific city in India.",
-                      parameters: {
-                          type: "object",
-                          properties: { city: { type: "string" } },
-                          required: ["city"]
-                      }
-                  }]
-              }]
-          };
+      const res = await this.fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        IngestionService.GEMINI_TIMEOUT_MS,
+        'Gemini API',
+      );
 
-          const res = await this.fetchWithTimeout(
+      const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
+      if (!jsonRes || !jsonRes.candidates || !jsonRes.candidates[0].content) return null;
+
+      const content = jsonRes.candidates[0].content;
+
+      // ── Agentic Tool Calling Logic ─────────────────────────────────────────
+      if (content.parts[0].functionCall) {
+        const call = content.parts[0].functionCall;
+        if (call.name === 'verify_h3_location') {
+          const city = call.args.city;
+          const isCovered = await this.verifyH3Location(city);
+
+          this.logger.log(`Agent called verify_h3_location("${city}") -> Result: ${isCovered}`);
+
+          // Follow-up with the tool result to get final structured output
+          const toolResponseRes = await this.fetchWithTimeout(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
+              body: JSON.stringify({
+                contents: [
+                  { parts: [{ text: prompt }] },
+                  content,
+                  { parts: [{ functionResponse: { name: 'verify_h3_location', response: { content: isCovered } } }] }
+                ],
+                generationConfig: { response_mime_type: "application/json", response_schema: responseSchema }
+              }),
             },
             IngestionService.GEMINI_TIMEOUT_MS,
-            'Gemini API',
+            'Gemini Tool Followup',
           );
-
-          const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
-          if (!jsonRes || !jsonRes.candidates || !jsonRes.candidates[0].content) return null;
-          
-          const content = jsonRes.candidates[0].content;
-
-          // ── Agentic Tool Calling Logic ─────────────────────────────────────────
-          if (content.parts[0].functionCall) {
-              const call = content.parts[0].functionCall;
-              if (call.name === 'verify_h3_location') {
-                  const city = call.args.city;
-                  const isCovered = await this.verifyH3Location(city);
-                  
-                  this.logger.log(`Agent called verify_h3_location("${city}") -> Result: ${isCovered}`);
-
-                  // Follow-up with the tool result to get final structured output
-                  const toolResponseRes = await this.fetchWithTimeout(
-                      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-                      {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                              contents: [
-                                  { parts: [{ text: prompt }] },
-                                  content,
-                                  { parts: [{ functionResponse: { name: 'verify_h3_location', response: { content: isCovered } } }] }
-                              ],
-                              generationConfig: { response_mime_type: "application/json", response_schema: responseSchema }
-                          }),
-                      },
-                      IngestionService.GEMINI_TIMEOUT_MS,
-                      'Gemini Tool Followup',
-                  );
-                  const followUpJson = await this.safeParseJsonResponse(toolResponseRes, 'Gemini Tool Followup');
-                  if (!followUpJson?.candidates?.[0]?.content?.parts?.[0]?.text) return null;
-                  return JSON.parse(followUpJson.candidates[0].content.parts[0].text);
-              }
-          }
-
-          // Native Structured Output (no tool call needed)
-          if (content.parts[0].text) {
-              return JSON.parse(content.parts[0].text);
-          }
-          
-          return null;
-      } catch (e) {
-          this.logger.error('Gemini Classification API Failed', e);
-          return null;
+          const followUpJson = await this.safeParseJsonResponse(toolResponseRes, 'Gemini Tool Followup');
+          if (!followUpJson?.candidates?.[0]?.content?.parts?.[0]?.text) return null;
+          return JSON.parse(followUpJson.candidates[0].content.parts[0].text);
+        }
       }
+
+      // Native Structured Output (no tool call needed)
+      if (content.parts[0].text) {
+        return JSON.parse(content.parts[0].text);
+      }
+
+      return null;
+    } catch (e) {
+      this.logger.error('Gemini Classification API Failed', e);
+      return null;
+    }
   }
 }

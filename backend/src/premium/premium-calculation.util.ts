@@ -1,9 +1,49 @@
+/**
+ * Safety loading added to expected loss to keep premium pool solvent after operating costs.
+ */
 export const PREMIUM_MARGIN = 0.1;
+
+/**
+ * Base premium rate applied to weekly earnings.
+ * Proxy rate derived from MoRTH 2022: 0.045 freq x INR 25,000 severity x 1.25 on-duty loading / 52 weeks ~= INR 27/week,
+ * normalized to percent of weekly earnings ~= 1.5%.
+ */
 export const PREMIUM_RATE = 0.015;
-export const MAX_WEEKLY_PREMIUM_INR = 50;
-export const MINIMUM_WEEKLY_PREMIUM_INR = 50;
+
+/**
+ * Absolute portfolio ceiling for weekly premium before any reinsurance layer applies.
+ */
+export const MAXIMUM_WEEKLY_PREMIUM_INR = 50;
+
+/**
+ * Minimum active-policy weekly premium floor to ensure non-zero risk contribution.
+ */
+export const MINIMUM_WEEKLY_PREMIUM_INR = 15;
+
+/**
+ * Cohort fallback for weekly earnings when a driver has insufficient personal earning history.
+ */
 export const COHORT_MEDIAN_WEEKLY_EARNINGS_INR = 6800;
+
+/**
+ * Minimum observed active days required before trusting personal earnings over cohort fallback.
+ */
 export const MIN_HISTORY_DAYS_FOR_PERSONAL_EW = 7;
+
+/**
+ * Tier cap for BASIC coverage (Ct=0.4) to keep entry-tier pricing affordable.
+ */
+export const BASIC_TIER_CAP_INR = 20;
+
+/**
+ * Tier cap for STANDARD coverage (Ct=0.6) balancing coverage depth and affordability.
+ */
+export const STANDARD_TIER_CAP_INR = 38;
+
+/**
+ * Tier cap for PREMIUM coverage (Ct=0.8), equal to the absolute weekly premium ceiling.
+ */
+export const PREMIUM_TIER_CAP_INR = 50;
 
 /**
  * Resolves earnings baseline for low-history drivers.
@@ -26,8 +66,13 @@ export function resolveEarningsWithFallback(params: {
  * Computes tier cap from coverage factor Ct.
  */
 export function resolveTierCap(Ct: number): number {
-  const cap = 30 + Ct * 25;
-  return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round(cap * 100) / 100);
+  const roundedCt = Math.round(Ct * 10) / 10;
+  if (roundedCt === 0.4) return BASIC_TIER_CAP_INR;
+  if (roundedCt === 0.6) return STANDARD_TIER_CAP_INR;
+  if (roundedCt === 0.8) return PREMIUM_TIER_CAP_INR;
+
+  const interpolatedCap = BASIC_TIER_CAP_INR + ((roundedCt - 0.4) / 0.4) * (PREMIUM_TIER_CAP_INR - BASIC_TIER_CAP_INR);
+  return Math.min(MAXIMUM_WEEKLY_PREMIUM_INR, Math.max(BASIC_TIER_CAP_INR, Math.round(interpolatedCap * 100) / 100));
 }
 
 /**

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -31,6 +31,27 @@ class RiskScoreResponse(BaseModel):
     risk_level: str
     confidence: float = Field(ge=0, le=1)
     scoring_path: str
+
+
+class RiskModelScoreRequest(BaseModel):
+    """Typed payload for live risk-model scoring used by backend premium service."""
+
+    h3_cell: str = Field(min_length=5, max_length=32)
+    rainfall_mm: float = Field(ge=0, le=500)
+    aqi: float = Field(ge=0, le=500)
+    demand_ratio: float = Field(ge=0, le=5)
+    hour_of_day: int = Field(ge=0, le=23)
+    day_of_week: int = Field(ge=0, le=6)
+    historical_risk: float = Field(ge=0, le=1)
+
+
+class RiskModelScoreResponse(BaseModel):
+    """Response for live risk-model scoring with explicit model-path observability."""
+
+    lf_score: float = Field(ge=0, le=1)
+    zone_state: Literal["NORMAL", "ELEVATED", "HALTED"]
+    confidence: float = Field(ge=0, le=1)
+    model_used: Literal["xgboost", "fallback"]
 
 # Pricing Engine Models
 class PricingRequest(BaseModel):
@@ -77,6 +98,33 @@ class FraudScoreResponse(BaseModel):
     confidence: float = Field(ge=0, le=1)
     fraud_reason: str
     explanation: Optional[dict] = None
+
+
+class FraudHybridScoreRequest(BaseModel):
+    """Flat feature payload for live hybrid fraud scoring."""
+
+    account_age_days: float = Field(ge=0, le=10000)
+    device_id_uniqueness: float = Field(ge=0, le=1)
+    device_switch_frequency: float = Field(ge=0, le=100)
+    gps_speed: float = Field(ge=0, le=500)
+    h3_zone_consistency: float = Field(ge=0, le=1)
+    claims_last_30d: float = Field(ge=0, le=1000)
+    claims_last_24h: float = Field(ge=0, le=100)
+    trigger_frequency: float = Field(ge=0, le=100)
+    earnings_pattern_deviation: float = Field(ge=0, le=100)
+    mismatch: bool = False
+    shared_driver_count_24h: int = Field(default=1, ge=1, le=100)
+
+
+class FraudHybridScoreResponse(BaseModel):
+    """Hybrid score output for backend decisioning and admin explainability."""
+
+    fraud_score: float = Field(ge=0, le=100)
+    rule_score: float = Field(ge=0, le=100)
+    ml_anomaly_score: float = Field(ge=0, le=100)
+    ml_classifier_score: float = Field(ge=0, le=100)
+    top_signals: list[str]
+    model_used: Literal["hybrid", "rules_only"]
 
 # Trigger Engine Models
 class TriggerRequest(BaseModel):

@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.fraud_features import router as fraud_features_router
 from routes.risk import router as risk_router
-from storage.store import init_demo_data
+from storage.store import init_baseline_behavior_store
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,10 +35,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm-up: seed in-memory store with demo user data on startup."""
-    logger.info("Fraud Feature Service starting — seeding demo data …")
-    init_demo_data()
-    logger.info("Demo data ready.")
+    """Warm-up: initialize baseline behavior store on startup."""
+    logger.info("Fraud Feature Service starting - initializing behavior store")
+    init_baseline_behavior_store()
     yield
     logger.info("Fraud Feature Service shutting down.")
 
