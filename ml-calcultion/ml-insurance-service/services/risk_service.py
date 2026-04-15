@@ -1,13 +1,25 @@
 import os
-from models.schemas import RiskScoreRequest, RiskScoreResponse
+import numpy as np
+from models.schemas import RiskModelScoreRequest, RiskModelScoreResponse, RiskScoreRequest, RiskScoreResponse
 from config import (
     SEVERITY_RAIN, SEVERITY_FLOOD, SEVERITY_AQI, SEVERITY_TEMP,
     FLOOD_RAIN_THRESHOLD,
     RISK_LOW_THRESHOLD, RISK_MEDIUM_THRESHOLD
 )
+from utils.model_loader import model_loader
 import logging
 
 logger = logging.getLogger(__name__)
+
+RISK_MODEL_DEFAULT_FEATURES = [
+    "rainfall_mm",
+    "aqi_index",
+    "demand_factor",
+    "hour_of_day",
+    "day_of_week",
+    "zone_historical_risk",
+    "driver_tenure_days",
+]
 
 # ── Lf Smoothing: Redis-backed (survives restarts) with in-memory fallback ────
 _lf_memory_cache: dict[str, float] = {}  # fallback when Redis unavailable
@@ -71,6 +83,73 @@ def _scaled(value: float, lo: float, hi: float) -> float:
     if value >= hi:
         return 1.0
     return (value - lo) / (hi - lo)
+
+
+def _to_zone_state(lf_score: float) -> str:
+    if lf_score >= 0.75:
+        return "HALTED"
+    if lf_score >= 0.4:
+        return "ELEVATED"
+    return "NORMAL"
+
+
+def _heuristic_fallback_score(request: RiskModelScoreRequest) -> float:
+    p_rain = _scaled(float(request.rainfall_mm), 5.0, 40.0)
+    p_aqi = _scaled(float(request.aqi), 70.0, 200.0)
+    p_demand = _scaled(float(request.demand_ratio), 1.0, 2.0)
+    p_history = min(1.0, max(0.0, float(request.historical_risk)))
+    return float(max(0.0, min(1.0, 1.0 - ((1.0 - p_rain * 0.6) * (1.0 - p_aqi * 0.4) * (1.0 - p_demand * 0.25) * (1.0 - p_history * 0.15)))))
+
+
+def score_risk_model(request: RiskModelScoreRequest) -> RiskModelScoreResponse:
+    feature_names = model_loader.risk_feature_names or RISK_MODEL_DEFAULT_FEATURES
+    feature_map = {
+        "rainfall_mm": float(request.rainfall_mm),
+        "aqi_index": float(request.aqi),
+        "demand_factor": float(request.demand_ratio),
+        "hour_of_day": float(request.hour_of_day),
+        "day_of_week": float(request.day_of_week),
+        "zone_historical_risk": float(request.historical_risk),
+        # Driver tenure is not supplied by caller; stable proxy prevents shape mismatch.
+        "driver_tenure_days": 180.0,
+    }
+
+    vector = np.array([float(feature_map.get(name, 0.0)) for name in feature_names], dtype=float).reshape(1, -1)
+
+    risk_estimator = model_loader.risk_models
+    if isinstance(risk_estimator, dict):
+        # Some older artifacts store a mapping instead of a single estimator.
+        risk_estimator = risk_estimator.get("model")
+
+    if risk_estimator is not None and hasattr(risk_estimator, "predict_proba"):
+        try:
+            lf_score = float(risk_estimator.predict_proba(vector)[0][1])
+            lf_score = max(0.0, min(1.0, lf_score))
+            confidence = max(0.55, min(0.98, abs(lf_score - 0.5) * 1.8))
+            logger.info(
+                "risk_model_path=xgboost h3_cell=%s lf_score=%.4f version=%s",
+                request.h3_cell,
+                lf_score,
+                model_loader.risk_model_version,
+            )
+            return RiskModelScoreResponse(
+                lf_score=round(lf_score, 4),
+                zone_state=_to_zone_state(lf_score),
+                confidence=round(confidence, 4),
+                model_used="xgboost",
+            )
+        except Exception as exc:
+            logger.exception("risk_model_path=fallback cause=xgboost_failed h3_cell=%s error=%s", request.h3_cell, exc)
+
+    lf_score = _heuristic_fallback_score(request)
+    confidence = max(0.45, min(0.7, 0.65 - abs(0.5 - lf_score) * 0.15))
+    logger.warning("risk_model_path=fallback cause=model_unavailable h3_cell=%s lf_score=%.4f", request.h3_cell, lf_score)
+    return RiskModelScoreResponse(
+        lf_score=round(lf_score, 4),
+        zone_state=_to_zone_state(lf_score),
+        confidence=round(confidence, 4),
+        model_used="fallback",
+    )
 
 
 def calculate_risk_score(request: RiskScoreRequest) -> RiskScoreResponse:

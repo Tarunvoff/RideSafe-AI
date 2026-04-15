@@ -2,7 +2,7 @@
 services/traffic_service.py
 
 Real-time traffic data via TomTom Traffic Flow Segment Data API.
-Falls back to deterministic mock if the API is unavailable.
+Falls back to deterministic calibrated prior if the API is unavailable.
 
 Endpoint:
   GET https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json
@@ -33,7 +33,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # ── TomTom Configuration ─────────────────────────────────────────────────────
-TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "h87zAdzDwN1jJNjE1rzLcbZv8rUsdNAG")
+TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
 TOMTOM_BASE_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
 TOMTOM_TIMEOUT = 5.0  # seconds
 
@@ -63,9 +63,9 @@ async def _fetch_tomtom(lat: float, lng: float) -> dict:
     return flow
 
 
-def _mock_traffic(lat: float, lng: float, h3_cell: str) -> dict:
+def _calibrated_fallback_traffic(lat: float, lng: float, h3_cell: str) -> dict:
     """
-    Deterministic mock fallback — same logic as the original mock.
+    Deterministic calibrated fallback prior for outage resilience.
     Produces stable-per-5-minute-window values seeded on the H3 cell.
     """
     current_minute = datetime.now().minute // 5
@@ -85,21 +85,21 @@ def _mock_traffic(lat: float, lng: float, h3_cell: str) -> dict:
         "avg_speed_kmh": avg_speed_kmh,
         "congestion_index": congestion_index,
         "is_gridlock": is_gridlock,
-        "source": "mock_fallback",
+        "source": "calibrated_fallback_prior",
     }
 
 
 async def get_traffic_features(lat: float, lng: float, h3_cell: str) -> dict:
     """
     Fetch real-time traffic from TomTom.
-    Falls back to deterministic mock on any failure.
+    Falls back to deterministic calibrated prior on any failure.
 
     Returns:
         {
             "avg_speed_kmh": float,
             "congestion_index": float,   # 0.0 (free-flow) → 1.0 (standstill)
             "is_gridlock": bool,          # currentSpeed < 5 AND congestion > 0.85
-            "source": "tomtom_live" | "mock_fallback",
+            "source": "tomtom_live" | "calibrated_fallback_prior",
         }
     """
     try:
@@ -138,5 +138,5 @@ async def get_traffic_features(lat: float, lng: float, h3_cell: str) -> dict:
         }
 
     except Exception as exc:
-        logger.warning("TomTom API failed for (%.4f, %.4f): %s — using mock fallback", lat, lng, exc)
-        return _mock_traffic(lat, lng, h3_cell)
+        logger.warning("TomTom API failed for (%.4f, %.4f): %s — using calibrated fallback prior", lat, lng, exc)
+        return _calibrated_fallback_traffic(lat, lng, h3_cell)

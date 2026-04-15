@@ -41,7 +41,7 @@ export class TelemetryService implements OnModuleInit {
    */
   async ingestHighVolumeTelemetry(batch: any[]) {
       try {
-          const inserted = await (this.prisma as any).zoneTelemetryLog.createMany({
+          const inserted = await this.prisma.zoneTelemetryLog.createMany({
               data: batch.map(b => ({
                   h3Cell: b.h3_cell,
                   lfScore: b.lf_score,

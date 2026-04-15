@@ -7,7 +7,7 @@ import lightgbm as lgb
 import numpy as np
 import xgboost as xgb
 from sklearn.ensemble import GradientBoostingClassifier, IsolationForest
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import classification_report, precision_recall_fscore_support, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -91,57 +91,64 @@ def _generate_pricing_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.nda
 def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarray, list[str], dict[str, int]]:
     rng = np.random.default_rng(99)
 
-    speeds = _clip(rng.normal(NORMAL_SPEED_MEAN_KMH, NORMAL_SPEED_STD_KMH, n_samples), 0, 180)
-    claims_filed = rng.poisson(lam=0.35, size=n_samples)
+    daily_earnings = rng.lognormal(mean=np.log(700.0), sigma=0.18, size=n_samples)
+    orders_per_day = np.minimum((daily_earnings / 45.0).astype(int), 36)
+    speeds = _clip(rng.normal(25.0, 8.0, n_samples), 5.0, 60.0)
+    claims_filed = rng.poisson(lam=0.8, size=n_samples)
+    claims_last_24h = rng.poisson(lam=0.12, size=n_samples)
+    account_age_days = rng.integers(30, 731, size=n_samples)
+    device_switches = rng.poisson(lam=0.3, size=n_samples)
+    h3_consistency = _clip(rng.beta(a=8.0, b=2.0, size=n_samples), 0.0, 1.0)
+    device_uniqueness = _clip(rng.normal(0.92, 0.08, size=n_samples), 0.1, 1.0)
+
     claims_rejected = np.minimum(claims_filed, rng.binomial(np.maximum(claims_filed, 1), 0.15))
     mismatch = rng.binomial(1, 0.04, size=n_samples)
-    h3_consistency = _clip(rng.normal(0.94, 0.07, n_samples), 0, 1)
-    delta_distance_m = _clip(rng.normal(58, 32, n_samples), 0, 5000)
-    delta_t_s = _clip(rng.normal(210, 110, n_samples), 1, 5000)
     shared_drivers = np.maximum(1, rng.poisson(lam=1.2, size=n_samples))
-    weekly_earnings = _clip(
-        rng.lognormal(mean=np.log(MEDIAN_WEEKLY_EARNINGS_INR), sigma=EARNINGS_LOG_SIGMA, size=n_samples),
-        1500,
-        60000,
-    )
+    weekly_earnings = daily_earnings * 7.0
 
     fraud = np.zeros(n_samples, dtype=int)
-    fraud_count = int(n_samples * FRAUD_BASE_RATE)
-    fraud_idx = rng.choice(np.arange(n_samples), size=fraud_count, replace=False)
-    fraud[fraud_idx] = 1
+    pattern_size = int(n_samples * 0.02)
+    all_idx = rng.permutation(n_samples)
+    gps_idx = all_idx[:pattern_size]
+    burst_idx = all_idx[pattern_size : 2 * pattern_size]
+    device_idx = all_idx[2 * pattern_size : 3 * pattern_size]
+    earnings_idx = all_idx[3 * pattern_size : 4 * pattern_size]
 
     pattern_counts = {
-        "gps_teleport": 0,
-        "claim_burst": 0,
-        "device_sharing": 0,
-        "earnings_anomaly": 0,
+        "gps_teleport": len(gps_idx),
+        "claim_burst": len(burst_idx),
+        "device_sharing": len(device_idx),
+        "earnings_anomaly": len(earnings_idx),
     }
 
-    for idx in fraud_idx:
-        pattern = rng.choice(["gps_teleport", "claim_burst", "device_sharing", "earnings_anomaly"])
-        pattern_counts[pattern] += 1
+    fraud[gps_idx] = 1
+    speeds[gps_idx] = rng.uniform(200.0, 400.0, len(gps_idx))
+    h3_consistency[gps_idx] = rng.uniform(0.0, 0.4, len(gps_idx))
+    mismatch[gps_idx] = 1
 
-        if pattern == "gps_teleport":
-            delta_distance_m[idx] = rng.uniform(220, 1200)
-            delta_t_s[idx] = rng.uniform(0.4, 1.8)
-            speeds[idx] = _clip(delta_distance_m[idx] / max(delta_t_s[idx], 0.4) * 3.6, 95, 220)
-            mismatch[idx] = 1
-            h3_consistency[idx] = rng.uniform(0.2, 0.65)
-        elif pattern == "claim_burst":
-            claims_filed[idx] = rng.integers(3, 8)
-            claims_rejected[idx] = rng.integers(1, claims_filed[idx] + 1)
-            h3_consistency[idx] = rng.uniform(0.45, 0.88)
-        elif pattern == "device_sharing":
-            shared_drivers[idx] = rng.integers(5, 13)
-            mismatch[idx] = 1
-            claims_filed[idx] = rng.integers(1, 6)
-            claims_rejected[idx] = rng.integers(0, claims_filed[idx] + 1)
-        elif pattern == "earnings_anomaly":
-            weekly_earnings[idx] = _clip(weekly_earnings[idx] * rng.uniform(9.5, 12.0), 20000, 90000)
-            h3_consistency[idx] = rng.uniform(0.55, 0.95)
+    fraud[burst_idx] = 1
+    claims_filed[burst_idx] = rng.integers(15, 31, len(burst_idx))
+    claims_last_24h[burst_idx] = rng.integers(3, 9, len(burst_idx))
+    claims_rejected[burst_idx] = np.minimum(
+        claims_filed[burst_idx],
+        rng.integers(2, 12, len(burst_idx)),
+    )
+
+    fraud[device_idx] = 1
+    device_uniqueness[device_idx] = rng.uniform(0.0, 0.15, len(device_idx))
+    device_switches[device_idx] = rng.integers(5, 16, len(device_idx))
+    shared_drivers[device_idx] = rng.integers(5, 16, len(device_idx))
+    mismatch[device_idx] = 1
+
+    fraud[earnings_idx] = 1
+    weekly_earnings[earnings_idx] = _clip(weekly_earnings[earnings_idx] * 10.0, 15000.0, 120000.0)
+    earnings_deviation = np.zeros(n_samples)
+    earnings_deviation[earnings_idx] = rng.uniform(3.0, 8.0, len(earnings_idx))
 
     claims_rate = claims_rejected / np.maximum(claims_filed, 1)
     velocity_z = (speeds - NORMAL_SPEED_MEAN_KMH) / NORMAL_SPEED_STD_KMH
+    delta_distance_m = np.maximum(20.0, speeds * 3.0)
+    delta_t_s = np.maximum(1.0, 180.0 / np.maximum(speeds, 1.0))
     teleport_ratio = delta_distance_m / np.maximum(delta_t_s, 0.5)
     earnings_ratio = weekly_earnings / MEDIAN_WEEKLY_EARNINGS_INR
 
@@ -255,7 +262,7 @@ def train_and_save() -> None:
     )
     anomaly_model.fit(Xf_train)
     joblib.dump(anomaly_model, os.path.join(DATA_DIR, "fraud_if.pkl"))
-    joblib.dump(anomaly_model, os.path.join(DATA_DIR, f"fraud_if_{MODEL_VERSION}.pkl"))
+    joblib.dump(anomaly_model, os.path.join(DATA_DIR, f"fraud_if_v{MODEL_VERSION}.pkl"))
 
     fraud_classifier = GradientBoostingClassifier(
         n_estimators=240,
@@ -276,11 +283,30 @@ def train_and_save() -> None:
         "version": MODEL_VERSION,
     }
     joblib.dump(fraud_artifact, os.path.join(DATA_DIR, "fraud_gb.pkl"))
-    joblib.dump(fraud_artifact, os.path.join(DATA_DIR, f"fraud_gb_{MODEL_VERSION}.pkl"))
+    joblib.dump(fraud_artifact, os.path.join(DATA_DIR, f"fraud_gb_v{MODEL_VERSION}.pkl"))
+
+    fraud_pred = fraud_classifier.predict(Xf_test)
+    precision, recall, f1, _ = precision_recall_fscore_support(yf_test, fraud_pred, average="binary", zero_division=0)
+    print("\nFraud classifier report:\n")
+    print(classification_report(yf_test, fraud_pred, zero_division=0))
+
+    print("GradientBoosting feature importances:")
+    for feature, importance in sorted(
+        zip(fraud_feature_names, fraud_classifier.feature_importances_),
+        key=lambda x: x[1],
+        reverse=True,
+    ):
+        print(f"  {feature}: {importance:.6f}")
 
     metadata = {
+        "trained_at": datetime.now(timezone.utc).isoformat(),
         "model_version": MODEL_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "n_samples": int(X_fraud.shape[0]),
+        "fraud_rate": float(np.mean(y_fraud)),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "features": fraud_feature_names,
         "risk": {
             "train_rows": int(X_train.shape[0]),
             "test_rows": int(X_test.shape[0]),

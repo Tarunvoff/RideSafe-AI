@@ -3,6 +3,8 @@ config.py — Central constants for H3 Feature Aggregation Service.
 Incorporates settings from the existing ml_microservice integrations.
 """
 
+import os
+
 # ── Cache ──────────────────────────────────────────────────────────────────────
 CACHE_TTL_SECONDS = 300          # 5 minutes — reduce cache dominance
 FEATURE_FRESHNESS_SECONDS = 300  # max expected age for "fresh" features
@@ -15,26 +17,26 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 WEATHER_TIMEOUT_SEC = 8.0
 
 # ── OpenAQ v3 (AQI — with API key, from existing ml_microservice) ─────────────
-OPENAQ_API_KEY     = "fb82692a1fd60143d77981ad7046fae366ffec526693544714f1ed2c94e5f22d"
+OPENAQ_API_KEY     = os.getenv("OPENAQ_API_KEY", "")
 OPENAQ_LOCATIONS   = "https://api.openaq.org/v3/locations"
 OPENAQ_SENSORS_URL = "https://api.openaq.org/v3/sensors/{sensor_id}/measurements"
 AQI_TIMEOUT_SEC    = 8.0
 AQI_SEARCH_RADII   = [10000, 25000, 50000]  # Progressive radius search (metres)
 AQI_MAX_SENSORS_PER_TYPE = 4                 # Cap HTTP calls per parameter type
 
-import os
-
 # ── Kafka ─────────────────────────────────────────────────────────────────────
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
 
 # ── Civic Alert (Newsdata.io API) ─────────────────────────────────────────────
-NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "pub_f7c6f2303cfa44ffa6652c2762aea3be")
+NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "")
 NEWSDATA_URL = "https://newsdata.io/api/1/latest"
 
-# ── Mocking ───────────────────────────────────────────────────────────────────
-USE_MOCK_DATA = False
+# ── Calibrated fallback estimation mode ───────────────────────────────────────
+USE_CALIBRATED_FALLBACK_PRIOR = False
 PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:3001/api/platform/activity")
 PLATFORM_TIMEOUT_SEC = float(os.getenv("PLATFORM_TIMEOUT_SECONDS", "6.0"))
+BACKEND_INTERNAL_URL = os.getenv("BACKEND_INTERNAL_URL", "http://127.0.0.1:3001/internal/zone-state")
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://127.0.0.1:8000")
 
 # ── Strict realtime mode (no fallbacks) ──────────────────────────────────────
 STRICT_REALTIME = os.getenv("STRICT_REALTIME", "false").lower() == "true"

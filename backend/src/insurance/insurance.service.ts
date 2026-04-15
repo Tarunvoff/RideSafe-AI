@@ -115,13 +115,13 @@ export class InsuranceService {
       throw new BadRequestException('Plan must be BASIC, STANDARD, or PREMIUM');
     }
 
-    const existingUser = await (this.prisma as any).user.findUnique({
+    const existingUser = await this.prisma.user.findUnique({
       where: { id: dto.driverId },
     });
 
     if (!existingUser) {
       const passwordHash = await bcrypt.hash(randomUUID(), 10);
-      await (this.prisma as any).user.create({
+      await this.prisma.user.create({
         data: {
           id: dto.driverId,
           email: `${dto.driverId}@demo.local`,
@@ -132,7 +132,7 @@ export class InsuranceService {
         },
       });
 
-      await (this.prisma as any).kYCProfile.create({
+      await this.prisma.kYCProfile.create({
         data: {
           userId: dto.driverId,
           status: 'NOT_STARTED',
@@ -140,7 +140,7 @@ export class InsuranceService {
       });
     }
 
-    const kycProfile = await (this.prisma as any).kYCProfile.findUnique({
+    const kycProfile = await this.prisma.kYCProfile.findUnique({
       where: { userId: dto.driverId },
     });
 
@@ -185,12 +185,12 @@ export class InsuranceService {
     const now = new Date();
     const validTo = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    await (this.prisma as any).policy.updateMany({
+    await this.prisma.policy.updateMany({
       where: { userId: dto.driverId, status: 'ACTIVE', endDate: { gt: now } },
       data: { endDate: now },
     });
 
-    const policy = await (this.prisma as any).policy.create({
+    const policy = await this.prisma.policy.create({
       data: {
         userId: dto.driverId,
         planType: plan,
@@ -232,7 +232,7 @@ export class InsuranceService {
     const Ew = this.resolveWeeklyEarnings(profile);
 
     const now = new Date();
-    const activePolicy = await (this.prisma as any).policy.findFirst({
+    const activePolicy = await this.prisma.policy.findFirst({
       where: {
         userId: driverId,
         status: 'ACTIVE',
@@ -390,7 +390,7 @@ export class InsuranceService {
   }
 
   async cancelPolicy(dto: { driverId: string; reason?: string }) {
-    const activePolicy = await (this.prisma as any).policy.findFirst({
+    const activePolicy = await this.prisma.policy.findFirst({
       where: { userId: dto.driverId, status: 'ACTIVE', endDate: { gt: new Date() } },
     });
 
@@ -399,7 +399,7 @@ export class InsuranceService {
     }
 
     const now = new Date();
-    await (this.prisma as any).policy.update({
+    await this.prisma.policy.update({
       where: { id: activePolicy.id },
       data: { status: 'CANCELLED', endDate: now },
     });
@@ -419,7 +419,7 @@ export class InsuranceService {
   }
 
   async renewPolicy(dto: { driverId: string }) {
-    const latestPolicy = await (this.prisma as any).policy.findFirst({
+    const latestPolicy = await this.prisma.policy.findFirst({
       where: { userId: dto.driverId },
       orderBy: { createdAt: 'desc' }
     });
@@ -435,7 +435,7 @@ export class InsuranceService {
     }
 
     if (latestPolicy.weeklyPlanId) {
-      const weeklyPlan = await (this.prisma as any).weeklyPlan.findUnique({
+      const weeklyPlan = await this.prisma.weeklyPlan.findUnique({
         where: { id: latestPolicy.weeklyPlanId },
       });
       if (!weeklyPlan) {
@@ -447,12 +447,12 @@ export class InsuranceService {
       const renewStart = new Date();
       const renewEnd = new Date(renewStart.getTime() + weeklyPlan.durationDays * 24 * 60 * 60 * 1000);
 
-      await (this.prisma as any).policy.updateMany({
+      await this.prisma.policy.updateMany({
         where: { userId: dto.driverId, status: 'ACTIVE', endDate: { gt: renewStart } },
         data: { endDate: renewStart },
       });
 
-      const renewedPolicy = await (this.prisma as any).policy.create({
+      const renewedPolicy = await this.prisma.policy.create({
         data: {
           userId: dto.driverId,
           planType: weeklyPlan.key,
@@ -484,7 +484,7 @@ export class InsuranceService {
   }
 
   async getPolicyStatus(driverId: string) {
-    const policy = await (this.prisma as any).policy.findFirst({
+    const policy = await this.prisma.policy.findFirst({
       where: { userId: driverId },
       orderBy: { createdAt: 'desc' },
       include: {

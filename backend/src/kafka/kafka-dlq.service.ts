@@ -36,7 +36,7 @@ export class KafkaDlqService {
    * Called by KafkaReliableProducerService on emit failure.
    */
   async pushToDlq(entry: DlqPayload): Promise<void> {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     try {
       await prisma.kafkaDLQ.create({
         data: {
@@ -60,7 +60,7 @@ export class KafkaDlqService {
    * Retrieve all pending DLQ entries (for admin review / replay).
    */
   async getPendingEntries(limit = 100) {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     return prisma.kafkaDLQ.findMany({
       where: { status: { in: ['PENDING', 'RETRYING'] } },
       orderBy: { createdAt: 'asc' },
@@ -72,7 +72,7 @@ export class KafkaDlqService {
    * Mark a specific entry as DEAD (manual admin action).
    */
   async markDead(id: string): Promise<void> {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     await prisma.kafkaDLQ.update({
       where: { id },
       data: { status: 'DEAD' },
@@ -98,7 +98,7 @@ export class KafkaDlqService {
   async replayPending(): Promise<void> {
     if (!this.replayFn) return;
 
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     const entries = await this.getPendingEntries(20);
 
     if (entries.length === 0) return;

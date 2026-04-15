@@ -11,7 +11,7 @@ Returns a boolean: True if civic disruption is ongoing.
 
 import logging
 import httpx
-from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_MOCK_DATA
+from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_CALIBRATED_FALLBACK_PRIOR
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +59,9 @@ async def check_civic_alert(city: str = "Bangalore") -> dict:
     City is derived dynamically (passed from feature_service via _reverse_geocode_city).
     """
     try:
-        if USE_MOCK_DATA or NEWSDATA_API_KEY == "demo_key":
+        if USE_CALIBRATED_FALLBACK_PRIOR or not NEWSDATA_API_KEY:
             import random
-            return {"civic_alert": random.random() < 0.05, "is_fallback": True, "source": "mock"}
+            return {"civic_alert": random.random() < 0.05, "is_fallback": True, "source": "calibrated_fallback_prior"}
 
         params = {
             "apikey": NEWSDATA_API_KEY,

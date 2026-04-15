@@ -13,9 +13,17 @@ import {
   MINIMUM_WEEKLY_PREMIUM_INR,
 } from './premium-calculation.util';
 
+type RiskScoreResponse = {
+  lf_score: number;
+  zone_state: string;
+  confidence: number;
+  model_used: 'xgboost' | 'fallback';
+};
+
 @Injectable()
 export class PremiumService {
   private readonly logger = new Logger(PremiumService.name);
+  private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -122,6 +130,39 @@ export class PremiumService {
     }
   }
 
+  private async resolveLfFromMlService(params: {
+    h3Cell: string;
+    historicalRisk: number;
+  }): Promise<RiskScoreResponse> {
+    const now = new Date();
+    const payload = {
+      h3_cell: params.h3Cell,
+      rainfall_mm: 0,
+      aqi: 80,
+      demand_ratio: 1,
+      hour_of_day: now.getUTCHours(),
+      day_of_week: now.getUTCDay(),
+      historical_risk: params.historicalRisk,
+    };
+
+    const res = await fetch(`${this.mlServiceUrl}/risk/score`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Risk ML service HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as RiskScoreResponse;
+    if (!Number.isFinite(data?.lf_score)) {
+      throw new Error('Risk ML service returned invalid lf_score');
+    }
+    return data;
+  }
+
   async calculateWeeklyPremium(driverId: string, planId?: string) {
     const profileDriverId = await this.resolveProfileDriverId(driverId);
     const profile = (await this.dynamicQCommerce.getDriverProfile(profileDriverId)).driverProfile;
@@ -135,17 +176,38 @@ export class PremiumService {
       throw new Error('AEGIS_ERR_301: Unable to resolve policy tier for premium calculation');
     }
 
-    let Lf = 0.5;
+    let Lf = 0;
+    let modelUsed: 'redis' | 'xgboost' | 'fallback' = 'redis';
     const driverState = await this.redisState.getDriverState(profileDriverId);
     const h3Cell = driverState?.last_location?.h3_cell;
     if (!h3Cell) {
-      this.logger.warn(`No driver h3 cell in Redis for ${profileDriverId}; using default Lf=${Lf}`);
-    } else {
+      throw new Error('AEGIS_ERR_001: Invalid or missing H3 zone cell');
+    }
+
+    {
       const zoneState = await this.redisState.getZoneState(h3Cell);
       if (zoneState?.Lf != null || zoneState?.lf_score != null) {
         Lf = Number(zoneState?.Lf ?? zoneState?.lf_score);
+        modelUsed = 'redis';
       } else {
-        this.logger.warn(`No zone Lf found for ${h3Cell}; using default Lf=${Lf}`);
+        const mlRisk = await this.resolveLfFromMlService({
+          h3Cell,
+          historicalRisk: 0.35,
+        });
+
+        Lf = Number(mlRisk.lf_score);
+        modelUsed = mlRisk.model_used;
+        await this.redisState.setZoneState(h3Cell, {
+          Lf,
+          zone_state: mlRisk.zone_state,
+          confidence: mlRisk.confidence,
+          model_used: mlRisk.model_used,
+          computed_at: new Date().toISOString(),
+        });
+
+        this.logger.log(
+          `Zone Lf cache miss resolved via ML: model_used=${mlRisk.model_used}, lf_score=${Lf.toFixed(4)}, h3_cell=${h3Cell}, driver_id=${profileDriverId}`,
+        );
       }
     }
 
@@ -159,7 +221,7 @@ export class PremiumService {
     }
 
     this.logger.log(
-      `Weekly premium for ${driverId}: Ew=${Ew} Lf=${Lf.toFixed(3)} Ct=${Ct} premium=${premium}`,
+      `Weekly premium for ${driverId}: Ew=${Ew} Lf=${Lf.toFixed(3)} Ct=${Ct} premium=${premium} model_used=${modelUsed} h3_cell=${h3Cell}`,
     );
 
     return {

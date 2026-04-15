@@ -1,6 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { z } from 'zod';
+
+const LOSS_CURVE = {
+  RAIN: { loss_per_severity: 650, payout_ratio: 0.75 },
+  FLOOD: { loss_per_severity: 1800, payout_ratio: 0.65 },
+  PROTEST: { loss_per_severity: 400, payout_ratio: 0.8 },
+  STRIKE: { loss_per_severity: 350, payout_ratio: 0.85 },
+  OTHER: { loss_per_severity: 300, payout_ratio: 0.7 },
+} as const;
+
+const DisruptionSchema = z.object({
+  type: z.enum(['RAIN', 'FLOOD', 'PROTEST', 'STRIKE', 'OTHER']),
+  title: z.string().min(5).max(100),
+  severityScore: z.number().min(0).max(1),
+  affectedZones: z.array(z.string()).optional(),
+});
+
+const GeminiDisruptionEnvelopeSchema = z.object({
+  disruptions: z.array(DisruptionSchema),
+});
 
 @Injectable()
 export class IngestionService {
@@ -109,22 +129,26 @@ export class IngestionService {
          for (const event of geminiResult.disruptions) {
             
             // Check if we already logged this exact protest/flood in the DB recently
-            const duplicate = await (this.prisma as any).disruptionEvent.findFirst({
+            const duplicate = await this.prisma.disruptionEvent.findFirst({
                where: { title: event.title }
             });
 
             if (!duplicate) {
-                await (this.prisma as any).disruptionEvent.create({
+               const lossConfig = LOSS_CURVE[event.type] ?? LOSS_CURVE.OTHER;
+               const expectedLoss = Math.round(event.severityScore * lossConfig.loss_per_severity);
+               const expectedPayout = Math.round(expectedLoss * lossConfig.payout_ratio);
+
+               await this.prisma.disruptionEvent.create({
                    data: {
-                      type: event.type, // 'Civic Bandh / Strike', 'Heavy Rain (>60mm)', 'Flood / Zone Inundation'
+                   type: event.type,
                       title: event.title,
-                      expectedLoss: Math.round(event.severityScore * 800), // AI severity mapping
-                      expectedPayout: Math.round(event.severityScore * 400),
-                      verified: true,
+                   expectedLoss,
+                   expectedPayout,
+                   verified: false,
                       occurredAt: new Date(),
                    }
                 });
-                this.logger.log(`🚨 [AUTO-TRIGGER] Inserted Verified Disruption: [${event.type}] ${event.title}`);
+               this.logger.log(`[DISRUPTION_PENDING_REVIEW] Added event type=${event.type} title=${event.title}`);
             }
          }
       }
@@ -184,7 +208,13 @@ export class IngestionService {
           
           const text = jsonRes.candidates[0].content.parts[0].text;
           const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-          return JSON.parse(cleanJson);
+          const parsed = JSON.parse(cleanJson);
+          const validated = GeminiDisruptionEnvelopeSchema.safeParse(parsed);
+          if (!validated.success) {
+            this.logger.warn(`Gemini output validation failed: ${validated.error.message}`);
+            return null;
+          }
+          return validated.data;
       } catch (e) {
           this.logger.error('Gemini Classification API Failed', e);
           return null;

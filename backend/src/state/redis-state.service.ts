@@ -5,6 +5,7 @@ const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const DRIVER_STATE_TTL = Number(process.env.DRIVER_STATE_TTL_SECONDS ?? 900);
 const POLICY_STATE_TTL = Number(process.env.POLICY_STATE_TTL_SECONDS ?? 900);
 const ZONE_DRIVER_TTL = Number(process.env.ZONE_DRIVER_TTL_SECONDS ?? 900);
+const ZONE_STATE_TTL = Number(process.env.ZONE_STATE_TTL_SECONDS ?? 900);
 
 @Injectable()
 export class RedisStateService {
@@ -39,6 +40,16 @@ export class RedisStateService {
     } catch (err) {
       this.logger.warn(`[Redis state] zone:${h3Cell} read failed: ${err}`);
       return null;
+    }
+  }
+
+  async setZoneState(h3Cell: string, payload: Record<string, any>) {
+    const redis = await this.getRedis();
+    if (!redis) return;
+    try {
+      await redis.setEx(`zone:${h3Cell}`, ZONE_STATE_TTL, JSON.stringify(payload));
+    } catch (err) {
+      this.logger.warn(`[Redis state] zone:${h3Cell} write failed: ${err}`);
     }
   }
 

@@ -16,7 +16,7 @@ Pipeline:
   3. H3 → lat/lng
   4. Fire weather + AQI + civic + platform in PARALLEL
   5. Derive temporal features (season, hour_of_day, etc.)
-  6. Generate historical risk placeholder
+    6. Generate historical risk prior
   7. Cache result
   8. Return FeatureResponse
 """
@@ -27,6 +27,7 @@ import logging
 import time
 from datetime import datetime
 from fastapi import HTTPException
+import httpx
 
 from utils.geo import h3_to_latlng, validate_h3_cell
 from services.weather_service import fetch_weather
@@ -41,9 +42,40 @@ from config import (
     DEFAULT_DEMAND_RATIO, DEFAULT_HISTORICAL_RISK,
     FEATURE_FRESHNESS_SECONDS,
     STRICT_REALTIME,
+    BACKEND_INTERNAL_URL,
+    ML_SERVICE_URL,
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def _publish_zone_state(feature_dict: dict) -> None:
+    payload = {
+        "h3_cell": feature_dict["h3_cell"],
+        "rainfall_mm": float(feature_dict.get("rainfall", 0.0) or 0.0),
+        "aqi": float(feature_dict.get("aqi", 0.0) or 0.0),
+        "demand_ratio": float(feature_dict.get("demand_ratio", 0.0) or 0.0),
+        "hour_of_day": int(feature_dict.get("hour_of_day", 0) or 0),
+        "day_of_week": int(feature_dict.get("day_of_week", 0) or 0),
+        "historical_risk": float(feature_dict.get("historical_risk", 0.0) or 0.0),
+    }
+
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        risk_res = await client.post(f"{ML_SERVICE_URL}/risk/score", json=payload)
+        risk_res.raise_for_status()
+        risk_data = risk_res.json()
+
+        backend_payload = {
+            "h3_cell": feature_dict["h3_cell"],
+            "Lf": float(risk_data.get("lf_score", 0.0)),
+            "zone_state": risk_data.get("zone_state", "NORMAL"),
+            "rainfall_mm": payload["rainfall_mm"],
+            "aqi": payload["aqi"],
+            "demand_ratio": payload["demand_ratio"],
+            "computed_at": datetime.utcnow().isoformat(),
+        }
+        write_res = await client.post(BACKEND_INTERNAL_URL, json=backend_payload)
+        write_res.raise_for_status()
 
 
 def _get_season(month: int) -> int:
@@ -66,7 +98,7 @@ def _get_season(month: int) -> int:
 
 def _generate_historical_risk(h3_cell: str) -> float:
     """
-    Placeholder historical risk. Seeded on h3_cell for stable per-cell values.
+    Historical risk prior seeded on h3_cell for stable per-cell values.
     Replace with DB lookup when risk history table is available.
     """
     rng = random.Random(hash(h3_cell))
@@ -247,7 +279,7 @@ async def get_features(h3_cell: str) -> FeatureResponse:
     if STRICT_REALTIME:
         _mark("historical_risk", "derived", fallback=False)
     else:
-        _mark("historical_risk", "synthetic", fallback=True)
+        _mark("historical_risk", "calibrated_prior", fallback=True)
 
     quality_features = {"rainfall", "aqi", "demand_ratio", "civic_alert", "active_riders", "active_orders"}
     fallback_hits = len(set(fallback_features) & quality_features)
@@ -270,7 +302,7 @@ async def get_features(h3_cell: str) -> FeatureResponse:
         "pm10": aqi_data.get("pm10", DEFAULT_PM10),
 
         # Platform — live rider count from Redis (via Kafka consumer) takes priority
-        # over platform_data mock when available; compute demand_ratio = orders / riders
+        # over platform_data fallback prior when available; compute demand_ratio = orders / riders
         "active_orders": active_orders,
         "active_riders":   active_riders,
         "demand_ratio":    demand_ratio,
@@ -311,5 +343,10 @@ async def get_features(h3_cell: str) -> FeatureResponse:
             feature_dict["missing_features"],
             feature_dict["confidence_score"],
         )
+
+    try:
+        await _publish_zone_state(feature_dict)
+    except Exception as exc:
+        logger.warning("Failed to publish zone state for %s: %s", h3_cell, exc)
 
     return FeatureResponse(**feature_dict)

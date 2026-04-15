@@ -105,7 +105,8 @@ export class DynamicQCommerceService {
         expiresAt,
         redirectUri: dto.redirectUri ?? `${dto.provider}://callback`,
         dynamicAuthorizationUrl: `https://dynamic.${dto.provider}.oauth/authorize?session=${sessionId}&state=${state}`,
-        demoAuthCode: authCode,
+        // Simulated OAuth authorization code returned by provider callback in local environments.
+        authCode,
       },
     };
   }

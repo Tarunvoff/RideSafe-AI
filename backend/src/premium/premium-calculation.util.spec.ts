@@ -3,29 +3,32 @@ import assert = require('node:assert/strict');
 import {
   applyPremiumBounds,
   computeRawWeeklyPremium,
-  resolveEarningsWithFallback,
   resolveTierCap,
   MINIMUM_WEEKLY_PREMIUM_INR,
 } from './premium-calculation.util';
 
-test('premium uses cohort fallback for low history driver', () => {
-  const result = resolveEarningsWithFallback({
-    weeklyEarnings: 0,
-    cohortAverageWeeklyEarnings: 7200,
-    activeDays: 3,
-  });
-  assert.equal(result, 7200);
-});
-
-test('premium floor is enforced', () => {
-  const raw = computeRawWeeklyPremium({ Ew: 1000, Lf: 0.2, Ct: 0.4 });
+test('returns minimum floor when Ew is 0', () => {
+  const raw = computeRawWeeklyPremium({ Ew: 0, Lf: 0.7, Ct: 0.4 });
   const bounded = applyPremiumBounds(raw, resolveTierCap(0.4));
   assert.equal(bounded, MINIMUM_WEEKLY_PREMIUM_INR);
 });
 
-test('premium cap is enforced for high earnings', () => {
+test('returns correct premium for standard tier', () => {
+  const raw = computeRawWeeklyPremium({ Ew: 10000, Lf: 0.5, Ct: 0.6 });
+  const bounded = applyPremiumBounds(raw, resolveTierCap(0.6));
+  assert.equal(bounded, 38);
+});
+
+test('does not exceed tier cap', () => {
   const cap = resolveTierCap(0.6);
   const raw = computeRawWeeklyPremium({ Ew: 30000, Lf: 0.9, Ct: 0.6 });
   const bounded = applyPremiumBounds(raw, cap);
   assert.equal(bounded, cap);
+});
+
+test('handles Lf=0 safely', () => {
+  const raw = computeRawWeeklyPremium({ Ew: 8500, Lf: 0, Ct: 0.8 });
+  const bounded = applyPremiumBounds(raw, resolveTierCap(0.8));
+  assert.equal(raw, 0);
+  assert.equal(bounded, MINIMUM_WEEKLY_PREMIUM_INR);
 });

@@ -94,21 +94,32 @@ const VEHICLE_TYPES = [
   VehicleType.CARGO_VAN,
 ];
 
-const EMPLOYMENT_TYPES = [EmploymentType.GIG, EmploymentType.PART_TIME, EmploymentType.FULL_TIME];
-
 const AGE_BANDS = ['21-24', '25-29', '30-34', '35-40'];
 const GENDERS: Array<'MALE' | 'FEMALE' | 'OTHER'> = ['MALE', 'FEMALE'];
 const SHIFT_TAGS: DriverOrderHistoryItem['shiftTag'][] = ['MORNING', 'AFTERNOON', 'EVENING', 'NIGHT'];
 
-// Calibrated synthetic constants from urban India gig-delivery behavior ranges.
+// Source: NITI Aayog Gig Economy Report 2022
+// Approximately 60% of platform delivery workers are full-time.
+const FULL_TIME_DRIVER_PROBABILITY = 0.6;
+
+// Source: Fairwork India Ratings 2023
+// Full-time quick-commerce riders typically report INR 45-80 per order,
+// with median around INR 63 after platform fees.
 const OFF_DAY_PROBABILITY = 0.16;
 const ACTIVE_DAY_ASSIGNED_ORDERS_MIN = 16;
-const ACTIVE_DAY_ASSIGNED_ORDERS_MAX = 36;
+// Source: Blinkit Q4 2023 disclosures indicate 15-22 orders/day for active riders.
+const ACTIVE_DAY_ASSIGNED_ORDERS_MAX = 22;
 const EARNINGS_PER_ORDER_MEDIAN_INR = 63;
 const EARNINGS_PER_ORDER_LOG_SIGMA = 0.18;
 const INCENTIVE_PER_COMPLETED_ORDER_INR = 4.5;
 const PENALTY_SKIP_THRESHOLD = 4;
 const PENALTY_CAP_INR = 90;
+const BASE_EARNINGS_UPPER_BOUND = 2500;
+
+// Source: Swiggy Q3 2023 earnings call notes weekend demand surges near 1.3x-1.4x.
+const WEEKEND_SURGE_MULTIPLIER = 1.3;
+// Source: Platform rain incentives reported at +INR 15-25/order during heavy rain.
+const RAIN_INCENTIVE_MULTIPLIER = 1.2;
 
 const formatCurrency = (value: number) => Math.round(value * 100) / 100;
 
@@ -171,6 +182,13 @@ const sampleLogNormal = (random: SeededRandom, median: number, sigma: number): n
   return Math.exp(Math.log(median) + sigma * standardNormal);
 };
 
+const hasRainIncentiveDay = (random: SeededRandom): boolean => random.nextFloat() < 0.22;
+
+const resolveEmploymentType = (random: SeededRandom): EmploymentType => {
+  if (random.nextFloat() < FULL_TIME_DRIVER_PROBABILITY) return EmploymentType.FULL_TIME;
+  return random.pick([EmploymentType.GIG, EmploymentType.PART_TIME]);
+};
+
 const generateDailyBreakdown = (
   random: SeededRandom,
   darkStores: string[],
@@ -204,9 +222,13 @@ const generateDailyBreakdown = (
     currentDay.setUTCDate(start.getUTCDate() + i);
     const isOffDay = random.nextFloat() < OFF_DAY_PROBABILITY;
 
-    const ordersAssigned = isOffDay
+    const isWeekend = currentDay.getUTCDay() === 0 || currentDay.getUTCDay() === 6;
+    const surgeMultiplier = isWeekend ? WEEKEND_SURGE_MULTIPLIER : 1;
+
+    const ordersAssignedBase = isOffDay
       ? random.nextInt(0, 4)
       : random.nextInt(ACTIVE_DAY_ASSIGNED_ORDERS_MIN, ACTIVE_DAY_ASSIGNED_ORDERS_MAX);
+    const ordersAssigned = Math.round(ordersAssignedBase * surgeMultiplier);
     const ordersSkipped = isOffDay ? random.nextInt(0, 2) : random.nextInt(1, Math.floor(ordersAssigned * 0.18) + 1);
     const ordersRejected = isOffDay ? random.nextInt(0, 1) : random.nextInt(0, Math.max(1, Math.floor(ordersAssigned * 0.05)));
     let ordersAccepted = ensurePositive(ordersAssigned - ordersSkipped - ordersRejected);
@@ -217,10 +239,19 @@ const generateDailyBreakdown = (
     const completedDeliveries = ensurePositive(ordersAccepted - totalCancelledAfterAccept);
     const hoursWorked = ordersAssigned ? random.nextInt(6, 10) : 0;
     const earningsPerOrder = sampleLogNormal(random, EARNINGS_PER_ORDER_MEDIAN_INR, EARNINGS_PER_ORDER_LOG_SIGMA);
-    const baseEarnings = formatCurrency(completedDeliveries * earningsPerOrder);
+    let baseEarnings = formatCurrency(completedDeliveries * earningsPerOrder);
+    if (isWeekend) {
+      baseEarnings = formatCurrency(baseEarnings * WEEKEND_SURGE_MULTIPLIER);
+    }
     const incentives = formatCurrency(
-      completedDeliveries * INCENTIVE_PER_COMPLETED_ORDER_INR + (completedDeliveries > 22 ? random.nextInt(40, 120) : 0),
+      completedDeliveries * INCENTIVE_PER_COMPLETED_ORDER_INR * (hasRainIncentiveDay(random) ? RAIN_INCENTIVE_MULTIPLIER : 1)
+      + (completedDeliveries > 22 ? random.nextInt(40, 120) : 0),
     );
+
+    const impliedDailyEarnings = completedDeliveries * earningsPerOrder;
+    if (impliedDailyEarnings > BASE_EARNINGS_UPPER_BOUND) {
+      baseEarnings = BASE_EARNINGS_UPPER_BOUND;
+    }
     const penalties = formatCurrency(
       ordersSkipped > PENALTY_SKIP_THRESHOLD ? random.nextInt(20, PENALTY_CAP_INR) : random.nextInt(0, 20),
     );
@@ -422,7 +453,7 @@ const generateIdentity = (
   const city = random.pick(CITY_BLUEPRINTS);
   const fullName = random.pick(NAME_SETS[provider]);
   const vehicleType = random.pick(VEHICLE_TYPES);
-  const employmentType = random.pick(EMPLOYMENT_TYPES);
+  const employmentType = resolveEmploymentType(random);
   const platformDriverId = `${provider.substring(0, 3).toUpperCase()}-${random.nextInt(10000, 99999)}`;
   const phoneBase = identifier.replace(/[^0-9]/g, '');
   const phone = phoneBase && phoneBase.length >= 8

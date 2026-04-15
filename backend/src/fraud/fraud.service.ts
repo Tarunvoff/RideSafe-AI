@@ -38,9 +38,19 @@ interface FraudFeatureResponse {
   };
 }
 
+interface FraudMlScoreResponse {
+  fraud_score: number;
+  rule_score: number;
+  ml_anomaly_score: number;
+  ml_classifier_score: number;
+  top_signals: string[];
+  model_used: 'hybrid' | 'rules_only';
+}
+
 @Injectable()
 export class FraudService {
   private readonly logger = new Logger(FraudService.name);
+  private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
   constructor(private prisma: PrismaService) {}
 
@@ -89,32 +99,66 @@ export class FraudService {
     // 1. Fetch ML feature vector from Python service
     const features = await this.fetchFraudFeatures(userId, dto);
 
-    // 2. Score with ML features OR fall back to simple heuristics
-    let riskScore: number;
-    let featureSource: string;
-
-    if (features) {
-      riskScore     = this.scoreFromFeatures(features, dto);
-      featureSource = 'ml-fraud-feature-service';
-      this.logger.log(`ML risk score for ${userId}: ${riskScore}`);
-    } else {
-      riskScore     = this.scoreFallback(dto);
-      featureSource = 'heuristic-fallback';
-      this.logger.warn(`Heuristic score for ${userId}: ${riskScore}`);
+    if (!features) {
+      const fallbackScore = this.scoreFallback(dto);
+      const fallbackStatus = fallbackScore >= 75 ? 'AUTO_REJECTED' : fallbackScore >= 45 ? 'INCONCLUSIVE' : 'APPROVED';
+      return {
+        message: 'Fraud analysis completed (fallback)',
+        data: {
+          id: null,
+          riskScore: fallbackScore,
+          status: fallbackStatus,
+          featureSource: 'heuristic-fallback',
+          topSignals: ['FEATURE_SERVICE_UNAVAILABLE'],
+          fraudReason: 'Feature service unavailable; rule fallback applied',
+          features: null,
+        },
+      };
     }
 
-    const status = riskScore > 60 ? 'INCONCLUSIVE' : 'APPROVED';
+    let mlScore: FraudMlScoreResponse;
+    try {
+      mlScore = await this.fetchHybridFraudScore(features);
+    } catch (err) {
+      const fallback = this.scoreFromFeatures(features, dto);
+      this.logger.warn(`Fraud ML scoring failed for ${userId}; using rule-only fallback. Error: ${err}`);
+      mlScore = {
+        fraud_score: fallback,
+        rule_score: fallback,
+        ml_anomaly_score: 0,
+        ml_classifier_score: 0,
+        top_signals: ['ML_SCORING_UNAVAILABLE'],
+        model_used: 'rules_only',
+      };
+    }
+    const riskScore = Number(mlScore.fraud_score);
+    const featureSource = `ml-insurance-service:${mlScore.model_used}`;
+    const topSignals = mlScore.top_signals ?? [];
+    const fraudReason = topSignals.length ? topSignals.join(', ') : 'MODEL_ANOMALY_SIGNAL';
+
+    const status = riskScore >= 75
+      ? 'AUTO_REJECTED'
+      : riskScore >= 45
+        ? 'INCONCLUSIVE'
+        : 'APPROVED';
 
     // 3. Persist / upsert to DB
-    const prisma = this.prisma as any;
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true },
     });
 
     if (!existingUser) {
       const analysisDetails = JSON.stringify(
-        this.buildDetails(dto, riskScore, features, featureSource),
+        {
+          ...this.buildDetails(dto, riskScore, features, featureSource),
+          top_signals: topSignals,
+          fraud_reason: fraudReason,
+          rule_score: mlScore.rule_score,
+          ml_anomaly_score: mlScore.ml_anomaly_score,
+          ml_classifier_score: mlScore.ml_classifier_score,
+          model_used: mlScore.model_used,
+        },
       );
 
       this.logger.warn(
@@ -128,18 +172,28 @@ export class FraudService {
           riskScore,
           status,
           featureSource,
+          topSignals,
+          fraudReason,
           features: features ?? null,
           analysis: JSON.parse(analysisDetails),
         },
       };
     }
 
-    const existing = await prisma.fraudAnalysis.findUnique({
+    const existing = await this.prisma.fraudAnalysis.findUnique({
       where: { userId },
     });
 
     const analysisDetails = JSON.stringify(
-      this.buildDetails(dto, riskScore, features, featureSource),
+      {
+        ...this.buildDetails(dto, riskScore, features, featureSource),
+        top_signals: topSignals,
+        fraud_reason: fraudReason,
+        rule_score: mlScore.rule_score,
+        ml_anomaly_score: mlScore.ml_anomaly_score,
+        ml_classifier_score: mlScore.ml_classifier_score,
+        model_used: mlScore.model_used,
+      },
     );
 
     const dbData = {
@@ -154,11 +208,11 @@ export class FraudService {
     };
 
     const result = existing
-      ? await prisma.fraudAnalysis.update({
+      ? await this.prisma.fraudAnalysis.update({
           where: { userId },
           data:  dbData,
         })
-      : await prisma.fraudAnalysis.create({
+      : await this.prisma.fraudAnalysis.create({
           data: { userId, ...dbData },
         });
 
@@ -169,10 +223,40 @@ export class FraudService {
         riskScore:     result.riskScore,
         status:        result.status,
         featureSource,
+        topSignals,
+        fraudReason,
         features:      features ?? null,
         analysis:      JSON.parse(result.analysisDetails ?? '{}'),
       },
     };
+  }
+
+  private async fetchHybridFraudScore(features: FraudFeatureResponse): Promise<FraudMlScoreResponse> {
+    const reqBody = {
+      account_age_days: Number(features.identity.account_age_days ?? 0),
+      device_id_uniqueness: Number(features.identity.device_id_uniqueness ?? 1),
+      device_switch_frequency: Number(features.identity.device_switch_frequency ?? 0),
+      gps_speed: Number(features.location.gps_speed ?? 0),
+      h3_zone_consistency: Number(features.location.h3_zone_consistency ?? 1),
+      claims_last_30d: Number(features.behavior.claims_last_30d ?? 0),
+      claims_last_24h: Number(features.meta.claims_last_24h ?? 0),
+      trigger_frequency: Number(features.behavior.trigger_frequency ?? 0),
+      earnings_pattern_deviation: Number(features.behavior.earnings_pattern_deviation ?? 0),
+      mismatch: Number(features.identity.device_id_uniqueness ?? 1) < 0.3,
+      shared_driver_count_24h: Number(features.meta.device_user_count ?? 1),
+    };
+
+    const response = await fetch(`${this.mlServiceUrl}/fraud/score`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reqBody),
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Fraud ML service HTTP ${response.status}`);
+    }
+    return (await response.json()) as FraudMlScoreResponse;
   }
 
   // ── Scoring: ML + rules + graph + H3 signals ──────────────────────────────
@@ -289,7 +373,7 @@ export class FraudService {
   // ── Read-only / admin endpoints ───────────────────────────────────────────
 
   async getStatus(userId: string) {
-    const analysis = await (this.prisma as any).fraudAnalysis.findUnique({
+    const analysis = await this.prisma.fraudAnalysis.findUnique({
       where: { userId },
     });
     if (!analysis) {
@@ -306,7 +390,7 @@ export class FraudService {
   }
 
   async getSubmissions() {
-    const submissions = await (this.prisma as any).fraudAnalysis.findMany({
+    const submissions = await this.prisma.fraudAnalysis.findMany({
       where:   { status: 'INCONCLUSIVE' },
       include: { user: { select: { id: true, email: true, phone: true, createdAt: true } } },
       orderBy: { createdAt: 'desc' },
@@ -326,7 +410,7 @@ export class FraudService {
   }
 
   async getSubmissionDetails(userId: string) {
-    const analysis = await (this.prisma as any).fraudAnalysis.findUnique({
+    const analysis = await this.prisma.fraudAnalysis.findUnique({
       where:   { userId },
       include: { user: { select: { id: true, email: true, phone: true } } },
     });
@@ -349,7 +433,7 @@ export class FraudService {
   }
 
   async reviewSubmission(userId: string, dto: ReviewFraudDto) {
-    const analysis = await (this.prisma as any).fraudAnalysis.update({
+    const analysis = await this.prisma.fraudAnalysis.update({
       where: { userId },
       data: {
         status:     dto.status,
@@ -369,7 +453,7 @@ export class FraudService {
   }
 
   async escalateSubmission(userId: string, reviewNote?: string) {
-    const analysis = await (this.prisma as any).fraudAnalysis.update({
+    const analysis = await this.prisma.fraudAnalysis.update({
       where: { userId },
       data: {
         status:     'ESCALATED',

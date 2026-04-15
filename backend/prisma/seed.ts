@@ -15,9 +15,9 @@ async function ensureAdminUser() {
   }
 
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
-  const existing = await (prisma as any).user.findUnique({ where: { email: ADMIN_EMAIL } });
+  const existing = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } });
   if (!existing) {
-    return (prisma as any).user.create({
+    return prisma.user.create({
       data: {
         email: ADMIN_EMAIL,
         phone: '+91-admin',
@@ -34,7 +34,7 @@ async function ensureAdminUser() {
   const passwordMatches = await bcrypt.compare(ADMIN_PASSWORD, existing.passwordHash);
   if (!passwordMatches) data.passwordHash = passwordHash;
   if (Object.keys(data).length === 0) return existing;
-  return (prisma as any).user.update({ where: { id: existing.id }, data });
+  return prisma.user.update({ where: { id: existing.id }, data });
 }
 
 function daysAgo(days: number) {
@@ -109,7 +109,7 @@ async function main() {
 
   const createdPlans: any[] = [];
   for (const plan of weeklyPlans) {
-    const anyPrisma = prisma as any;
+    const anyPrisma = prisma;
     const created = await anyPrisma.weeklyPlan.upsert({
       where: { key: plan.key },
       update: {
@@ -182,13 +182,13 @@ async function main() {
     },
   ];
 
-  await (prisma as any).disruptionEvent.deleteMany({
+  await prisma.disruptionEvent.deleteMany({
     where: { title: { in: disruptions.map((d) => d.title) } },
   });
 
   const createdDisruptions: any[] = [];
   for (const disruption of disruptions) {
-    const created = await (prisma as any).disruptionEvent.create({ data: disruption });
+    const created = await prisma.disruptionEvent.create({ data: disruption });
     createdDisruptions.push(created);
     console.log(`✅ Disruption Event: ${created.title}`);
   }
@@ -198,12 +198,12 @@ async function main() {
   const testPassword = 'oauth-mock-password';
   const passwordHash = await bcrypt.hash(testPassword, 10);
 
-  let testUser = await (prisma as any).user.findUnique({
+  let testUser = await prisma.user.findUnique({
     where: { email: testEmail },
   });
 
   if (!testUser) {
-    testUser = await (prisma as any).user.create({
+    testUser = await prisma.user.create({
       data: {
         email: testEmail,
         passwordHash,
@@ -216,7 +216,7 @@ async function main() {
     console.log(`✅ Test User: ${testEmail}`);
   } else {
     if (!testUser.platform) {
-      testUser = await (prisma as any).user.update({
+      testUser = await prisma.user.update({
         where: { id: testUser.id },
         data: { platform: 'zepto' },
       });
@@ -225,24 +225,24 @@ async function main() {
   }
 
   // 4. Seed KYC Profile (APPROVED)
-  await (prisma as any).kYCProfile.upsert({
+  await prisma.kYCProfile.upsert({
     where: { userId: testUser.id },
     update: {
       status: 'APPROVED',
       submittedAt: new Date(now - 24 * 60 * 60 * 1000),
       reviewedAt: new Date(now - 23 * 60 * 60 * 1000),
-      reviewNote: 'Auto-approved for demo',
+      reviewNote: 'Approved via seeded baseline policy review',
     },
     create: {
       userId: testUser.id,
       status: 'APPROVED',
       submittedAt: new Date(now - 24 * 60 * 60 * 1000),
       reviewedAt: new Date(now - 23 * 60 * 60 * 1000),
-      reviewNote: 'Auto-approved for demo',
+      reviewNote: 'Approved via seeded baseline policy review',
     },
   });
 
-  await (prisma as any).kYCBasicIdentity.upsert({
+  await prisma.kYCBasicIdentity.upsert({
     where: { userId: testUser.id },
     update: {},
     create: {
@@ -253,7 +253,7 @@ async function main() {
     },
   });
 
-  await (prisma as any).kYCPersonalDetails.upsert({
+  await prisma.kYCPersonalDetails.upsert({
     where: { userId: testUser.id },
     update: {},
     create: {
@@ -265,7 +265,7 @@ async function main() {
     },
   });
 
-  await (prisma as any).kYCIdentityVerification.upsert({
+  await prisma.kYCIdentityVerification.upsert({
     where: { userId: testUser.id },
     update: {},
     create: {
@@ -275,7 +275,7 @@ async function main() {
     },
   });
 
-  await (prisma as any).kYCPayoutSetup.upsert({
+  await prisma.kYCPayoutSetup.upsert({
     where: { userId: testUser.id },
     update: {},
     create: {
@@ -286,7 +286,7 @@ async function main() {
   });
 
   // 5. Seed Fraud Analysis (LOW RISK)
-  await (prisma as any).fraudAnalysis.upsert({
+  await prisma.fraudAnalysis.upsert({
     where: { userId: testUser.id },
     update: {
       riskScore: 15.5,
@@ -432,9 +432,9 @@ async function main() {
   const driverPassword = await bcrypt.hash('driver-123', 10);
 
   for (const seed of driverSeeds) {
-    const existing = await (prisma as any).user.findUnique({ where: { email: seed.email } });
+    const existing = await prisma.user.findUnique({ where: { email: seed.email } });
     const driver = existing
-      ? await (prisma as any).user.update({
+      ? await prisma.user.update({
           where: { id: existing.id },
           data: {
             driverName: seed.name,
@@ -443,7 +443,7 @@ async function main() {
             isVerified: true,
           },
         })
-      : await (prisma as any).user.create({
+      : await prisma.user.create({
           data: {
             email: seed.email,
             passwordHash: driverPassword,
@@ -454,7 +454,7 @@ async function main() {
           },
         });
 
-    await (prisma as any).kYCProfile.upsert({
+    await prisma.kYCProfile.upsert({
       where: { userId: driver.id },
       update: { status: seed.kycStatus },
       create: {
@@ -462,11 +462,11 @@ async function main() {
         status: seed.kycStatus,
         submittedAt: daysAgo(seed.daysAgo + 1),
         reviewedAt: seed.kycStatus === 'APPROVED' ? daysAgo(seed.daysAgo) : null,
-        reviewNote: seed.kycStatus === 'APPROVED' ? 'Auto-approved for regional demo' : null,
+        reviewNote: seed.kycStatus === 'APPROVED' ? 'Approved via seeded regional policy review' : null,
       },
     });
 
-    await (prisma as any).kYCBasicIdentity.upsert({
+    await prisma.kYCBasicIdentity.upsert({
       where: { userId: driver.id },
       update: {},
       create: {
@@ -477,7 +477,7 @@ async function main() {
       },
     });
 
-    await (prisma as any).kYCPersonalDetails.upsert({
+    await prisma.kYCPersonalDetails.upsert({
       where: { userId: driver.id },
       update: {},
       create: {
@@ -489,7 +489,7 @@ async function main() {
       },
     });
 
-    await (prisma as any).kYCIdentityVerification.upsert({
+    await prisma.kYCIdentityVerification.upsert({
       where: { userId: driver.id },
       update: {},
       create: {
@@ -499,7 +499,7 @@ async function main() {
       },
     });
 
-    await (prisma as any).kYCPayoutSetup.upsert({
+    await prisma.kYCPayoutSetup.upsert({
       where: { userId: driver.id },
       update: {},
       create: {
@@ -509,7 +509,7 @@ async function main() {
       },
     });
 
-    await (prisma as any).fraudAnalysis.upsert({
+    await prisma.fraudAnalysis.upsert({
       where: { userId: driver.id },
       update: {
         gpsLatitude: 13.0827,
@@ -554,13 +554,13 @@ async function main() {
 
     const selectedPlan = createdPlans.find((p) => p.key === seed.planKey);
     if (selectedPlan) {
-      const existingPolicy = await (prisma as any).policy.findFirst({
+      const existingPolicy = await prisma.policy.findFirst({
         where: { userId: driver.id, planType: seed.planKey },
       });
 
       const policy = existingPolicy
         ? existingPolicy
-        : await (prisma as any).policy.create({
+        : await prisma.policy.create({
             data: {
               userId: driver.id,
               planType: seed.planKey,
@@ -573,12 +573,12 @@ async function main() {
           });
 
       const disruption = disruptionByType.get(seed.payoutType) ?? createdDisruptions[0];
-      const existingPayout = await (prisma as any).payout.findFirst({
+      const existingPayout = await prisma.payout.findFirst({
         where: { policyId: policy.id, disruptionEventId: disruption.id },
       });
 
       if (!existingPayout) {
-        await (prisma as any).payout.create({
+        await prisma.payout.create({
           data: {
             policyId: policy.id,
             disruptionEventId: disruption.id,
@@ -607,7 +607,7 @@ async function main() {
     const policyStartDate = new Date(now - 2 * 24 * 60 * 60 * 1000);
     const policyEndDate = new Date(now + 5 * 24 * 60 * 60 * 1000);
 
-    const existingPolicy = await (prisma as any).policy.findFirst({
+    const existingPolicy = await prisma.policy.findFirst({
       where: {
         userId: testUser.id,
         status: 'ACTIVE',
@@ -615,7 +615,7 @@ async function main() {
     });
 
     if (!existingPolicy) {
-      const policy = await (prisma as any).policy.create({
+      const policy = await prisma.policy.create({
         data: {
           userId: testUser.id,
           planType: 'STANDARD',
@@ -629,7 +629,7 @@ async function main() {
       console.log(`✅ Active Policy: ${standardPlan.name}`);
 
       // 7. Seed Payout (PROCESSING)
-      await (prisma as any).payout.create({
+      await prisma.payout.create({
         data: {
           policyId: policy.id,
           disruptionEventId: createdDisruptions[0].id,
@@ -722,7 +722,7 @@ async function main() {
       for (const h3Index of allCells) {
         const riskData = generateRiskData(h3Index);
 
-        await (prisma as any).zoneRiskData.upsert({
+        await prisma.zoneRiskData.upsert({
           where: { h3_cell: h3Index },
           update: { ...riskData, updatedAt: new Date() },
           create: { h3_cell: h3Index, ...riskData },

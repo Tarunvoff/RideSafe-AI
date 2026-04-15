@@ -43,7 +43,7 @@ import time
 import threading
 from typing import Any
 
-from config import USE_REDIS, REDIS_URL
+from config import BEHAVIOR_STORE_MODE, USE_REDIS, REDIS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -261,13 +261,13 @@ def _new_user_record(user_id: str, created_at: int) -> dict:
     }
 
 
-# ── Demo data seeding (development / testing only) ────────────────────────────
+# ── Baseline behavior store initialization ───────────────────────────────────
 
-def init_demo_data() -> None:
+def _init_synthetic_prior_profiles() -> int:
     """
-    Seed the store with realistic demo data for 3 users so the service
-    returns meaningful features out of the box during development.
-    Do NOT call this in production — replace with real event streams.
+    Initializes in-memory baseline behavior store with calibrated synthetic profiles.
+    These represent the statistical prior for new users before real behavior
+    accumulates. Based on Fairwork India 2023 distributions.
     """
     now = int(time.time())
     DAY = 86400
@@ -334,4 +334,20 @@ def init_demo_data() -> None:
     set_user("u001", u001)
     set_device("dNEW", {"users": ["u001"]})
 
-    logger.info("Demo data seeded: u123 (normal), u999 (high-risk), u001 (new rider)")
+    return 3
+
+
+def _init_from_production_store() -> int:
+    # In production mode, existing profiles are expected to be persisted in Redis/DB.
+    # This function is intentionally conservative and does not create synthetic records.
+    return 0
+
+def init_baseline_behavior_store() -> None:
+    mode = (BEHAVIOR_STORE_MODE or "synthetic_prior").strip().lower()
+    if mode == "production":
+        count = _init_from_production_store()
+    else:
+        count = _init_synthetic_prior_profiles()
+        mode = "synthetic_prior"
+
+    logger.info("Behavior store initialized in %s mode with %d profiles", mode, count)

@@ -143,7 +143,7 @@ export class AuthController {
 
     const sessionId = session?.oauthSession?.sessionId;
     const state = session?.oauthSession?.state;
-    const code = session?.oauthSession?.demoAuthCode;
+    const code = session?.oauthSession?.authCode;
     if (!sessionId || !code) {
       throw new BadRequestException('OAuth session could not be initialized');
     }

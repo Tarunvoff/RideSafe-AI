@@ -33,7 +33,7 @@ export class AdminService {
   }
 
   async getSettings() {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     const existing = await prisma.adminSettings.findFirst();
     if (existing) return existing;
 
@@ -53,7 +53,7 @@ export class AdminService {
       throw new BadRequestException('Invalid settings section');
     }
 
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     const existing = await prisma.adminSettings.findFirst();
     if (!existing) {
       const defaults = this.defaultSettings();
@@ -72,7 +72,7 @@ export class AdminService {
   }
 
   async getAdminProfile(userId: string) {
-    const user = await (this.prisma as any).user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Admin not found');
     return {
       id: user.id,
@@ -83,14 +83,14 @@ export class AdminService {
   }
 
   async updateAdminProfile(userId: string, dto: { displayName?: string; phone?: string }) {
-    const user = await (this.prisma as any).user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Admin not found');
 
     const data: any = {};
     if (dto.displayName !== undefined) data.driverName = dto.displayName;
     if (dto.phone !== undefined) data.phone = dto.phone;
 
-    const updated = await (this.prisma as any).user.update({ where: { id: userId }, data });
+    const updated = await this.prisma.user.update({ where: { id: userId }, data });
     return {
       id: updated.id,
       email: updated.email,
@@ -104,7 +104,7 @@ export class AdminService {
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
 
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
 
     const [
       totalWorkers,
@@ -278,7 +278,7 @@ export class AdminService {
   }
 
   async getAlerts(filters?: { take?: number; skip?: number }) {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     const [total, alerts] = await Promise.all([
       prisma.disruptionEvent.count(),
       prisma.disruptionEvent.findMany({
@@ -312,7 +312,7 @@ export class AdminService {
     take?: number;
     skip?: number;
   }) {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     const search = filters?.search?.trim();
     const status = filters?.status?.trim();
     const risk = filters?.risk?.trim();
@@ -372,7 +372,7 @@ export class AdminService {
     take?: number;
     skip?: number;
   }) {
-    const prisma = this.prisma as any;
+    const prisma = this.prisma;
     const search = filters?.search?.trim();
     const status = filters?.status?.trim();
     const type = filters?.type?.trim();
@@ -419,6 +419,121 @@ export class AdminService {
           title: p.disruptionEvent?.title ?? null,
         },
       })),
+    };
+  }
+
+  async getFraudQueue(params: { page?: number; limit?: number }) {
+    const page = Math.max(1, Number(params.page ?? 1));
+    const limit = Math.max(1, Math.min(100, Number(params.limit ?? 20)));
+    const skip = (page - 1) * limit;
+
+    const [total, rows] = await Promise.all([
+      this.prisma.fraudAnalysis.count({ where: { status: 'INCONCLUSIVE' } }),
+      this.prisma.fraudAnalysis.findMany({
+        where: { status: 'INCONCLUSIVE' },
+        include: {
+          user: {
+            select: { id: true, email: true, phone: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+      }),
+    ]);
+
+    return {
+      page,
+      limit,
+      total,
+      items: rows.map((row) => {
+        const details = row.analysisDetails ? JSON.parse(row.analysisDetails) : {};
+        return {
+          analysisId: row.id,
+          userId: row.userId,
+          userEmail: row.user?.email ?? null,
+          userPhone: row.user?.phone ?? null,
+          riskScore: row.riskScore,
+          top_signals: details.top_signals ?? [],
+          fraud_reason: details.fraud_reason ?? null,
+          created_at: row.createdAt,
+        };
+      }),
+    };
+  }
+
+  async decideFraudCase(
+    analysisId: string,
+    body: { decision: 'APPROVE' | 'REJECT'; note: string },
+  ) {
+    const analysis = await this.prisma.fraudAnalysis.findUnique({ where: { id: analysisId } });
+    if (!analysis) {
+      throw new NotFoundException('Fraud analysis not found');
+    }
+
+    const nextStatus = body.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    const updated = await this.prisma.fraudAnalysis.update({
+      where: { id: analysisId },
+      data: {
+        status: nextStatus,
+        reviewNote: body.note,
+        reviewedAt: new Date(),
+      },
+    });
+
+    return {
+      analysisId: updated.id,
+      userId: updated.userId,
+      status: updated.status,
+      reviewNote: updated.reviewNote,
+      reviewedAt: updated.reviewedAt,
+      audit: {
+        decision: body.decision,
+        note: body.note,
+        created_at: new Date().toISOString(),
+      },
+    };
+  }
+
+  async getPendingDisruptions() {
+    const rows = await this.prisma.disruptionEvent.findMany({
+      where: { verified: false },
+      orderBy: { occurredAt: 'desc' },
+      take: 100,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      affectedZones: [],
+      expectedLoss: row.expectedLoss,
+      expectedPayout: row.expectedPayout,
+      occurredAt: row.occurredAt,
+      verified: row.verified,
+    }));
+  }
+
+  async verifyDisruption(id: string, body: { verified: boolean; adjustedLoss?: number }) {
+    const existing = await this.prisma.disruptionEvent.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Disruption event not found');
+    }
+
+    const expectedLoss = body.adjustedLoss != null ? body.adjustedLoss : existing.expectedLoss;
+    const updated = await this.prisma.disruptionEvent.update({
+      where: { id },
+      data: {
+        verified: body.verified,
+        expectedLoss,
+      },
+    });
+
+    return {
+      id: updated.id,
+      verified: updated.verified,
+      expectedLoss: updated.expectedLoss,
+      expectedPayout: updated.expectedPayout,
+      occurredAt: updated.occurredAt,
     };
   }
 }

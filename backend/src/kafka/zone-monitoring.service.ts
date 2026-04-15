@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
 import { ClaimOrchestratorService } from '../insurance/claim-orchestrator.service';
+import { RedisStateService } from '../state/redis-state.service';
 
 type ZoneStateUpdatePayload = {
     h3_cell?: string;
@@ -17,7 +18,23 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     private readonly zoneCache = new Map<string, Record<string, any>>();
     private readonly zoneState = new Map<string, string>();
 
-    constructor(private readonly claimOrchestrator: ClaimOrchestratorService) {}
+    constructor(
+        private readonly claimOrchestrator: ClaimOrchestratorService,
+        private readonly redisState: RedisStateService,
+    ) {}
+
+    private normalizeZoneState(payload: Record<string, any>, h3Cell: string) {
+        const state = (payload?.state ?? payload?.zone_state ?? 'UNKNOWN').toString().toUpperCase();
+        const lfScore = Number(payload?.lf_score ?? payload?.Lf ?? 0);
+        return {
+            h3_cell: payload?.h3_cell ?? h3Cell,
+            state,
+            lf_score: Number.isFinite(lfScore) ? lfScore : 0,
+            active_riders: Number(payload?.active_riders ?? 0),
+            timestamp: payload?.timestamp ?? payload?.updated_at ?? new Date().toISOString(),
+            source: payload?.source ?? 'unknown',
+        };
+    }
 
     async onModuleInit(): Promise<void> {
         const brokers = (process.env.KAFKA_BROKER_URL ?? 'localhost:9092').split(',');
@@ -59,6 +76,18 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
                         source: 'kafka-zone-state-updates',
                     });
 
+                    const zonePayload = {
+                        h3_cell: h3Cell,
+                        Lf: payload?.lf_score ?? 0,
+                        zone_state: newState || previousState || 'UNKNOWN',
+                        updated_at: new Date().toISOString(),
+                        source: 'kafka-zone-state-updates',
+                    };
+                    await this.redisState.setZoneState(h3Cell, zonePayload);
+                    this.logger.log(
+                        `Zone ${h3Cell} state updated: Lf=${zonePayload.Lf}, state=${zonePayload.zone_state}`,
+                    );
+
                     if (newState === 'HALTED' && previousState !== 'HALTED') {
                         const eventTimestamp = payload?.timestamp
                             ? Math.floor(payload.timestamp)
@@ -84,6 +113,13 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     }
 
     async getZoneState(h3Cell: string) {
+        const redisZoneState = await this.redisState.getZoneState(h3Cell);
+        if (redisZoneState) {
+            const normalized = this.normalizeZoneState(redisZoneState, h3Cell);
+            this.zoneCache.set(h3Cell, normalized);
+            return normalized;
+        }
+
         const cached = this.zoneCache.get(h3Cell);
         if (cached) return cached;
 
@@ -94,7 +130,7 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
                 signal: AbortSignal.timeout(2000),
             });
             if (response.ok) {
-                const data = await response.json();
+                const data = this.normalizeZoneState(await response.json(), h3Cell);
                 this.zoneCache.set(h3Cell, data);
                 return data;
             }

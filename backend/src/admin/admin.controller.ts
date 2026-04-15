@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 
@@ -84,5 +84,38 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   updateProfile(@Request() req: any, @Body() dto: { displayName?: string; phone?: string }) {
     return this.adminService.updateAdminProfile(req.user.id, dto ?? {});
+  }
+
+  @Get('fraud/queue')
+  @HttpCode(HttpStatus.OK)
+  getFraudQueue(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.adminService.getFraudQueue({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+    });
+  }
+
+  @Post('fraud/:analysisId/decision')
+  @HttpCode(HttpStatus.OK)
+  decideFraudCase(
+    @Param('analysisId') analysisId: string,
+    @Body() body: { decision: 'APPROVE' | 'REJECT'; note: string },
+  ) {
+    return this.adminService.decideFraudCase(analysisId, body);
+  }
+
+  @Get('disruptions/pending')
+  @HttpCode(HttpStatus.OK)
+  getPendingDisruptions() {
+    return this.adminService.getPendingDisruptions();
+  }
+
+  @Post('disruptions/:id/verify')
+  @HttpCode(HttpStatus.OK)
+  verifyDisruption(
+    @Param('id') id: string,
+    @Body() body: { verified: boolean; adjustedLoss?: number },
+  ) {
+    return this.adminService.verifyDisruption(id, body);
   }
 }

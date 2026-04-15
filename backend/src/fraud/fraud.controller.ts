@@ -72,7 +72,11 @@ export class FraudController {
 
     const resolution = 8;
     const centerCell = h3.latLngToCell(Number(lat), Number(lng), resolution);
-    const ringFn = (h3 as any).gridDisk ?? (h3 as any).kRing;
+    const h3Compat = h3 as unknown as {
+      gridDisk?: (cell: string, radius: number) => string[];
+      kRing?: (cell: string, radius: number) => string[];
+    };
+    const ringFn = h3Compat.gridDisk ?? h3Compat.kRing;
     const allCells = ringFn ? ringFn(centerCell, Number(radius)) : [centerCell];
 
     // Default risk data (fallback when DB has no data)
@@ -95,7 +99,7 @@ export class FraudController {
     const entries = await Promise.all(
       allCells.map(async (cell) => {
         // Try to fetch from database (seeded data)
-        const dbData = await (this.prisma as any).zoneRiskData.findUnique({
+        const dbData = await this.prisma.zoneRiskData.findUnique({
           where: { h3_cell: cell },
         });
 
