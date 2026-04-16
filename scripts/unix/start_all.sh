@@ -533,6 +533,41 @@ REDIS_PORT="6379"
 KAFKA_HOST="localhost"
 KAFKA_PORT="9092"
 
+is_port_listening() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | awk -v p=":$port" '$4 ~ p {found=1} END {exit found ? 0 : 1}'
+    return $?
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+    return $?
+  fi
+  return 1
+}
+
+resolve_redis_host_port() {
+  local candidate="${REDIS_PORT}"
+  local upper_bound=6390
+
+  if is_port_listening "$candidate"; then
+    echo "⚠️ Host port $candidate is already in use. Searching alternate Redis host port..."
+    candidate=6380
+    while [ "$candidate" -le "$upper_bound" ]; do
+      if ! is_port_listening "$candidate"; then
+        REDIS_PORT="$candidate"
+        echo "✅ Using alternate Redis host port: $REDIS_PORT"
+        return 0
+      fi
+      candidate=$((candidate + 1))
+    done
+    echo "❌ No free Redis host port found in range 6380-$upper_bound"
+    exit 1
+  fi
+
+  echo "✅ Using Redis host port: $REDIS_PORT"
+}
+
 # -----------------------------
 # FUNCTION: WAIT FOR PORT
 # -----------------------------
@@ -584,6 +619,25 @@ clear_configured_ports() {
   done
 }
 
+clear_infra_ports() {
+  local ports_to_clear=("$DB_PORT" "$REDIS_PORT" "$KAFKA_PORT")
+  local port=""
+
+  # If a host redis-server daemon owns 6379, plain kill from this user often fails.
+  # Try a graceful shutdown via redis-cli first so Docker can bind the port.
+  if command -v redis-cli >/dev/null 2>&1; then
+    if redis-cli -h 127.0.0.1 -p "$REDIS_PORT" ping >/dev/null 2>&1; then
+      echo "   - Detected host Redis on port $REDIS_PORT; attempting graceful shutdown"
+      redis-cli -h 127.0.0.1 -p "$REDIS_PORT" shutdown nosave >/dev/null 2>&1 || true
+      sleep 0.5
+    fi
+  fi
+
+  for port in $(printf '%s\n' "${ports_to_clear[@]}" | awk 'NF' | sort -u); do
+    kill_port_processes "$port"
+  done
+}
+
 # -----------------------------
 # CHECK DOCKER
 # -----------------------------
@@ -597,6 +651,11 @@ fi
 # -----------------------------
 echo "[1/7] Starting Docker containers..."
 cd "$PROJECT_ROOT"
+
+# Release infra host ports before docker tries to bind them.
+clear_infra_ports
+resolve_redis_host_port
+export REDIS_HOST_PORT="$REDIS_PORT"
 docker compose up -d --force-recreate
 
 # -----------------------------
@@ -666,7 +725,7 @@ for SERVICE_INFO in "${SERVICES[@]}"; do
   python3 -m venv .venv &&
   source .venv/bin/activate &&
   pip install -r requirements.txt &&
-  uvicorn main:app --host 0.0.0.0 --port $PORT --reload;
+  REDIS_URL=redis://127.0.0.1:$REDIS_PORT/0 uvicorn main:app --host 0.0.0.0 --port $PORT --reload;
   exec bash"
 done
 
@@ -678,7 +737,7 @@ echo "[6/7] Starting backend..."
 gnome-terminal -- bash -c "
 cd '$PROJECT_ROOT/backend' &&
 npm install &&
-npm run start:dev;
+REDIS_URL=redis://127.0.0.1:$REDIS_PORT npm run start:dev;
 exec bash"
 
 # -----------------------------
