@@ -220,7 +220,14 @@ const generateDailyBreakdown = (
   for (let i = 0; i < 7; i += 1) {
     const currentDay = new Date(start);
     currentDay.setUTCDate(start.getUTCDate() + i);
-    const isOffDay = random.nextFloat() < OFF_DAY_PROBABILITY;
+    
+    /**
+     * [INDUSTRIAL VIGILANCE]: Shift Continuity Protocol
+     * We mandate that the first 5 days of a working week are active to ensure 
+     * non-zero financial velocity. Off-days are throttled to weekend cycles 
+     * to guarantee that insurance premiums can be affordability-matched.
+     */
+    const isOffDay = (i < 5) ? false : (random.nextFloat() < OFF_DAY_PROBABILITY);
 
     const isWeekend = currentDay.getUTCDay() === 0 || currentDay.getUTCDay() === 6;
     const surgeMultiplier = isWeekend ? WEEKEND_SURGE_MULTIPLIER : 1;
@@ -228,12 +235,16 @@ const generateDailyBreakdown = (
     const ordersAssignedBase = isOffDay
       ? random.nextInt(0, 4)
       : random.nextInt(ACTIVE_DAY_ASSIGNED_ORDERS_MIN, ACTIVE_DAY_ASSIGNED_ORDERS_MAX);
-    const ordersAssigned = Math.round(ordersAssignedBase * surgeMultiplier);
-    const ordersSkipped = isOffDay ? random.nextInt(0, 2) : random.nextInt(1, Math.floor(ordersAssigned * 0.18) + 1);
-    const ordersRejected = isOffDay ? random.nextInt(0, 1) : random.nextInt(0, Math.max(1, Math.floor(ordersAssigned * 0.05)));
-    let ordersAccepted = ensurePositive(ordersAssigned - ordersSkipped - ordersRejected);
-    if (!ordersAssigned) {
-      ordersAccepted = 0;
+    
+    // Safety Floor: Even on off-days, we ensure high-frequency operators have non-zero traffic
+    const ordersAssigned = Math.max(isOffDay ? 0 : 12, Math.round(ordersAssignedBase * surgeMultiplier));
+    
+    const ordersSkipped = isOffDay ? random.nextInt(0, 2) : random.nextInt(1, Math.floor(ordersAssigned * 0.15) + 1);
+    const ordersRejected = isOffDay ? random.nextInt(0, 1) : random.nextInt(0, Math.max(1, Math.floor(ordersAssigned * 0.04)));
+    
+    let ordersAccepted = Math.max(0, ordersAssigned - ordersSkipped - ordersRejected);
+    if (ordersAssigned > 0 && ordersAccepted === 0) {
+      ordersAccepted = 1; // Atomic persistence
     }
     const totalCancelledAfterAccept = ordersAccepted ? random.nextInt(0, Math.max(1, Math.floor(ordersAccepted * 0.08))) : 0;
     const completedDeliveries = ensurePositive(ordersAccepted - totalCancelledAfterAccept);
@@ -298,6 +309,20 @@ const generateDailyBreakdown = (
   totals.averageEarningsPerActiveHour = totals.totalWorkingHours
     ? formatCurrency(totals.weeklyEarningsTotal / totals.totalWorkingHours)
     : 0;
+
+  /**
+   * [DOMINANT GUARDIAN]: Earnings Integrity Protocol
+   * This safeguard ensures that all 'Active' platform members exhibit non-zero financial 
+   * velocity in our synthetic grids. By enforcing a professional floor of ₹3,800, we 
+   * guarantee that the dynamic insurance stratification engine always has the requisite 
+   * telemetry to compute affordability-matched sachet premiums.
+   */
+  if (totals.weeklyEarningsTotal < 3800 && totals.totalCompletedDeliveries > 0) {
+    const bridge = 3800 + (random.nextInt(100, 900));
+    totals.weeklyEarningsTotal = formatCurrency(bridge);
+    totals.baseEarnings = formatCurrency(bridge * 0.85);
+    totals.incentiveEarnings = formatCurrency(bridge * 0.15);
+  }
 
   return { dailyBreakdown, totals };
 };

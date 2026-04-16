@@ -10,6 +10,7 @@ echo.
 echo 🧹 Cleaning up legacy processes...
 taskkill /F /IM python.exe /T 2>nul
 taskkill /F /IM uvicorn.exe /T 2>nul
+taskkill /F /IM node.exe /T 2>nul
 
 :: 2. Detect Local IP for mobile connectivity
 echo 🔍 Detecting local IP address...
@@ -42,13 +43,14 @@ if exist "%FRONTEND_ENV_FILE%" (
 echo EXPO_PUBLIC_API_URL=http://%LOCAL_IP%:3001/api>>"%FRONTEND_ENV_TMP_FILE%"
 move /y "%FRONTEND_ENV_TMP_FILE%" "%FRONTEND_ENV_FILE%" >nul
 
-:: 4. Boot Docker
+:: 4. Boot Docker Infrastructure
 echo [1/8] Booting Docker Containers (Kafka, Redis, Postres)...
 cd /d %~dp0..\..\
 docker compose up -d
+echo ⏳ Waiting 15s for services to stabilize...
 timeout /t 15 >nul
 
-:: 5. Setup Python Venv if needed
+:: 5. Integrated Backend Ignition (Sequential Setup)
 echo [2/8] Preparing Python virtual environment...
 if not exist ml-services\.venv\Scripts\activate.bat (
     pushd ml-services
@@ -56,27 +58,30 @@ if not exist ml-services\.venv\Scripts\activate.bat (
     popd
 )
 
-:: 6. Install Dependencies (Silent)
-echo [3/8] Ensuring service dependencies are installed...
-start /min "Aegis Installer" cmd /c "cd /d %~dp0..\..\backend && npm install && npx prisma db push --accept-data-loss && npx prisma generate && npx prisma db seed && exit"
+echo [3/8] Finalizing Backend Infrastructure...
+cd /d %~dp0..\..\backend
+call npm install
+echo 🛠️  Pushing Actuarial Schema to Database...
+call npx prisma db push --accept-data-loss
+call npx prisma generate
+echo 🧪 Seeding Production Data...
+call npx prisma db seed
 
-:: 7. Start ML Services
+:: 6. Parallel Service Activation
 echo [4/8] Starting ML Intelligence Services...
-start "Aegis Insurance Service (8000)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && pip install -r ml-insurance-service\requirements.txt && cd ml-insurance-service && set REDIS_URL=redis://localhost:6379/0&& uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
-start "Aegis Fraud Feature (8002)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && pip install -r fraud-feature-service\requirements.txt && cd fraud-feature-service && set USE_REDIS=True&& set REDIS_URL=redis://localhost:6379/0&& uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
-start "Aegis Grid Event (8003)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && pip install -r grid-event-service\requirements.txt && cd grid-event-service && set USE_REDIS=True&& set KAFKA_BOOTSTRAP_SERVERS=localhost:9092&& set REDIS_URL=redis://localhost:6379/0&& set ML_SERVICE_URL=http://localhost:8000&& set H3_FEATURE_SERVICE_URL=http://localhost:8004&& uvicorn main:app --host 0.0.0.0 --port 8003 --reload"
-start "Aegis H3 Feature (8004)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && pip install -r h3-feature-service\requirements.txt && cd h3-feature-service && set KAFKA_BOOTSTRAP_SERVERS=localhost:9092&& set REDIS_URL=redis://localhost:6379/0&& set ML_INSURANCE_SERVICE_URL=http://localhost:8000&& uvicorn main:app --host 0.0.0.0 --port 8004 --reload"
+start "Aegis Insurance Service (8000)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && cd ml-insurance-service && set REDIS_URL=redis://localhost:6379/0&& uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+start "Aegis Fraud Feature (8002)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && cd fraud-feature-service && set USE_REDIS=True&& set REDIS_URL=redis://localhost:6379/0&& uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
+start "Aegis Grid Event (8003)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && cd grid-event-service && set USE_REDIS=True&& set KAFKA_BOOTSTRAP_SERVERS=localhost:9092&& set REDIS_URL=redis://localhost:6379/0&& set ML_SERVICE_URL=http://localhost:8000&& set H3_FEATURE_SERVICE_URL=http://localhost:8004&& uvicorn main:app --host 0.0.0.0 --port 8003 --reload"
+start "Aegis H3 Feature (8004)" cmd /k "cd /d %~dp0..\..\ml-services && .venv\Scripts\activate && cd h3-feature-service && set KAFKA_BOOTSTRAP_SERVERS=localhost:9092&& set REDIS_URL=redis://localhost:6379/0&& set ML_INSURANCE_SERVICE_URL=http://localhost:8000&& uvicorn main:app --host 0.0.0.0 --port 8004 --reload"
 
-:: 8. Start Backend
 echo [5/8] Starting NestJS Backend (3001)...
 start "Aegis Backend API" cmd /k "cd /d %~dp0..\..\backend && npm run start:dev"
 
-:: 9. Start Mobile App
 echo [6/8] Starting Expo Mobile Application...
 start "Aegis Mobile App" cmd /k "cd /d %~dp0..\..\frontend\mobile && npm install && npx expo start -c"
 
 echo.
 echo ========================================================
-echo ✅ ALL AEGIS SERVICES HAVE BEEN LAUNCHED!
+echo ✅ [AEGIS_IGNITION_COMPLETE] All services are now online.
 echo ========================================================
 pause

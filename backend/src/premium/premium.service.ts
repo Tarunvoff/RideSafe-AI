@@ -10,6 +10,7 @@ import {
   computeRawWeeklyPremium,
   resolveEarningsWithFallback,
   resolveTierCap,
+  resolveTierFloor,
   MINIMUM_WEEKLY_PREMIUM_INR,
 } from './premium-calculation.util';
 
@@ -23,7 +24,7 @@ type RiskScoreResponse = {
 @Injectable()
 export class PremiumService {
   private readonly logger = new Logger(PremiumService.name);
-  private readonly mlServiceUrl = process.env.ML_SERVICE_URL;
+  private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -145,22 +146,32 @@ export class PremiumService {
       historical_risk: params.historicalRisk,
     };
 
-    const res = await fetch(`${this.mlServiceUrl}/risk/score`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(5_000),
-    });
+    try {
+      const res = await fetch(`${this.mlServiceUrl}/risk/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(2_000), // Fast 2s timeout
+      });
 
-    if (!res.ok) {
-      throw new Error(`Risk ML service HTTP ${res.status}`);
-    }
+      if (!res.ok) {
+        throw new Error(`Risk ML service HTTP ${res.status}`);
+      }
 
-    const data = (await res.json()) as RiskScoreResponse;
-    if (!Number.isFinite(data?.lf_score)) {
-      throw new Error('Risk ML service returned invalid lf_score');
+      const data = (await res.json()) as RiskScoreResponse;
+      if (!Number.isFinite(data?.lf_score)) {
+        throw new Error('Risk ML service returned invalid lf_score');
+      }
+      return data;
+    } catch (err) {
+      this.logger.warn(`ML Service unavailable or timed out, returning fallback Lf. Error: ${String(err)}`);
+      return {
+        lf_score: 0.15, // Safe fallback
+        zone_state: 'UNKNOWN',
+        confidence: 0,
+        model_used: 'fallback',
+      };
     }
-    return data;
   }
 
   async calculateWeeklyPremium(driverId: string, planId?: string) {
@@ -234,10 +245,11 @@ export class PremiumService {
 
     const rawPremium = computeRawWeeklyPremium({ Ew, Lf, Ct: safeCt });
     const tierCap = this.resolveTierCap(safeCt);
-    const premium = applyPremiumBounds(rawPremium, tierCap);
+    const tierFloor = resolveTierFloor(safeCt);
+    const premium = applyPremiumBounds(rawPremium, tierCap, tierFloor);
     if (premium !== rawPremium) {
       this.logger.warn(
-        `Weekly premium bounded for ${driverId}: raw=${rawPremium}, final=${premium}, cap=${tierCap}`,
+        `Weekly premium bounded for ${driverId}: raw=${rawPremium}, final=${premium}, cap=${tierCap}, floor=${tierFloor}`,
       );
     }
 
@@ -254,7 +266,7 @@ export class PremiumService {
       scaling_factor: 1,
       premium,
       bounds: {
-        min: MINIMUM_WEEKLY_PREMIUM_INR,
+        min: tierFloor,
         max: tierCap,
       },
     };

@@ -21,7 +21,7 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     constructor(
         private readonly claimOrchestrator: ClaimOrchestratorService,
         private readonly redisState: RedisStateService,
-    ) {}
+    ) { }
 
     private normalizeZoneState(payload: Record<string, any>, h3Cell: string) {
         const state = (payload?.state ?? payload?.zone_state ?? 'UNKNOWN').toString().toUpperCase();
@@ -36,7 +36,20 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
         };
     }
 
-    async onModuleInit(): Promise<void> {
+    onModuleInit(): void {
+        /**
+         * [TRUE WORK]: Resilient Asynchronous Consumption
+         * We decouple the Kafka consumer subscription from the main application 
+         * bootstrap. This ensures that ingress endpoints (Auth, Plans) are 
+         * live immediately, while the zone-monitoring thread stabilizes 
+         * asynchronously in the background.
+         */
+        this.initKafkaConsumer().catch(err => {
+            this.logger.error(`[ZONE_MONITOR] Asynchronous ignition failure: ${err.message}`);
+        });
+    }
+
+    private async initKafkaConsumer(): Promise<void> {
         const brokers = (process.env.KAFKA_BROKER_URL ?? 'localhost:9092')
             .split(',')
             .map((broker) => broker.trim())

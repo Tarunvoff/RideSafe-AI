@@ -9,8 +9,8 @@ export class PlansController {
   @Get('weekly')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  getWeeklyPlans(@Request() _req: any) {
-    return this.plansService.getWeeklyPlans();
+  getWeeklyPlans(@Request() req: any) {
+    return this.plansService.getWeeklyPlans(req.user.id);
   }
 
   @Get('me/purchased')

@@ -18,7 +18,20 @@ export const MAXIMUM_WEEKLY_PREMIUM_INR = 50;
 /**
  * Minimum active-policy weekly premium floor to ensure non-zero risk contribution.
  */
-export const MINIMUM_WEEKLY_PREMIUM_INR = 15;
+export const MINIMUM_WEEKLY_PREMIUM_INR = 20;
+
+/**
+ * Resolves tier-specific minimum floor proportional to coverage.
+ */
+export function resolveTierFloor(Ct: number): number {
+  const roundedCt = Math.round(Ct * 10) / 10;
+  if (roundedCt === 0.4) return 15;
+  if (roundedCt === 0.6) return 25;
+  if (roundedCt === 0.8) return 35;
+
+  const interpolatedFloor = 15 + ((roundedCt - 0.4) / 0.4) * (35 - 15);
+  return Math.min(35, Math.max(15, Math.round(interpolatedFloor * 100) / 100));
+}
 
 /**
  * Cohort fallback for weekly earnings when a driver has insufficient personal earning history.
@@ -86,9 +99,9 @@ export function computeRawWeeklyPremium(params: { Ew: number; Lf: number; Ct: nu
 /**
  * Applies minimum floor and per-tier cap.
  */
-export function applyPremiumBounds(rawPremium: number, tierCap: number): number {
-  if (rawPremium < MINIMUM_WEEKLY_PREMIUM_INR) {
-    return MINIMUM_WEEKLY_PREMIUM_INR;
+export function applyPremiumBounds(rawPremium: number, tierCap: number, tierFloor: number = MINIMUM_WEEKLY_PREMIUM_INR): number {
+  if (rawPremium < tierFloor) {
+    return tierFloor;
   }
   if (rawPremium > tierCap) {
     return tierCap;

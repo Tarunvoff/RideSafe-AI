@@ -326,10 +326,10 @@ export default function DriverPlansScreen({ navigation }: any) {
     checkoutRef.current = checkout;
   }, [checkout]);
 
-  const ownedPlanIds = useMemo(() => {
+  const ownedPlanKeys = useMemo(() => {
     const set = new Set<string>();
     for (const p of purchasedPolicies) {
-      if (p?.plan?.id) set.add(String(p.plan.id));
+      if (p?.plan?.key) set.add(String(p.plan.key));
     }
     return set;
   }, [purchasedPolicies]);
@@ -337,9 +337,9 @@ export default function DriverPlansScreen({ navigation }: any) {
   const isAvailableTab = tab === 'available';
 
   const filteredAvailablePlans = useMemo(() => {
-    if (!ownedPlanIds.size) return availablePlans;
-    return availablePlans.filter((p) => !ownedPlanIds.has(String(p.id)));
-  }, [availablePlans, ownedPlanIds]);
+    if (!ownedPlanKeys.size) return availablePlans;
+    return availablePlans.filter((p) => !ownedPlanKeys.has(String(p.key)));
+  }, [availablePlans, ownedPlanKeys]);
 
   const handleLogout = async () => {
     try {
@@ -358,7 +358,7 @@ export default function DriverPlansScreen({ navigation }: any) {
    * the user enters the payment environment.
    */
   const startCheckout = async (plan: WeeklyPlan) => {
-    if (ownedPlanIds.has(String(plan.id))) {
+    if (ownedPlanKeys.has(String(plan.key))) {
       Alert.alert(t('plans.already_owned_title'), t('plans.already_owned_desc'));
       return;
     }
