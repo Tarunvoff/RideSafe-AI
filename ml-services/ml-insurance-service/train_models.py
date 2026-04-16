@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import joblib
 import lightgbm as lgb
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 from sklearn.ensemble import GradientBoostingClassifier, IsolationForest
 from sklearn.metrics import classification_report, precision_recall_fscore_support, roc_auc_score
@@ -74,18 +75,39 @@ def _generate_risk_dataset(n_samples: int = 50000) -> tuple[np.ndarray, np.ndarr
 
 def _generate_pricing_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(7)
-    earnings = _clip(
-        rng.lognormal(mean=np.log(MEDIAN_WEEKLY_EARNINGS_INR), sigma=EARNINGS_LOG_SIGMA, size=n_samples),
+    
+    # Stratified split: 85% normal, 15% Heavy Tail
+    n_heavy = int(n_samples * 0.15)
+    n_std = n_samples - n_heavy
+    
+    earnings_std = _clip(
+        rng.lognormal(mean=np.log(MEDIAN_WEEKLY_EARNINGS_INR), sigma=EARNINGS_LOG_SIGMA, size=n_std),
         2200,
         22000,
     )
+    
+    # 2. Heavy-Tail Data Augmentation: 5x to 10x the mean to force robustness
+    earnings_heavy = rng.uniform(
+        MEDIAN_WEEKLY_EARNINGS_INR * 5, 
+        MEDIAN_WEEKLY_EARNINGS_INR * 10, 
+        size=n_heavy
+    )
+    
+    earnings = np.concatenate([earnings_std, earnings_heavy])
+    
+    # Standard distribution for other features
     lf = _clip(rng.beta(a=2.0, b=2.6, size=n_samples), 0.05, 0.95)
     ct = rng.choice([0.4, 0.6, 0.8], size=n_samples, p=[0.35, 0.45, 0.2])
     margin = _clip(rng.normal(loc=0.105, scale=0.018, size=n_samples), 0.08, 0.15)
 
-    # Premium formula anchored on alpha=0.015 used in backend pricing.
+    # Base Premium formula (used for synthetic labels)
     premium = earnings * 0.015 * lf * ct * (1.0 + margin)
-    premium = _clip(premium, 50.0, 260.0)
+    
+    # 4. Production-Grade Soft-Tail Clipping: [₹50, ₹300] + 0.01 residual
+    # Softens the ceiling to maintain data variance/gradients in the high-value tail.
+    premium_hard = _clip(premium, 50.0, 300.0)
+    premium = premium_hard + 0.01 * np.maximum(0, premium - 300.0)
+    
     return np.column_stack([earnings, lf, ct, margin]), premium
 
 
@@ -108,12 +130,16 @@ def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarr
     weekly_earnings = daily_earnings * 7.0
 
     fraud = np.zeros(n_samples, dtype=int)
+    delta_distance_m = np.maximum(20.0, speeds * 3.0)
+    delta_t_s = np.maximum(1.0, 180.0 / np.maximum(speeds, 1.0))
     pattern_size = int(n_samples * 0.02)
     all_idx = rng.permutation(n_samples)
     gps_idx = all_idx[:pattern_size]
     burst_idx = all_idx[pattern_size : 2 * pattern_size]
     device_idx = all_idx[2 * pattern_size : 3 * pattern_size]
     earnings_idx = all_idx[3 * pattern_size : 4 * pattern_size]
+    fraud_idx = all_idx[: 4 * pattern_size]
+    fraud[fraud_idx] = 1
 
     pattern_counts = {
         "gps_teleport": 0,
@@ -150,8 +176,6 @@ def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarr
 
     claims_rate = claims_rejected / np.maximum(claims_filed, 1)
     velocity_z = (speeds - NORMAL_SPEED_MEAN_KMH) / NORMAL_SPEED_STD_KMH
-    delta_distance_m = np.maximum(20.0, speeds * 3.0)
-    delta_t_s = np.maximum(1.0, 180.0 / np.maximum(speeds, 1.0))
     teleport_ratio = delta_distance_m / np.maximum(delta_t_s, 0.5)
 
     # REMOVED: earnings_ratio (explicit proxy for the label)
@@ -187,12 +211,13 @@ def _inject_fraud_patterns(n_samples: int = 10000) -> tuple[np.ndarray, np.ndarr
     return features, fraud, names, pattern_counts
 
 
-def _cross_val_auc(model, X: np.ndarray, y: np.ndarray) -> dict:
+def _cross_val_auc(model, X: pd.DataFrame, y: np.ndarray) -> dict:
     fold = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     scores = []
+    # If X is DataFrame, indexing with np arrays from fold.split works via iloc
     for train_idx, test_idx in fold.split(X, y):
-        model.fit(X[train_idx], y[train_idx])
-        proba = model.predict_proba(X[test_idx])[:, 1]
+        model.fit(X.iloc[train_idx], y[train_idx])
+        proba = model.predict_proba(X.iloc[test_idx])[:, 1]
         scores.append(float(roc_auc_score(y[test_idx], proba)))
     return {"mean_auc": float(np.mean(scores)), "std_auc": float(np.std(scores))}
 
@@ -200,37 +225,60 @@ def _cross_val_auc(model, X: np.ndarray, y: np.ndarray) -> dict:
 def train_and_save() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
 
-    X_risk, y_risk, risk_feature_names = _generate_risk_dataset()
+    # 1. RISK MODEL
+    X_risk_raw, y_risk, risk_feature_names = _generate_risk_dataset(n_samples=100000) # More samples
+    # Augment with extreme edge cases to teach monotonic boundaries
+    rng = np.random.default_rng(1337)
+    X_ext = rng.uniform([150, 350, 0.4, 0, 0, 0.8, 1], [250, 500, 0.6, 23, 6, 1.0, 30], (1000, 7))
+    y_ext = np.ones(1000, dtype=int)
+    X_risk_aug = np.concatenate([X_risk_raw, X_ext])
+    y_risk_aug = np.concatenate([y_risk, y_ext])
+    
+    X_risk = pd.DataFrame(X_risk_aug, columns=risk_feature_names)
     X_train, X_test, y_train, y_test = train_test_split(
         X_risk,
-        y_risk,
+        y_risk_aug,
         test_size=0.2,
         random_state=42,
-        stratify=y_risk,
+        stratify=y_risk_aug,
     )
     risk_model = xgb.XGBClassifier(
-        n_estimators=180,
-        max_depth=5,
-        learning_rate=0.05,
-        subsample=0.9,
-        colsample_bytree=0.9,
+        n_estimators=300,
+        max_depth=4,
+        learning_rate=0.03,
+        subsample=0.8,
+        colsample_bytree=0.8,
         eval_metric="logloss",
+        monotone_constraints={
+            "rainfall_mm": 1,
+            "aqi_index": 1,
+            "demand_factor": 1,
+            "zone_historical_risk": 1,
+            "driver_tenure_days": -1
+        },
         random_state=42,
     )
     risk_model.fit(X_train, y_train)
     risk_test_auc = float(roc_auc_score(y_test, risk_model.predict_proba(X_test)[:, 1]))
     risk_cv = _cross_val_auc(
         xgb.XGBClassifier(
-            n_estimators=140,
+            n_estimators=250,
             max_depth=4,
-            learning_rate=0.06,
-            subsample=0.9,
-            colsample_bytree=0.9,
+            learning_rate=0.04,
+            subsample=0.8,
+            colsample_bytree=0.8,
             eval_metric="logloss",
+            monotone_constraints={
+                "rainfall_mm": 1,
+                "aqi_index": 1,
+                "demand_factor": 1,
+                "zone_historical_risk": 1,
+                "driver_tenure_days": -1
+            },
             random_state=42,
         ),
         X_risk,
-        y_risk,
+        y_risk_aug,
     )
 
     risk_artifact = {
@@ -241,13 +289,38 @@ def train_and_save() -> None:
     joblib.dump(risk_artifact, os.path.join(DATA_DIR, "risk_xgb_models.pkl"))
     joblib.dump(risk_artifact, os.path.join(DATA_DIR, f"risk_xgb_model_{MODEL_VERSION}.pkl"))
 
-    X_price, y_price = _generate_pricing_dataset()
-    price_model = lgb.LGBMRegressor(n_estimators=220, learning_rate=0.05, random_state=42)
-    price_model.fit(X_price, y_price)
+    # 2. PRICING MODEL
+    X_price_raw, y_price = _generate_pricing_dataset(n_samples=25000) # Increased samples for stability
+    price_feature_names = ["weekly_earnings", "lf", "ct", "margin"]
+    
+    X_price = pd.DataFrame(X_price_raw, columns=price_feature_names)
+    Xp_train, Xp_test, yp_train, yp_test = train_test_split(
+        X_price, y_price, test_size=0.2, random_state=42
+    )
+    price_model = lgb.LGBMRegressor(
+        n_estimators=1000, # Increased for finer precision
+        learning_rate=0.05,
+        objective="huber",
+        alpha=0.9, # 3. Actuarial Constraints
+        reg_lambda=2.0, # Reduced regularization to fit the clean formula better
+        monotone_constraints=[1, 1, 0, 0],
+        random_state=42,
+        verbosity=-1
+    )
+    # 1. Log-Target Transformation
+    price_model.fit(Xp_train, np.log(yp_train))
+    
+    from sklearn.metrics import mean_absolute_percentage_error
+    preds_inr = np.exp(price_model.predict(Xp_test))
+    price_test_mape = float(mean_absolute_percentage_error(yp_test, preds_inr))
+    print(f"Pricing Model Test MAPE: {price_test_mape:.6f}")
+
     joblib.dump(price_model, os.path.join(DATA_DIR, "price_lgb.pkl"))
     joblib.dump(price_model, os.path.join(DATA_DIR, f"price_lgb_{MODEL_VERSION}.pkl"))
 
-    X_fraud, y_fraud, fraud_feature_names, pattern_counts = _inject_fraud_patterns()
+    # 3. FRAUD MODELS
+    X_fraud_raw, y_fraud, fraud_feature_names, pattern_counts = _inject_fraud_patterns()
+    X_fraud = pd.DataFrame(X_fraud_raw, columns=fraud_feature_names)
     Xf_train, Xf_test, yf_train, yf_test = train_test_split(
         X_fraud,
         y_fraud,
@@ -331,8 +404,8 @@ def train_and_save() -> None:
             },
         },
         "pricing": {
-            "train_rows": int(X_price.shape[0]),
-            "feature_names": ["weekly_earnings", "lf", "ct", "margin"],
+            "train_rows": int(Xp_train.shape[0]),
+            "feature_names": price_feature_names,
         },
     }
 

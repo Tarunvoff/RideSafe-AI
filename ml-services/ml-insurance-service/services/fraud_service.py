@@ -12,6 +12,9 @@ from config import (
     FRAUD_RULE_SPEED_LIMIT, FRAUD_RULE_REJECTION_RATE_LIMIT, FRAUD_RULE_CLAIM_FLOOD_LIMIT,
     FRAUD_LABEL_LOW_THRESHOLD, FRAUD_LABEL_MEDIUM_THRESHOLD,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 FRAUD_CONFIDENCE_THRESHOLD = 0.65
 TELEPORT_DISTANCE_METERS = 200.0
@@ -81,7 +84,6 @@ def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybri
             float(max(1.0, 120.0 / max(request.gps_speed, 1.0))),
             float(request.shared_driver_count_24h),
             float(request.gps_speed),
-            float(max(0.1, request.earnings_pattern_deviation)),
         ],
         dtype=float,
     ).reshape(1, -1)
@@ -139,29 +141,32 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
     delta_t_s = max(1.0, float(request.history.prior_gps_points_count or 1) * 2.5)
     shared_driver_count = float(request.device.shared_driver_count_24h or 1)
     teleport_ratio = delta_distance_m / max(delta_t_s, 0.5)
-    earnings_ratio = 1.0
 
-    full_feature_vector = np.array(
-        [
-            speed,
-            claims_rate,
-            float(mismatch),
-            velocity_z,
-            float(filed),
-            float(rejected),
-            float(request.gps.h3_zone_consistency if request.gps.h3_zone_consistency is not None else 1.0),
-            delta_distance_m,
-            delta_t_s,
-            shared_driver_count,
-            teleport_ratio,
-            earnings_ratio,
-        ],
-        dtype=float,
-    )
+    # Align with names from train_models.py
+    feature_names = [
+        "speed_kmh", "claims_rejection_rate", "device_mismatch", "velocity_z",
+        "claims_filed", "claims_rejected", "h3_zone_consistency",
+        "delta_distance_m", "delta_t_s", "shared_driver_count_24h", "teleport_ratio"
+    ]
+    
+    feature_data = [
+        speed, claims_rate, float(mismatch), velocity_z,
+        float(filed), float(rejected),
+        float(request.gps.h3_zone_consistency if request.gps.h3_zone_consistency is not None else 1.0),
+        delta_distance_m, delta_t_s, shared_driver_count, teleport_ratio
+    ]
+    
+    import pandas as pd
+    df = pd.DataFrame([feature_data], columns=feature_names)
 
     # ── 1. IsolationForest Anomaly Score ──────────────────────────────────────
     if model_loader.fraud_anomaly_model:
-        raw_score = model_loader.fraud_anomaly_model.decision_function([full_feature_vector])[0]
+        # Internal validation to prevent silent drift
+        if hasattr(model_loader.fraud_anomaly_model, "feature_names_in_"):
+            if list(model_loader.fraud_anomaly_model.feature_names_in_) != feature_names:
+                logger.error("Fraud IF feature mismatch! Expected %s", model_loader.fraud_anomaly_model.feature_names_in_)
+        
+        raw_score = model_loader.fraud_anomaly_model.decision_function(df)[0]
         anomaly_score = _normalize_anomaly_score(raw_score)
 
         # H3 Adjustment: adjust anomaly score based on zone consistency
@@ -173,7 +178,7 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
 
     # ── 2. GradientBoosting Supervised Score ──────────────────────────────────
     if model_loader.fraud_classifier_model:
-        supervised_score = float(model_loader.fraud_classifier_model.predict_proba([full_feature_vector])[0][1])
+        supervised_score = float(model_loader.fraud_classifier_model.predict_proba(df)[0][1])
     else:
         supervised_score = 0.0
 
@@ -218,8 +223,6 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
         reasons.append("CLAIM_BURST_12H")
     if shared_driver_count >= 5:
         reasons.append("DEVICE_SHARING_CLUSTER")
-    if earnings_ratio >= 10.0:
-        reasons.append("EARNINGS_TRACE_ANOMALY")
     if not reasons:
         reasons.append("MODEL_ANOMALY_SIGNAL")
 
@@ -229,9 +232,9 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
             import shap  # type: ignore
 
             explainer = shap.TreeExplainer(model_loader.fraud_classifier_model)
-            shap_values = explainer.shap_values(np.array([full_feature_vector]))
+            shap_values = explainer.shap_values(np.array([feature_data]))
             values = shap_values[0] if isinstance(shap_values, list) else shap_values
-            names = model_loader.fraud_feature_names or [f"f_{idx}" for idx in range(full_feature_vector.shape[0])]
+            names = model_loader.fraud_feature_names or feature_names
             feature_impacts = {
                 names[i]: float(values[0][i])
                 for i in range(min(len(names), values.shape[1]))

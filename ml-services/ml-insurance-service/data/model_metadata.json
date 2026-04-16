@@ -1,55 +1,73 @@
 {
-  "model_version": "20260415T102033Z",
-  "generated_at": "2026-04-15T10:20:52.187412+00:00",
+  "trained_at": "2026-04-16T07:29:59.753952+00:00",
+  "model_version": "20260416T072938Z",
+  "n_samples": 10000,
+  "fraud_rate": 0.08,
+  "precision": 0.8907563025210085,
+  "recall": 0.6625,
+  "f1": 0.7598566308243727,
+  "features": [
+    "speed_kmh",
+    "claims_rejection_rate",
+    "device_mismatch",
+    "velocity_z",
+    "claims_filed",
+    "claims_rejected",
+    "h3_zone_consistency",
+    "delta_distance_m",
+    "delta_t_s",
+    "shared_driver_count_24h",
+    "teleport_ratio"
+  ],
   "risk": {
-    "train_rows": 40000,
-    "test_rows": 10000,
-    "test_auc": 0.6763021866246528,
+    "train_rows": 80800,
+    "test_rows": 20200,
+    "test_auc": 0.6871333125011774,
     "cross_validation": {
-      "mean_auc": 0.680842159965054,
-      "std_auc": 0.0029677199620298713
+      "mean_auc": 0.6880787502349631,
+      "std_auc": 0.003647583962196489
     },
     "feature_importance": {
-      "rainfall_mm": 0.36281681060791016,
-      "aqi_index": 0.13551901280879974,
-      "demand_factor": 0.1702505499124527,
-      "hour_of_day": 0.09096965193748474,
-      "day_of_week": 0.07716264575719833,
-      "zone_historical_risk": 0.0986681580543518,
-      "driver_tenure_days": 0.06461326032876968
+      "rainfall_mm": 0.47951585054397583,
+      "aqi_index": 0.1328401416540146,
+      "demand_factor": 0.1550184190273285,
+      "hour_of_day": 0.05185749754309654,
+      "day_of_week": 0.05387761443853378,
+      "zone_historical_risk": 0.10236980766057968,
+      "driver_tenure_days": 0.02452073246240616
     }
   },
   "fraud": {
     "train_rows": 8000,
     "test_rows": 2000,
     "base_rate": 0.08,
-    "test_auc": 0.9164979619565217,
+    "test_auc": 0.9411107336956521,
     "cross_validation": {
-      "mean_auc": 0.9231144701086956,
-      "std_auc": 0.009845402894054993
+      "mean_auc": 0.9403943614130433,
+      "std_auc": 0.009565179901652694
     },
     "pattern_injection_counts": {
-      "gps_teleport": 207,
-      "claim_burst": 187,
-      "device_sharing": 203,
-      "earnings_anomaly": 203
+      "gps_teleport": 213,
+      "claim_burst": 200,
+      "device_sharing": 181,
+      "earnings_anomaly": 206
     },
     "feature_importance": {
-      "speed_kmh": 0.03898463247276527,
-      "claims_rejection_rate": 0.022312457593746816,
-      "device_mismatch": 0.3395724986773839,
-      "velocity_z": 0.10351951158697358,
-      "claims_filed": 0.12420708207255098,
-      "claims_rejected": 0.12979815716741205,
-      "h3_zone_consistency": 0.06504489727688781,
-      "delta_distance_m": 0.005835468369213913,
-      "delta_t_s": 0.005758622665721875,
-      "shared_driver_count_24h": 0.15857613833616682,
-      "teleport_ratio": 0.006390533781176969
+      "speed_kmh": 0.11206525640024756,
+      "claims_rejection_rate": 0.0322826394375995,
+      "device_mismatch": 0.27843542783815994,
+      "velocity_z": 0.09924871225325013,
+      "claims_filed": 0.019758322430690818,
+      "claims_rejected": 0.19140169220291717,
+      "h3_zone_consistency": 0.06855742070945912,
+      "delta_distance_m": 0.004238714206653219,
+      "delta_t_s": 0.009095071138350773,
+      "shared_driver_count_24h": 0.18287929574519143,
+      "teleport_ratio": 0.002037447637480261
     }
   },
   "pricing": {
-    "train_rows": 6000,
+    "train_rows": 20000,
     "feature_names": [
       "weekly_earnings",
       "lf",

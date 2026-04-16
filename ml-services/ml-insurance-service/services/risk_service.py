@@ -104,17 +104,18 @@ def _heuristic_fallback_score(request: RiskModelScoreRequest) -> float:
 def score_risk_model(request: RiskModelScoreRequest) -> RiskModelScoreResponse:
     feature_names = model_loader.risk_feature_names or RISK_MODEL_DEFAULT_FEATURES
     feature_map = {
-        "rainfall_mm": float(request.rainfall_mm),
-        "aqi_index": float(request.aqi),
-        "demand_factor": float(request.demand_ratio),
-        "hour_of_day": float(request.hour_of_day),
-        "day_of_week": float(request.day_of_week),
-        "zone_historical_risk": float(request.historical_risk),
+        "rainfall_mm": max(0.0, min(250.0, float(request.rainfall_mm))),
+        "aqi_index": max(0.0, min(500.0, float(request.aqi))),
+        "demand_factor": max(0.4, min(3.0, float(request.demand_ratio))),
+        "hour_of_day": max(0.0, min(23.0, float(request.hour_of_day))),
+        "day_of_week": max(0.0, min(6.0, float(request.day_of_week))),
+        "zone_historical_risk": max(0.0, min(1.0, float(request.historical_risk))),
         # Driver tenure is not supplied by caller; stable proxy prevents shape mismatch.
         "driver_tenure_days": 180.0,
     }
 
-    vector = np.array([float(feature_map.get(name, 0.0)) for name in feature_names], dtype=float).reshape(1, -1)
+    import pandas as pd
+    df = pd.DataFrame([[float(feature_map.get(name, 0.0)) for name in feature_names]], columns=feature_names)
 
     risk_estimator = model_loader.risk_models
     if isinstance(risk_estimator, dict):
@@ -123,7 +124,12 @@ def score_risk_model(request: RiskModelScoreRequest) -> RiskModelScoreResponse:
 
     if risk_estimator is not None and hasattr(risk_estimator, "predict_proba"):
         try:
-            lf_score = float(risk_estimator.predict_proba(vector)[0][1])
+            # Internal check for feature alignment
+            if hasattr(risk_estimator, "feature_names_in_"):
+                if list(risk_estimator.feature_names_in_) != feature_names:
+                    logger.error("Risk XGB feature mismatch! Expected %s", risk_estimator.feature_names_in_)
+            
+            lf_score = float(risk_estimator.predict_proba(df)[0][1])
             lf_score = max(0.0, min(1.0, lf_score))
             confidence = max(0.55, min(0.98, abs(lf_score - 0.5) * 1.8))
             logger.info(

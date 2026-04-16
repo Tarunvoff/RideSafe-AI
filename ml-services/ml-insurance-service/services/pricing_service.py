@@ -40,12 +40,16 @@ def _resolve_ct(platform: str | None, ct_override: float | None) -> float:
     return _DEFAULT_CT
 
 
+import numpy as np
+from utils.model_loader import model_loader
+import pandas as pd
+
 def calculate_premium(request: PricingRequest) -> PricingResponse:
     Ew = request.Ew
     Lf = request.Lf
     M  = request.M
 
-    # FIX: Always resolve Ct — never allow None to propagate into the formula
+    # Resolve Ct (Coverage Tier)
     Ct = _resolve_ct(getattr(request, 'platform', None), request.Ct)
 
     logger.info(
@@ -53,24 +57,34 @@ def calculate_premium(request: PricingRequest) -> PricingResponse:
         Ew, Lf, Ct, M, getattr(request, 'platform', 'N/A')
     )
 
-    # Pricing is rule-based; do not rely on trained synthetic models.
-
     # Zone Multiplier = f(demand_ratio, zone_volatility)
     zone_multiplier = 1.0 + (request.demand_ratio - 1.0) * 0.1 + (request.zone_volatility * 0.2)
     zone_multiplier = max(0.8, min(2.0, zone_multiplier))
 
-    # Premium formula: Ew × 0.015 × Lf × Ct × (1 + M) × zone_multiplier
-    premium = Ew * ALPHA * Lf * Ct * (1.0 + M) * zone_multiplier
+    # Inference using trained LGBM model (if available)
+    if model_loader.price_model:
+        try:
+            # Features: ["weekly_earnings", "lf", "ct", "margin"]
+            features = pd.DataFrame([[Ew, Lf, Ct, M]], columns=["weekly_earnings", "lf", "ct", "margin"])
+            
+            # 1. Prediction with Log-Target Inverse (np.exp)
+            log_premium = model_loader.price_model.predict(features)[0]
+            premium = np.exp(log_premium)
+            
+            # Apply zone_multiplier (model trained on base premium)
+            premium *= zone_multiplier
+            
+            logger.debug("Model-based premium calculated: %.2f", premium)
+        except Exception as e:
+            logger.error("Pricing model inference failed: %s. Falling back to formula.", e)
+            premium = Ew * ALPHA * Lf * Ct * (1.0 + M) * zone_multiplier
+    else:
+        # Fallback to pure rule-based formula
+        premium = Ew * ALPHA * Lf * Ct * (1.0 + M) * zone_multiplier
 
-    # Floor enforcement: if premium < MIN_PREMIUM, scale Ct up to meet floor
-    if premium < MIN_PREMIUM:
-        denom = Ew * ALPHA * Lf * (1.0 + M) * zone_multiplier
-        if denom > 0:
-            Ct = MIN_PREMIUM / denom
-        premium = MIN_PREMIUM
-
-    # Hard ceiling cap
-    premium = min(premium, MAX_PREMIUM)
+    # 4. Production-Grade Soft-Tail Clipping: [₹50, ₹300] + 0.01 residual
+    premium_hard = max(50.0, min(300.0, premium))
+    premium = premium_hard + 0.01 * max(0, premium - 300.0)
 
     logger.info("Premium computed: ₹%.2f (zone_multiplier=%.3f Ct=%.2f)", premium, zone_multiplier, Ct)
     return PricingResponse(premium=round(premium, 2), zone_multiplier=round(zone_multiplier, 3))
