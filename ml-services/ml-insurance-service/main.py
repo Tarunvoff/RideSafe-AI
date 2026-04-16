@@ -1,12 +1,18 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
+# Triggering hot-reload to apply environment variable discovery fixes.
+
+# 1. Load environment variables IMMEDIATELY (check local then root)
+if not load_dotenv():
+    # Attempt to load from project root
+    root_env = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env")
+    if os.path.exists(root_env):
+        load_dotenv(root_env)
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routes import risk, pricing, fraud, trigger
 import utils.model_loader # This triggers singleton initialization during startup
-
-# Load environment variables from .env file
-load_dotenv()
 
 REQUIRED_ENV_VARS = (
     "REDIS_URL",

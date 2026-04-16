@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 export const PARAMETRIC_TRIGGER_STATES = ['HALTED', 'FLOODED', 'TOXIC_AQI', 'GRIDLOCK'];
 
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+const REDIS_URL = process.env.REDIS_URL;
 const DRIVER_STATE_TTL = Number(process.env.DRIVER_STATE_TTL_SECONDS ?? 900);
 const POLICY_STATE_TTL = Number(process.env.POLICY_STATE_TTL_SECONDS ?? 900);
 const ZONE_DRIVER_TTL = Number(process.env.ZONE_DRIVER_TTL_SECONDS ?? 900);

@@ -91,6 +91,8 @@ class FraudScoreRequest(BaseModel):
     gps: GPSInfo
     device: DeviceInfo
     history: HistoryInfo
+    driver_id: Optional[str] = None
+    phone_number: Optional[str] = None
 
 class FraudScoreResponse(BaseModel):
     score: float = Field(ge=0, le=1)
@@ -114,6 +116,8 @@ class FraudHybridScoreRequest(BaseModel):
     earnings_pattern_deviation: float = Field(ge=0, le=100)
     mismatch: bool = False
     shared_driver_count_24h: int = Field(default=1, ge=1, le=100)
+    driver_id: Optional[str] = None
+    phone_number: Optional[str] = None
 
 
 class FraudHybridScoreResponse(BaseModel):

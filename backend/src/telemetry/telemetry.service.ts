@@ -71,7 +71,7 @@ export class TelemetryService implements OnModuleInit {
     const platform = payload.platform ?? 'mobile-app';
 
     try {
-      const h3Cell = h3.latLngToCell(payload.lat, payload.lng, 8);
+      const h3Cell = h3.latLngToCell(payload.lat, payload.lng, Number(process.env.H3_RESOLUTION ?? 8));
       void this.redisState.setDriverState(payload.driverId, {
         last_location: {
           lat: payload.lat,

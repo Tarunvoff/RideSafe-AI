@@ -18,3 +18,4 @@ scikit-learn>=1.4.0
 sqlalchemy>=2.0.30
 uvicorn[standard]>=0.30.0
 xgboost>=2.0.0
+twilio>=9.0.0

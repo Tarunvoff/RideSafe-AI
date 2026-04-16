@@ -1,5 +1,8 @@
 from models.schemas import PricingRequest, PricingResponse
-from config import ALPHA, MIN_PREMIUM, MAX_PREMIUM, MARGIN_MIN, MARGIN_MAX
+from config import (
+    ALPHA, MIN_PREMIUM, MAX_PREMIUM, MARGIN_MIN, MARGIN_MAX,
+    PREMIUM_MIN_CLIPPING, PREMIUM_MAX_CLIPPING, PREMIUM_RESIDUAL_MULTIPLIER
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -82,9 +85,9 @@ def calculate_premium(request: PricingRequest) -> PricingResponse:
         # Fallback to pure rule-based formula
         premium = Ew * ALPHA * Lf * Ct * (1.0 + M) * zone_multiplier
 
-    # 4. Production-Grade Soft-Tail Clipping: [₹50, ₹300] + 0.01 residual
-    premium_hard = max(50.0, min(300.0, premium))
-    premium = premium_hard + 0.01 * max(0, premium - 300.0)
+    # 4. Production-Grade Soft-Tail Clipping
+    premium_hard = max(PREMIUM_MIN_CLIPPING, min(PREMIUM_MAX_CLIPPING, premium))
+    premium = premium_hard + PREMIUM_RESIDUAL_MULTIPLIER * max(0, premium - PREMIUM_MAX_CLIPPING)
 
     logger.info("Premium computed: ₹%.2f (zone_multiplier=%.3f Ct=%.2f)", premium, zone_multiplier, Ct)
     return PricingResponse(premium=round(premium, 2), zone_multiplier=round(zone_multiplier, 3))

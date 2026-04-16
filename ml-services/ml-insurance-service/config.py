@@ -60,3 +60,15 @@ SPEED_NORMAL_STDEV = 20.0
 TRIGGER_LF_THRESHOLD    = 0.7   # Lf must exceed this to approve
 TRIGGER_FRAUD_THRESHOLD = 0.7   # fraud_score must be BELOW this to approve
 TRIGGER_ZONE_HALT_STATE = "HALTED"
+
+# Enforcement Engine
+ENFORCEMENT_FRAUD_THRESHOLD = 10.0  # Temporarily lowered for diagnostics (0-100)
+ENFORCEMENT_MAX_WARNINGS = 3
+
+# Geospatial Resolution
+H3_RESOLUTION = 8  # Standard resolution for Aegis risk cells
+
+# Actuarial Clipping & Residuals
+PREMIUM_MIN_CLIPPING        = 50.0   # Floor for premium calculation
+PREMIUM_MAX_CLIPPING        = 300.0  # Ceiling for soft-tail calculation
+PREMIUM_RESIDUAL_MULTIPLIER = 0.01   # Percentage of excess premium added back

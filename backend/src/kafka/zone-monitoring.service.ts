@@ -37,7 +37,7 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     }
 
     async onModuleInit(): Promise<void> {
-        const brokers = (process.env.KAFKA_BROKER_URL ?? 'localhost:9092').split(',');
+        const brokers = (process.env.KAFKA_BROKER_URL).split(',');
         const kafka = new Kafka({
             clientId: 'aegis-zone-monitor',
             brokers,
@@ -140,7 +140,7 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
         if (cached) return cached;
 
         try {
-            const GRID_EVENT_URL = process.env.GRID_EVENT_SERVICE_URL || 'http://localhost:8003';
+            const GRID_EVENT_URL = process.env.GRID_EVENT_SERVICE_URL;
             const response = await fetch(`${GRID_EVENT_URL}/zones/${h3Cell}`, {
                 method: 'GET',
                 signal: AbortSignal.timeout(2000),

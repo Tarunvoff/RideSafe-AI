@@ -40,6 +40,8 @@ model User {
   otpCode       String?
   otpExpiresAt  DateTime?
   refreshToken  String?
+  isActive      Boolean  @default(true)
+  fraudWarningCount Int  @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

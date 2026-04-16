@@ -23,7 +23,7 @@ type RiskScoreResponse = {
 @Injectable()
 export class PremiumService {
   private readonly logger = new Logger(PremiumService.name);
-  private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
+  private readonly mlServiceUrl = process.env.ML_SERVICE_URL;
 
   constructor(
     private readonly prisma: PrismaService,

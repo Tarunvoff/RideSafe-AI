@@ -10,8 +10,8 @@ import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
 import { ctForPlan, normalizePlanTier } from './policy-tiers';
 import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 
-const H3_FEATURE_URL = process.env.H3_FEATURE_SERVICE_URL ?? 'http://localhost:8004';
-const GRID_EVENT_URL = process.env.GRID_EVENT_SERVICE_URL ?? 'http://localhost:8003';
+const H3_FEATURE_URL = process.env.H3_FEATURE_SERVICE_URL;
+const GRID_EVENT_URL = process.env.GRID_EVENT_SERVICE_URL;
 const FRAUD_BLOCK_THRESHOLD = Number(process.env.FRAUD_BLOCK_THRESHOLD ?? 0.7);
 
 const PREMIUM_MARGIN = 0.1;
@@ -61,7 +61,7 @@ export class InsuranceService {
     }
 
     if (lat != null && lng != null) {
-      return { lat, lng, h3Cell: h3.latLngToCell(lat, lng, 8) };
+      return { lat, lng, h3Cell: h3.latLngToCell(lat, lng, Number(process.env.H3_RESOLUTION ?? 8)) };
     }
 
     return { lat, lng, h3Cell: null };

@@ -13,6 +13,7 @@ from config import (
     FRAUD_LABEL_LOW_THRESHOLD, FRAUD_LABEL_MEDIUM_THRESHOLD,
 )
 import logging
+from services.enforcement_service import enforcement_engine
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,10 @@ def _build_hybrid_rule_score(request: FraudHybridScoreRequest) -> tuple[float, l
     return min(1.0, score), signals
 
 
+
 def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybridScoreResponse:
     rule_score, signals = _build_hybrid_rule_score(request)
-
+    
     feature_vector = np.array(
         [
             float(request.gps_speed),
@@ -90,7 +92,7 @@ def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybri
 
     ml_available = model_loader.fraud_anomaly_model is not None and model_loader.fraud_classifier_model is not None
     if not ml_available:
-        return FraudHybridScoreResponse(
+        res = FraudHybridScoreResponse(
             fraud_score=round(rule_score * 100.0, 2),
             rule_score=round(rule_score * 100.0, 2),
             ml_anomaly_score=0.0,
@@ -98,13 +100,16 @@ def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybri
             top_signals=(signals or ["RULE_BASELINE"])[:3],
             model_used="rules_only",
         )
+        # Trigger enforcement even for rule-based baseline if score is high enough
+        enforcement_engine.enforce_fraud_policy(request.driver_id, res.fraud_score, request.phone_number)
+        return res
 
     try:
         raw_if = float(model_loader.fraud_anomaly_model.decision_function(feature_vector)[0])
         anomaly_score = _normalize_anomaly_score(raw_if)
         gb_score = float(model_loader.fraud_classifier_model.predict_proba(feature_vector)[0][1])
     except Exception:
-        return FraudHybridScoreResponse(
+        res = FraudHybridScoreResponse(
             fraud_score=round(rule_score * 100.0, 2),
             rule_score=round(rule_score * 100.0, 2),
             ml_anomaly_score=0.0,
@@ -112,11 +117,13 @@ def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybri
             top_signals=(signals or ["RULE_BASELINE"])[:3],
             model_used="rules_only",
         )
+        enforcement_engine.enforce_fraud_policy(request.driver_id, res.fraud_score, request.phone_number)
+        return res
 
     final_score = (0.4 * rule_score) + (0.3 * anomaly_score) + (0.3 * gb_score)
     final_score = max(0.0, min(1.0, final_score))
 
-    return FraudHybridScoreResponse(
+    res = FraudHybridScoreResponse(
         fraud_score=round(final_score * 100.0, 2),
         rule_score=round(rule_score * 100.0, 2),
         ml_anomaly_score=round(anomaly_score * 100.0, 2),
@@ -124,6 +131,12 @@ def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybri
         top_signals=(signals or ["MODEL_ANOMALY_SIGNAL"])[:3],
         model_used="hybrid",
     )
+    
+    # ── Enforcement Logic ──
+    # Triggered if fraud_score >= 90 (Instruction: 0.90)
+    enforcement_engine.enforce_fraud_policy(request.driver_id, res.fraud_score, request.phone_number)
+
+    return res
 
 
 def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
@@ -262,10 +275,16 @@ def calculate_fraud_score(request: FraudScoreRequest) -> FraudScoreResponse:
     else:
         label = "HIGH"
 
-    return FraudScoreResponse(
+    res = FraudScoreResponse(
         score=round(fraud_score, 4),
         label=label,
         confidence=round(confidence, 4),
         fraud_reason=reasons[0],
         explanation=shap_explanation,
     )
+
+    # ── Enforcement Logic ──
+    # Standard fraud score is 0.0 - 1.0. Enforcement expects 0.0 - 100.0 (per hybrid pattern)
+    enforcement_engine.enforce_fraud_policy(request.driver_id, res.score * 100.0, request.phone_number) 
+
+    return res

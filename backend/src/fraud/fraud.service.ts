@@ -5,8 +5,7 @@ import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import * as h3 from 'h3-js';
 
 // ── Python Fraud Feature Service (port 8002) ──────────────────────────────────
-const FRAUD_FEATURE_URL =
-  process.env.FRAUD_FEATURE_SERVICE_URL ?? 'http://localhost:8002';
+const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL;
 
 // ── Shape of the Python service response ─────────────────────────────────────
 interface FraudFeatureResponse {
@@ -66,7 +65,7 @@ interface DuplicateClaimSignal {
 @Injectable()
 export class FraudService {
   private readonly logger = new Logger(FraudService.name);
-  private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
+  private readonly mlServiceUrl = process.env.ML_SERVICE_URL;
 
   constructor(private prisma: PrismaService) {}
 
@@ -144,7 +143,7 @@ export class FraudService {
 
     let mlScore: FraudMlScoreResponse;
     try {
-      mlScore = await this.fetchHybridFraudScore(features);
+      mlScore = await this.fetchHybridFraudScore(userId, features);
     } catch (err) {
       const fallback = this.scoreFromFeatures(features, dto);
       this.logger.warn(`Fraud ML scoring failed for ${userId}; using rule-only fallback. Error: ${err}`);
@@ -264,7 +263,12 @@ export class FraudService {
     };
   }
 
-  private async fetchHybridFraudScore(features: FraudFeatureResponse): Promise<FraudMlScoreResponse> {
+  private async fetchHybridFraudScore(userId: string, features: FraudFeatureResponse): Promise<FraudMlScoreResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
+
     const reqBody = {
       account_age_days: Number(features.identity.account_age_days ?? 0),
       device_id_uniqueness: Number(features.identity.device_id_uniqueness ?? 1),
@@ -277,6 +281,8 @@ export class FraudService {
       earnings_pattern_deviation: Number(features.behavior.earnings_pattern_deviation ?? 0),
       mismatch: Number(features.identity.device_id_uniqueness ?? 1) < 0.3,
       shared_driver_count_24h: Number(features.meta.device_user_count ?? 1),
+      driver_id: userId,
+      phone_number: user?.phone ?? null,
     };
 
     const response = await fetch(`${this.mlServiceUrl}/fraud/score`, {
