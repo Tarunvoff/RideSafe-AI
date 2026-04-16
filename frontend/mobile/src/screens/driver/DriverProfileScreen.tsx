@@ -588,7 +588,14 @@ function KYCReportModal({
                   <Text style={[kycTabStyles.trustScoreText, { color: trustColor(providerKyc.trustScore) }]}>
                     {Math.round(providerKyc.trustScore < 1 ? providerKyc.trustScore * 100 : providerKyc.trustScore)}
                   </Text>
-                  <Text style={kycTabStyles.trustScoreLabel}>{t('profile.kyc_report.trust')}</Text>
+                  <Text 
+                    style={kycTabStyles.trustScoreLabel}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
+                    {t('profile.kyc_report.trust')}
+                  </Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
                   <View style={[modalStyles.statusBadge, {
@@ -1224,7 +1231,7 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
@@ -1366,13 +1373,20 @@ const modalStyles = StyleSheet.create({
   kycRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
   kycLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-    kycValue: { fontSize: 13, color: '#111827', fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
+  kycValue: { 
+    fontSize: 13, 
+    color: '#111827', 
+    fontWeight: '700', 
+    maxWidth: '65%', 
+    textAlign: 'right',
+    lineHeight: 18,
+  },
 
   // Language Switcher Styles
   languageCard: {
@@ -1451,13 +1465,19 @@ const kycTabStyles = StyleSheet.create({
     borderColor: '#bbf7d0',
   },
   trustCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 3,
+    width: 106,
+    height: 106,
+    borderRadius: 53,
+    borderWidth: 4,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
+    borderColor: '#ffffff', // Fallback, usually overridden by prop
+    shadowColor: '#16a34a',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+    padding: 10,
   },
   trustScoreText: {
     fontSize: 26,
@@ -1465,10 +1485,14 @@ const kycTabStyles = StyleSheet.create({
   },
   trustScoreLabel: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#6b7280',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
+    marginTop: 1,
+    textAlign: 'center',
+    width: '100%',
+    maxHeight: 30,
   },
   trustSource: {
     fontSize: 13,
