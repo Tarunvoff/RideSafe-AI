@@ -39,7 +39,7 @@ type PlansTabKey = 'available' | 'purchased';
  * "Underserved" operator navigates through diverse coverage options.
  */
 type PlanPremiumMap = Record<string, { amount: number; loading: boolean; fallback: boolean }>;
-const MAX_WEEKLY_PREMIUM_INR = 50;
+const MAX_WEEKLY_PREMIUM_INR = 49;
 
 /**
  * [IN-LINE PRIDE]: Deterministic Tier Capping
@@ -49,13 +49,13 @@ const MAX_WEEKLY_PREMIUM_INR = 50;
  */
 function fallbackTierCap(plan: WeeklyPlan): number {
   const ct = Number((plan as any)?.Ct ?? 0);
-  if (Number.isFinite(ct) && ct > 0) {
-    return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round((30 + ct * 25) * 100) / 100);
-  }
   const key = String(plan?.key ?? '').toUpperCase();
-  if (key === 'PREMIUM') return 50;
-  if (key === 'STANDARD') return 45;
-  if (key === 'BASIC') return 40;
+
+  // Tier-specific caps matching backend actuarial bounds
+  if (key === 'PREMIUM' || ct >= 0.8) return 49;
+  if (key === 'STANDARD' || ct >= 0.6) return 37;
+  if (key === 'BASIC' || ct >= 0.4) return 25;
+
   return MAX_WEEKLY_PREMIUM_INR;
 }
 
