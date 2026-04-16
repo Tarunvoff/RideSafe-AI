@@ -458,13 +458,13 @@ function KYCReportModal({
           <View style={{ width: 44 }} />
         </View>
 
-        /**
-         * [IN-LINE PRIDE]: Transparency & Trust Synthesis
-         * The KYC report aggregates multi-source verification data (Aadhaar, PAN, 
-         * Provider rating) into a unified 'Trust Score'. This visual clarity 
-         * is essential for building driver confidence in the parametric 
-         * insurance underwriting process.
-         */
+        {/*
+          [IN-LINE PRIDE]: Transparency & Trust Synthesis
+          The KYC report aggregates multi-source verification data (Aadhaar, PAN,
+          Provider rating) into a unified Trust Score. This visual clarity
+          is essential for building driver confidence in the parametric
+          insurance underwriting process.
+        */}
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#16a34a" />

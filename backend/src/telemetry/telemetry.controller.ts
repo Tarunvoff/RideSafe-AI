@@ -1,11 +1,24 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, ForbiddenException, Request, UseGuards } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
 import { GpsTelemetryDto } from './dto/gps-telemetry.dto';
 import { LocationFailureDto } from './dto/location-failure.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('telemetry')
 export class TelemetryController {
   constructor(private readonly telemetryService: TelemetryService) {}
+
+  private resolveAuthorizedDriverId(req: any, requestedDriverId?: string) {
+    if (req.user?.role === 'ADMIN') {
+      return requestedDriverId ?? req.user.id;
+    }
+
+    if (requestedDriverId && requestedDriverId !== req.user.id) {
+      throw new ForbiddenException('Cannot submit telemetry for another driver');
+    }
+
+    return req.user.id;
+  }
 
   @Post('ingest-batch')
   @HttpCode(HttpStatus.CREATED)
@@ -21,12 +34,17 @@ export class TelemetryController {
   }
 
   @Post('gps')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  ingestGps(@Body() dto: GpsTelemetryDto) {
-    this.telemetryService.publishGpsTelemetry(dto).subscribe({ error: () => undefined });
+  ingestGps(@Request() req: any, @Body() dto: GpsTelemetryDto) {
+    const driverId = this.resolveAuthorizedDriverId(req, dto.driverId);
+    this.telemetryService.publishGpsTelemetry({
+      ...dto,
+      driverId,
+    }).subscribe({ error: () => undefined });
     return {
       status: 'accepted',
-      driverId: dto.driverId,
+      driverId,
       timestamp: dto.timestamp ?? Math.floor(Date.now() / 1000),
     };
   }

@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BasicIdentityDto, IdentityVerificationDto, PayoutSetupDto, PersonalDetailsDto } from './dto/kyc.dto';
+import {
+  MIN_ENGAGEMENT_DAYS_STANDARD,
+  MIN_ENGAGEMENT_DAYS_PREMIUM,
+  resolveEngagementDaysSince,
+} from '../compliance/driver-eligibility.util';
 
 @Injectable()
 export class KycService {
@@ -8,8 +13,12 @@ export class KycService {
 
   // ── GET STATUS ───────────────────────────────────────────────────────────
   async getStatus(userId: string) {
-    const profile = await this.prisma.kYCProfile.findUnique({ where: { userId } });
+    const [profile, user] = await Promise.all([
+      this.prisma.kYCProfile.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
+    ]);
     if (!profile) throw new NotFoundException('KYC profile not found. Please register first.');
+    if (!user) throw new NotFoundException('User not found. Please register first.');
 
     const [basicIdentity, personalDetails, identityVerification, payoutSetup] = await Promise.all([
       this.prisma.kYCBasicIdentity.findUnique({ where: { userId } }),
@@ -26,6 +35,7 @@ export class KycService {
     };
 
     const completedSteps = Object.values(steps).filter(Boolean).length;
+    const engagementDays = resolveEngagementDaysSince(user.createdAt);
 
     return {
       status: profile.status,
@@ -33,6 +43,15 @@ export class KycService {
       completedSteps,
       totalSteps: 4,
       steps,
+      engagementEligibility: {
+        engagementDays,
+        minimumDays: {
+          standard: MIN_ENGAGEMENT_DAYS_STANDARD,
+          premium: MIN_ENGAGEMENT_DAYS_PREMIUM,
+        },
+        eligibleForStandard: engagementDays >= MIN_ENGAGEMENT_DAYS_STANDARD,
+        eligibleForPremium: engagementDays >= MIN_ENGAGEMENT_DAYS_PREMIUM,
+      },
     };
   }
 
@@ -87,7 +106,18 @@ export class KycService {
       throw new BadRequestException('Account number, IFSC code, and account holder name are required for bank payout.');
     }
 
-    const data = { userId, ...dto };
+    const data = {
+      userId,
+      method: dto.method,
+      upiId: dto.upiId,
+      accountNumber: dto.accountNumber,
+      ifscCode: dto.ifscCode,
+      accountHolder: dto.accountHolder,
+      bankName: dto.bankName,
+      financialDataConsent: true,
+      financialDataConsentAt: new Date(),
+      consentVersion: dto.consentVersion,
+    };
     const existing = await this.prisma.kYCPayoutSetup.findUnique({ where: { userId } });
     const result = existing
       ? await this.prisma.kYCPayoutSetup.update({ where: { userId }, data })
@@ -108,6 +138,18 @@ export class KycService {
 
     if (!basicIdentity || !personalDetails || !identityVerification || !payoutSetup) {
       throw new BadRequestException('Please complete all KYC steps before submitting.');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+    if (!user) {
+      throw new NotFoundException('User not found. Please register first.');
+    }
+
+    const engagementDays = resolveEngagementDaysSince(user.createdAt);
+    if (engagementDays < MIN_ENGAGEMENT_DAYS_STANDARD) {
+      throw new BadRequestException(
+        `Minimum platform engagement of ${MIN_ENGAGEMENT_DAYS_STANDARD} days is required before KYC submission. Current tenure: ${engagementDays} days.`,
+      );
     }
 
     const profile = await this.prisma.kYCProfile.update({
@@ -152,6 +194,9 @@ export class KycService {
         upiId: payoutSetup.upiId,
         accountHolder: payoutSetup.accountHolder,
         bankName: payoutSetup.bankName,
+        financialDataConsent: payoutSetup.financialDataConsent,
+        financialDataConsentAt: payoutSetup.financialDataConsentAt,
+        consentVersion: payoutSetup.consentVersion,
       } : null,
     };
   }
@@ -240,6 +285,9 @@ export class KycService {
           ifscCode: payoutSetup.ifscCode,
           accountHolder: payoutSetup.accountHolder,
           bankName: payoutSetup.bankName,
+          financialDataConsent: payoutSetup.financialDataConsent,
+          financialDataConsentAt: payoutSetup.financialDataConsentAt,
+          consentVersion: payoutSetup.consentVersion,
         } : null,
       },
     };

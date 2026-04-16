@@ -9,6 +9,7 @@ import {
   computeNetPayout,
   resolveDeductible,
 } from './payout-calculation.util';
+import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 
 const AEGIS_ERR_POLICY_NOT_FOUND = 'AEGIS_ERR_201';
 const AEGIS_ERR_INVALID_PLAN = 'AEGIS_ERR_202';
@@ -133,6 +134,8 @@ export class PayoutService {
     if (policy.status !== 'ACTIVE' || policy.endDate <= now) {
       throw new BadRequestException('Policy is not active');
     }
+
+    await assertDriverPolicyEligibility(this.prisma, params.driverId, policy.planType);
 
     const h3Cell = params.h3Cell ?? (await this.redisState.getDriverState(params.driverId))?.last_location?.h3_cell;
     if (!h3Cell) {

@@ -1,7 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import * as h3 from 'h3-js';
-import * as bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.service';
 import { RedisStateService, PARAMETRIC_TRIGGER_STATES } from '../state/redis-state.service';
@@ -10,6 +8,7 @@ import { PayoutService } from '../payout/payout.service';
 import { PremiumService } from '../premium/premium.service';
 import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
 import { ctForPlan, normalizePlanTier } from './policy-tiers';
+import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 
 const H3_FEATURE_URL = process.env.H3_FEATURE_SERVICE_URL ?? 'http://localhost:8004';
 const GRID_EVENT_URL = process.env.GRID_EVENT_SERVICE_URL ?? 'http://localhost:8003';
@@ -120,33 +119,10 @@ export class InsuranceService {
     });
 
     if (!existingUser) {
-      const passwordHash = await bcrypt.hash(randomUUID(), 10);
-      await this.prisma.user.create({
-        data: {
-          id: dto.driverId,
-          email: `${dto.driverId}@demo.local`,
-          phone: null,
-          passwordHash,
-          role: 'DRIVER',
-          isVerified: true,
-        },
-      });
-
-      await this.prisma.kYCProfile.create({
-        data: {
-          userId: dto.driverId,
-          status: 'NOT_STARTED',
-        },
-      });
+      throw new BadRequestException('Driver account not found. Please register and complete onboarding first.');
     }
 
-    const kycProfile = await this.prisma.kYCProfile.findUnique({
-      where: { userId: dto.driverId },
-    });
-
-    if (!kycProfile || kycProfile.status !== 'APPROVED') {
-      throw new ForbiddenException('KYC registration is incomplete. Please complete KYC and get approved before purchasing a policy.');
-    }
+    await assertDriverPolicyEligibility(this.prisma, dto.driverId, plan);
 
     const profile = (await this.dynamicQCommerce.getDriverProfile(dto.driverId)).driverProfile;
     const Ew = this.resolveWeeklyEarnings(profile);
@@ -254,6 +230,9 @@ export class InsuranceService {
     }
 
     const planKey = activePolicy?.weeklyPlan?.key ?? activePolicy?.planType ?? null;
+
+    await assertDriverPolicyEligibility(this.prisma, driverId, planKey);
+
     let Ct: number;
     try {
       Ct = this.resolveCtOrThrow(planKey);

@@ -13,9 +13,10 @@
 
 import React from 'react';
 import './src/i18n';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getStateFromPath } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Text } from 'react-native';
+import * as Linking from 'expo-linking';
 import { Theme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
@@ -42,6 +43,21 @@ const extraFontStyle = { fontFamily: DRIVER_FONT_FAMILY };
       : extraFontStyle,
 };
 
+const linking = {
+  prefixes: [Linking.createURL('/'), 'http://localhost:8082', 'http://127.0.0.1:8082'],
+  getStateFromPath: (path: string, options: any) => {
+    const normalizedPath = String(path || '').split('?')[0].replace(/^\/+/, '');
+
+    // Ensure web OAuth redirect always resolves to the dedicated callback screen
+    // where code/session exchange is finalized into an authenticated session.
+    if (normalizedPath === 'oauth-callback') {
+      return { routes: [{ name: 'OAuthCallback' }] };
+    }
+
+    return getStateFromPath(path, options);
+  },
+};
+
 /**
  * [IN-LINE PRIDE]: Contextual Provider Hierarchy
  * The provider nesting is strictly ordered to prioritize data dependencies. 
@@ -53,7 +69,7 @@ export default function App() {
     <SafeAreaProvider>
       <LocationProvider>
         <AuthProvider>
-          <NavigationContainer>
+          <NavigationContainer linking={linking as any}>
             <AppNavigator />
           </NavigationContainer>
         </AuthProvider>

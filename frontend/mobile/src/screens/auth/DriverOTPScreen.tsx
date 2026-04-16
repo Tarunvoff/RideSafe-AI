@@ -14,8 +14,8 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import React, { useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,9 @@ import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
+import { getBaseUrl } from '../../services/api';
+
+const PENDING_OAUTH_KEY = 'pendingOAuth';
 
 export default function DriverOTPScreen({ navigation, route }: any) {
   const { t } = useTranslation();
@@ -72,29 +75,6 @@ export default function DriverOTPScreen({ navigation, route }: any) {
     }
   };
 
-  const getApiBaseUrl = () => {
-    const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
-    const rawHost =
-      (Constants as any)?.expoConfig?.hostUri ??
-      (Constants as any)?.manifest2?.extra?.expoGo?.debuggerHost ??
-      (Constants as any)?.manifest?.debuggerHost ??
-      '';
-    const expoHost = typeof rawHost === 'string' ? rawHost.split(':')[0] : '';
-
-    if (configured) {
-      if (/:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configured) && expoHost) {
-        return configured.replace(
-          /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
-          (_match, _host, port) => `://${expoHost}${port ?? ':3001'}`,
-        );
-      }
-      return configured;
-    }
-
-    if (expoHost) return `http://${expoHost}:3001/api`;
-    return 'http://127.0.0.1:3001/api';
-  };
-
   /**
    * [IN-LINE PRIDE]: Atomic Auth Handshake
    * Orchestrates a multi-phase login: 1. Locally verifies the OTP signal. 
@@ -116,7 +96,17 @@ export default function DriverOTPScreen({ navigation, route }: any) {
       setSuccess(true);
 
       // 2. Proceed to OAuth
-      const authUrl = `${getApiBaseUrl()}/auth/${provider.toLowerCase()}/authorize?identifier=${encodeURIComponent(email)}&redirectUri=${encodeURIComponent(redirectUri)}`;
+      const authUrl = `${getBaseUrl()}/auth/${provider.toLowerCase()}/authorize?identifier=${encodeURIComponent(email)}&redirectUri=${encodeURIComponent(redirectUri)}`;
+
+      await AsyncStorage.setItem(
+        PENDING_OAUTH_KEY,
+        JSON.stringify({
+          provider,
+          redirectUri,
+          email,
+          createdAt: Date.now(),
+        }),
+      );
       
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
@@ -154,9 +144,11 @@ export default function DriverOTPScreen({ navigation, route }: any) {
 
       // 3. Complete Login
       await loginWithOAuth(provider, { code: oauthCode, sessionId, state, redirectUri });
+      await AsyncStorage.removeItem(PENDING_OAUTH_KEY);
       
       // Success will trigger AuthContext update and navigation automatically
     } catch (err: any) {
+      await AsyncStorage.removeItem(PENDING_OAUTH_KEY);
       setError(err.message ?? t('auth.otp.error_failed'));
       setLoading(false);
       setSuccess(false);

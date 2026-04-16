@@ -5,7 +5,6 @@ import AuthCard from '../../components/auth/AuthCard';
 import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import Input from '../../components/ui/Input';
-import { authApi } from '../../services/api';
 import { Theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -30,7 +29,7 @@ export default function AdminLoginScreen({ navigation }: any) {
     setLoading(true);
     try {
       await adminLogin(email, password);
-      // Success triggers AuthContext update, which navigates automatically via AppNavigator
+      navigation.navigate('AdminOTP', { email });
     } catch (err: any) {
       setError(err.message ?? 'Login failed. Check your credentials.');
     } finally {

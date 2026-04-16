@@ -16,6 +16,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Modal,
   Image,
@@ -26,6 +27,7 @@ import {
   Dimensions,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -37,6 +39,7 @@ import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
+const PENDING_OAUTH_KEY = 'pendingOAuth';
 
 // Colors from the image
 const COLORS = {
@@ -52,7 +55,7 @@ export default function LoginScreen({ navigation }: any) {
   const [modalVisible, setModalVisible] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
-  const { sendDriverOtp } = useAuth();
+  const { sendDriverOtp, loginWithOAuth } = useAuth();
   const demoVideoRef = useRef<any>(null);
 
   useEffect(() => {
@@ -62,6 +65,67 @@ export default function LoginScreen({ navigation }: any) {
     }, 80);
     return () => clearTimeout(timer);
   }, [demoVisible]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+
+    const path = window.location.pathname || '';
+    if (!path.includes('oauth-callback')) {
+      return;
+    }
+
+    let disposed = false;
+
+    const completeWebOAuthCallback = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const oauthError = params.get('error');
+        const errorDescription = params.get('error_description');
+        const code = params.get('code');
+        const sessionId = params.get('sessionId');
+        const state = params.get('state') ?? undefined;
+
+        if (oauthError) {
+          throw new Error(errorDescription || t('auth.errors.oauth_provider_rejected'));
+        }
+
+        if (!code || !sessionId) {
+          throw new Error(t('auth.errors.oauth_exchange_failed'));
+        }
+
+        const pendingRaw = await AsyncStorage.getItem(PENDING_OAUTH_KEY);
+        const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
+        const provider = String(pending?.provider || '').trim();
+        const redirectUri = String(
+          pending?.redirectUri || `${window.location.origin}/oauth-callback`
+        ).trim();
+
+        if (!provider) {
+          throw new Error(t('auth.errors.oauth_exchange_failed'));
+        }
+
+        await loginWithOAuth(provider, { code, sessionId, state, redirectUri });
+        await AsyncStorage.removeItem(PENDING_OAUTH_KEY);
+        window.history.replaceState({}, document.title, '/');
+      } catch (error: any) {
+        await AsyncStorage.removeItem(PENDING_OAUTH_KEY);
+        Alert.alert(t('common.login_error'), error?.message || t('common.oauth_failed'));
+        window.history.replaceState({}, document.title, '/');
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void completeWebOAuthCallback();
+    return () => {
+      disposed = true;
+    };
+  }, [loginWithOAuth, t]);
 
   const showDemo = () => setDemoVisible(true);
   const closeDemo = () => setDemoVisible(false);

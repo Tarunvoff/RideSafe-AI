@@ -39,30 +39,23 @@ const getExpoHost = (): string | null => {
   return host;
 };
 
-const normalizeApiUrl = (apiUrl: string): string => {
-  let normalized = apiUrl.trim();
-  if (!/^https?:\/\//i.test(normalized)) {
-    normalized = `http://${normalized}`;
-  }
-
-  // Ensure API prefix is consistently present.
-  if (!/\/api\/?$/i.test(normalized)) {
-    normalized = `${normalized.replace(/\/+$/, '')}/api`;
-  }
-
-  const expoHost = getExpoHost();
-  if (expoHost && /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(normalized)) {
-    normalized = normalized.replace(
-      /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
-      (_match, _host, port) => `://${expoHost}${port ?? ':3001'}`,
-    );
-    console.warn('⚠️ Replaced localhost API host with Expo host:', normalized);
-  }
-
-  return normalized.replace(/\/+$/, '');
+const ensureApiSuffix = (url: string): string => {
+  return url.replace(/\/+$/, '').replace(/\/api$/, '') + '/api';
 };
 
-const getBaseUrl = (): string => {
+const isPrivateOrLoopbackHost = (hostname: string): boolean => {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return true;
+  }
+
+  return (
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  );
+};
+
+export const getBaseUrl = (): string => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   const expoHost = getExpoHost();
 
@@ -80,8 +73,36 @@ const getBaseUrl = (): string => {
     throw new Error(errorMsg);
   }
 
-  const normalized = normalizeApiUrl(apiUrl);
-  console.log('✅ Using API URL:', normalized.replace(/\/api\/?$/, '') + '/api');
+  let normalized = ensureApiSuffix(apiUrl);
+
+  // In native/Expo environments, localhost from env should map to host machine.
+  if (expoHost && /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(normalized)) {
+    normalized = normalized.replace(
+      /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
+      (_match, _host, port) => `://${expoHost}${port ?? ':3001'}`,
+    );
+    console.warn('⚠️ Replaced localhost API host with Expo host:', normalized);
+  }
+
+  // On web, private/LAN env hosts can be unreachable from the browser runtime.
+  // Rebind host to the current page hostname while preserving API port/path.
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    try {
+      const parsed = new URL(normalized);
+      const pageHost = window.location.hostname;
+
+      if (pageHost && pageHost !== parsed.hostname && isPrivateOrLoopbackHost(parsed.hostname)) {
+        parsed.hostname = pageHost;
+        const resolved = ensureApiSuffix(parsed.toString());
+        console.log('✅ Using API URL:', resolved);
+        return resolved;
+      }
+    } catch {
+      // Fall through to normalized env URL if parsing fails.
+    }
+  }
+
+  console.log('✅ Using API URL:', normalized);
   return normalized;
 };
 
@@ -232,7 +253,7 @@ export const authApi = {
     }),
 
   adminLogin: (email: string, password: string) =>
-    request<{ accessToken: string; refreshToken: string; role: string; userId: string; message: string }>('/auth/admin/login', {
+    request<{ role: string; userId: string; message: string }>('/auth/admin/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
@@ -250,7 +271,7 @@ export const authApi = {
     }),
 
   adminVerifyOtp: (email: string, otp: string) =>
-    request<{ accessToken: string; refreshToken: string; role: string }>('/auth/admin/verify-otp', {
+    request<{ accessToken: string; refreshToken: string; role: string; userId: string; message: string }>('/auth/admin/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ email, otp }),
     }),
@@ -278,6 +299,12 @@ export const kycApi = {
       completedSteps: number;
       totalSteps: number;
       steps: Record<string, boolean>;
+      engagementEligibility?: {
+        engagementDays: number;
+        minimumDays: { standard: number; premium: number };
+        eligibleForStandard: boolean;
+        eligibleForPremium: boolean;
+      };
     }>('/kyc/status', {}, true),
 
   saveBasicIdentity: (data: { fullName: string; dob: string; gender: string }) =>
@@ -291,6 +318,8 @@ export const kycApi = {
 
   savePayoutSetup: (data: {
     method: 'UPI' | 'BANK';
+    financialDataConsent: true;
+    consentVersion: string;
     upiId?: string;
     accountNumber?: string;
     ifscCode?: string;
@@ -309,7 +338,15 @@ export const kycApi = {
       basicIdentity: { fullName: string; dob: string; gender: string } | null;
       personalDetails: { address: string; city: string; state: string; pincode: string } | null;
       identityVerification: { aadhaarNumber: string; panNumber: string } | null;
-      payoutSetup: { method: string; upiId?: string; accountHolder?: string; bankName?: string } | null;
+      payoutSetup: {
+        method: string;
+        upiId?: string;
+        accountHolder?: string;
+        bankName?: string;
+        financialDataConsent?: boolean;
+        financialDataConsentAt?: string;
+        consentVersion?: string;
+      } | null;
     }>('/kyc/details', {}, true),
 };
 

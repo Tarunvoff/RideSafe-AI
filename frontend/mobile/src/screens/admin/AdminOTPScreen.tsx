@@ -63,14 +63,12 @@ export default function AdminOTPScreen({ navigation, route }: any) {
   };
 
   const handleResend = () => {
-    setTimer(30);
+    setError('For security, request a new OTP by returning to admin login.');
     setCode(['', '', '', '', '', '']);
     inputs.current[0]?.focus();
-    setError('');
   };
 
   return (
-    /* COMMENTED OUT AS PER USER REQUEST - ADMIN 2FA DISABLED
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message="Verifying admin access..." />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
@@ -145,8 +143,6 @@ export default function AdminOTPScreen({ navigation, route }: any) {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    */
-    null
   );
 }
 

@@ -116,6 +116,9 @@ model KYCPayoutSetup {
   userId          String       @unique
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   method          PayoutMethod @default(UPI)
+  financialDataConsent   Boolean      @default(false)
+  financialDataConsentAt DateTime?
+  consentVersion         String?
   upiId           String?
   accountNumber   String?
   ifscCode        String?

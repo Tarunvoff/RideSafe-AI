@@ -1,16 +1,31 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, HttpStatus, Post, Request, UseGuards } from '@nestjs/common';
 import { TriggerEvaluateRequestDto } from './dto/trigger-evaluate.dto';
 import { TriggerService } from './trigger.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('trigger')
 export class TriggerController {
   constructor(private readonly triggerService: TriggerService) {}
 
+  private resolveAuthorizedDriverId(req: any, requestedDriverId?: string) {
+    if (req.user?.role === 'ADMIN') {
+      return requestedDriverId ?? req.user.id;
+    }
+
+    if (requestedDriverId && requestedDriverId !== req.user.id) {
+      throw new ForbiddenException('Cannot evaluate trigger for another driver');
+    }
+
+    return req.user.id;
+  }
+
   @Post('evaluate')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  evaluate(@Body() dto: TriggerEvaluateRequestDto) {
+  evaluate(@Request() req: any, @Body() dto: TriggerEvaluateRequestDto) {
+    const driverId = this.resolveAuthorizedDriverId(req, dto.driverId);
     return this.triggerService.evaluateTrigger({
-      driverId: dto.driverId,
+      driverId,
       h3Cell: dto.h3Cell,
       fraudScore: dto.fraudScore,
       lat: dto.lat,

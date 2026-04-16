@@ -89,4 +89,36 @@ export class OAuthExchangeDto {
   @IsOptional()
   @IsString()
   redirectUri?: string;
+
+  @IsOptional()
+  @IsString()
+  codeVerifier?: string;
+}
+
+export class OAuthTokenDto {
+  @IsString()
+  sessionId: string;
+
+  @IsString()
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  redirectUri?: string;
+
+  @IsOptional()
+  @IsString()
+  codeVerifier?: string;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  audience?: string;
 }

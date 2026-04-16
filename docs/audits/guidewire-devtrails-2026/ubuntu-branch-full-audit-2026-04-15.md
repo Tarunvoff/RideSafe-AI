@@ -109,7 +109,7 @@
 
 ### SS Code + DPDP Act
 
-[41] 90/120-day engagement eligibility rule in onboarding: MISSING - No explicit 90/120-day eligibility gate found.
+[41] 90/120-day engagement eligibility rule in onboarding: DONE (Post-remediation) - Explicit engagement gating now enforced and exposed in onboarding status.
 
 [42] GPS data collection consent screen present: DONE - Terms acceptance and location permission flows are present.
 
@@ -155,7 +155,7 @@ P-015 (Medium) - Straight-through processing not complete: Manual queues still r
 
 P-016 (Medium) - Historical sustainability proof incomplete: Historical trends exist, but explicit actuarial proof metric is not formalized for judges.
 
-P-017 (High) - 90/120-day eligibility rule missing: Onboarding has no explicit SS Code engagement gating.
+P-017 (High) - 90/120-day eligibility rule: FIXED (Post-remediation) - Onboarding now has explicit SS Code engagement gating.
 
 P-018 (Medium) - Financial consent granularity weak: KYC captures UPI/bank details, but explicit standalone financial consent language is limited.
 
@@ -225,6 +225,30 @@ P-037 (Low) - Documentation-to-implementation drift risk: Several high-level REA
 4. Implement remaining sustainability metrics and adverse-selection control (P-012, P-014, P-016).
 5. Add SS Code eligibility and explicit financial/data-sharing consent wording (P-017, P-018, P-019).
 6. Clean repo hygiene and reliability baseline (P-031, P-032, P-033, P-034, P-035).
+
+## Post-Audit Remediation Update (2026-04-15)
+
+The findings below were remediated after this audit snapshot and should be treated as fixed in current ubuntu branch code.
+
+- P-017 (High) - 90/120-day eligibility rule: FIXED.
+  - Shared eligibility gate now enforces 90-day minimum for BASIC/STANDARD and 120-day minimum for PREMIUM before policy enrollment and payout processing.
+  - Onboarding/KYC now exposes engagement eligibility and blocks KYC submit below the minimum engagement threshold.
+  - Evidence: backend/src/compliance/driver-eligibility.util.ts, backend/src/insurance/insurance.service.ts, backend/src/payments/payments.service.ts, backend/src/payout/payout.service.ts, backend/src/plans/plans.service.ts, backend/src/kyc/kyc.service.ts.
+
+- P-018 (Medium) - Financial consent granularity: FIXED.
+  - KYC payout setup now requires explicit financial consent and captures consent version + timestamp.
+  - Schema and migration added for persistent consent metadata.
+  - Evidence: backend/src/kyc/dto/kyc.dto.ts, backend/src/kyc/kyc.service.ts, backend/prisma/schema.prisma, backend/prisma/migrations/20260415000000_add_financial_consent_fields/migration.sql.
+
+- P-028 (High) - Register auto-verification: FIXED.
+  - Registration no longer sets users verified by default.
+  - Registration now issues email OTP and requires verify step.
+  - Evidence: backend/src/auth/auth.service.ts.
+
+- P-029 (High) - Admin 2FA disabled: FIXED.
+  - Admin login now sends OTP challenge.
+  - Admin token issuance moved to OTP verification endpoint.
+  - Evidence: backend/src/auth/auth.service.ts.
 
 ## Summary Count
 

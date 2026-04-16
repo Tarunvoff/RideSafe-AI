@@ -48,6 +48,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const decodeBase64Url = (value: string): string => {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = normalized.length % 4;
+  const padded = pad ? normalized + '='.repeat(4 - pad) : normalized;
+  return atob(padded);
+};
+
+const parseJwtSubject = (token?: string | null): string | null => {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(parts[1]));
+    return typeof payload?.sub === 'string' && payload.sub.trim() ? payload.sub.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { refreshLocation } = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -75,12 +95,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const savedName = await AsyncStorage.getItem('driverName');
           const termsAcceptedString = await AsyncStorage.getItem('isTermsAccepted');
           const isTermsAccepted = termsAcceptedString === 'true';
-          const resolvedId = role === 'DRIVER' ? driverId : userId;
+          // Canonical driver identity must match JWT subject (userId).
+          // Older OAuth sessions may have stored provider-specific driverId.
+          const tokenSub = parseJwtSubject(token);
+          const canonicalUserId = userId || tokenSub || '';
+          const resolvedId = role === 'DRIVER' ? (canonicalUserId || driverId) : canonicalUserId;
 
           if (role === 'DRIVER' && !resolvedId) {
             console.warn('Missing driverId for driver role, rejecting session');
             await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail', 'userRole', 'userId', 'driverName', 'driverId', 'oauthProvider', 'isTermsAccepted']);
             return;
+          }
+
+          if (role === 'DRIVER' && resolvedId && driverId !== resolvedId) {
+            await AsyncStorage.setItem('driverId', resolvedId);
+          }
+
+          if (role === 'DRIVER' && resolvedId && userId !== resolvedId) {
+            await AsyncStorage.setItem('userId', resolvedId);
           }
 
           setUser({ 
@@ -114,8 +146,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, password: string, phone?: string, skipKyc = false) => {
     await authApi.register(email, password, phone);
     setIsNewRegistration(!skipKyc);
-    // Auto-login immediately after registration (no OTP required)
-    await login(email, password);
   };
 
   const verifyOtp = async (email: string, otp: string) => {
@@ -195,28 +225,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await authApi.oauthExchange(provider, data) as any;
     const role = (res.role || 'DRIVER') as 'DRIVER' | 'ADMIN';
     const email = res.email;
+    const tokenSub = parseJwtSubject(res.accessToken);
+    const appUserId = tokenSub || res.userId || '';
 
     if (!email) {
       throw new Error(i18n.t('auth.errors.missing_email'));
     }
 
-    if (role === 'DRIVER' && !res?.driverId) {
+    if (role === 'DRIVER' && !appUserId) {
       throw new Error(i18n.t('auth.errors.driver_not_found'));
     }
+
+    // Use first-party user id as canonical driver id across guarded endpoints.
+    const canonicalDriverId = role === 'DRIVER' ? appUserId : '';
 
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],
       ['refreshToken', res.refreshToken],
       ['userEmail', email],
       ['userRole', role],
-      ['userId', res.userId || ''],
-      ['driverId', res.driverId || ''],
+      ['userId', appUserId],
+      ['driverId', canonicalDriverId],
       ['oauthProvider', provider.toUpperCase()],
     ]);
 
     const savedName = await AsyncStorage.getItem('driverName');
     await refreshLocation();
-    setUser({ id: role === 'DRIVER' ? res.driverId : res.userId || undefined, email, role, driverName: savedName || undefined });
+    setUser({ id: role === 'DRIVER' ? canonicalDriverId : appUserId || undefined, email, role, driverName: savedName || undefined });
 
     if (role === 'DRIVER') {
       try {
@@ -250,17 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const adminLogin = async (email: string, password: string) => {
-    const res = await authApi.adminLogin(email, password);
-    
-    await AsyncStorage.multiSet([
-      ['accessToken', res.accessToken],
-      ['refreshToken', res.refreshToken],
-      ['userEmail', email],
-      ['userRole', 'ADMIN'],
-      ['userId', res.userId],
-    ]);
-
-    setUser({ id: res.userId, email, role: 'ADMIN' });
+    await authApi.adminLogin(email, password);
   };
 
   const adminVerifyOtp = async (email: string, otp: string) => {

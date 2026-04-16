@@ -44,6 +44,10 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
   const { userId } = route.params;
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const signals = useMemo(() => {
+    const factors = data?.analysis?.details?.riskFactors;
+    return Array.isArray(factors) ? factors : [];
+  }, [data]);
 
   useEffect(() => {
     let isActive = true;
@@ -87,11 +91,6 @@ export default function AdminFraudReportScreen({ route, navigation }: any) {
     { label: 'Device Reputation', value: 45, color: ORANGE },
     { label: 'Network Latency', value: 8, color: RED },
   ];
-
-  const signals = useMemo(() => {
-    const factors = data?.analysis?.details?.riskFactors;
-    return Array.isArray(factors) ? factors : [];
-  }, [data]);
 
   const handleReview = async (status: 'APPROVED' | 'REJECTED') => {
     setIsLoading(true);

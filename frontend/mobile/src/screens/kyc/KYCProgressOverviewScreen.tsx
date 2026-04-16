@@ -12,13 +12,14 @@
  * to participate in the Aegis insurance ecosystem.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../theme';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
+import { kycApi } from '../../services/api';
 
 const STEP_STATUS_CURRENT = 'current' as const;
 const STEP_STATUS_PENDING = 'pending' as const;
@@ -26,6 +27,22 @@ const STEP_STATUS_PENDING = 'pending' as const;
 export default function KYCProgressOverviewScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { logout } = useAuth();
+  const [engagementDays, setEngagementDays] = useState<number | null>(null);
+  const [minimumDays, setMinimumDays] = useState<{ standard: number; premium: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const status = await kycApi.getStatus();
+        if (status.engagementEligibility) {
+          setEngagementDays(status.engagementEligibility.engagementDays);
+          setMinimumDays(status.engagementEligibility.minimumDays);
+        }
+      } catch {
+        // Non-blocking informational panel.
+      }
+    })();
+  }, []);
 
   const steps = [
     { title: t('kyc.overview.steps.personal.title'), desc: t('kyc.overview.steps.personal.desc'), icon: 'person' as const, status: STEP_STATUS_CURRENT },
@@ -69,6 +86,18 @@ export default function KYCProgressOverviewScreen({ navigation }: any) {
             <View style={[styles.progressBarFill, { width: '0%' }]} />
           </View>
         </View>
+
+        {engagementDays != null && minimumDays ? (
+          <View style={styles.gatingCard}>
+            <Ionicons name="time-outline" size={18} color={Theme.colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.gatingTitle}>Platform engagement eligibility</Text>
+              <Text style={styles.gatingText}>
+                Current tenure: {engagementDays} days. Minimum required: {minimumDays.standard} days (Standard/Baseline) and {minimumDays.premium} days (Premium).
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* [IN-LINE PRIDE]: Contextual Step Timeline
             Uses a vertical track to signify a temporal progression through 
@@ -137,6 +166,9 @@ const styles = StyleSheet.create({
   cardPercent: { ...Theme.typography.h1, color: Theme.colors.primary },
   progressBarBg: { height: 12, backgroundColor: Theme.colors.border, borderRadius: Theme.borderRadius.full, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: Theme.colors.primary, borderRadius: Theme.borderRadius.full },
+  gatingCard: { flexDirection: 'row', gap: Theme.spacing.sm, backgroundColor: `${Theme.colors.primary}10`, marginHorizontal: Theme.spacing.md, marginBottom: Theme.spacing.md, padding: Theme.spacing.md, borderRadius: Theme.borderRadius.md },
+  gatingTitle: { ...Theme.typography.body, fontWeight: 'bold' as const, color: Theme.colors.text },
+  gatingText: { ...Theme.typography.caption, color: Theme.colors.textSecondary, marginTop: 2 },
   stepsContainer: { paddingHorizontal: Theme.spacing.lg, paddingTop: Theme.spacing.md },
   stepRow: { flexDirection: 'row' },
   stepIconCol: { alignItems: 'center', width: 40, marginRight: Theme.spacing.md },

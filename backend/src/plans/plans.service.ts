@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import * as h3 from 'h3-js';
 import { ctForPlan } from '../insurance/policy-tiers';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL;
 const H3_RESOLUTION = 8;
@@ -162,6 +163,8 @@ export class PlansService {
     disruption: DisruptionEvent,
     userId: string,
   ): Promise<Payout & { disruptionEvent: DisruptionEvent | null }> {
+    await assertDriverPolicyEligibility(this.prisma, userId, policy.weeklyPlan?.key ?? policy.planType ?? null);
+
     let shouldBeApproved = false;
 
     try {

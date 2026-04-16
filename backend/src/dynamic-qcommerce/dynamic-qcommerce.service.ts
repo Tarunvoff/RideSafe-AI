@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import * as h3 from 'h3-js';
 import { KafkaReliableProducerService } from '../kafka/kafka-reliable-producer.service';
 import { createHash, randomUUID } from 'crypto';
@@ -25,10 +26,25 @@ interface OAuthSessionState {
   sessionId: string;
   provider: QCommerceProvider;
   identifier: string;
+  redirectUri?: string;
+  scope: string;
+  nonce?: string;
+  codeChallenge?: string;
+  codeChallengeMethod?: 'S256' | 'plain';
   state: string;
   authCode: string;
   createdAt: Date;
   expiresAt: Date;
+  consumedAt?: Date;
+}
+
+interface OAuthTokenClaims {
+  sub: string;
+  email?: string;
+  name?: string;
+  provider: QCommerceProvider;
+  scope: string;
+  nonce?: string;
 }
 
 interface DriverHistoricalWeekRecord {
@@ -56,6 +72,8 @@ interface DriverPosition {
 
 const DEFAULT_CITY_CENTER_LAT = 12.9716;
 const DEFAULT_CITY_CENTER_LNG = 77.5946;
+const DEFAULT_OAUTH_SCOPE = 'openid profile email';
+const DEFAULT_OAUTH_AUDIENCE = 'aegis-backend';
 
 @Injectable()
 export class DynamicQCommerceService {
@@ -65,7 +83,10 @@ export class DynamicQCommerceService {
   private readonly driverPositions = new Map<string, DriverPosition>();
   private weekKeyOverride?: string;
 
-  constructor(private readonly kafkaProducer: KafkaReliableProducerService) {}
+  constructor(
+    private readonly kafkaProducer: KafkaReliableProducerService,
+    private readonly jwt: JwtService,
+  ) {}
 
   private deterministicJitter(driverId: string, timestamp: number): { latOffset: number; lngOffset: number } {
     const digest = createHash('sha256').update(`${driverId}:${timestamp}`).digest();
@@ -77,17 +98,84 @@ export class DynamicQCommerceService {
     };
   }
 
-  startOAuthLogin(dto: DynamicOAuthLoginDto) {
+  private base64UrlEncode(buffer: Buffer): string {
+    return buffer
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  }
+
+  private resolveOauthIssuer(provider: QCommerceProvider): string {
+    return process.env.MOCK_OAUTH_ISSUER ?? `https://mock-oauth.${provider}.local`;
+  }
+
+  private resolveOauthSecret(): string {
+    const secret = process.env.MOCK_OAUTH_JWT_SECRET ?? process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('Missing JWT secret for mock OAuth token signing');
+    }
+    return secret;
+  }
+
+  private validatePkce(session: OAuthSessionState, codeVerifier?: string) {
+    if (!session.codeChallenge) {
+      return;
+    }
+
+    if (!codeVerifier) {
+      throw new UnauthorizedException('Missing code_verifier for PKCE protected authorization code');
+    }
+
+    if ((session.codeChallengeMethod ?? 'S256') === 'plain') {
+      if (codeVerifier !== session.codeChallenge) {
+        throw new UnauthorizedException('Invalid code_verifier');
+      }
+      return;
+    }
+
+    const computed = this.base64UrlEncode(createHash('sha256').update(codeVerifier).digest());
+    if (computed !== session.codeChallenge) {
+      throw new UnauthorizedException('Invalid code_verifier');
+    }
+  }
+
+  startOAuthLogin(dto: DynamicOAuthLoginDto & {
+    state?: string;
+    scope?: string;
+    nonce?: string;
+    codeChallenge?: string;
+    codeChallengeMethod?: 'S256' | 'plain';
+  }) {
     const sessionId = randomUUID();
-    const state = randomUUID();
+    const state = dto.state?.trim() || randomUUID();
     const authCode = randomUUID().replace(/-/g, '').slice(0, 12);
     const createdAt = new Date();
     const expiresAt = new Date(createdAt.getTime() + 5 * 60 * 1000);
+    const rawChallengeMethod = String(dto.codeChallengeMethod ?? 'S256').trim();
+    const normalizedChallengeMethod: 'S256' | 'plain' =
+      rawChallengeMethod.toLowerCase() === 'plain' ? 'plain' : 'S256';
+
+    const rawLower = rawChallengeMethod.toLowerCase();
+    if (dto.codeChallenge && rawLower !== 's256' && rawLower !== 'plain') {
+      throw new BadRequestException('Unsupported code_challenge_method; use S256 or plain');
+    }
+
+    if (dto.codeChallenge && dto.codeChallenge.length < 43) {
+      throw new BadRequestException('Invalid code_challenge length for PKCE');
+    }
+
+    const scope = dto.scope?.trim() || DEFAULT_OAUTH_SCOPE;
 
     this.sessions.set(sessionId, {
       sessionId,
       provider: dto.provider,
       identifier: dto.identifier.trim(),
+      redirectUri: dto.redirectUri,
+      scope,
+      nonce: dto.nonce,
+      codeChallenge: dto.codeChallenge,
+      codeChallengeMethod: dto.codeChallenge ? normalizedChallengeMethod : undefined,
       state,
       authCode,
       createdAt,
@@ -102,12 +190,139 @@ export class DynamicQCommerceService {
         sessionId,
         provider: dto.provider,
         state,
+        scope,
         expiresAt,
         redirectUri: dto.redirectUri ?? `${dto.provider}://callback`,
         dynamicAuthorizationUrl: `https://dynamic.${dto.provider}.oauth/authorize?session=${sessionId}&state=${state}`,
         // Simulated OAuth authorization code returned by provider callback in local environments.
         authCode,
       },
+    };
+  }
+
+  async exchangeAuthorizationCode(
+    provider: QCommerceProvider,
+    params: {
+      sessionId: string;
+      code: string;
+      state?: string;
+      redirectUri?: string;
+      codeVerifier?: string;
+      scope?: string;
+      audience?: string;
+    },
+  ) {
+    const session = this.sessions.get(params.sessionId);
+    if (!session || session.provider !== provider) {
+      throw new NotFoundException('OAuth session not found or provider mismatch');
+    }
+
+    if (session.expiresAt.getTime() < Date.now()) {
+      this.sessions.delete(params.sessionId);
+      throw new UnauthorizedException('OAuth session expired');
+    }
+
+    if (session.consumedAt) {
+      throw new UnauthorizedException('Authorization code already consumed');
+    }
+
+    if (session.authCode !== params.code) {
+      throw new UnauthorizedException('Invalid provider authorization code');
+    }
+
+    if (params.state && params.state !== session.state) {
+      throw new UnauthorizedException('State verification failed');
+    }
+
+    if (session.redirectUri && params.redirectUri && params.redirectUri !== session.redirectUri) {
+      throw new UnauthorizedException('redirect_uri mismatch');
+    }
+
+    this.validatePkce(session, params.codeVerifier);
+
+    const internalDriverId = createInternalDriverId(session.provider, session.identifier);
+    const record = this.ensureDriverRecord(session.provider, session.identifier, internalDriverId);
+    this.refreshWeekIfNeeded(record);
+
+    const profile = this.composeProfile(record);
+    const scope = params.scope?.trim() || session.scope || DEFAULT_OAUTH_SCOPE;
+    const audience = params.audience?.trim() || DEFAULT_OAUTH_AUDIENCE;
+    const issuer = this.resolveOauthIssuer(provider);
+    const secret = this.resolveOauthSecret();
+    const expiresInSec = Number(process.env.MOCK_OAUTH_ACCESS_TOKEN_TTL_SECONDS ?? 600);
+
+    const claims: OAuthTokenClaims = {
+      sub: profile.identity.internalDriverId,
+      email: profile.identity.email,
+      name: profile.identity.fullName,
+      provider,
+      scope,
+      nonce: session.nonce,
+    };
+
+    const accessToken = await this.jwt.signAsync(claims, {
+      secret,
+      expiresIn: `${expiresInSec}s`,
+      issuer,
+      audience,
+    });
+
+    let idToken: string | undefined;
+    if (scope.split(/\s+/).includes('openid')) {
+      idToken = await this.jwt.signAsync(
+        {
+          sub: claims.sub,
+          email: claims.email,
+          name: claims.name,
+          provider: claims.provider,
+          nonce: claims.nonce,
+        },
+        {
+          secret,
+          expiresIn: `${expiresInSec}s`,
+          issuer,
+          audience,
+        },
+      );
+    }
+
+    session.consumedAt = new Date();
+
+    return {
+      token_type: 'Bearer',
+      access_token: accessToken,
+      expires_in: expiresInSec,
+      scope,
+      id_token: idToken,
+      provider,
+      subject: profile.identity.internalDriverId,
+      email: profile.identity.email,
+      driverProfile: profile,
+    };
+  }
+
+  async getOAuthUserInfo(provider: QCommerceProvider, accessToken: string) {
+    const issuer = this.resolveOauthIssuer(provider);
+    const secret = this.resolveOauthSecret();
+    const decoded = await this.jwt.verifyAsync<OAuthTokenClaims>(accessToken, {
+      secret,
+      issuer,
+    });
+
+    if (decoded.provider !== provider) {
+      throw new UnauthorizedException('Token provider mismatch');
+    }
+
+    const profile = this.getDriverProfile(decoded.sub)?.driverProfile;
+
+    return {
+      sub: decoded.sub,
+      email: decoded.email,
+      name: decoded.name,
+      provider: decoded.provider,
+      scope: decoded.scope,
+      driverId: decoded.sub,
+      profile,
     };
   }
 

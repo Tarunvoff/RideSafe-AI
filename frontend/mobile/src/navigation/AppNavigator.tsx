@@ -29,6 +29,7 @@ import AdminOTPScreen from '../screens/admin/AdminOTPScreen';
 import AdminSetupScreen from '../screens/admin/AdminSetupScreen';
 import AdminWorkersScreen from '../screens/admin/AdminWorkersScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
+import OAuthCallbackScreen from '../screens/auth/OAuthCallbackScreen';
 import DriverActivityScreen from '../screens/driver/DriverActivityScreen';
 import DriverLiveRiskMapboxScreen from '../screens/driver/DriverLiveRiskMapboxScreen';
 import DriverPlansScreen from '../screens/driver/DriverPlansScreen';
@@ -77,6 +78,12 @@ export default function AppNavigator() {
           component={AdminLoginScreen}
           options={{ presentation: 'modal' }}
         />
+        <Stack.Screen
+          name="AdminOTP"
+          component={AdminOTPScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen name="OAuthCallback" component={OAuthCallbackScreen} />
       </Stack.Navigator>
     );
   }

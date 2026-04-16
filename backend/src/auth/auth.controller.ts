@@ -23,6 +23,7 @@ import {
     VerifyOtpDto,
     UpdateDriverNameDto,
   OAuthExchangeDto,
+  OAuthTokenDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
@@ -126,6 +127,11 @@ export class AuthController {
     @Param('provider') provider: string,
     @Query('identifier') identifier: string,
     @Query('redirectUri') redirectUri: string,
+    @Query('state') oauthState: string,
+    @Query('scope') scope: string,
+    @Query('nonce') nonce: string,
+    @Query('code_challenge') codeChallenge: string,
+    @Query('code_challenge_method') codeChallengeMethod: string,
     @Res() res: Response,
   ) {
     const normalized = String(provider || '').toLowerCase();
@@ -139,17 +145,24 @@ export class AuthController {
       normalized as QCommerceProvider,
       identifier,
       safeRedirect,
+      {
+        state: oauthState,
+        scope,
+        nonce,
+        codeChallenge,
+        codeChallengeMethod,
+      },
     );
 
     const sessionId = session?.oauthSession?.sessionId;
-    const state = session?.oauthSession?.state;
+    const issuedState = session?.oauthSession?.state;
     const code = session?.oauthSession?.authCode;
     if (!sessionId || !code) {
       throw new BadRequestException('OAuth session could not be initialized');
     }
 
     const sep = safeRedirect.includes('?') ? '&' : '?';
-    const redirectUrl = `${safeRedirect}${sep}code=${encodeURIComponent(code)}&sessionId=${encodeURIComponent(sessionId)}&state=${encodeURIComponent(state ?? '')}`;
+    const redirectUrl = `${safeRedirect}${sep}code=${encodeURIComponent(code)}&sessionId=${encodeURIComponent(sessionId)}&state=${encodeURIComponent(issuedState ?? '')}&provider=${encodeURIComponent(normalized)}`;
     return res.redirect(redirectUrl);
   }
 
@@ -166,6 +179,52 @@ export class AuthController {
       sessionId: dto.sessionId,
       code: dto.code,
       state: dto.state,
+      redirectUri: dto.redirectUri,
+      codeVerifier: dto.codeVerifier,
     });
+  }
+
+  @Post(':provider/token')
+  @HttpCode(HttpStatus.OK)
+  async tokenOAuth(@Param('provider') provider: string, @Body() dto: OAuthTokenDto) {
+    const normalized = String(provider || '').toLowerCase();
+    if (!normalized || !(Object.values(QCommerceProvider) as string[]).includes(normalized)) {
+      throw new BadRequestException('Unsupported provider');
+    }
+
+    if (!dto?.sessionId || !dto?.code) {
+      throw new BadRequestException('Missing OAuth code exchange payload');
+    }
+
+    return this.authService.exchangeOAuthToken(normalized as QCommerceProvider, {
+      sessionId: dto.sessionId,
+      code: dto.code,
+      state: dto.state,
+      redirectUri: dto.redirectUri,
+      codeVerifier: dto.codeVerifier,
+      scope: dto.scope,
+      audience: dto.audience,
+    });
+  }
+
+  @Get(':provider/userinfo')
+  @HttpCode(HttpStatus.OK)
+  async oauthUserInfo(@Param('provider') provider: string, @Request() req: any) {
+    const normalized = String(provider || '').toLowerCase();
+    if (!normalized || !(Object.values(QCommerceProvider) as string[]).includes(normalized)) {
+      throw new BadRequestException('Unsupported provider');
+    }
+
+    const authHeader = String(req.headers?.authorization ?? '');
+    const prefix = 'Bearer ';
+    if (!authHeader.startsWith(prefix)) {
+      throw new BadRequestException('Missing bearer token');
+    }
+    const accessToken = authHeader.slice(prefix.length).trim();
+    if (!accessToken) {
+      throw new BadRequestException('Missing bearer token');
+    }
+
+    return this.authService.getOAuthUserInfo(normalized as QCommerceProvider, accessToken);
   }
 }

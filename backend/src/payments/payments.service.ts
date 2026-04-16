@@ -5,6 +5,7 @@ import { PayoutIdempotencyService } from './payout-idempotency.service';
 import { PremiumService } from '../premium/premium.service';
 import { ctForPlan } from '../insurance/policy-tiers';
 import { NotificationsService } from '../notifications/notifications.service';
+import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 
 const MAX_WEEKLY_PREMIUM_INR = 50;
 
@@ -91,6 +92,8 @@ export class PaymentsService {
     const plan = await this.prisma.weeklyPlan.findUnique({ where: { id: weeklyPlanId } });
     if (!plan) throw new BadRequestException('Weekly plan not found');
 
+    await assertDriverPolicyEligibility(this.prisma, userId, plan.key);
+
     const razorpay = this.getRazorpayClient();
     const tierCap = this.resolveTierCapForPlanKey(plan.key ?? null);
 
@@ -154,6 +157,8 @@ export class PaymentsService {
     if (razorpayOrder.userId !== userId) {
       throw new UnauthorizedException('Order does not belong to this user');
     }
+
+    await assertDriverPolicyEligibility(this.prisma, userId, razorpayOrder.weeklyPlan?.key ?? null);
 
     // Idempotency: if already successful, just return the existing active policy (if any).
     if (razorpayOrder.status === 'SUCCESS') {
@@ -286,6 +291,16 @@ export class PaymentsService {
     approvedPayout: number;
   }) {
     const { userId, policyId, disruptionEventId, eventTimestamp, h3Cell, approvedPayout } = dto;
+
+    const policy = await this.prisma.policy.findUnique({
+      where: { id: policyId },
+      include: { weeklyPlan: true },
+    });
+    if (!policy || policy.userId !== userId) {
+      throw new BadRequestException('Invalid policy for payout');
+    }
+
+    await assertDriverPolicyEligibility(this.prisma, userId, policy.weeklyPlan?.key ?? policy.planType ?? null);
 
     // 1. Guard against duplicate events
     const check = await this.idempotency.checkOrCreate(userId, h3Cell, eventTimestamp);

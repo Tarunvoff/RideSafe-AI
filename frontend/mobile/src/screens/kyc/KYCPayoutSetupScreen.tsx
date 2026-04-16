@@ -26,11 +26,13 @@ import { Theme } from '../../theme';
 
 export default function KYCPayoutSetupScreen({ navigation }: any) {
   const { t } = useTranslation();
+  const CONSENT_VERSION = 'v1.0';
   const [method, setMethod] = useState('UPI');
   const [upiId, setUpiId] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+  const [financialConsent, setFinancialConsent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { refreshKycStatus } = useAuth();
 
@@ -55,6 +57,8 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
     try {
       await kycApi.savePayoutSetup({
         method: method as 'UPI' | 'BANK',
+        financialDataConsent: true,
+        consentVersion: CONSENT_VERSION,
         ...(method === 'UPI' ? { upiId } : { accountNumber, ifscCode, accountHolder }),
       });
       await refreshKycStatus();
@@ -153,6 +157,17 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
               {t('kyc.payout.secure_notice')}
             </Text>
           </View>
+
+          <TouchableOpacity style={styles.consentRow} onPress={() => setFinancialConsent((v) => !v)}>
+            <Ionicons
+              name={financialConsent ? 'checkbox' : 'square-outline'}
+              size={20}
+              color={financialConsent ? Theme.colors.primary : Theme.colors.textSecondary}
+            />
+            <Text style={styles.consentText}>
+              I explicitly consent to collection and processing of my payout financial data for automated insurance settlement.
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -160,7 +175,12 @@ export default function KYCPayoutSetupScreen({ navigation }: any) {
         <Button
           title={isLoading ? t('common.saving') : t('common.finish_submit')}
           onPress={handleContinue}
-          disabled={isLoading || (method === 'UPI' && !upiId) || (method === 'BANK' && (!accountNumber || !ifscCode || !accountHolder))}
+          disabled={
+            isLoading ||
+            !financialConsent ||
+            (method === 'UPI' && !upiId) ||
+            (method === 'BANK' && (!accountNumber || !ifscCode || !accountHolder))
+          }
         />
       </View>
     </SafeAreaView>
@@ -190,6 +210,8 @@ const styles = StyleSheet.create({
   helperText: { ...Theme.typography.caption, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
   secureNotice: { flexDirection: 'row', gap: Theme.spacing.sm, padding: Theme.spacing.md, backgroundColor: `${Theme.colors.success}10`, borderRadius: Theme.borderRadius.md },
   secureText: { flex: 1, ...Theme.typography.caption, color: Theme.colors.textSecondary, lineHeight: 18 },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Theme.spacing.sm, backgroundColor: Theme.colors.surface, padding: Theme.spacing.md, borderRadius: Theme.borderRadius.md },
+  consentText: { flex: 1, ...Theme.typography.caption, color: Theme.colors.textSecondary, lineHeight: 18 },
   footer: { padding: Theme.spacing.lg, backgroundColor: Theme.colors.surface, borderTopWidth: 1, borderTopColor: Theme.colors.border },
 });
 

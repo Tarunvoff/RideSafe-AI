@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, Equals } from 'class-validator';
 
 export class BasicIdentityDto {
   @IsString()
@@ -49,6 +49,12 @@ export enum PayoutMethod {
 export class PayoutSetupDto {
   @IsEnum(PayoutMethod)
   method: PayoutMethod;
+
+  @Equals(true, { message: 'Explicit financial data consent is required to configure payout details.' })
+  financialDataConsent: true;
+
+  @IsString()
+  consentVersion: string;
 
   @IsOptional()
   @IsString()

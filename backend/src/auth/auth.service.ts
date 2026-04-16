@@ -4,7 +4,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -28,7 +27,6 @@ import { createInternalDriverId } from '../dynamic-qcommerce/utils/dynamic-data.
 
 const OTP_MIN = 100000;
 const OTP_MAX_EXCLUSIVE = 1000000;
-const AEGIS_ERR_ADMIN_2FA_DISABLED = 'AEGIS_ERR_401';
 
 function generateOTP(): string {
   return crypto.randomInt(OTP_MIN, OTP_MAX_EXCLUSIVE).toString();
@@ -98,6 +96,7 @@ export class AuthService {
     if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+    const otp = generateOTP();
     
     const user = await this.prisma.user.create({
       data: {
@@ -105,7 +104,9 @@ export class AuthService {
         phone: null, // phone collected later in KYC, not at registration
         passwordHash,
         role: 'DRIVER',
-        isVerified: true, // auto-verify on registration, no OTP required
+        isVerified: false,
+        otpCode: hashOTP(otp),
+        otpExpiresAt: otpExpiresAt(),
       },
     });
 
@@ -114,7 +115,9 @@ export class AuthService {
       data: { userId: user.id, status: 'NOT_STARTED' },
     });
 
-    return { message: 'Registered successfully. You can now log in.' };
+    await this.email.sendOTPEmail(dto.email, otp, 'VERIFY');
+
+    return { message: 'Registered successfully. Please verify your email with the OTP sent to continue.' };
   }
 
   // ── VERIFY OTP ──────────────────────────────────────────────────────────
@@ -269,7 +272,46 @@ export class AuthService {
 
     const user = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
 
-    // Admin sign-in is configured as password-only for this deployment profile.
+    const otp = generateOTP();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otpCode: hashOTP(otp), otpExpiresAt: otpExpiresAt() },
+    });
+    await this.email.sendOTPEmail(user.email, otp, 'ADMIN_MFA');
+
+    return {
+      message: 'Admin OTP sent. Please verify to complete sign-in.',
+      role: 'ADMIN',
+      userId: user.id,
+    };
+  }
+
+  // ── ADMIN VERIFY OTP ─────────────────────────────────────────────────────
+  async adminVerifyOtp(dto: AdminVerifyOtpDto) {
+    const adminCreds = this.getAdminEnvCreds();
+    if (dto.email !== adminCreds.email) {
+      throw new UnauthorizedException('Invalid admin identity');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user || user.role !== 'ADMIN') {
+      throw new UnauthorizedException('Invalid admin identity');
+    }
+    if (!user.otpCode || !user.otpExpiresAt) {
+      throw new BadRequestException('No admin OTP requested');
+    }
+    if (new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('OTP has expired');
+    }
+    if (hashOTP(dto.otp) !== user.otpCode) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { otpCode: null, otpExpiresAt: null },
+    });
+
     const tokens = await this.generateTokens(user);
     const rtHash = hashOTP(tokens.refreshToken);
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
@@ -280,15 +322,6 @@ export class AuthService {
       role: 'ADMIN',
       userId: user.id,
     };
-  }
-
-  // ── ADMIN VERIFY OTP ─────────────────────────────────────────────────────
-  async adminVerifyOtp(dto: AdminVerifyOtpDto) {
-    void dto;
-    throw new BadRequestException({
-      code: AEGIS_ERR_ADMIN_2FA_DISABLED,
-      message: 'Admin 2FA is disabled for this deployment profile',
-    });
   }
 
   // ── DRIVER 2FA (Reusing Admin Logic) ──────────────────────────────────────
@@ -315,12 +348,7 @@ export class AuthService {
       data: { otpCode: hashOTP(otp), otpExpiresAt: expiry },
     });
 
-    try {
-      await this.email.sendOTPEmail(email, otp, 'LOGIN');
-    } catch (error) {
-      this.logger.error(`Driver OTP email delivery failed for ${email}`, error as Error);
-      throw new ServiceUnavailableException('Email delivery service is currently unavailable. Please try again.');
-    }
+    await this.email.sendOTPEmail(email, otp, 'LOGIN');
     return { message: 'OTP sent to your email. Please verify to continue.' };
   }
 
@@ -340,16 +368,65 @@ export class AuthService {
   }
 
   // ── OAUTH FLOW ─────────────────────────────────────────────────────────
-  async startOAuthAuthorize(provider: QCommerceProvider, identifier: string, redirectUri?: string) {
-    return this.dynamicQCommerce.startOAuthLogin({ provider, identifier, redirectUri });
+  async startOAuthAuthorize(
+    provider: QCommerceProvider,
+    identifier: string,
+    redirectUri?: string,
+    options?: {
+      state?: string;
+      scope?: string;
+      nonce?: string;
+      codeChallenge?: string;
+      codeChallengeMethod?: string;
+    },
+  ) {
+    return this.dynamicQCommerce.startOAuthLogin({
+      provider,
+      identifier,
+      redirectUri,
+      state: options?.state,
+      scope: options?.scope,
+      nonce: options?.nonce,
+      codeChallenge: options?.codeChallenge,
+      codeChallengeMethod: options?.codeChallengeMethod as 'S256' | 'plain' | undefined,
+    });
   }
 
-  async exchangeOAuth(provider: QCommerceProvider, data: { sessionId: string; code: string; state?: string }) {
-    const oauthResult = this.dynamicQCommerce.completeOAuthCallback({
-      provider,
+  async exchangeOAuthToken(
+    provider: QCommerceProvider,
+    data: {
+      sessionId: string;
+      code: string;
+      state?: string;
+      redirectUri?: string;
+      codeVerifier?: string;
+      scope?: string;
+      audience?: string;
+    },
+  ) {
+    return this.dynamicQCommerce.exchangeAuthorizationCode(provider, data);
+  }
+
+  async getOAuthUserInfo(provider: QCommerceProvider, accessToken: string) {
+    return this.dynamicQCommerce.getOAuthUserInfo(provider, accessToken);
+  }
+
+  async exchangeOAuth(
+    provider: QCommerceProvider,
+    data: {
+      sessionId: string;
+      code: string;
+      state?: string;
+      redirectUri?: string;
+      codeVerifier?: string;
+    },
+  ) {
+    const oauthResult = await this.dynamicQCommerce.exchangeAuthorizationCode(provider, {
       sessionId: data.sessionId,
       code: data.code,
       state: data.state,
+      redirectUri: data.redirectUri,
+      codeVerifier: data.codeVerifier,
     });
 
     const driverProfile = oauthResult?.driverProfile;
@@ -390,7 +467,7 @@ export class AuthService {
 
     const fallbackIdentifier =
       driverProfile?.identity?.email ?? driverProfile?.identity?.phone ?? email;
-    const driverId =
+    const providerDriverId =
       driverProfile?.identity?.internalDriverId ??
       createInternalDriverId(provider, fallbackIdentifier);
 
@@ -399,7 +476,10 @@ export class AuthService {
       ...tokens,
       role: user.role,
       userId: user.id,
-      driverId,
+      // Keep driverId aligned with first-party auth/JWT subject semantics.
+      // Provider-specific identity is exposed separately.
+      driverId: user.role === 'DRIVER' ? user.id : undefined,
+      providerDriverId,
       email: user.email,
     };
   }
