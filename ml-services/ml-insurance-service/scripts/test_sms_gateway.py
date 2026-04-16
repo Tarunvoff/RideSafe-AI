@@ -1,6 +1,13 @@
 import os
+import sys
 from twilio.rest import Client
 from dotenv import load_dotenv
+
+# Ensure utf-8 output for Windows terminals
+if sys.stdout.encoding != 'utf-8':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 def test_sms_gateway():
     # Load env
