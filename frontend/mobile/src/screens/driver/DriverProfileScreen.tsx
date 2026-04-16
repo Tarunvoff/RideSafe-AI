@@ -13,7 +13,7 @@
  * parametric insurance ecosystem.
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -29,9 +29,9 @@ import {
   View,
   Image,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MainTopNavbar from '../../components/layout/MainTopNavbar';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
@@ -715,7 +715,7 @@ export default function DriverProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FF6B4E" />
       <LoadingOverlay
         visible={kycLoading || nameSaving}
         message={nameSaving ? t('profile.edit_name.saving') : t('profile.loading_details')}
@@ -739,6 +739,18 @@ export default function DriverProfileScreen({ navigation }: any) {
         providerIdentity={providerIdentity}
         loading={kycLoading}
       />
+
+      <View style={styles.headerMain}>
+        <View style={styles.headerLeftMain}>
+          <View style={styles.logoContainerMain}>
+            <MaterialCommunityIcons name="shield-check" size={24} color="white" />
+          </View>
+          <Text style={styles.headerBrandMain}>Aegis</Text>
+        </View>
+        <TouchableOpacity onPress={() => setProfileMenuVisible(true)}>
+          <Image source={{ uri: 'https://i.pravatar.cc/100' }} style={styles.avatarMainTop} />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {/* Profile Header — avatar top-left matching top navbar DP */}
@@ -892,10 +904,45 @@ export default function DriverProfileScreen({ navigation }: any) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
+  safeArea: { flex: 1, backgroundColor: '#FF6B4E' },
+  headerMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
+  headerLeftMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoContainerMain: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-10deg' }],
+  },
+  headerBrandMain: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#000',
+    letterSpacing: -0.5,
+  },
+  avatarMainTop: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#000',
+  },
   contentContainer: {
     paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.lg,
+    paddingTop: 0,
     paddingBottom: 40,
     flexGrow: 1,
   },
