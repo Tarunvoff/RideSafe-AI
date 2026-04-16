@@ -83,5 +83,9 @@ venv.bak/
 .env
 ml-services/.venv/
 
+# Aegis System Folders
+.logs/
+.tmp/
+
 # ML Model Artifacts
 *.pkl
