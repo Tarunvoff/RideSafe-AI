@@ -31,6 +31,10 @@ yarn-debug.*
 yarn-error.*
 logs/
 *.log
+.logs/*.pid
+
+# local runtime artifacts
+.tmp/start.runtime.env
 
 # macOS
 .DS_Store

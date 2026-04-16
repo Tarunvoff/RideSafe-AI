@@ -12,6 +12,7 @@
  * is technically enforceable at every network hop.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 import { Platform } from 'react-native';
 
@@ -23,19 +24,65 @@ import { Platform } from 'react-native';
  * ensuring that the Aegis platform can transition from local development to 
  * production staging without manual intervention.
  */
+const REQUEST_TIMEOUT_MS = 15000;
+
+const getExpoHost = (): string | null => {
+  const rawHost =
+    (Constants as any)?.expoConfig?.hostUri ??
+    (Constants as any)?.manifest2?.extra?.expoGo?.debuggerHost ??
+    (Constants as any)?.manifest?.debuggerHost ??
+    null;
+
+  if (!rawHost || typeof rawHost !== 'string') return null;
+  const host = rawHost.split(':')[0];
+  if (!host || host === 'localhost' || host === '127.0.0.1') return null;
+  return host;
+};
+
+const normalizeApiUrl = (apiUrl: string): string => {
+  let normalized = apiUrl.trim();
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `http://${normalized}`;
+  }
+
+  // Ensure API prefix is consistently present.
+  if (!/\/api\/?$/i.test(normalized)) {
+    normalized = `${normalized.replace(/\/+$/, '')}/api`;
+  }
+
+  const expoHost = getExpoHost();
+  if (expoHost && /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(normalized)) {
+    normalized = normalized.replace(
+      /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
+      (_match, _host, port) => `://${expoHost}${port ?? ':3001'}`,
+    );
+    console.warn('⚠️ Replaced localhost API host with Expo host:', normalized);
+  }
+
+  return normalized.replace(/\/+$/, '');
+};
+
 const getBaseUrl = (): string => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  
+  const expoHost = getExpoHost();
+
   if (!apiUrl) {
-    const errorMsg = 
+    if (expoHost) {
+      const fallback = `http://${expoHost}:3001/api`;
+      console.warn('⚠️ EXPO_PUBLIC_API_URL missing. Falling back to Expo host URL:', fallback);
+      return fallback;
+    }
+
+    const errorMsg =
       'FATAL: EXPO_PUBLIC_API_URL not configured. ' +
       'Please set EXPO_PUBLIC_API_URL in .env file (e.g., http://192.168.1.9:3001/api)';
     console.error('❌', errorMsg);
     throw new Error(errorMsg);
   }
-  
-  console.log('✅ Using API URL:', apiUrl.replace(/\/api\/?$/, '') + '/api');
-  return apiUrl;
+
+  const normalized = normalizeApiUrl(apiUrl);
+  console.log('✅ Using API URL:', normalized.replace(/\/api\/?$/, '') + '/api');
+  return normalized;
 };
 
 const BASE_URL = getBaseUrl();
@@ -60,6 +107,9 @@ async function request<T>(
   requiresAuth = false,
   _attempt = 0,
 ): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -70,10 +120,21 @@ async function request<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   let data: any = null;
   try {

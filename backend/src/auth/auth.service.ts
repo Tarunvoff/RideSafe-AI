@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -314,7 +315,12 @@ export class AuthService {
       data: { otpCode: hashOTP(otp), otpExpiresAt: expiry },
     });
 
-    await this.email.sendOTPEmail(email, otp, 'LOGIN');
+    try {
+      await this.email.sendOTPEmail(email, otp, 'LOGIN');
+    } catch (error) {
+      this.logger.error(`Driver OTP email delivery failed for ${email}`, error as Error);
+      throw new ServiceUnavailableException('Email delivery service is currently unavailable. Please try again.');
+    }
     return { message: 'OTP sent to your email. Please verify to continue.' };
   }
 

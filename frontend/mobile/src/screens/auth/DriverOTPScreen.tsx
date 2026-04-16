@@ -14,6 +14,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
@@ -72,7 +73,25 @@ export default function DriverOTPScreen({ navigation, route }: any) {
   };
 
   const getApiBaseUrl = () => {
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
+    const rawHost =
+      (Constants as any)?.expoConfig?.hostUri ??
+      (Constants as any)?.manifest2?.extra?.expoGo?.debuggerHost ??
+      (Constants as any)?.manifest?.debuggerHost ??
+      '';
+    const expoHost = typeof rawHost === 'string' ? rawHost.split(':')[0] : '';
+
+    if (configured) {
+      if (/:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configured) && expoHost) {
+        return configured.replace(
+          /:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
+          (_match, _host, port) => `://${expoHost}${port ?? ':3001'}`,
+        );
+      }
+      return configured;
+    }
+
+    if (expoHost) return `http://${expoHost}:3001/api`;
     return 'http://127.0.0.1:3001/api';
   };
 
