@@ -231,6 +231,7 @@ export const authApi = {
       role: string;
       userId: string;
       driverId?: string;
+      subject?: string;
       email: string;
     }>(`/auth/${provider.toLowerCase()}/exchange`, {
       method: 'POST',
@@ -601,6 +602,8 @@ export const driverApi = {
   getProfile: (driverId: string) =>
     request<{ success: boolean; message: string; driverProfile: any }>(
       `/dynamic-qcommerce/drivers/${driverId}/profile`,
+      {},
+      true
     ),
 };
 
@@ -669,7 +672,7 @@ export const insuranceApi = {
     }>(`/insurance/process/${driverId}`, {
       method: 'POST',
       body: JSON.stringify(data ?? {}),
-    }),
+    }, true),
 };
 
 export const policyApi = {
@@ -732,12 +735,12 @@ export type PayoutRecord = {
 
 export const claimsApi = {
   list: (driverId: string) =>
-    request<ClaimRecord[]>(`/claims/${driverId}`),
+    request<ClaimRecord[]>(`/claims/${driverId}`, {}, true),
 };
 
 export const payoutsApi = {
   list: (driverId: string) =>
-    request<PayoutRecord[]>(`/payouts/${driverId}`),
+    request<PayoutRecord[]>(`/payouts/${driverId}`, {}, true),
 };
 
 export const paymentsApi = {

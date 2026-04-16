@@ -147,6 +147,7 @@ export class AuthService {
 
   // ── LOGIN ────────────────────────────────────────────────────────────────
   async login(dto: LoginDto) {
+    this.logger.log(`[AUTH_INGRESS] Received login request for: ${dto.email}`);
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
@@ -480,6 +481,7 @@ export class AuthService {
       // Provider-specific identity is exposed separately.
       driverId: user.role === 'DRIVER' ? user.id : undefined,
       providerDriverId,
+      subject: providerDriverId,
       email: user.email,
     };
   }

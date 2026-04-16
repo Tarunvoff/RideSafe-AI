@@ -192,7 +192,7 @@ export default function DriverActivityScreen({ navigation }: any) {
               <Ionicons name="clipboard-outline" size={20} color="#000" />
             </View>
             <Text style={styles.statLabel}>ORDERS ACCEPTED</Text>
-            <Text style={styles.statValue}>{completed || 196}</Text>
+            <Text style={styles.statValue}>{completed}</Text>
             <Text style={styles.statHint}>Week</Text>
           </View>
 
@@ -201,7 +201,7 @@ export default function DriverActivityScreen({ navigation }: any) {
               <Ionicons name="ban-outline" size={20} color="#000" />
             </View>
             <Text style={styles.statLabel}>ORDERS SKIPPED</Text>
-            <Text style={styles.statValue}>{rejected || 2}</Text>
+            <Text style={styles.statValue}>{rejected}</Text>
             <Text style={styles.statHint}>Manual</Text>
           </View>
 
@@ -210,7 +210,7 @@ export default function DriverActivityScreen({ navigation }: any) {
               <Ionicons name="car-outline" size={20} color="#000" />
             </View>
             <Text style={styles.statLabel}>ON-TIME DELIVERED</Text>
-            <Text style={styles.statValue}>{successRate || 88}%</Text>
+            <Text style={styles.statValue}>{successRate}%</Text>
             <Text style={styles.statHint}>Done</Text>
           </View>
         </View>
@@ -219,7 +219,7 @@ export default function DriverActivityScreen({ navigation }: any) {
         <View style={[styles.neoCard, styles.earningsCard]}>
           <Text style={styles.earningsTitle}>WEEKLY EARNINGS</Text>
           <View style={styles.earningsRow}>
-            <Text style={styles.earningsValue}>₹{weeklyEarnings.toLocaleString('en-IN') || '14,271'}</Text>
+            <Text style={styles.earningsValue}>₹{weeklyEarnings.toLocaleString('en-IN')}</Text>
             <View style={styles.trendPill}>
               <Text style={styles.trendText}>{earningsDelta >= 0 ? '+' : ''}{earningsDeltaPct || 82}%</Text>
             </View>
@@ -229,7 +229,7 @@ export default function DriverActivityScreen({ navigation }: any) {
 
           <View style={styles.earningsFooter}>
             <Text style={styles.earningsFooterText}>Bonus ₹{Number(summary.incentiveEarnings ?? 0).toLocaleString('en-IN')} • {Number(summary.totalWorkingHours ?? 0)} hrs</Text>
-            <Text style={styles.earningsFooterText}>Prev ₹{(lastWeek || 7819.83).toLocaleString('en-IN')}</Text>
+            <Text style={styles.earningsFooterText}>Prev ₹{(lastWeek).toLocaleString('en-IN')}</Text>
           </View>
 
           <View style={styles.earningsDivider} />

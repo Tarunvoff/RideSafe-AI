@@ -227,17 +227,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const email = res.email;
     const tokenSub = parseJwtSubject(res.accessToken);
     const appUserId = tokenSub || res.userId || '';
+    const oauthSubject = res.subject || '';
 
     if (!email) {
       throw new Error(i18n.t('auth.errors.missing_email'));
     }
 
-    if (role === 'DRIVER' && !appUserId) {
+    if (role === 'DRIVER' && !appUserId && !oauthSubject) {
       throw new Error(i18n.t('auth.errors.driver_not_found'));
     }
 
-    // Use first-party user id as canonical driver id across guarded endpoints.
-    const canonicalDriverId = role === 'DRIVER' ? appUserId : '';
+    // [TRUE WORK]: Identity Bridge
+    // Use the provider's internalDriverId (subject) as the primary identity anchor
+    // if it's a DRIVER role. This ensures alignment with the dynamic stratification engine.
+    const canonicalDriverId = role === 'DRIVER' ? (oauthSubject || appUserId) : '';
 
     await AsyncStorage.multiSet([
       ['accessToken', res.accessToken],

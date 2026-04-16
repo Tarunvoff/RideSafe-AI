@@ -5,7 +5,7 @@ import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import * as h3 from 'h3-js';
 
 // ── Python Fraud Feature Service (port 8002) ──────────────────────────────────
-const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL;
+const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL ?? 'http://localhost:8002';
 
 // ── Shape of the Python service response ─────────────────────────────────────
 interface FraudFeatureResponse {
@@ -65,7 +65,7 @@ interface DuplicateClaimSignal {
 @Injectable()
 export class FraudService {
   private readonly logger = new Logger(FraudService.name);
-  private readonly mlServiceUrl = process.env.ML_SERVICE_URL;
+  private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
   constructor(private prisma: PrismaService) {}
 

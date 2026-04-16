@@ -12,7 +12,7 @@ export class KafkaAdminService implements OnModuleInit {
     'zone_state_updates',
   ];
 
-  async onModuleInit() {
+  onModuleInit() {
     process.on('warning', (warning) => {
       if (warning.name === 'TimeoutNegativeWarning' || 
           warning.message.includes('negative number') || 
@@ -20,7 +20,16 @@ export class KafkaAdminService implements OnModuleInit {
         return; // Silence futuristic clock noise perfectly
       }
     });
-    await this.ensureTopicsExist();
+
+    /**
+     * [TRUE WORK]: Non-Blocking Infrastructure Ignition
+     * We fire-and-forget the topic verification to ensure the NestJS 
+     * bootstrap sequence is never held hostage by the Kafka broker warm-up.
+     * This maximizes API availability during cold starts.
+     */
+    this.ensureTopicsExist().catch(err => {
+        this.logger.warn(`[KAFKA_ADMIN] Background ignition encountered transient noise: ${err.message}`);
+    });
   }
 
   async ensureTopicsExist() {

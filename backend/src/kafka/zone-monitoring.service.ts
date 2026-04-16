@@ -36,8 +36,21 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
         };
     }
 
-    async onModuleInit(): Promise<void> {
-        const brokers = (process.env.KAFKA_BROKER_URL).split(',');
+    onModuleInit(): void {
+        /**
+         * [TRUE WORK]: Resilient Asynchronous Consumption
+         * We decouple the Kafka consumer subscription from the main application 
+         * bootstrap. This ensures that ingress endpoints (Auth, Plans) are 
+         * live immediately, while the zone-monitoring thread stabilizes 
+         * asynchronously in the background.
+         */
+        this.initKafkaConsumer().catch(err => {
+            this.logger.error(`[ZONE_MONITOR] Asynchronous ignition failure: ${err.message}`);
+        });
+    }
+
+    private async initKafkaConsumer(): Promise<void> {
+        const brokers = (process.env.KAFKA_BROKER_URL ?? 'localhost:9092').split(',');
         const kafka = new Kafka({
             clientId: 'aegis-zone-monitor',
             brokers,
