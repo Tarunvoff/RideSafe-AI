@@ -154,10 +154,14 @@ export class KycService {
 
     const profile = await this.prisma.kYCProfile.update({
       where: { userId },
-      data: { status: 'SUBMITTED', submittedAt: new Date() },
+      data: { 
+        status: 'APPROVED', 
+        submittedAt: new Date(),
+        reviewedAt: new Date(),
+      },
     });
 
-    return { message: 'KYC submitted successfully! Our team will review it within 1-2 business days.', profile };
+    return { message: 'KYC approved successfully! You can now enroll in insurance plans.', profile };
   }
 
   // ── DRIVER: GET OWN KYC DETAILS ─────────────────────────────────────────
