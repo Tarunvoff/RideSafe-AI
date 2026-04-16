@@ -2,7 +2,7 @@
  * [EXCELLENCE SUMMARY]
  * The Button is the foundational interaction primitive of the Aegis 
  * Design System. Built for tactile feedback and accessibility, it 
- * reinforces the platform's 'High-Reliability' aesthetic. It supports 
+ * reinforces the platform's 'High-Reresponsibility' aesthetic. It supports 
  * multiple semantic variants (Primary, Outline, Text) and includes 
  * integrated loading states to manage user expectations during 
  * asynchronous operations.

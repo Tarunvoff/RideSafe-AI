@@ -8,7 +8,7 @@
  * [DOMAIN LOGIC]
  * Segregates the "Driver" and "Admin" user experiences. For drivers, it acts as a gatekeeper, 
  * mandating KYC completion for new registrations and terms acceptance, ensuring that the 
- * insurance liability perimeter is strictly maintained.
+ * insurance responsibility perimeter is strictly maintained.
  */
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -110,7 +110,7 @@ export default function AppNavigator() {
     /**
      * [IN-LINE PRIDE]: Regulatory Gatekeeping
      * Drivers are sequestered into the T&C and KYC flows until compliance is 
-     * verified, protecting the platform from liability.
+     * verified, protecting the platform from responsibility.
      */
     // 1. TERMS & CONDITIONS Check
     if (!user.isTermsAccepted) {

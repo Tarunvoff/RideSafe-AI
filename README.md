@@ -10,6 +10,11 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 
 <div align="center">
 
+<a href="https://youtu.be/demo-link"><img src="https://img.shields.io/badge/Demo%20Video-%23E62117.svg?style=for-the-badge&logo=youtube&logoColor=white&labelColor=1a1a1a" /></a>
+&nbsp;&nbsp;
+<a href="https://drive.google.com/pitch-deck"><img src="https://img.shields.io/badge/Pitch%20Deck-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
+&nbsp;&nbsp;
+
 <a href="https://aegis-alpha-ebon.vercel.app">
   <img src="https://img.shields.io/badge/Live%20Dashboard-%23000000.svg?style=for-the-badge&logo=vercel&logoColor=white&labelColor=111111" />
 </a>
@@ -25,6 +30,11 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 ## Table of Contents
 
 <div align="center">
+
+<a href="https://youtu.be/demo-link"><img src="https://img.shields.io/badge/Demo%20Video-%23E62117.svg?style=for-the-badge&logo=youtube&logoColor=white&labelColor=1a1a1a" /></a>
+&nbsp;&nbsp;
+<a href="https://drive.google.com/pitch-deck"><img src="https://img.shields.io/badge/Pitch%20Deck-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
+&nbsp;&nbsp;
 
 <a href="#problem-understanding"><img src="https://img.shields.io/badge/Problem-0f172a?style=flat-square"/></a>
 <a href="#persona-definition"><img src="https://img.shields.io/badge/Personas-1e293b?style=flat-square"/></a>

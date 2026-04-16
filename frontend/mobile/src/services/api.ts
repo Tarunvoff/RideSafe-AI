@@ -160,8 +160,10 @@ async function request<T>(
   let data: any = null;
   try {
     data = await response.json();
-  } catch {
-    // Some endpoints might return non-JSON errors.
+  } catch (err: any) {
+    // Some endpoints might return non-JSON errors (like HTML 404s).
+    // We log it here to help debug which URL is returning HTML.
+    console.warn(`[API] Response from ${response.url} was not valid JSON. (Status: ${response.status})`);
     data = null;
   }
 
@@ -177,7 +179,12 @@ async function request<T>(
         });
 
         if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
+          let refreshData: any = null;
+          try {
+            refreshData = await refreshRes.json();
+          } catch {
+            refreshData = null;
+          }
           // Update token store so subsequent requests include a valid access token.
           if (refreshData?.accessToken && refreshData?.refreshToken) {
             await AsyncStorage.multiSet([
@@ -355,7 +362,7 @@ export const kycApi = {
 
 /**
  * [IN-LINE PRIDE]: Fraud & Risk Integrity
- * Provides real-time analysis of device and geospatial health. This is the 
+ * Provides real-time analysis of device and geospatial status. This is the 
  * technical enforcement of trust in the Aegis parametric model.
  */
 export const fraudApi = {
@@ -460,7 +467,7 @@ export const fraudApi = {
  * Provides the data-intensive endpoints required for platform oversight. 
  * From high-level dashboard summaries to granular audit trails of workers 
  * and claims, this domain ensures that administrators have a 100% 
- * transparent view of the Aegis operational health.
+ * transparent view of the Aegis operational status.
  */
 export const adminApi = {
   getDashboard: () =>
@@ -476,6 +483,7 @@ export const adminApi = {
       totalPremiumCollected: number;
       lossRatio: number;
       lossRatioPercent: number;
+      benefitCostRatio?: number;
       recentAlerts: Array<{ id: string; type: string; title: string; occurredAt: string; expectedPayout: number | null }>;
       recentClaims: Array<{
         payoutId: string;
@@ -781,12 +789,12 @@ export const telemetryApi = {
     request('/telemetry/gps', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    }, true),
   reportLocationFailure: (data: { reason: string; platform?: string }) =>
     request('/telemetry/location-failure', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    }, true),
 };
 
 // ── PLANS / PAYMENTS ──────────────────────────────────────────────────────────

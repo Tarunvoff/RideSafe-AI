@@ -21,7 +21,7 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     constructor(
         private readonly claimOrchestrator: ClaimOrchestratorService,
         private readonly redisState: RedisStateService,
-    ) {}
+    ) { }
 
     private normalizeZoneState(payload: Record<string, any>, h3Cell: string) {
         const state = (payload?.state ?? payload?.zone_state ?? 'UNKNOWN').toString().toUpperCase();

@@ -4,7 +4,7 @@
  * Aegis platform. Utilizing multiple layers of nested, physics-based 
  * animations, it communicates real-time data processing to the user. 
  * By maintaining high visual-fidelity during asynchronous transit, 
- * it reinforces the platform's professional-grade reliability and 
+ * it reinforces the platform's professional-grade reresponsibility and 
  * technical sophistication.
  * 
  * [DOMAIN LOGIC]

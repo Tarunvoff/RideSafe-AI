@@ -26,6 +26,7 @@ const REQUIRED_ENV_VARS = [
   'RAZORPAY_KEY_SECRET',
   'ADMIN_EMAIL',
   'ADMIN_PASSWORD',
+  'KAFKA_BROKER_URL',
 ] as const;
 
 function validateRequiredEnvVars() {

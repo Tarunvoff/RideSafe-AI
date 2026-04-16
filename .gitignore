@@ -93,3 +93,6 @@ ml-services/.venv/
 
 # ML Model Artifacts
 *.pkl
+
+# Build
+dist/

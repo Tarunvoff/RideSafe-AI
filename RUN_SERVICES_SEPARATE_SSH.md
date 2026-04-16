@@ -34,7 +34,7 @@ docker compose up -d zookeeper kafka redis timescaledb
 
 ## Terminal 2: ML Insurance Service (8000)
 ```bash
-cd /home/ubuntu/ridesafe-ai/ml-calcultion/ml-insurance-service
+cd /home/ubuntu/ridesafe-ai/ml-services/ml-insurance-service
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -44,7 +44,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Terminal 3: Fraud Feature Service (8002)
 ```bash
-cd /home/ubuntu/ridesafe-ai/ml-calcultion/fraud-feature-service
+cd /home/ubuntu/ridesafe-ai/ml-services/fraud-feature-service
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -54,7 +54,7 @@ uvicorn main:app --host 0.0.0.0 --port 8002 --reload
 
 ## Terminal 4: Grid Event Service (8003)
 ```bash
-cd /home/ubuntu/ridesafe-ai/ml-calcultion/grid_event_service
+cd /home/ubuntu/ridesafe-ai/ml-services/grid_event_service
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -67,7 +67,7 @@ uvicorn main:app --host 0.0.0.0 --port 8003 --reload
 
 ## Terminal 5: H3 Feature Service (8004)
 ```bash
-cd /home/ubuntu/ridesafe-ai/ml-calcultion/h3-feature-service
+cd /home/ubuntu/ridesafe-ai/ml-services/h3-feature-service
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip

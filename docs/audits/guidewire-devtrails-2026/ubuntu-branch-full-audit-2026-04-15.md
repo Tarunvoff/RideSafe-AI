@@ -83,7 +83,7 @@
 
 [29] Fully automatic payout path trigger to GPS verify to transfer: PARTIAL - Trigger, zone match, and fraud gating exist; transfer is simulated synthetic flow rather than a fully explicit UPI rail execution path.
 
-[30] Pool sustainability metric (BCR or loss ratio) computed: MISSING - No explicit BCR/loss ratio calculation surfaced as a named implemented metric.
+[30] Pool sustainability metric (BCR or loss ratio) computed: DONE (Post-remediation) - Admin analytics now computes and returns loss ratio, lossRatioPercent, and benefitCostRatio as named metrics.
 
 [31] Fraud detection uses data (GPS cross-check or zone validation): DONE - H3 consistency, velocity, and burst signals are data-driven and implemented.
 
@@ -91,7 +91,7 @@
 
 [33] Pricing is dynamic, not flat: DONE - Dynamic premium logic is implemented with risk-linked inputs.
 
-[34] Adverse selection lockout before weather event: MISSING - No clear lockout/cooling/waiting-period rule identified.
+[34] Adverse selection lockout before weather event: DONE (Post-remediation) - Policy enrollment now applies a 24-hour cooling-off period before coverage activation, and payout flow rejects cooling-period policy use.
 
 [35] Operational cost near zero (straight-through processing): PARTIAL - Strong automation exists, but manual review queues remain for KYC/fraud exceptions.
 
@@ -113,9 +113,9 @@
 
 [42] GPS data collection consent screen present: DONE - Terms acceptance and location permission flows are present.
 
-[43] Bank/UPI collection with explicit consent + KYC: PARTIAL - KYC collection exists; explicit standalone financial consent language is not strongly isolated.
+[43] Bank/UPI collection with explicit consent + KYC: DONE (Post-remediation) - Standalone explicit financial consent is enforced in payout setup DTO/UI and persisted with version + timestamp metadata.
 
-[44] Platform activity data sharing agreement mention: PARTIAL - General privacy/terms language exists; explicit platform data-sharing agreement wording is not clear.
+[44] Platform activity data sharing agreement mention: DONE (Post-remediation) - Terms and privacy configuration now contain explicit platform activity data-sharing consent language and legal notice for regulated partner processing.
 
 ## Complete Problem Register (Do Not Skip)
 
@@ -145,11 +145,11 @@ P-010 (Medium) - Trigger transparency gap: Numeric thresholds are strong in docs
 
 P-011 (Medium) - End-to-end payout realism gap: Trigger->fraud->payout path is automated, but transfer rail is simulated and not explicit production UPI execution.
 
-P-012 (High) - No explicit BCR/loss-ratio computation: Sustainability KPI is not implemented as a named calculable metric in admin analytics.
+P-012 (Resolved) - No explicit BCR/loss-ratio computation: FIXED (Post-remediation) - Admin summary now exposes named loss ratio and benefit-cost metrics.
 
 P-013 (Medium) - Premium collection implementation mismatch: UPI AutoPay is documented conceptually, while implemented payment path is Razorpay order/verify flow.
 
-P-014 (High) - No adverse selection lockout: No lockout/cooling/waiting-period rule before high-risk weather events.
+P-014 (Resolved) - No adverse selection lockout: FIXED (Post-remediation) - New policies now activate after a cooling-off period and cannot be used for immediate payout during lockout.
 
 P-015 (Medium) - Straight-through processing not complete: Manual queues still required for KYC/fraud edge cases.
 
@@ -157,9 +157,9 @@ P-016 (Medium) - Historical sustainability proof incomplete: Historical trends e
 
 P-017 (High) - 90/120-day eligibility rule: FIXED (Post-remediation) - Onboarding now has explicit SS Code engagement gating.
 
-P-018 (Medium) - Financial consent granularity weak: KYC captures UPI/bank details, but explicit standalone financial consent language is limited.
+P-018 (Resolved) - Financial consent granularity weak: FIXED (Post-remediation) - Explicit standalone financial consent is now required and versioned.
 
-P-019 (Medium) - Platform data-sharing agreement unclear: Privacy language exists, but explicit platform activity sharing agreement text is not clearly stated.
+P-019 (Resolved) - Platform data-sharing agreement unclear: FIXED (Post-remediation) - Explicit platform activity data-sharing consent wording is now present in terms/privacy legal surfaces.
 
 P-020 (Resolved) - Worker protection KPI clarity gap closed: Worker dashboard now exposes explicit "Earnings Protected" KPI and active weekly coverage status.
 
@@ -192,11 +192,11 @@ Evidence: backend/src/auth/auth.service.ts (lines 271-290).
 P-030 (Medium) - Missing constant-time signature comparison: payment signature compare uses regular equality with comment noting stronger approach would be better.
 Evidence: backend/src/payments/payments.service.ts (line 67 onward).
 
-P-031 (Medium) - Repository naming inconsistency/typo: top-level folder name ml-calcultion appears misspelled and duplicated against ml-services conventions.
-Evidence: folder ml-calcultion.
+P-031 (Medium) - Repository naming inconsistency/typo: top-level folder name ml-services appears misspelled and duplicated against ml-services conventions.
+Evidence: folder ml-services.
 
-P-032 (Medium) - Duplicate service variants increase drift risk: both grid_event_service and grid-event-service exist in ml-calcultion and another grid-event-service exists under ml-services.
-Evidence: ml-calcultion/grid_event_service, ml-calcultion/grid-event-service, ml-services/grid-event-service.
+P-032 (Medium) - Duplicate service variants increase drift risk: both grid_event_service and grid-event-service exist in ml-services and another grid-event-service exists under ml-services.
+Evidence: ml-services/grid_event_service, ml-services/grid-event-service, ml-services/grid-event-service.
 
 P-033 (Medium) - Committed frontend build artifact: frontend/mobile/dist is present in repository and should not typically be committed for source-only repos.
 Evidence: frontend/mobile/dist.
@@ -222,8 +222,8 @@ P-037 (Low) - Documentation-to-implementation drift risk: Several high-level REA
 1. Lock down unauthenticated policy/claims endpoints (P-024, P-025, P-026, P-027).
 2. Add missing submission artifacts/links (P-001, P-002, P-003, P-004, P-023).
 3. Enforce strict income-loss-only wording and exclusion constraints in UI/docs (P-008, P-009).
-4. Implement remaining sustainability metrics and adverse-selection control (P-012, P-014, P-016).
-5. Add SS Code eligibility and explicit financial/data-sharing consent wording (P-017, P-018, P-019).
+4. Sustainability metrics and adverse-selection control: P-012 and P-014 completed; P-016 remains open for judge-facing actuarial proof narrative.
+5. SS Code eligibility and explicit financial/data-sharing consent wording (P-017, P-018, P-019): COMPLETED in post-remediation updates.
 6. Clean repo hygiene and reliability baseline (P-031, P-032, P-033, P-034, P-035).
 
 ## Post-Audit Remediation Update (2026-04-15)
@@ -240,6 +240,20 @@ The findings below were remediated after this audit snapshot and should be treat
   - Schema and migration added for persistent consent metadata.
   - Evidence: backend/src/kyc/dto/kyc.dto.ts, backend/src/kyc/kyc.service.ts, backend/prisma/schema.prisma, backend/prisma/migrations/20260415000000_add_financial_consent_fields/migration.sql.
 
+- P-019 (Medium) - Platform data-sharing agreement mention: FIXED.
+  - Terms acceptance copy now includes explicit platform activity data-sharing consent wording.
+  - Support legal configuration now returns explicit legal notice and privacy section for platform activity data sharing with regulated partners.
+  - Evidence: frontend/mobile/src/i18n/locales/en.json, backend/src/support/support.controller.ts.
+
+- P-012 (High) - BCR/loss-ratio computation: FIXED.
+  - Admin summary now returns lossRatio, lossRatioPercent, and benefitCostRatio as named sustainability KPIs.
+  - Evidence: backend/src/admin/admin.service.ts, frontend/mobile/src/services/api.ts, frontend/mobile/src/screens/admin/AdminDashboardScreen.tsx.
+
+- P-014 (High) - Adverse selection lockout: FIXED.
+  - Policy enrollment now sets coverage start after a 24-hour cooling-off period.
+  - Payout processing now enforces active policy window and blocks cooling-period policy usage.
+  - Evidence: backend/src/insurance/insurance.service.ts, backend/src/payout/payout.service.ts.
+
 - P-028 (High) - Register auto-verification: FIXED.
   - Registration no longer sets users verified by default.
   - Registration now issues email OTP and requires verify step.
@@ -252,21 +266,21 @@ The findings below were remediated after this audit snapshot and should be treat
 
 ## Summary Count
 
-- DONE: 23
-- PARTIAL: 13
-- MISSING: 8
+- DONE: 27
+- PARTIAL: 11
+- MISSING: 6
 
 ## Top 3 Critical Gaps (High Judge Risk)
 
 1. Missing mandatory demo evidence links for Phase 1, Phase 2, and final demo.
 2. Scope leakage against constraints: non-income-loss language still appears in UI copy.
-3. Missing adverse-selection lockout and formal actuarial sustainability proof (beyond current ratio/trend dashboards).
+3. Historical sustainability proof is still incomplete for judges (formal actuarial frequency narrative remains partial).
 
 ## Top 3 Quick Wins (Under 2 Hours)
 
 1. Add a Deliverables section in root README with Phase 1, Phase 2, final demo, and pitch deck links.
-2. Add adverse-selection lockout (cooling period before high-risk events).
-3. Normalize UI copy to strict income-loss-only positioning and remove accident/liability ambiguity.
+2. Normalize UI copy to strict income-loss-only positioning and remove accident/liability ambiguity.
+3. Add a concise actuarial sustainability proof note (historical frequency + ratio interpretation) for judges.
 
 ## Suggested Folder Structure (Implemented)
 

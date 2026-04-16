@@ -51,7 +51,12 @@ export class PayoutService {
     let Ct = 0;
 
     const policy = await this.prisma.policy.findFirst({
-      where: { userId: params.driverId, status: 'ACTIVE', endDate: { gt: new Date() } },
+      where: { 
+        userId: params.driverId, 
+        status: 'ACTIVE', 
+        startDate: { lte: new Date() },
+        endDate: { gt: new Date() } 
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -118,6 +123,7 @@ export class PayoutService {
           where: {
             userId: params.driverId,
             status: 'ACTIVE',
+            startDate: { lte: now },
             endDate: { gt: now },
           },
           orderBy: { createdAt: 'desc' },
@@ -125,6 +131,11 @@ export class PayoutService {
 
     if (!policy) {
       throw new NotFoundException({ code: AEGIS_ERR_POLICY_NOT_FOUND, message: 'Active policy not found' });
+    }
+    
+    // Check if the explicitly provided policy is within lockout/cooling-off period (P-014)
+    if (params.policyId && policy.startDate > now) {
+      throw new NotFoundException({ code: AEGIS_ERR_POLICY_NOT_FOUND, message: 'Policy is in cooling-off period' });
     }
 
     if (policy.userId !== params.driverId) {
