@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Older OAuth sessions may have stored provider-specific driverId.
           const tokenSub = parseJwtSubject(token);
           const canonicalUserId = userId || tokenSub || '';
-          const resolvedId = role === 'DRIVER' ? (canonicalUserId || driverId) : canonicalUserId;
+          const resolvedId = role === 'DRIVER' ? (driverId || canonicalUserId) : canonicalUserId;
 
           if (role === 'DRIVER' && !resolvedId) {
             console.warn('Missing driverId for driver role, rejecting session');

@@ -5,6 +5,7 @@ import { CreateDriverDto } from './dto/create-driver.dto';
 import { WeekKeyOverrideDto } from './dto/week-key-override.dto';
 import { SeedDriversDto } from './dto/seed-drivers.dto';
 import { DynamicQCommerceService } from './dynamic-qcommerce.service';
+import { decodeInternalDriverId } from './utils/dynamic-data.factory';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('dynamic-qcommerce')
@@ -20,11 +21,15 @@ export class DynamicQCommerceController {
       return;
     }
 
-    // If the frontend is requesting a dynamic provider ID, allow it for now.
-    // The driver token itself (JWT) is valid, and in this mock architecture
-    // we use `drv_...` to fetch the specific provider data generation.
+    // [PRODUCTION IDENTITY BRIDGE]
+    // Strictly validate that the dynamic driver identity embedded in the `drv_` 
+    // namespace matches the authenticating user's verified identity (email).
+    // This prevents horizontal privilege escalation where User A requests User B's mock profile.
     if (driverId.startsWith('drv_')) {
-      return;
+      const decoded = decodeInternalDriverId(driverId);
+      if (decoded && req.user?.email && decoded.identifier === req.user.email) {
+        return;
+      }
     }
 
     throw new ForbiddenException('Cannot view another driver profile');
