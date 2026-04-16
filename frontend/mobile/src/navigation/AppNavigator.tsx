@@ -40,8 +40,17 @@ import MainTabNavigator from './MainTabNavigator';
 
 import DriverOTPScreen from '../screens/auth/DriverOTPScreen';
 import TermsAndConditionsScreen from '../screens/auth/TermsAndConditionsScreen';
+import NotificationCenterProvider from '../components/notifications/GlobalNotificationCenter';
 
 const Stack = createNativeStackNavigator();
+
+function AuthenticatedShell({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <NotificationCenterProvider>{children}</NotificationCenterProvider>
+    </View>
+  );
+}
 
 /**
  * [IN-LINE PRIDE]: Conditional Orchestration
@@ -90,17 +99,19 @@ export default function AppNavigator() {
 
   if (user?.role === 'ADMIN') {
     return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
-        <Stack.Screen name="AdminAnalytics" component={AdminAnalyticsScreen} />
-        <Stack.Screen name="AdminAlerts" component={AdminAlertsScreen} />
-        <Stack.Screen name="AdminWorkers" component={AdminWorkersScreen} />
-        <Stack.Screen name="AdminClaims" component={AdminClaimsScreen} />
-        <Stack.Screen name="AdminSetup" component={AdminSetupScreen} />
-        <Stack.Screen name="AdminFraudReview" component={AdminFraudReviewScreen} />
-        <Stack.Screen name="AdminFraudDetail" component={AdminFraudDetailScreen} />
-        <Stack.Screen name="AdminFraudReport" component={AdminFraudReportScreen} />
-      </Stack.Navigator>
+      <AuthenticatedShell>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+          <Stack.Screen name="AdminAnalytics" component={AdminAnalyticsScreen} />
+          <Stack.Screen name="AdminAlerts" component={AdminAlertsScreen} />
+          <Stack.Screen name="AdminWorkers" component={AdminWorkersScreen} />
+          <Stack.Screen name="AdminClaims" component={AdminClaimsScreen} />
+          <Stack.Screen name="AdminSetup" component={AdminSetupScreen} />
+          <Stack.Screen name="AdminFraudReview" component={AdminFraudReviewScreen} />
+          <Stack.Screen name="AdminFraudDetail" component={AdminFraudDetailScreen} />
+          <Stack.Screen name="AdminFraudReport" component={AdminFraudReportScreen} />
+        </Stack.Navigator>
+      </AuthenticatedShell>
     );
   }
 
@@ -115,49 +126,55 @@ export default function AppNavigator() {
     // 1. TERMS & CONDITIONS Check
     if (!user.isTermsAccepted) {
       return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
-        </Stack.Navigator>
+        <AuthenticatedShell>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
+          </Stack.Navigator>
+        </AuthenticatedShell>
       );
     }
 
     // 2. KYC Check (ONLY for first time people registering!)
     if (isNewRegistration && kycStatus && ['NOT_STARTED', 'IN_PROGRESS'].includes(kycStatus)) {
       return (
+        <AuthenticatedShell>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen
+              name="KYC"
+              component={KYCNavigator}
+              options={{ presentation: 'modal' }}
+            />
+          </Stack.Navigator>
+        </AuthenticatedShell>
+      );
+    }
+
+    // KYC COMPLETED - Show Dashboard
+    return (
+      <AuthenticatedShell>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="DriverApp" component={MainTabNavigator} />
+          <Stack.Screen name="DriverLiveRisk" component={DriverLiveRiskMapboxScreen} />
+          <Stack.Screen name="DriverActivity" component={DriverActivityScreen} />
+          <Stack.Screen
+            name="DriverPlans"
+            component={DriverPlansScreen}
+          />
+          <Stack.Screen
+            name="DriverProfile"
+            component={DriverProfileScreen}
+          />
+          <Stack.Screen
+            name="Policy"
+            component={PolicyScreen}
+          />
           <Stack.Screen
             name="KYC"
             component={KYCNavigator}
             options={{ presentation: 'modal' }}
           />
         </Stack.Navigator>
-      );
-    }
-
-    // KYC COMPLETED - Show Dashboard
-    return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="DriverApp" component={MainTabNavigator} />
-        <Stack.Screen name="DriverLiveRisk" component={DriverLiveRiskMapboxScreen} />
-        <Stack.Screen name="DriverActivity" component={DriverActivityScreen} />
-        <Stack.Screen
-          name="DriverPlans"
-          component={DriverPlansScreen}
-        />
-        <Stack.Screen
-          name="DriverProfile"
-          component={DriverProfileScreen}
-        />
-        <Stack.Screen
-          name="Policy"
-          component={PolicyScreen}
-        />
-        <Stack.Screen
-          name="KYC"
-          component={KYCNavigator}
-          options={{ presentation: 'modal' }}
-        />
-      </Stack.Navigator>
+      </AuthenticatedShell>
     );
   }
 

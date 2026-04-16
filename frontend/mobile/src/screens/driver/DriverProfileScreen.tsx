@@ -33,9 +33,10 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
+import { useNotificationCenter } from '../../components/notifications/GlobalNotificationCenter';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { kycApi, configApi, driverApi } from '../../services/api';
+import { kycApi, configApi, driverApi, notificationsApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -93,6 +94,14 @@ type NotifPrefs = {
   systemUpdates: boolean;
 };
 
+type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  date?: string;
+  read?: boolean;
+};
+
 type SupportConfig = {
   faqs: Array<{ q: string; a: string }>;
   contacts: Array<{ icon: string; label: string; value: string }>;
@@ -147,17 +156,45 @@ async function loadSupportConfig(): Promise<SupportConfig> {
 function NotificationModal({
   visible,
   onClose,
+  onUnreadCountChange,
 }: {
   visible: boolean;
   onClose: () => void;
+  onUnreadCountChange?: (count: number) => void;
 }) {
   const { t } = useTranslation();
+  const [alerts, setAlerts] = useState<NotificationItem[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<NotifPrefs>({
     riskAlerts: true,
     payoutUpdates: true,
     policyReminders: true,
     systemUpdates: false,
   });
+
+  const loadAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    setAlertsError(null);
+    try {
+      const list = await notificationsApi.getAlerts();
+      const normalized = Array.isArray(list) ? list : [];
+      setAlerts(normalized);
+      onUnreadCountChange?.(normalized.filter((item) => !item.read).length);
+    } catch (err) {
+      setAlerts([]);
+      onUnreadCountChange?.(0);
+      const message = err instanceof Error ? err.message : t('common.something_went_wrong');
+      setAlertsError(message);
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, [onUnreadCountChange, t]);
+
+  useEffect(() => {
+    if (!visible) return;
+    void loadAlerts();
+  }, [visible, loadAlerts]);
 
   const toggle = (key: keyof NotifPrefs) =>
     setPrefs(p => ({ ...p, [key]: !p[key] }));
@@ -171,12 +208,32 @@ function NotificationModal({
         {
           text: t('common.clear'),
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            const unreadItems = alerts.filter((item) => !item.read && item.id);
+            if (unreadItems.length > 0) {
+              await Promise.allSettled(unreadItems.map((item) => notificationsApi.markAsRead(item.id)));
+            }
+            setAlerts((prev) => prev.map((item) => ({ ...item, read: true })));
+            onUnreadCountChange?.(0);
             Alert.alert(t('common.done'), t('profile.notifications.cleared_msg'));
           },
         },
       ],
     );
+  };
+
+  const handleMarkRead = async (item: NotificationItem) => {
+    if (!item.id || item.read) return;
+    try {
+      await notificationsApi.markAsRead(item.id);
+      setAlerts((prev) => {
+        const next = prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry));
+        onUnreadCountChange?.(next.filter((entry) => !entry.read).length);
+        return next;
+      });
+    } catch {
+      // Keep UX resilient if mark-read fails; list will re-sync on next modal open.
+    }
   };
 
   const rows: { key: keyof NotifPrefs; label: string; desc: string; icon: string }[] = [
@@ -225,6 +282,51 @@ function NotificationModal({
               </View>
             ))}
           </View>
+
+          <Text style={[modalStyles.sectionLabel, { marginTop: 20 }]}>Recent updates</Text>
+          {alertsLoading ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#16a34a" />
+            </View>
+          ) : alerts.length > 0 ? (
+            <View style={modalStyles.card}>
+              {alerts.map((item, i) => (
+                <View key={item.id || `${item.title}-${i}`}>
+                  {i > 0 && <View style={modalStyles.divider} />}
+                  <TouchableOpacity
+                    style={modalStyles.notifRow}
+                    activeOpacity={0.85}
+                    onPress={() => void handleMarkRead(item)}
+                    disabled={Boolean(item.read)}
+                  >
+                    <View style={modalStyles.notifIcon}>
+                      <Ionicons
+                        name={item.read ? 'notifications-outline' : 'notifications'}
+                        size={20}
+                        color={item.read ? '#16a34a' : '#ea580c'}
+                      />
+                    </View>
+                    <View style={modalStyles.notifText}>
+                      <Text style={modalStyles.notifLabel}>{item.title}</Text>
+                      <Text style={modalStyles.notifDesc}>{item.message}</Text>
+                      {item.date ? (
+                        <Text style={modalStyles.notifMetaText}>
+                          {new Date(item.date).toLocaleString('en-IN')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={modalStyles.emptyStateBox}>
+              <Ionicons name="notifications-off-outline" size={22} color="#9ca3af" />
+              <Text style={modalStyles.emptyStateText}>
+                {alertsError ? `Unable to fetch notifications: ${alertsError}` : 'No notifications yet'}
+              </Text>
+            </View>
+          )}
 
           <Text style={modalStyles.hint}>
             {t('profile.notifications.hint')}
@@ -597,6 +699,8 @@ function KYCRow({ label, value }: { label: string; value: string | undefined | n
 export default function DriverProfileScreen({ navigation }: any) {
   const { t, i18n } = useTranslation();
   const { logout, user, updateDriverName } = useAuth();
+  const notificationCenter = useNotificationCenter();
+  const unreadCount = notificationCenter?.unreadCount ?? 0;
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
   // Name editing
@@ -604,7 +708,6 @@ export default function DriverProfileScreen({ navigation }: any) {
   const [nameInput, setNameInput] = useState('');
 
   // Modals
-  const [notifModal, setNotifModal] = useState(false);
   const [privacyModal, setPrivacyModal] = useState(false);
   const [helpModal, setHelpModal] = useState(false);
   const [kycModal, setKycModal] = useState(false);
@@ -729,7 +832,7 @@ export default function DriverProfileScreen({ navigation }: any) {
       />
 
       {/* Modals */}
-      <NotificationModal visible={notifModal} onClose={() => setNotifModal(false)} />
+      <NotificationModal visible={false} onClose={() => undefined} />
       <DataPrivacyModal visible={privacyModal} onClose={() => setPrivacyModal(false)} />
       <HelpSupportModal visible={helpModal} onClose={() => setHelpModal(false)} />
       <KYCReportModal
@@ -812,11 +915,16 @@ export default function DriverProfileScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.prefItem}
               activeOpacity={0.8}
-              onPress={() => setNotifModal(true)}
+              onPress={() => notificationCenter?.open()}
             >
               <View style={styles.prefLabelRow}>
                 <Ionicons name="notifications-outline" size={24} color="#6b7280" />
                 <Text style={styles.prefTitle}>{t('profile.notifications.title')}</Text>
+                {unreadCount > 0 ? (
+                  <View style={styles.prefBadge}>
+                    <Text style={styles.prefBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                ) : null}
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -1033,6 +1141,21 @@ const styles = StyleSheet.create({
   },
   prefLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   prefTitle: { fontSize: 16, color: '#111827', fontWeight: '600' },
+  prefBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: '#ea580c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  prefBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   prefDivider: { height: 1, backgroundColor: '#f3f4f6', marginHorizontal: Theme.spacing.md },
 
   languageCard: {
@@ -1154,6 +1277,7 @@ const modalStyles = StyleSheet.create({
   notifText: { flex: 1 },
   notifLabel: { fontSize: 14, fontWeight: '600', color: '#111827' },
   notifDesc: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  notifMetaText: { fontSize: 11, color: '#9ca3af', marginTop: 4 },
 
   hint: {
     fontSize: 12,
