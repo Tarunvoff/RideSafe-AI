@@ -182,6 +182,14 @@ export class IngestionService {
       return null;
     }
 
+    const requestedModel = (process.env.GEMINI_MODEL ?? '').trim();
+    const modelCandidates = Array.from(
+      new Set(
+        [requestedModel, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-8b-latest']
+          .filter((m) => !!m),
+      ),
+    );
+
     const prompt = `
       You are the Aegis Machine Learning Engine protecting gig drivers. Read these live real-world news articles:
       ${JSON.stringify(articles)}
@@ -252,22 +260,66 @@ export class IngestionService {
         }]
       };
 
-      const res = await this.fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        },
-        IngestionService.GEMINI_TIMEOUT_MS,
-        'Gemini API',
-      );
+      let res: Response | null = null;
+      let selectedModel: string | null = null;
+      let selectedApiVersion: 'v1beta' | 'v1' = 'v1beta';
+      const apiVersions: Array<'v1beta' | 'v1'> = ['v1beta', 'v1'];
+      const failedAttempts: string[] = [];
+
+      for (const apiVersion of apiVersions) {
+        for (const model of modelCandidates) {
+          const tryRes = await this.fetchWithTimeout(
+            `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            },
+            IngestionService.GEMINI_TIMEOUT_MS,
+            `Gemini API (${apiVersion}/${model})`,
+          );
+
+          if (tryRes.ok) {
+            res = tryRes;
+            selectedModel = model;
+            selectedApiVersion = apiVersion;
+            break;
+          }
+
+          if (tryRes.status === 404) {
+            failedAttempts.push(`${apiVersion}/${model}:404`);
+            continue;
+          }
+
+          const non404Text = await tryRes.text();
+          failedAttempts.push(`${apiVersion}/${model}:${tryRes.status}:${non404Text.slice(0, 80)}`);
+          res = tryRes;
+          selectedModel = model;
+          selectedApiVersion = apiVersion;
+          break;
+        }
+
+        if (res && selectedModel) {
+          break;
+        }
+      }
+
+      if (!res || !selectedModel) {
+        this.logger.warn(
+          `Gemini API failed: no valid model resolved from fallback list. Attempts=${failedAttempts.slice(0, 6).join(' | ')}`,
+        );
+        return null;
+      }
 
       if (!res.ok) {
         const errorText = await res.text();
-        this.logger.warn(`Gemini API failed with status ${res.status}. Error: ${errorText.slice(0, 100)}`);
+        this.logger.warn(
+          `Gemini API failed with status ${res.status} for ${selectedApiVersion}/${selectedModel}. Error: ${errorText.slice(0, 100)}`,
+        );
         return null;
       }
+
+      this.logger.log(`Gemini request resolved via ${selectedApiVersion}/${selectedModel}`);
 
       const jsonRes = await this.safeParseJsonResponse(res, 'Gemini API');
       if (!jsonRes || !jsonRes.candidates || !jsonRes.candidates[0].content) return null;
@@ -285,7 +337,7 @@ export class IngestionService {
 
           // Follow-up with the tool result to get final structured output
           const toolResponseRes = await this.fetchWithTimeout(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+            `https://generativelanguage.googleapis.com/${selectedApiVersion}/models/${selectedModel}:generateContent?key=${geminiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

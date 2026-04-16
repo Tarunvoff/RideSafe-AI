@@ -55,6 +55,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
     claimsToday: 0,
     highRiskWorkers: 0,
     projectedPayout: 0,
+    simulatedPayout: 0,
+    totalApprovedPayout: 0,
+    totalPremiumCollected: 0,
+    lossRatio: 0,
+    lossRatioPercent: 0,
     recentAlerts: [],
     recentClaims: [],
   };
@@ -69,6 +74,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
     () => (value: number) => `₹${Math.round(value ?? 0).toLocaleString('en-IN')}`,
     [],
   );
+
+  const projectedPayout = Number(
+    safeSummary.projectedPayout ?? safeSummary.simulatedPayout ?? 0,
+  );
+  const lossRatioPercent = Number(safeSummary.lossRatioPercent ?? 0);
 
   return (
     <AdminShell navigation={navigation} activeKey="dash">
@@ -90,7 +100,8 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <KpiCard label="Active Alerts" value={String(safeSummary.activeAlerts)} />
               <KpiCard label="Claims Today" value={String(safeSummary.claimsToday)} />
               <KpiCard label="High Risk Workers" value={String(safeSummary.highRiskWorkers)} />
-              <KpiCard label="Projected Payout" value={formatINR(safeSummary.projectedPayout)} />
+              <KpiCard label="Projected Payout" value={formatINR(projectedPayout)} />
+              <KpiCard label="Loss Ratio" value={`${lossRatioPercent.toFixed(2)}%`} />
             </View>
           </View>
 

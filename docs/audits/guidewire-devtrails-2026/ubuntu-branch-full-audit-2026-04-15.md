@@ -59,9 +59,9 @@
 
 [19] Instant payout simulation with gateway integration: DONE - Razorpay checkout/order flow and synthetic instant payout reference generation are implemented.
 
-[20] Worker dashboard shows earnings protected and active weekly coverage: PARTIAL - Weekly earnings and active policy visibility exist, but an explicit earnings protected KPI is not consistently presented.
+[20] Worker dashboard shows earnings protected and active weekly coverage: DONE - Worker dashboard now surfaces explicit "Earnings Protected" KPI and "Active Weekly Coverage" status with coverage validity date.
 
-[21] Admin or insurer dashboard with loss ratios and predictive analytics: PARTIAL - Predictive trends exist, but explicit loss ratio metric is not surfaced as a first-class KPI.
+[21] Admin or insurer dashboard with loss ratios and predictive analytics: DONE - Admin dashboard and analytics now expose a first-class Loss Ratio KPI alongside premium and approved payout aggregates, while predictive trend visualizations remain available.
 
 [22] Five-minute final demo link present: MISSING - No final 5-minute demo link found in repository docs.
 
@@ -161,9 +161,9 @@ P-018 (Medium) - Financial consent granularity weak: KYC captures UPI/bank detai
 
 P-019 (Medium) - Platform data-sharing agreement unclear: Privacy language exists, but explicit platform activity sharing agreement text is not clearly stated.
 
-P-020 (Medium) - Worker protection KPI clarity gap: Weekly earnings and policy state are visible, but explicit "earnings protected" KPI is not consistently presented.
+P-020 (Resolved) - Worker protection KPI clarity gap closed: Worker dashboard now exposes explicit "Earnings Protected" KPI and active weekly coverage status.
 
-P-021 (Medium) - Admin loss-ratio visibility gap: Predictive analytics charts exist; loss ratio is not surfaced as a first-class dashboard metric.
+P-021 (Resolved) - Admin loss-ratio visibility gap closed: Loss ratio is now surfaced as a first-class KPI with premium and payout aggregates.
 
 P-022 (Low) - Default-branch audit completeness gap: This report is ubuntu-scoped by instruction and does not certify default branch runtime cleanliness in checked-out state.
 
@@ -222,26 +222,26 @@ P-037 (Low) - Documentation-to-implementation drift risk: Several high-level REA
 1. Lock down unauthenticated policy/claims endpoints (P-024, P-025, P-026, P-027).
 2. Add missing submission artifacts/links (P-001, P-002, P-003, P-004, P-023).
 3. Enforce strict income-loss-only wording and exclusion constraints in UI/docs (P-008, P-009).
-4. Implement explicit sustainability metrics and adverse-selection control (P-012, P-014, P-016, P-021).
+4. Implement remaining sustainability metrics and adverse-selection control (P-012, P-014, P-016).
 5. Add SS Code eligibility and explicit financial/data-sharing consent wording (P-017, P-018, P-019).
 6. Clean repo hygiene and reliability baseline (P-031, P-032, P-033, P-034, P-035).
 
 ## Summary Count
 
-- DONE: 21
-- PARTIAL: 15
+- DONE: 23
+- PARTIAL: 13
 - MISSING: 8
 
 ## Top 3 Critical Gaps (High Judge Risk)
 
 1. Missing mandatory demo evidence links for Phase 1, Phase 2, and final demo.
 2. Scope leakage against constraints: non-income-loss language still appears in UI copy.
-3. Missing explicit sustainability KPI implementation such as loss ratio or BCR plus no adverse-selection lockout.
+3. Missing adverse-selection lockout and formal actuarial sustainability proof (beyond current ratio/trend dashboards).
 
 ## Top 3 Quick Wins (Under 2 Hours)
 
 1. Add a Deliverables section in root README with Phase 1, Phase 2, final demo, and pitch deck links.
-2. Add explicit loss ratio metric in admin summary from existing premium and payout aggregates.
+2. Add adverse-selection lockout (cooling period before high-risk events).
 3. Normalize UI copy to strict income-loss-only positioning and remove accident/liability ambiguity.
 
 ## Suggested Folder Structure (Implemented)

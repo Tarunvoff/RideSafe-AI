@@ -21,7 +21,7 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, View, ImageBackground, Touc
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { driverApi } from '../../services/api';
+import { driverApi, plansApi } from '../../services/api';
 
 const BRAND_BG = '#ff6b53';
 const CARD_BG = '#f0ecce';
@@ -38,6 +38,11 @@ export default function DriverActivityScreen({ navigation }: any) {
    */
   const [profileMenuVisible, setProfileMenuVisible] = React.useState(false);
   const [profile, setProfile] = useState<any | null>(null);
+  const [coverage, setCoverage] = useState<{
+    activeWeeklyCoverage: boolean;
+    coverageLimit: number;
+    coverageEndsAt: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const driverId = user?.id ?? null;
@@ -62,10 +67,27 @@ export default function DriverActivityScreen({ navigation }: any) {
     if (!driverId) return;
     setLoading(true);
     try {
-      const res = await driverApi.getProfile(driverId);
-      setProfile(res?.driverProfile ?? null);
+      const [profileRes, purchasedPlansRes] = await Promise.all([
+        driverApi.getProfile(driverId),
+        plansApi.getPurchasedPlans().catch(() => null),
+      ]);
+
+      setProfile(profileRes?.driverProfile ?? null);
+
+      const policies = purchasedPlansRes?.purchasedPolicies ?? [];
+      const activeNow = policies.find(
+        (p: any) =>
+          p?.status === 'ACTIVE' && p?.endDate && new Date(p.endDate).getTime() > Date.now(),
+      );
+
+      setCoverage({
+        activeWeeklyCoverage: Boolean(activeNow),
+        coverageLimit: Number(activeNow?.plan?.maxPayout ?? 0),
+        coverageEndsAt: activeNow?.endDate ?? null,
+      });
     } catch {
       setProfile(null);
+      setCoverage(null);
     } finally {
       setLoading(false);
     }
@@ -92,6 +114,12 @@ export default function DriverActivityScreen({ navigation }: any) {
   const lastWeek = Number(summary.averageWeeklyEarnings ?? 0);
   const earningsDelta = weeklyEarnings - lastWeek;
   const earningsDeltaPct = lastWeek ? Math.round((earningsDelta / lastWeek) * 100) : 0;
+  const earningsProtected = coverage?.activeWeeklyCoverage
+    ? Math.min(weeklyEarnings, Number(coverage?.coverageLimit ?? 0))
+    : 0;
+  const earningsProtectionPct = weeklyEarnings > 0
+    ? Math.min(100, Math.round((earningsProtected / weeklyEarnings) * 100))
+    : 0;
 
   /**
    * [IN-LINE PRIDE]: Semantic Identity Processing
@@ -202,6 +230,26 @@ export default function DriverActivityScreen({ navigation }: any) {
           <View style={styles.earningsFooter}>
             <Text style={styles.earningsFooterText}>Bonus ₹{Number(summary.incentiveEarnings ?? 0).toLocaleString('en-IN')} • {Number(summary.totalWorkingHours ?? 0)} hrs</Text>
             <Text style={styles.earningsFooterText}>Prev ₹{(lastWeek || 7819.83).toLocaleString('en-IN')}</Text>
+          </View>
+
+          <View style={styles.earningsDivider} />
+
+          <View style={styles.coverageKpiRow}>
+            <View style={styles.coverageKpiCard}>
+              <Text style={styles.coverageKpiLabel}>EARNINGS PROTECTED</Text>
+              <Text style={styles.coverageKpiValue}>₹{earningsProtected.toLocaleString('en-IN')}</Text>
+              <Text style={styles.coverageKpiMeta}>{earningsProtectionPct}% of this week's earnings</Text>
+            </View>
+
+            <View style={styles.coverageKpiCard}>
+              <Text style={styles.coverageKpiLabel}>ACTIVE WEEKLY COVERAGE</Text>
+              <Text style={styles.coverageKpiValue}>{coverage?.activeWeeklyCoverage ? 'ACTIVE' : 'INACTIVE'}</Text>
+              <Text style={styles.coverageKpiMeta}>
+                {coverage?.coverageEndsAt
+                  ? `Until ${new Date(coverage.coverageEndsAt).toLocaleDateString('en-IN')}`
+                  : 'No active weekly policy'}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -430,5 +478,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#000',
-  }
+  },
+  coverageKpiRow: {
+    marginTop: 2,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  coverageKpiCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: '#f8f6e1',
+  },
+  coverageKpiLabel: {
+    fontSize: 10,
+    color: '#000',
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  coverageKpiValue: {
+    marginTop: 4,
+    fontSize: 20,
+    color: '#000',
+    fontWeight: '900',
+  },
+  coverageKpiMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#1a1a1a',
+    fontWeight: '600',
+  },
 });
