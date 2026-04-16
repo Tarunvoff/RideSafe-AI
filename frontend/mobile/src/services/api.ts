@@ -160,8 +160,10 @@ async function request<T>(
   let data: any = null;
   try {
     data = await response.json();
-  } catch {
-    // Some endpoints might return non-JSON errors.
+  } catch (err: any) {
+    // Some endpoints might return non-JSON errors (like HTML 404s).
+    // We log it here to help debug which URL is returning HTML.
+    console.warn(`[API] Response from ${response.url} was not valid JSON. (Status: ${response.status})`);
     data = null;
   }
 
@@ -177,7 +179,12 @@ async function request<T>(
         });
 
         if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
+          let refreshData: any = null;
+          try {
+            refreshData = await refreshRes.json();
+          } catch {
+            refreshData = null;
+          }
           // Update token store so subsequent requests include a valid access token.
           if (refreshData?.accessToken && refreshData?.refreshToken) {
             await AsyncStorage.multiSet([
@@ -779,12 +786,12 @@ export const telemetryApi = {
     request('/telemetry/gps', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    }, true),
   reportLocationFailure: (data: { reason: string; platform?: string }) =>
     request('/telemetry/location-failure', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    }, true),
 };
 
 // ── PLANS / PAYMENTS ──────────────────────────────────────────────────────────
