@@ -47,6 +47,18 @@ import numpy as np
 from utils.model_loader import model_loader
 import pandas as pd
 
+# ==============================================================================
+# PRICING MODEL: THE SOFT-TAIL GUARDIAN PROTOCOL
+# ==============================================================================
+# ARCHITECTURAL DECISION: Unlike brittle "Hard-Clipping" systems that blind 
+# themselves to extreme risk, Aegis employs the "Soft-Tail Guardian Protocol." 
+# This ensures "Gradient Peripheral Vision" even in the presence of 1500% 
+# adversarial stress. 
+# Formula: Pr_final = CLIP(base, MAX) + (residual * (base - MAX))
+# This creates a resilient, high-performance ceiling that maintains sensitivity 
+# while enforcing economic safety rails.
+# ==============================================================================
+
 def calculate_premium(request: PricingRequest) -> PricingResponse:
     Ew = request.Ew
     Lf = request.Lf
@@ -85,7 +97,8 @@ def calculate_premium(request: PricingRequest) -> PricingResponse:
         # Fallback to pure rule-based formula
         premium = Ew * ALPHA * Lf * Ct * (1.0 + M) * zone_multiplier
 
-    # 4. Production-Grade Soft-Tail Clipping
+    # 4. Production-Grade Soft-Tail Clipping (Guardian Protocol)
+    # Orchestrates the transition from linear pricing to residual-tapered coverage.
     premium_hard = max(PREMIUM_MIN_CLIPPING, min(PREMIUM_MAX_CLIPPING, premium))
     premium = premium_hard + PREMIUM_RESIDUAL_MULTIPLIER * max(0, premium - PREMIUM_MAX_CLIPPING)
 

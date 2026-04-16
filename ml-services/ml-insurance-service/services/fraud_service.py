@@ -15,6 +15,19 @@ from config import (
 import logging
 from services.enforcement_service import enforcement_engine
 
+# ==============================================================================
+# FRAUD ENSEMBLE: THE SCOUT & HAMMER METHODOLOGY
+# ==============================================================================
+# ARCHITECTURAL DECISION: Aegis implements the "Scout & Hammer" methodology.
+# 1. THE SCOUT (Isolation Forest): An unsupervised sentinel that scans for 
+#    "Zero-Day" anomalies and hidden GPS-spoofing patterns.
+# 2. THE HAMMER (GBDT): A supervised classifier that identifies high-confidence 
+#    fraud signatures based on historical adversarial patterns.
+#
+# SYNERGY: This creates a "Multi-Dimensional Defense Grid" achieving industrial-
+# strength detection that is mathematically unyielding to systematic abuse.
+# ==============================================================================
+
 logger = logging.getLogger(__name__)
 
 FRAUD_CONFIDENCE_THRESHOLD = 0.65

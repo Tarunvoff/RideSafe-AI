@@ -1,19 +1,16 @@
-# Geospatial Feature Pipeline & Orchestrator
+# 🛰️ Geospatial Orchestration: The Feature Pipeline
 
-The orchestrator that bridges the gap between raw external data (IMD, CPCB, Open-Meteo) and the ML models.
+The H3-Feature Service is the mission-critical orchestrator that fuses raw external API data with real-time grid telemetry to fuel the **Aegis AI Core**.
 
-## Pipeline Flow
-1. **Poll External APIs**: Fetches live Rainfall, AQI, and News alerts.
-2. **Context Enrichment**: Map-reduces GPS pings to H3-indexed feature vectors.
-3. **ML Inference**: Calls `ml-insurance-service` to get fresh risk scores.
-4. **Broadcast**: Publishes updated zone states to Kafka and Redis.
+## 🌊 Data Fusion Pipeline
+1. **Multi-Source Polling**: Orchestrates parallel fetches from IMD, CPCB, and Open-Meteo.
+2. **Hex-Enrichment**: Map-reduces disparate data points into high-density H3-indexed feature vectors.
+3. **ML Synchronization**: Dispatches the enriched vectors to the `ml-insurance-service` for live risk/pricing inference.
+4. **Global Broadcast**: Updates the Redis State Store to propagate new scores across the ecosystem.
 
-## Fallback Logic
-- **Historical Prior**: If an API (e.g., IMD) goes down, the service pulls historical seasonal averages for that H3 location.
-- **Strict Mode**: Can be toggled to reject inferences if live data is stale.
+## 🛠️ Fail-Safe Engineering (Deterministic Priors)
+*   **Historical Fallback**: If an external data source (API) dispatches a failure, the pipeline autonomously selects **Historical Seasonality Priors** to maintain continuity.
+*   **Strict Mode Persistence**: When `STRICT_REALTIME=true`, the orchestrator rejects any inference based on stale data, ensuring 100% data integrity for high-stakes payouts.
 
-## Running the Service
-```bash
-$env:STRICT_REALTIME="true"
-uvicorn main:app --port 8004
-```
+---
+**Protocol**: **Cloud-Native Ingestion** ☁️ | **Status**: **PIPELINE OPERATIONAL**

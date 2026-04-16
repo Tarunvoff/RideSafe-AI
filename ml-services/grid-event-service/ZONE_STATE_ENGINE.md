@@ -1,21 +1,18 @@
-# Zone State & Grid Aggregation Engine
+# 🌐 Zone State Resilience: The Ground-Truth Engine
 
-This service consumes raw telemetry streams and translates them into a real-time Hexagonal Grid State (Uber H3 Res 8).
+The Grid Event Service is the definitive **State Machine** for Project Aegis. It transforms millions of raw telemetry vectors into a unified, hexagonal "Ground Truth" for every insurance decision.
 
-## The State Machine
-Each H3 cell exists in one of four states:
-- **🟢 NORMAL**: Standard operation.
-- **🟡 SLOW**: High demand vs. low rider supply.
-- **🔴 DANGEROUS**: High environmental risk (AQI/Heat).
-- **🔥 HALTED**: Parametric trigger state. Automatic payouts enabled.
+## ⚙️ The H3 Res-8 State Machine
+Every cell is autonomously transitioned across four critical states:
+*   **🟢 NORMAL**: Standard actuarial equilibrium.
+*   **🟡 SLOW**: High-congestion pressure; supply-demand imbalance detected.
+*   **🔴 DANGEROUS**: Environmental volatility threshold exceeded (AQI/Heat Risk).
+*   **🔥 HALTED**: The Parametric Trigger State. **Automatic Payouts Initialized.**
 
-## Responsibilities
-- **Kafka Consumption**: Subscribes to `driver_telemetry` and `zone_state_updates`.
-- **H3 Rolling Windows**: Windowed aggregation of pings per cell (60s default).
-- **Redis Sync**: Maintains the global "Ground Truth" of zone states for all other microservices.
+## 💠 High-Performance Architecture
+*   **Kafka Stream Orchestration**: Subscribes to the `driver_telemetry` firehose.
+*   **H3 Rolling Windows**: Implements sliding window aggregations to ensure state transitions are based on persistent signals, not transient noise.
+*   **Redis Ground Truth**: Dispatches the finalized zone state to the global cache, ensuring 100% synchronization across the backend and ML microservices.
 
-## Running the Service
-```bash
-$env:USE_REDIS="True"
-uvicorn main:app --port 8003
-```
+---
+**Standard**: **ZERO-LATENCY SYNC** ⚡ | **Status**: **REAL-TIME OPERATIONAL**

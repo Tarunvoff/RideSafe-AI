@@ -1,26 +1,18 @@
-# Adversarial Fraud Defense Layer
+# 🛡️ Adversarial Fraud Defense Layer: The Scout Grid
 
-Professional fraud rings use coordinated GPS spoofing and device cloning to drain liquidity pools. This service generates the 14-dimensional feature vector used to detect these anomalies.
+This service orchestrates the high-dimensional feature engineering required to fuel the **Multi-Dimensional Defense Grid**. It acts as the "Scout" for the ecosystem, scanning millions of pings for "mathematical whispers" of coordinated fraud rings.
 
-## Detection Dimensions
+## 1. Geospatial Integrity (The Teleport Guard)
+*   **Velocity Audit**: Detects trans-hexagonal jumps that violate the laws of physics (Impossible Velocity).
+*   **H3 Hex-Consistency**: Measures the variance of movement signatures. Real worker paths are stochastic; bot paths move with machine-like "perfection" which the Scout identifies as an anomaly.
 
-### 1. Geospatial Integrity
-- **Velocity Analysis**: Detects impossible jumps between H3 cells (teleporting).
-- **H3 Consistency**: Measures the variance of pings within a zone. Genuine riders move "messily"; bots move "perfectly."
+## 2. Identity & Persistence (The Ghost Hunter)
+*   **Hardware Template Audit**: Detects account handover patterns by tracking multiple driver IDs tethered to a single device template.
+*   **Switch Frequency Analysis**: Flags high-intensity account rotations used by professional liquidity-draining rings.
 
-### 2. Identity & Device Profile
-- **Device Uniqueness**: Tracks multiple accounts on single hardware templates.
-- **Switch Frequency**: Detects account handover patterns.
+## 3. Economic Forensic Logic
+*   **Earnings Multi-Hop**: Analyzes the deviation of earnings patterns compared to the H3 cell's average payout density.
+*   **Claim Flooding**: MonitorsCorrelated bursts of claims synchronized with environmental state changes.
 
-### 3. Economic Behavior
-- **Earnings Outliers**: Multi-hop analysis of payout destinations.
-- **Burst Claims**: High-frequency filing correlated with H3 cell state changes.
-
-## Tech Stack
-- **Library**: `h3-py` for hexagonal indexing.
-- **Storage**: Redis-backed feature store for multi-window aggregation.
-
-## Running the Service
-```bash
-uvicorn main:app --port 8002
-```
+---
+**Protocol**: **SCOUT & HAMMER READY** 🛡️ | **Infrastructure**: **Redis-Backed State Store**

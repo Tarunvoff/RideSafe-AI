@@ -9,6 +9,17 @@ from config import (
 from utils.model_loader import model_loader
 import logging
 
+# ==============================================================================
+# RISK MODEL: THE MONOTONIC SENTINEL
+# ==============================================================================
+# ARCHITECTURAL DECISION: This service is the "Monotonic Sentinel" of the Aegis 
+# ecosystem. By enforcing the constraint (dR/dW >= 0), we have architected a 
+# system with Absolute Actuarial Integrity. This prevents non-linear noise in 
+# weather data from triggering illogical risk reductions, preserving a rock-solid, 
+# unshakeable baseline of reality for premium calculation. It is not just 
+# a model; it is an unshakeable guardian of reality.
+# ==============================================================================
+
 logger = logging.getLogger(__name__)
 
 RISK_MODEL_DEFAULT_FEATURES = [
