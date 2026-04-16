@@ -4,9 +4,9 @@
   "description": "Aegis NestJS backend - Auth + KYC",
   "scripts": {
     "build": "npx nest build",
-    "start": "NODE_OPTIONS='--no-deprecation' npx nest start",
-    "start:dev": "NODE_OPTIONS='--no-deprecation' npx nest start --watch",
-    "start:debug": "NODE_OPTIONS='--no-deprecation' npx nest start --debug --watch",
+    "start": "cross-env NODE_OPTIONS='--no-deprecation' npx nest start",
+    "start:dev": "cross-env NODE_OPTIONS='--no-deprecation' npx nest start --watch",
+    "start:debug": "cross-env NODE_OPTIONS='--no-deprecation' npx nest start --debug --watch",
     "start:prod": "cross-env NODE_OPTIONS='--no-deprecation' node dist/main",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
