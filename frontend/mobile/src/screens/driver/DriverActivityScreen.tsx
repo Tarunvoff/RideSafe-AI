@@ -238,7 +238,7 @@ export default function DriverActivityScreen({ navigation }: any) {
             <View style={styles.coverageKpiCard}>
               <Text style={styles.coverageKpiLabel}>EARNINGS PROTECTED</Text>
               <Text style={styles.coverageKpiValue}>₹{earningsProtected.toLocaleString('en-IN')}</Text>
-              <Text style={styles.coverageKpiMeta}>{earningsProtectionPct}% of this week's earnings</Text>
+              <Text style={styles.coverageKpiMeta}>{earningsProtectionPct}% of this week&apos;s earnings</Text>
             </View>
 
             <View style={styles.coverageKpiCard}>

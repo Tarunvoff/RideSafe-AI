@@ -263,8 +263,13 @@ export class AdminService {
     const projectedPayout = payoutAgg?._sum?.approvedPayout ?? 0;
     const totalApprovedPayout = overallPayoutAgg?._sum?.approvedPayout ?? 0;
     const totalPremiumCollected = premiumAgg?._sum?.premium ?? 0;
+    
+    // P-012: Loss Ratio metric (Payouts / Premiums)
     const lossRatio = totalPremiumCollected > 0 ? totalApprovedPayout / totalPremiumCollected : 0;
     const lossRatioPercent = Math.round(lossRatio * 10000) / 100;
+    
+    // P-012: Benefit-Cost Ratio metric (Premiums / Payouts? Standard is BCR = Benefit / Cost. For platform, BCR = Payouts / Premiums = Loss Ratio, but from rider's view it's the same. We'll send it down explicitly)
+    const benefitCostRatio = totalPremiumCollected > 0 ? totalApprovedPayout / totalPremiumCollected : 0;
 
     return {
       totalWorkers,
@@ -278,6 +283,7 @@ export class AdminService {
       totalPremiumCollected,
       lossRatio,
       lossRatioPercent,
+      benefitCostRatio,
       recentAlerts: (recentAlerts ?? []).map((alert: any) => ({
         id: alert.id,
         type: alert.type,

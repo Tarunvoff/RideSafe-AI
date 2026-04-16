@@ -60,6 +60,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
     totalPremiumCollected: 0,
     lossRatio: 0,
     lossRatioPercent: 0,
+    benefitCostRatio: 0,
     recentAlerts: [],
     recentClaims: [],
   };
@@ -79,6 +80,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
     safeSummary.projectedPayout ?? safeSummary.simulatedPayout ?? 0,
   );
   const lossRatioPercent = Number(safeSummary.lossRatioPercent ?? 0);
+  
+  // P-012: Benefit-Cost Ratio = Premium (Benefit) / Payouts (Cost)
+  const totalPremium = Number(safeSummary.totalPremiumCollected ?? 0);
+  const totalPayout = Number(safeSummary.totalApprovedPayout ?? 0);
+  const benefitCostRatio = totalPayout > 0 ? (totalPremium / totalPayout).toFixed(2) : 'N/A';
 
   return (
     <AdminShell navigation={navigation} activeKey="dash">
@@ -99,9 +105,10 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <KpiCard label="Active Plans" value={String(safeSummary.activePlans)} />
               <KpiCard label="Active Alerts" value={String(safeSummary.activeAlerts)} />
               <KpiCard label="Claims Today" value={String(safeSummary.claimsToday)} />
-              <KpiCard label="High Risk Workers" value={String(safeSummary.highRiskWorkers)} />
+              <KpiCard label="High Risk" value={String(safeSummary.highRiskWorkers)} />
               <KpiCard label="Projected Payout" value={formatINR(projectedPayout)} />
               <KpiCard label="Loss Ratio" value={`${lossRatioPercent.toFixed(2)}%`} />
+              <KpiCard label="Benefit-Cost" value={benefitCostRatio} />
             </View>
           </View>
 

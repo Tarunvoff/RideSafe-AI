@@ -167,7 +167,7 @@
       "traffic": "Traffic Density",
       "weather": "Weather Severity",
       "road": "Road Conditions",
-      "accidents": "Accident Density",
+      "disruptions": "Disruption Frequency",
       "flood": "Flood Chance",
       "aqi": "Air Quality (AQI)",
       "rain": "Rain Probability",
@@ -379,7 +379,7 @@
   "policy": {
     "title": "Aegis Protection",
     "hero_title": "Aegis Protection",
-    "hero_desc_active": "Secure your income and liability in one tap",
+    "hero_desc_active": "Secure your income in one tap",
     "hero_desc_inactive": "Activate protection to unlock automated claim support",
     "updating": "Updating policy...",
     "loading": "Loading policy details...",
@@ -406,7 +406,7 @@
     "deductible": "Deductible",
     "next_billing": "Next Billing",
     "auto_claim_title": "Auto-Claim Monitoring Active",
-    "auto_claim_desc": "We'll automatically detect platform deactivations or accidents through your linked accounts and start your claim process instantly.",
+    "auto_claim_desc": "We'll automatically detect platform deactivations or major disruptions through your linked accounts and start your claim process instantly.",
     "no_active_policy": "No active policy found",
     "no_active_policy_sub": "Purchase a weekly plan to enable payout coverage and automated claim handling.",
     "cancel_btn": "Cancel Policy",
@@ -488,7 +488,7 @@
       "title": "Terms of Service",
       "subtitle": "Please review and accept our terms to protect your deliveries.",
       "view_pdf": "View Full Policy Document",
-      "checkbox": "I agree to the Aegis Terms of Service and Privacy Policy.",
+      "checkbox": "I agree to the Aegis Terms of Service and Privacy Policy, including collection and sharing of my platform activity data with Aegis and its regulated insurer/payout partners for eligibility checks, risk scoring, and automated claim settlement.",
       "button_accept": "Accept and Continue",
       "pdf_preview": "Policy Preview",
       "full_document": "Full Document",
@@ -498,13 +498,13 @@
       "render_error": "Error rendering document: {{message}}",
       "sections": {
         "telemetry_title": "1. Live Telemetry",
-        "telemetry_body": "Aegis monitors your location and motion data in real-time to detect accidents and provide live road-risk intelligence. This data is essential for automated claim processing.",
+        "telemetry_body": "Aegis monitors your location and motion data in real-time to detect blocked zones and provide live road-risk intelligence. This data is essential for automated claim processing.",
         "hazard_title": "2. Hazard Monitoring",
         "hazard_body": "By using Aegis, you agree to receive real-time alerts regarding road hazards, weather disruptions, and high-risk zones relevant to your service area.",
         "payout_title": "3. Automated Payouts",
         "payout_body": "Payouts for verified disruptions are processed automatically based on platform data and sensor verification. Manual intervention is only required for disputed events.",
         "privacy_title": "4. Data Privacy",
-        "privacy_body": "Your data is encrypted and only used for risk analysis and insurance purposes. We never sell your personal information to third parties."
+        "privacy_body": "Your data is encrypted and only used for risk analysis and insurance purposes. For payout verification and fraud control, you authorize Aegis to process and share relevant platform activity records (for example, shift/activity status and disruption signals) with regulated insurer and payout-processing partners. We never sell your personal information to third parties."
       }
     },
     "errors": {

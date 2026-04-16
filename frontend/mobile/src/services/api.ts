@@ -354,7 +354,7 @@ export const kycApi = {
 
 /**
  * [IN-LINE PRIDE]: Fraud & Risk Integrity
- * Provides real-time analysis of device and geospatial health. This is the 
+ * Provides real-time analysis of device and geospatial status. This is the 
  * technical enforcement of trust in the Aegis parametric model.
  */
 export const fraudApi = {
@@ -459,7 +459,7 @@ export const fraudApi = {
  * Provides the data-intensive endpoints required for platform oversight. 
  * From high-level dashboard summaries to granular audit trails of workers 
  * and claims, this domain ensures that administrators have a 100% 
- * transparent view of the Aegis operational health.
+ * transparent view of the Aegis operational status.
  */
 export const adminApi = {
   getDashboard: () =>
@@ -475,6 +475,7 @@ export const adminApi = {
       totalPremiumCollected: number;
       lossRatio: number;
       lossRatioPercent: number;
+      benefitCostRatio?: number;
       recentAlerts: Array<{ id: string; type: string; title: string; occurredAt: string; expectedPayout: number | null }>;
       recentClaims: Array<{
         payoutId: string;

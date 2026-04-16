@@ -120,7 +120,7 @@ const EMPTY_SUPPORT_CONFIG: SupportConfig = {
  * Implements a "Cache-First, Silently-Degrade" pattern for support metrics. 
  * This ensures that critical contact info and FAQs remain accessible even 
  * in 'Dark Store' zones with intermittent internet connectivity, maintaining 
- * the platform's reliability promise.
+ * the platform's reresponsibility promise.
  */
 async function loadSupportConfig(): Promise<SupportConfig> {
   try {

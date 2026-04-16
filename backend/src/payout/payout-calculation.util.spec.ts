@@ -1,31 +1,27 @@
-import test = require('node:test');
-import assert = require('node:assert/strict');
-import {
-  computeGrossPayout,
-  computeNetPayout,
-  resolveDeductible,
-} from './payout-calculation.util';
+import { computeGrossPayout, computeNetPayout, resolveDeductible } from './payout-calculation.util';
 
-test('basic plan deductible is 500', () => {
-  assert.equal(resolveDeductible('BASIC'), 500);
-});
+describe('payout-calculation.util', () => {
+  it('basic plan deductible is 500', () => {
+    expect(resolveDeductible('BASIC')).toEqual(500);
+  });
 
-test('standard plan deductible is 200', () => {
-  assert.equal(resolveDeductible('STANDARD'), 200);
-});
+  it('standard plan deductible is 200', () => {
+    expect(resolveDeductible('STANDARD')).toEqual(200);
+  });
 
-test('premium plan has zero deductible', () => {
-  assert.equal(resolveDeductible('PREMIUM'), 0);
-});
+  it('premium plan has zero deductible', () => {
+    expect(resolveDeductible('PREMIUM')).toEqual(0);
+  });
 
-test('net payout applies deductible floor at zero', () => {
-  const gross = computeGrossPayout({ Ew: 2100, Lf: 0.5, Ct: 0.4 });
-  const net = computeNetPayout(gross, 500);
-  assert.equal(net, 0);
-});
+  it('net payout applies deductible floor at zero', () => {
+    const gross = computeGrossPayout({ Ew: 2100, Lf: 0.5, Ct: 0.4 });
+    const net = computeNetPayout(gross, 500);
+    expect(net).toEqual(0);
+  });
 
-test('net payout applies deductible for payable claim', () => {
-  const gross = computeGrossPayout({ Ew: 14000, Lf: 0.8, Ct: 0.8 });
-  const net = computeNetPayout(gross, 200);
-  assert.equal(Math.round(net * 100) / 100, Math.round((gross - 200) * 100) / 100);
+  it('net payout applies deductible for payable claim', () => {
+    const gross = computeGrossPayout({ Ew: 14000, Lf: 0.8, Ct: 0.8 });
+    const net = computeNetPayout(gross, 200);
+    expect(Math.round(net * 100) / 100).toEqual(Math.round((gross - 200) * 100) / 100);
+  });
 });

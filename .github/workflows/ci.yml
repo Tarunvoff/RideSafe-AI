@@ -1,0 +1,43 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies (Backend)
+      run: npm install
+      working-directory: ./backend
+
+    - name: Build (Backend)
+      run: npm run build
+      working-directory: ./backend
+
+    - name: Test (Backend)
+      run: npm test --if-present
+      working-directory: ./backend
+
+    - name: Install dependencies (Frontend)
+      run: npm install
+      working-directory: ./frontend/mobile
+
+    - name: Type check (Frontend)
+      run: npx tsc --noEmit
+      working-directory: ./frontend/mobile

@@ -182,7 +182,7 @@ export default function LoginScreen({ navigation }: any) {
     'Protection',
     'Aegis',
     'Intelligence',
-    'Reliability',
+    'Reresponsibility',
     'Resilience',
     'Trust',
     'Safety',

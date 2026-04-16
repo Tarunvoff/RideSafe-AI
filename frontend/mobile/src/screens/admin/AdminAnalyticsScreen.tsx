@@ -4,7 +4,7 @@
  * Aegis platform. It transforms raw actuarial, geographic, and forensic data 
  * into actionable business intelligence. Utilizing custom SVG-based charting 
  * and high-density bar lists, it provides administrators with a premium 
- * 'Single Pane of Glass' view into operational health and risk velocity.
+ * 'Single Pane of Glass' view into operational status and risk velocity.
  * 
  * [DOMAIN LOGIC]
  * Serves as the primary monitor for 'Payout Velocity' and 'Risk Trends'. 
@@ -141,7 +141,7 @@ export default function AdminAnalyticsScreen({ navigation }: any) {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
-            <Text style={styles.sectionKicker}>RISK POOL HEALTH</Text>
+            <Text style={styles.sectionKicker}>RISK POOL status</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

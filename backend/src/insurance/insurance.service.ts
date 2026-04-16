@@ -159,8 +159,11 @@ export class InsuranceService {
     // Use Python pricing if available, otherwise compute locally as safety net
     const premium = premiumFromPipeline ?? this.computePremium(Ew, Lf, Ct);
     const now = new Date();
-    const validTo = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // P-014: 24-hour cooling-off / lockout period to prevent active disruption adverse selection
+    const activeFrom = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const validTo = new Date(activeFrom.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+    // Cancel existing active policies before new one becomes active
     await this.prisma.policy.updateMany({
       where: { userId: dto.driverId, status: 'ACTIVE', endDate: { gt: now } },
       data: { endDate: now },
@@ -172,7 +175,7 @@ export class InsuranceService {
         planType: plan,
         status: 'ACTIVE',
         premium,
-        startDate: now,
+        startDate: activeFrom,
         endDate: validTo,
       },
     });
