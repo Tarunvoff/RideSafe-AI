@@ -372,6 +372,11 @@ export const adminApi = {
       claimsToday: number;
       highRiskWorkers: number;
       projectedPayout: number;
+      simulatedPayout?: number;
+      totalApprovedPayout: number;
+      totalPremiumCollected: number;
+      lossRatio: number;
+      lossRatioPercent: number;
       recentAlerts: Array<{ id: string; type: string; title: string; occurredAt: string; expectedPayout: number | null }>;
       recentClaims: Array<{
         payoutId: string;

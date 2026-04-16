@@ -56,6 +56,9 @@ export default function AdminAnalyticsScreen({ navigation }: any) {
   }, [loadSummary]);
 
   const safeSummary = summary ?? {
+    totalPremiumCollected: 0,
+    totalApprovedPayout: 0,
+    lossRatioPercent: 0,
     riskTrend: [],
     payoutTrend: [],
     workersByCity: [],
@@ -73,6 +76,11 @@ export default function AdminAnalyticsScreen({ navigation }: any) {
    */
   const formatINR = useMemo(
     () => (value: number) => `₹${Math.round(value ?? 0).toLocaleString('en-IN')}`,
+    [],
+  );
+
+  const formatPercent = useMemo(
+    () => (value: number) => `${Number(value ?? 0).toFixed(2)}%`,
     [],
   );
 
@@ -133,6 +141,25 @@ export default function AdminAnalyticsScreen({ navigation }: any) {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
+            <Text style={styles.sectionKicker}>RISK POOL HEALTH</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardRow}
+            >
+              <ChartCard title="Loss Ratio" subtitle="Approved payout / premium pool">
+                <MetricCard value={formatPercent(Number(safeSummary.lossRatioPercent ?? 0))} />
+              </ChartCard>
+              <ChartCard title="Premium Pool" subtitle="Total collected premium">
+                <MetricCard value={formatINR(Number(safeSummary.totalPremiumCollected ?? 0))} />
+              </ChartCard>
+              <ChartCard title="Approved Payout" subtitle="Total paid claims">
+                <MetricCard value={formatINR(Number(safeSummary.totalApprovedPayout ?? 0))} />
+              </ChartCard>
+            </ScrollView>
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionKicker}>FRAUD SIGNALS</Text>
             <ScrollView
               horizontal
@@ -185,6 +212,14 @@ export default function AdminAnalyticsScreen({ navigation }: any) {
         </ScrollView>
       </View>
     </AdminShell>
+  );
+}
+
+function MetricCard({ value }: { value: string }) {
+  return (
+    <View style={styles.metricWrap}>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -359,6 +394,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Theme.colors.textSecondary,
     fontWeight: '700',
+  },
+  metricWrap: {
+    minHeight: 64,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: Theme.colors.text,
   },
   barListWrap: {
     gap: 4,

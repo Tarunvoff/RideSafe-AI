@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { KYCStatus, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as h3 from 'h3-js';
 import 'dotenv/config';
@@ -45,7 +45,7 @@ function buildAnalysisDetails(input: {
   city: string;
   platform: string;
   riskScore: number;
-  kycStatus: string;
+  kycStatus: KYCStatus;
   payoutType: string;
 }) {
   const factors: string[] = [];
@@ -330,7 +330,18 @@ async function main() {
 
   const disruptionByType = new Map(createdDisruptions.map((d) => [d.type, d]));
 
-  const driverSeeds = [
+  const driverSeeds: Array<{
+    email: string;
+    name: string;
+    city: string;
+    platform: string;
+    kycStatus: KYCStatus;
+    riskScore: number;
+    fraudStatus: string;
+    planKey: string;
+    payoutType: string;
+    daysAgo: number;
+  }> = [
     {
       email: 'vignesh.chn@aegis.in',
       name: 'Vignesh K',

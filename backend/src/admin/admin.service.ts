@@ -113,6 +113,8 @@ export class AdminService {
       claimsToday,
       highRiskWorkers,
       payoutAgg,
+      overallPayoutAgg,
+      premiumAgg,
       recentAlerts,
       recentClaimsRaw,
     ] = await Promise.all([
@@ -129,6 +131,12 @@ export class AdminService {
       prisma.payout.aggregate({
         _sum: { approvedPayout: true },
         where: { createdAt: { gte: startOfDay } },
+      }),
+      prisma.payout.aggregate({
+        _sum: { approvedPayout: true },
+      }),
+      prisma.policy.aggregate({
+        _sum: { premium: true },
       }),
       prisma.disruptionEvent.findMany({
         orderBy: { occurredAt: 'desc' },
@@ -252,13 +260,24 @@ export class AdminService {
       fraudStatusSplit = [];
     }
 
+    const projectedPayout = payoutAgg?._sum?.approvedPayout ?? 0;
+    const totalApprovedPayout = overallPayoutAgg?._sum?.approvedPayout ?? 0;
+    const totalPremiumCollected = premiumAgg?._sum?.premium ?? 0;
+    const lossRatio = totalPremiumCollected > 0 ? totalApprovedPayout / totalPremiumCollected : 0;
+    const lossRatioPercent = Math.round(lossRatio * 10000) / 100;
+
     return {
       totalWorkers,
       activePlans,
       activeAlerts,
       claimsToday,
       highRiskWorkers,
-      simulatedPayout: payoutAgg?._sum?.approvedPayout ?? 0,
+      projectedPayout,
+      simulatedPayout: projectedPayout,
+      totalApprovedPayout,
+      totalPremiumCollected,
+      lossRatio,
+      lossRatioPercent,
       recentAlerts: (recentAlerts ?? []).map((alert: any) => ({
         id: alert.id,
         type: alert.type,
