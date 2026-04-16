@@ -162,6 +162,12 @@ export class AuthService {
     const rtHash = hashOTP(tokens.refreshToken);
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
+    if (user.role === 'DRIVER') {
+      await this.createInAppNotification(user.id, 'USER_LOGIN', 'You logged in successfully', {
+        source: 'auth.login',
+      });
+    }
+
     return {
       message: 'Login successful',
       ...tokens,
@@ -466,6 +472,13 @@ export class AuthService {
     const rtHash = hashOTP(tokens.refreshToken);
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
+    if (user.role === 'DRIVER') {
+      await this.createInAppNotification(user.id, 'USER_LOGIN', 'You logged in successfully', {
+        source: 'auth.exchangeOAuth',
+        provider,
+      });
+    }
+
     const fallbackIdentifier =
       driverProfile?.identity?.email ?? driverProfile?.identity?.phone ?? email;
     const providerDriverId =
@@ -514,5 +527,30 @@ export class AuthService {
       }),
     ]);
     return { accessToken, refreshToken };
+  }
+
+  private async createInAppNotification(
+    userId: string,
+    eventType: string,
+    message: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    const repo = (this.prisma as any).notification;
+    if (!repo) return;
+
+    try {
+      await repo.create({
+        data: {
+          userId,
+          eventType,
+          message,
+          metadata: (metadata ?? null) as any,
+          isRead: false,
+        },
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`[auth-notification] failed to persist notification for user=${userId}: ${errorMessage}`);
+    }
   }
 }

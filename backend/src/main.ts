@@ -26,7 +26,6 @@ const REQUIRED_ENV_VARS = [
   'RAZORPAY_KEY_SECRET',
   'ADMIN_EMAIL',
   'ADMIN_PASSWORD',
-  'KAFKA_BROKER_URL',
 ] as const;
 
 function validateRequiredEnvVars() {
@@ -45,6 +44,9 @@ function validateRequiredEnvVars() {
 
 async function bootstrap() {
   validateRequiredEnvVars();
+  if (!process.env.KAFKA_BROKER_URL?.trim()) {
+    console.warn('KAFKA_BROKER_URL not set. Falling back to localhost:9092 for Kafka clients/consumers.');
+  }
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn'], // Perfection: Hide debug/verbose spam
   });

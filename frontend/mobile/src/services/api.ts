@@ -930,13 +930,25 @@ export const configApi = {
 
 export const notificationsApi = {
   getAlerts: () =>
-    request<{
-      data: Array<{
-        id: string;
-        title: string;
-        message: string;
-        date: string;
-        read: boolean;
-      }>
-    }>('/notifications', { method: 'GET' }, true).then(res => res.data),
+    request<any>('/notifications', { method: 'GET' }, true).then((res) => {
+      const rawList = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+      return rawList.map((item: any) => ({
+        id: item.id,
+        title: item.title ?? item.eventType ?? 'Notification',
+        message: item.message,
+        date: item.date ?? item.createdAt,
+        read: typeof item.read === 'boolean' ? item.read : Boolean(item.isRead),
+      }));
+    }),
+
+  getUnreadCount: () =>
+    request<any>('/notifications/unread-count', { method: 'GET' }, true).then((res) => {
+      if (typeof res === 'number') return res;
+      if (typeof res?.count === 'number') return res.count;
+      if (typeof res?.unreadCount === 'number') return res.unreadCount;
+      return 0;
+    }),
+
+  markAsRead: (id: string) =>
+    request(`/notifications/${id}/read`, { method: 'PATCH' }, true),
 };

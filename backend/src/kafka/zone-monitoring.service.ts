@@ -50,7 +50,10 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     }
 
     private async initKafkaConsumer(): Promise<void> {
-        const brokers = (process.env.KAFKA_BROKER_URL ?? 'localhost:9092').split(',');
+        const brokers = (process.env.KAFKA_BROKER_URL ?? 'localhost:9092')
+            .split(',')
+            .map((broker) => broker.trim())
+            .filter(Boolean);
         const kafka = new Kafka({
             clientId: 'aegis-zone-monitor',
             brokers,
