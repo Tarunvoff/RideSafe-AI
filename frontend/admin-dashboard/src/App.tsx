@@ -198,20 +198,28 @@ export default function App() {
           <SidebarItem icon={<ShieldAlert size={18} />} label="Claims" to="/claims" active={location.pathname === '/claims'} />
           <SidebarItem icon={<Settings size={18} />} label="Setup" to="/setup" active={location.pathname === '/setup'} />
         </nav>
-
-        <div className="mt-auto flex flex-col gap-4">
-          <div className="neo-card p-4 bg-gray-50 border-2 border-dashed border-gray-400">
-             <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-night border border-black"></div>
-                <div>
-                   <p className="text-[10px] font-black uppercase">Session Active</p>
-                   <p className="text-[9px] font-bold text-gray-500">Node-01 • Coimbatore</p>
-                </div>
-             </div>
-          </div>
-          <button className="nav-item hover:bg-red-50 hover:text-red-600" onClick={handleLogout}>
+        <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+          <button 
+             onClick={handleLogout}
+             style={{ 
+               width: '100%', 
+               display: 'flex', 
+               alignItems: 'center', 
+               gap: '1rem', 
+               padding: '1.25rem 1rem', 
+               backgroundColor: '#DC2626',
+               border: '2px solid #000', 
+               boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', 
+               color: '#FFFFFF',
+               fontFamily: '"Sora", sans-serif', 
+               fontWeight: 800, 
+               textTransform: 'uppercase', 
+               fontSize: '0.875rem', 
+               cursor: 'pointer'
+             }}
+          >
             <LogOut size={18} />
-            <span>Terminate</span>
+            <span style={{ letterSpacing: '0.05em' }}>Terminate</span>
           </button>
         </div>
       </aside>
@@ -388,14 +396,7 @@ function WorkersPage() {
     }
   };
 
-  const getPlatformColor = (platform: string) => {
-    const p = platform?.toLowerCase();
-    if (p === 'zepto') return 'bg-[#FF4D8D15] border-[#FF4D8D] text-[#FF4D8D]';
-    if (p === 'blinkit') return 'bg-[#FFFF0015] border-[#D4D400] text-[#808000]';
-    if (p === 'instamart') return 'bg-[#FF7D3315] border-[#FF7D33] text-[#FF7D33]';
-    if (p === 'bigbasket') return 'bg-[#66AB2415] border-[#66AB24] text-[#66AB24]';
-    return 'bg-gray-50 border-black text-gray-800';
-  };
+
 
   return (
     <div className="animate-in slide-in-from-right-4 duration-500">
@@ -454,18 +455,18 @@ function WorkersPage() {
          </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-0 mb-8 border-4 border-black divide-x-4 divide-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-         <div className="p-6 bg-white hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Total Managed</p>
-            <p className="text-5xl font-black italic">{workers.length}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
+         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
+            <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
          </div>
-         <div className="p-6 bg-white hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Selected City</p>
-            <p className="text-4xl font-black uppercase tracking-tighter">{cityFilter}</p>
+         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#F3E8FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
+            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#6B21A8]">{cityFilter}</p>
          </div>
-         <div className="p-6 bg-white hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Active platform</p>
-            <p className="text-4xl font-black uppercase tracking-tighter">{platformFilter}</p>
+         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#DBEAFE', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
+            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#1E40AF]">{platformFilter}</p>
          </div>
       </div>
 
@@ -477,35 +478,49 @@ function WorkersPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
          {!loading && workers.map((worker, i) => {
-           const cardStyles = getPlatformColor(worker.platform);
+           let badgeBg = '#f3f4f6';
+           let badgeColor = '#000';
+           const p = worker.platform?.toLowerCase();
+           if (p === 'zepto') { badgeBg = '#E0E7FF'; badgeColor = '#3730A3'; }
+           else if (p === 'blinkit') { badgeBg = '#FEF3C7'; badgeColor = '#92400E'; }
+           else if (p === 'instamart') { badgeBg = '#FFEDD5'; badgeColor = '#9A3412'; }
+           else if (p === 'bigbasket') { badgeBg = '#D1FAE5'; badgeColor = '#065F46'; }
+
+           let rawStatus = worker.status ? worker.status.toUpperCase() : 'PENDING';
+           let displayStatus = rawStatus.replace('_', ' ');
+           
+           // Normalize statuses to match the design requested
+           if (displayStatus === 'SUBMITTED' || displayStatus === 'NOT STARTED') {
+               displayStatus = 'PENDING';
+           }
+
+           let statusBg = '#F59E0B'; // Default Orange for Pending
+           let statusColor = '#000';
+
+           if (displayStatus === 'APPROVED') {
+             statusBg = '#16A34A'; // Green
+             statusColor = '#fff';
+           } else if (displayStatus === 'REJECTED') {
+             statusBg = '#DC2626'; // Red
+             statusColor = '#fff';
+           }
+
            return (
-             <div key={i} className={`neo-card border-2 flex flex-col p-6 transition-all hover:-translate-y-2 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] ${cardStyles.split(' ')[0]} border-black`}>
-                <div className="flex items-start justify-between mb-4">
-                   <div className="w-12 h-12 rounded-full border-2 border-black bg-white flex items-center justify-center font-black text-xl">
-                      {worker.email?.[0].toUpperCase() || 'A'}
-                   </div>
-                   <span className={`badge border-2 border-black font-black italic ${
-                     worker.status === 'APPROVED' ? 'badge-success' : 
-                     worker.status === 'SUBMITTED' ? 'badge-warning' : 
-                     'badge-night text-white'
-                   }`}>
-                     {worker.status || 'UNRANKED'}
+             <div key={i} className="neo-card hover:-translate-y-2 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ffffff', padding: '1.5rem', display: 'flex', flexDirection: 'column', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
+                   <span style={{ border: '2px solid #000', backgroundColor: statusBg, color: statusColor, padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'normal' }}>
+                     {displayStatus}
                    </span>
                 </div>
                 
-                <h4 className="text-xl font-black truncate mb-1">{worker.email || 'anonymous@node.io'}</h4>
-                <p className="text-xs font-bold opacity-60 uppercase tracking-widest mb-6">{worker.phone || '+91 90000 00000'}</p>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', wordBreak: 'break-all' }}>{worker.email || 'anonymous@node.io'}</h4>
                 
-                <div className="mt-auto pt-4 border-t-2 border-black/10 flex items-center justify-between">
-                   <div className="flex flex-col">
-                      <span className="text-[9px] font-black uppercase opacity-40">City</span>
-                      <span className="text-xs font-black uppercase italic">{worker.city || 'TNP'}</span>
+                <div style={{ borderTop: '2px solid rgba(0,0,0,0.1)', paddingTop: '1rem', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                   <div style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic' }}>
+                      {worker.city || 'TNP'}
                    </div>
-                   <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-black uppercase opacity-40">Node</span>
-                      <span className={`text-[10px] font-black uppercase p-1 border-2 border-black ${cardStyles.split(' ').slice(1).join(' ')}`}>
-                        {worker.platform || 'General'}
-                      </span>
+                   <div style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.25rem 0.5rem', border: '2px solid #000', backgroundColor: badgeBg, color: badgeColor }}>
+                      {worker.platform || 'General'}
                    </div>
                 </div>
              </div>
@@ -618,6 +633,7 @@ function ClaimsPage() {
 function SetupPage() {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedModule, setSelectedModule] = useState<any>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -638,87 +654,136 @@ function SetupPage() {
   const setupModules = [
     { 
       title: "Alert Thresholds", 
-      icon: <Zap size={24} />, 
-      color: "bg-[#FF4D8D15]", 
-      borderColor: "border-[#FF4D8D]",
-      textColor: "text-[#FF4D8D]", 
-      desc: "Confidence & Block Scoring",
+      desc: "Configure sensitivity for automated alerts",
       details: [
-        { label: "Fraud Block Threshold", value: `${(settings?.alertThresholds?.fraudBlockThreshold * 100).toFixed(0)}%` },
-        { label: "High Risk Trigger", value: `${settings?.alertThresholds?.highRiskScore}` }
+        { label: "Fraud Block Threshold", value: `${(settings?.alertThresholds?.fraudBlockThreshold * 100)?.toFixed(0) || 0}%` },
+        { label: "High Risk Trigger", value: `${settings?.alertThresholds?.highRiskScore || 0}` }
       ]
     },
     { 
-      title: "Risk Engine", 
-      icon: <ShieldAlert size={24} />, 
-      color: "bg-[#FFFF0015]", 
-      borderColor: "border-[#D4D400]",
-      textColor: "text-[#808000]", 
-      desc: "Device & GPS Validation",
+      title: "Risk Configuration", 
+      desc: "Manage risk assessment parameters",
       details: [
-        { label: "Device Frequency", value: `${settings?.riskConfig?.deviceSwitchFrequency}x / day` },
-        { label: "Max Speed Alert", value: `${settings?.riskConfig?.gpsSpeedMax} km/h` }
+        { label: "Device Frequency", value: `${settings?.riskConfig?.deviceSwitchFrequency || 0}x / day` },
+        { label: "Max Speed Alert", value: `${settings?.riskConfig?.gpsSpeedMax || 0} km/h` }
       ]
     },
     { 
-      title: "Subscription", 
-      icon: <Users size={24} />, 
-      color: "bg-[#66AB2415]", 
-      borderColor: "border-[#66AB24]",
-      textColor: "text-[#66AB24]", 
-      desc: "Plan & Renew Config",
+      title: "Plan Configuration", 
+      desc: "Subscription and tier settings",
       details: [
-        { label: "Grace Period", value: `${settings?.planConfig?.gracePeriodDays} Days` },
+        { label: "Grace Period", value: `${settings?.planConfig?.gracePeriodDays || 0} Days` },
         { label: "Auto-Renew Default", value: settings?.planConfig?.autoRenewDefault ? "ENABLED" : "DISABLED" }
       ]
     },
     { 
-      title: "Verifications", 
-      icon: <User size={24} />, 
-      color: "bg-[#FF7D3315]", 
-      borderColor: "border-[#FF7D33]",
-      textColor: "text-[#FF7D33]", 
-      desc: "Identity & SLA Settings",
+      title: "Verification Settings", 
+      desc: "Identity and background check rules",
       details: [
-        { label: "KYC SLA", value: `${settings?.verificationSettings?.kycReviewSlaHours} Hours` },
+        { label: "KYC SLA", value: `${settings?.verificationSettings?.kycReviewSlaHours || 0} Hours` },
         { label: "Manual Override", value: settings?.verificationSettings?.allowManualOverride ? "ALLOWED" : "BLOCKED" }
       ]
     }
   ];
 
+  const systemModules = [
+    { title: "Admin Profile", desc: "Access level and authentication", details: [] },
+    { title: "Notifications", desc: "Alert routing and webhook channels", details: [] }
+  ];
+
   return (
-    <div className="animate-in zoom-in-95 duration-500">
+    <div className="animate-in slide-in-from-right-4 duration-500" style={{ maxWidth: '800px' }}>
       <header className="mb-12">
-        <h2 className="text-5xl font-black uppercase tracking-tighter">System Architect</h2>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-2">Core Protocol Configuration • Admin Portal v2</p>
+        <h2 className="text-5xl font-black uppercase tracking-tighter">Setup</h2>
       </header>
 
       {loading ? (
         <div className="p-20 text-center font-black italic opacity-30">HYDRATING SYSTEM ARCHITECTURE...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {setupModules.map((m, i) => (
-            <div key={i} className={`neo-card border-4 border-black ${m.color} p-8 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 transition-all flex flex-col group`}>
-               <div className="flex items-center justify-between mb-8">
-                  <div className={`p-4 border-2 border-black bg-white ${m.textColor}`}>
-                    {m.icon}
+        <>
+          <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-4">System Configuration</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', border: '2px solid #000', backgroundColor: '#fff', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', marginBottom: '3rem' }}>
+            {setupModules.map((m, i) => (
+               <div 
+                  key={i} 
+                  onClick={() => setSelectedModule(m)}
+                  style={{ 
+                     display: 'flex', 
+                     justifyContent: 'space-between', 
+                     alignItems: 'center', 
+                     padding: '1.5rem', 
+                     borderBottom: i < setupModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
+                     cursor: 'pointer',
+                     backgroundColor: '#fff',
+                     transition: 'background-color 0.1s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+               >
+                  <div>
+                     <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>{m.title}</h3>
+                     <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>{m.desc}</p>
                   </div>
-                  <button className="text-[10px] font-black uppercase text-coral underline opacity-0 group-hover:opacity-100 transition-opacity">Edit Config</button>
+                  <ChevronRight size={20} color="#9ca3af" />
                </div>
-               
-               <h3 className="text-2xl font-black uppercase mb-1">{m.title}</h3>
-               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-8">{m.desc}</p>
-               
-               <div className="mt-auto space-y-4">
-                  {m.details.map((d, j) => (
-                    <div key={j} className="flex items-center justify-between border-b-2 border-black/10 pb-2">
-                       <span className="text-[11px] font-black uppercase opacity-60">{d.label}</span>
-                       <span className="text-sm font-black italic">{d.value}</span>
+            ))}
+          </div>
+
+          <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-4">System</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', border: '2px solid #000', backgroundColor: '#fff', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+            {systemModules.map((m, i) => (
+               <div 
+                  key={i} 
+                  style={{ 
+                     display: 'flex', 
+                     justifyContent: 'space-between', 
+                     alignItems: 'center', 
+                     padding: '1.5rem', 
+                     borderBottom: i < systemModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
+                     cursor: 'pointer',
+                     backgroundColor: '#fff',
+                     transition: 'background-color 0.1s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+               >
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{m.title}</h3>
+                  <ChevronRight size={20} color="#9ca3af" />
+               </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {selectedModule && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '90%', maxWidth: '500px', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                 <div>
+                    <h3 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>{selectedModule.title}</h3>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#6b7280', marginTop: '0.5rem' }}>{selectedModule.desc}</p>
+                 </div>
+                 <button onClick={() => setSelectedModule(null)} style={{ background: 'none', border: '2px solid #000', padding: '0.25rem', cursor: 'pointer', color: '#000' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                 </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+                 {selectedModule.details?.map((d: any, j: number) => (
+                    <div key={j} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px dashed rgba(0,0,0,0.2)', paddingBottom: '0.75rem' }}>
+                       <span style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#4b5563' }}>{d.label}</span>
+                       <span style={{ fontSize: '1.125rem', fontWeight: 900 }}>{d.value}</span>
                     </div>
-                  ))}
-               </div>
-            </div>
-          ))}
+                 ))}
+                 {(!selectedModule.details || selectedModule.details.length === 0) && (
+                    <p style={{ fontStyle: 'italic', opacity: 0.5, fontWeight: 900 }}>Module requires system administrator unlock.</p>
+                 )}
+              </div>
+
+              <button onClick={() => setSelectedModule(null)} style={{ width: '100%', padding: '1rem', backgroundColor: '#000', color: '#fff', fontWeight: 900, textTransform: 'uppercase', border: 'none', marginTop: '2.5rem', cursor: 'pointer', fontSize: '1rem' }}>
+                 Acknowledge
+              </button>
+           </div>
         </div>
       )}
     </div>

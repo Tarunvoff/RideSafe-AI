@@ -30,11 +30,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const adminApi = {
   getDashboard: () => request<any>('/admin/dashboard'),
   getWorkers: (params: any = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const cleanParams: any = {};
+    for (const key in params) {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+        cleanParams[key] = params[key];
+      }
+    }
+    const query = new URLSearchParams(cleanParams).toString();
     return request<any[]>(`/admin/workers?${query}`);
   },
   getClaims: (params: any = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const cleanParams: any = {};
+    for (const key in params) {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+        cleanParams[key] = params[key];
+      }
+    }
+    const query = new URLSearchParams(cleanParams).toString();
     return request<any>(`/admin/claims?${query}`);
   },
   getAlerts: () => request<any>('/admin/alerts'),

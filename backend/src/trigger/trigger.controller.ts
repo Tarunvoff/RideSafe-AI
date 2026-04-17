@@ -34,6 +34,7 @@ export class TriggerController {
   }
 
   @Post('zone-drivers')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async listZoneDrivers(@Body() dto: { h3Cell: string }) {
     const drivers = await this.triggerService.getZoneDrivers(dto.h3Cell);

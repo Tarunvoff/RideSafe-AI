@@ -5,6 +5,7 @@ import { StateModule } from '../state/state.module';
 import { FraudIntegrationModule } from '../fraud-integration/fraud-integration.module';
 import { PayoutModule } from '../payout/payout.module';
 import { PremiumModule } from '../premium/premium.module';
+import { TriggerModule } from '../trigger/trigger.module';
 import { InsuranceController } from './insurance.controller';
 import { InsuranceService } from './insurance.service';
 import { PolicyController } from './policy.controller';
@@ -19,9 +20,10 @@ import { ClaimOrchestratorService } from './claim-orchestrator.service';
     FraudIntegrationModule,
     PayoutModule,
     PremiumModule,
+    forwardRef(() => TriggerModule),
   ],
   controllers: [InsuranceController, PolicyController, ClaimsController],
   providers: [InsuranceService, ClaimOrchestratorService],
-  exports: [ClaimOrchestratorService],
+  exports: [InsuranceService, ClaimOrchestratorService],
 })
 export class InsuranceModule {}

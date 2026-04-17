@@ -33,7 +33,7 @@ export async function assertDriverPolicyEligibility(
   userId: string,
   planKey?: string | null,
 ): Promise<{ engagementDays: number; requiredDays: number; kycStatus: KYCStatus }> {
-  const [user, kycProfile, payoutSetup] = await Promise.all([
+  const [user, kycProfile] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, isVerified: true, createdAt: true },
@@ -41,10 +41,6 @@ export async function assertDriverPolicyEligibility(
     prisma.kYCProfile.findUnique({
       where: { userId },
       select: { status: true },
-    }),
-    prisma.kYCPayoutSetup.findUnique({
-      where: { userId },
-      select: { financialDataConsent: true },
     }),
   ]);
 
@@ -66,6 +62,11 @@ export async function assertDriverPolicyEligibility(
       kycStatus: kycProfile?.status ?? KYCStatus.NOT_STARTED,
     };
   }
+
+  const payoutSetup = await prisma.kYCPayoutSetup.findUnique({
+    where: { userId },
+    select: { financialDataConsent: true },
+  });
 
   if (!kycProfile || kycProfile.status !== 'APPROVED') {
     throw new ForbiddenException('KYC must be approved before policy enrollment or payout processing.');

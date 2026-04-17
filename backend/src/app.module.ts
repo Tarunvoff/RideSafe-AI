@@ -18,6 +18,7 @@ import { InsuranceModule } from './insurance/insurance.module';
 import { AdminModule } from './admin/admin.module';
 import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CanonicalModule } from './canonical/canonical.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AdminModule,
     SupportModule,
     NotificationsModule,
+    CanonicalModule,
   ],
 })
 export class AppModule {}

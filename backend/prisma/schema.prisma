@@ -28,6 +28,41 @@ enum PayoutMethod {
   BANK
 }
 
+enum BillingMandateStatus {
+  ACTIVE
+  PAUSED
+  FAILED
+  REVOKED
+}
+
+enum PremiumInvoiceStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  WAIVED
+}
+
+enum ChargeAttemptStatus {
+  STARTED
+  SUCCESS
+  FAILED
+}
+
+enum ClaimCaseStatus {
+  OPEN
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum TriggerDecision {
+  APPROVED
+  HOLD
+  REJECTED
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -54,6 +89,9 @@ model User {
   claimFingerprints     ClaimFingerprint[]
   policies              Policy[]
   razorpayOrders       RazorpayOrder[]
+  billingMandates      BillingMandate[]
+  premiumInvoices      PremiumInvoice[]
+  claimCases           ClaimCase[]
 
   @@map("users")
 }
@@ -199,6 +237,8 @@ model DisruptionEvent {
   createdAt    DateTime @default(now())
 
   payouts      Payout[]
+  claimCases   ClaimCase[]
+  triggerLogs  TriggerEventLog[]
 
   @@map("disruption_events")
 }
@@ -221,6 +261,9 @@ model Policy {
   weeklyPlan   WeeklyPlan? @relation(fields: [weeklyPlanId], references: [id], onDelete: SetNull)
 
   payouts      Payout[]
+  billingMandates BillingMandate[]
+  premiumInvoices PremiumInvoice[]
+  claimCases      ClaimCase[]
 
   @@map("policies")
 }
@@ -251,6 +294,144 @@ model Payout {
 
   @@unique([policyId, disruptionEventId])
   @@map("payouts")
+}
+
+model BillingMandate {
+  id                String              @id @default(uuid())
+  userId            String
+  policyId          String
+  provider          String              @default("RAZORPAY")
+  providerMandateId String?
+  status            BillingMandateStatus @default(ACTIVE)
+  nextChargeAt      DateTime
+  lastChargedAt     DateTime?
+  failureCount      Int                 @default(0)
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy            Policy              @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  invoices          PremiumInvoice[]
+
+  @@index([userId, status])
+  @@index([policyId, status])
+  @@map("billing_mandates")
+}
+
+model PremiumInvoice {
+  id                String             @id @default(uuid())
+  userId            String
+  policyId          String
+  mandateId         String?
+  billingCycleStart DateTime           @map("billing_cycle_start")
+  billingCycleEnd   DateTime           @map("billing_cycle_end")
+  amountDue         Float              @map("amount_due")
+  amountPaid        Float?             @default(0) @map("amount_paid")
+  status            PremiumInvoiceStatus @default(PENDING)
+  dueAt             DateTime           @map("due_at")
+  paidAt            DateTime?          @map("paid_at")
+  failureReason     String?            @map("failure_reason")
+  correlationId     String?            @map("correlation_id")
+  metadata          Json?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy            Policy             @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  mandate           BillingMandate?    @relation(fields: [mandateId], references: [id], onDelete: SetNull)
+  attempts          PremiumChargeAttempt[]
+  ledgerEntries     PremiumLedgerEntry[]
+
+  @@unique([policyId, billingCycleStart])
+  @@index([userId, status, dueAt])
+  @@index([status, dueAt])
+  @@map("premium_invoices")
+}
+
+model PremiumChargeAttempt {
+  id                String            @id @default(uuid())
+  invoiceId         String
+  attemptNumber     Int               @default(1) @map("attempt_number")
+  status            ChargeAttemptStatus @default(STARTED)
+  gatewayProvider   String            @default("RAZORPAY") @map("gateway_provider")
+  gatewayReference  String?           @map("gateway_reference")
+  errorCode         String?           @map("error_code")
+  errorMessage      String?           @map("error_message")
+  correlationId     String?           @map("correlation_id")
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  invoice           PremiumInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, attemptNumber])
+  @@index([status, createdAt])
+  @@map("premium_charge_attempts")
+}
+
+model PremiumLedgerEntry {
+  id                String          @id @default(uuid())
+  userId            String
+  policyId          String
+  invoiceId         String
+  direction         String
+  amount            Float
+  currency          String          @default("INR")
+  description       String?
+  correlationId     String?         @map("correlation_id")
+  createdAt         DateTime        @default(now())
+
+  invoice           PremiumInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([policyId, createdAt])
+  @@map("premium_ledger_entries")
+}
+
+model ClaimCase {
+  id                String          @id @default(uuid())
+  userId            String
+  policyId          String
+  disruptionEventId String
+  payoutId          String?         @unique
+  status            ClaimCaseStatus @default(OPEN)
+  reasonCode        String?
+  fraudScore        Float?
+  decisionNote      String?
+  correlationId     String?         @map("correlation_id")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy            Policy          @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  disruptionEvent   DisruptionEvent @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, disruptionEventId])
+  @@index([userId, status, createdAt])
+  @@map("claim_cases")
+}
+
+model TriggerEventLog {
+  id                String          @id @default(uuid())
+  userId            String?
+  policyId          String?
+  disruptionEventId String?
+  h3Cell            String          @map("h3_cell")
+  decision          TriggerDecision
+  source            String
+  reason            String?
+  riskScore         Float?
+  correlationId     String?         @map("correlation_id")
+  eventTimestamp    Int?            @map("event_timestamp")
+  createdAt         DateTime        @default(now())
+
+  disruptionEvent   DisruptionEvent? @relation(fields: [disruptionEventId], references: [id], onDelete: SetNull)
+
+  @@index([h3Cell, createdAt])
+  @@index([decision, createdAt])
+  @@index([userId, createdAt])
+  @@map("trigger_event_logs")
 }
 
 model RazorpayOrder {

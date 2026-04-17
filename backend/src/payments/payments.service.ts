@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PayoutIdempotencyService } from './payout-idempotency.service';
 import { PremiumService } from '../premium/premium.service';
@@ -79,8 +80,12 @@ export class PaymentsService {
       .update(body)
       .digest('hex');
 
-    // Constant-time compare would be nicer, but simple compare is fine for this flow.
-    return expected === signature;
+    const expectedBuffer = Buffer.from(expected, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    if (expectedBuffer.length !== signatureBuffer.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
   }
 
   private resolveTierCapForPlanKey(planKey?: string | null): number {
@@ -484,8 +489,14 @@ export class PaymentsService {
     eventTimestamp: number;
     h3Cell: string;
     approvedPayout: number;
+    correlationId?: string;
   }) {
     const { userId, policyId, disruptionEventId, eventTimestamp, h3Cell, approvedPayout } = dto;
+    const correlationId = dto.correlationId ?? `payout_${randomUUID()}`;
+
+    this.logger.log(
+      `cid=${correlationId} payout processing started user=${userId} policy=${policyId} disruption=${disruptionEventId}`,
+    );
 
     const policy = await this.prisma.policy.findUnique({
       where: { id: policyId },
@@ -501,7 +512,7 @@ export class PaymentsService {
     const check = await this.idempotency.checkOrCreate(userId, h3Cell, eventTimestamp);
 
     if (!check.shouldProcess) {
-      this.logger.log(`Skipping payout for user ${userId} / cell ${h3Cell} — already processed`);
+      this.logger.log(`cid=${correlationId} skipping payout for user ${userId} / cell ${h3Cell} already processed`);
       return { success: true, cached: true, state: check.state, payoutId: check.cachedPayoutId };
     }
 
@@ -515,6 +526,31 @@ export class PaymentsService {
       });
       if (existingPayout) {
         await this.idempotency.markSuccess(check.idempotencyId, existingPayout.id);
+        await this.prisma.claimCase.upsert({
+          where: {
+            policyId_disruptionEventId: {
+              policyId,
+              disruptionEventId,
+            },
+          },
+          update: {
+            status: existingPayout.status === 'APPROVED' ? 'PAID' : 'APPROVED',
+            payoutId: existingPayout.id,
+            reasonCode: 'REUSED_EXISTING_PAYOUT',
+            decisionNote: 'Duplicate disruption event handled idempotently',
+            correlationId,
+          },
+          create: {
+            userId,
+            policyId,
+            disruptionEventId,
+            payoutId: existingPayout.id,
+            status: existingPayout.status === 'APPROVED' ? 'PAID' : 'APPROVED',
+            reasonCode: 'REUSED_EXISTING_PAYOUT',
+            decisionNote: 'Duplicate disruption event handled idempotently',
+            correlationId,
+          },
+        });
         return {
           success: true,
           cached: true,
@@ -534,6 +570,32 @@ export class PaymentsService {
           estimatedLoss: approvedPayout,
           paymentMethod: 'AUTO',
           processingTime: new Date().toISOString(),
+        },
+      });
+
+      await this.prisma.claimCase.upsert({
+        where: {
+          policyId_disruptionEventId: {
+            policyId,
+            disruptionEventId,
+          },
+        },
+        update: {
+          status: 'UNDER_REVIEW',
+          payoutId: payout.id,
+          reasonCode: 'AUTO_PARAMETRIC_TRIGGER',
+          decisionNote: 'Claim case opened from validated parametric disruption',
+          correlationId,
+        },
+        create: {
+          userId,
+          policyId,
+          disruptionEventId,
+          payoutId: payout.id,
+          status: 'UNDER_REVIEW',
+          reasonCode: 'AUTO_PARAMETRIC_TRIGGER',
+          decisionNote: 'Claim case opened from validated parametric disruption',
+          correlationId,
         },
       });
 
@@ -563,6 +625,9 @@ export class PaymentsService {
       const payoutAmountPaise = Math.max(100, Math.round(approvedPayout * 100));
       const hasSourceAccount = Boolean(process.env.RAZORPAYX_SOURCE_ACCOUNT);
       const testMode = this.isRazorpayTestMode();
+      const transferRail = hasSourceAccount
+        ? `RAZORPAYX_${String(payoutSetup.method ?? 'UPI').toUpperCase()}`
+        : 'SYNTHETIC_TEST_REFERENCE';
 
       const razorpayPayout = hasSourceAccount
         ? await (async () => {
@@ -583,7 +648,7 @@ export class PaymentsService {
               throw new BadRequestException('RAZORPAYX_SOURCE_ACCOUNT is missing');
             })();
 
-      this.logger.log(`RazorpayX payout created: ${razorpayPayout.id}`);
+      this.logger.log(`cid=${correlationId} RazorpayX payout created id=${razorpayPayout.id}`);
 
       // 5. Mark as SUCCESS in both places
       await this.prisma.payout.update({
@@ -604,24 +669,52 @@ export class PaymentsService {
       });
       this.logger.log(`RazorpayX payout reference recorded: ${bankReference}`);
 
+      await this.prisma.claimCase.updateMany({
+        where: { policyId, disruptionEventId },
+        data: {
+          status: 'PAID',
+          decisionNote: `Payout transferred with reference ${bankReference}`,
+          correlationId,
+        },
+      });
+
       const disruption = await this.prisma.disruptionEvent.findUnique({
         where: { id: disruptionEventId },
         select: { type: true },
       });
 
       if (user?.email) {
-        await this.notifications.send({
-          channel: 'EMAIL',
-          type: 'CLAIM_APPROVED',
-          recipient: user.email,
-          payload: {
-          driverName: user.driverName ?? 'Driver',
-          amount: approvedPayout,
-          transactionId: razorpayPayout.id,
-          disruptionType: disruption?.type ?? 'Weather Event',
-          },
-          context: { user_id: userId, policy_id: policyId, event_type: disruption?.type ?? 'Weather Event' },
-        });
+        try {
+          await this.withRetry(async () => {
+            const result = await this.notifications.send({
+              channel: 'EMAIL',
+              type: 'CLAIM_APPROVED',
+              recipient: user.email,
+              payload: {
+                driverName: user.driverName ?? 'Driver',
+                amount: approvedPayout,
+                transactionId: razorpayPayout.id,
+                disruptionType: disruption?.type ?? 'Weather Event',
+              },
+              context: {
+                user_id: userId,
+                policy_id: policyId,
+                event_type: disruption?.type ?? 'Weather Event',
+                correlation_id: correlationId,
+              },
+            });
+
+            if (!result.ok) {
+              throw new Error('Notification dispatch returned non-ok result');
+            }
+
+            return result;
+          }, 2);
+        } catch (notifyErr: any) {
+          this.logger.error(
+            `cid=${correlationId} payout succeeded but notification failed for user=${userId}: ${notifyErr?.message ?? notifyErr}`,
+          );
+        }
       }
 
       await this.idempotency.markSuccess(check.idempotencyId, payout.id);
@@ -632,6 +725,8 @@ export class PaymentsService {
         state: 'SUCCESS',
         payoutId: payout.id,
         transactionId: razorpayPayout.id,
+        transferRail,
+        transferReference: bankReference,
       };
     } catch (err: any) {
       // 6. If anything fails (DB or gateway) → mark FAILED
@@ -647,10 +742,39 @@ export class PaymentsService {
             where: { id: existingPayout.id },
             data: { status: 'REJECTED' },
           });
-        }
-      } catch (e) {}
 
-      this.logger.error(`Parametric payout failed: ${err.message}`);
+          await this.prisma.claimCase.updateMany({
+            where: { policyId, disruptionEventId },
+            data: {
+              payoutId: existingPayout.id,
+              status: 'REJECTED',
+              reasonCode: 'PAYOUT_FAILED',
+              decisionNote: err?.message ?? 'Payout failed',
+              correlationId,
+            },
+          });
+        }
+      } catch (updateErr: any) {
+        this.logger.error(
+          `cid=${correlationId} failed to persist payout rejection state policy=${policyId} disruption=${disruptionEventId}: ${updateErr?.message ?? updateErr}`,
+        );
+
+        await this.prisma.kafkaDLQ.create({
+          data: {
+            topic: 'PAYOUT_STATE_PERSIST_FAILED',
+            eventKey: userId,
+            payload: JSON.stringify({
+              policyId,
+              disruptionEventId,
+              correlationId,
+            }),
+            error: updateErr?.message ?? String(updateErr),
+            status: 'PENDING',
+          },
+        });
+      }
+
+      this.logger.error(`cid=${correlationId} parametric payout failed: ${err.message}`);
       throw new BadRequestException('Payout processing failed');
     }
   }

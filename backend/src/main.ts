@@ -11,7 +11,11 @@ process.on('warning', (warning) => {
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
+import { ApiResponseInterceptor } from './shared/api-response.interceptor';
+import { GlobalExceptionFilter } from './shared/global-exception.filter';
 
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
@@ -60,20 +64,49 @@ async function bootstrap() {
     }),
   );
 
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const headerValue = req.headers['x-correlation-id'];
+    const correlationId =
+      (Array.isArray(headerValue) ? headerValue[0] : headerValue) ||
+      randomUUID();
+
+    req.headers['x-correlation-id'] = correlationId;
+    res.setHeader('x-correlation-id', correlationId);
+    next();
+  });
+  app.useGlobalInterceptors(new ApiResponseInterceptor());
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
   // Enable CORS for the mobile app and web frontend
   app.enableCors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-correlation-id'],
+    exposedHeaders: ['x-correlation-id'],
     credentials: false,
   });
 
   // Global prefix
   app.setGlobalPrefix('api');
 
-  const port = process.env.PORT ?? 3001;
-  await app.listen(port, '0.0.0.0');
-  console.log(`✅ Aegis NestJS API running on http://0.0.0.0:${port}/api`);
+  const basePort = Number(process.env.PORT ?? 3001);
+  let boundPort = basePort;
+
+  try {
+    await app.listen(boundPort, '0.0.0.0');
+  } catch (err: any) {
+    if (err?.code === 'EADDRINUSE') {
+      boundPort = basePort + 1;
+      console.warn(
+        `Port ${basePort} is already in use. Falling back to ${boundPort}. Set PORT explicitly to override.`,
+      );
+      await app.listen(boundPort, '0.0.0.0');
+    } else {
+      throw err;
+    }
+  }
+
+  console.log(`✅ Aegis NestJS API running on http://0.0.0.0:${boundPort}/api`);
 }
 
 bootstrap();

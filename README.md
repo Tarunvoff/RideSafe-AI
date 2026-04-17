@@ -26,6 +26,35 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 </div>
 
 
+## Insurance Sense Status (Current Ubuntu Branch)
+
+This is the current implementation reality for checklist items 28-36.
+
+- [28] Objective trigger thresholds: DONE. `TriggerService` now returns explicit threshold evaluation (`zoneRequiredStates`, `lfMinApprove`, fraud hold/reject thresholds) on the approval path.
+- [29] Fully automatic payout path: DONE. Flow is trigger -> GPS/H3 zone match -> fraud check -> payout transfer via RazorpayX (UPI/BANK) with explicit transfer rail metadata; synthetic reference mode remains only for test/demo when source account is absent.
+- [30] Sustainability metric: DONE. Admin analytics returns `lossRatio`, `lossRatioPercent`, and `benefitCostRatio`.
+- [31] Fraud is data-driven: DONE. GPS, H3 consistency, velocity, and burst signals are active in fraud scoring.
+- [32] Frictionless premium collection: DONE. Recurring premium collection runs hourly with billing mandates and invoices; optional live debit webhook integration supports non-simulated recurring collection.
+- [33] Dynamic pricing: DONE. Premium uses risk-linked dynamic computation (`Ew`, `Lf`, `Ct`) with service fallback.
+- [34] Adverse selection lockout: DONE. New policies have a 24-hour cooling-off period; payout rejects lockout period usage.
+- [35] Straight-through operations: DONE (Post-remediation). Payout retry queue and fraud review queue now auto-resolve via scheduled STP processors with threshold-based outcomes and exhaustion-to-DLQ controls.
+- [36] Hyper-local basis risk control: DONE. H3 cell and policy zone consistency checks are enforced before payout.
+
+### Recurring Billing Integration Variables
+
+- `RECURRING_BILLING_DEBIT_WEBHOOK_URL`: Live recurring debit connector endpoint (if set, billing uses live gateway path).
+- `RECURRING_BILLING_DEBIT_WEBHOOK_TOKEN`: Optional auth token sent as `x-aegis-recurring-token`.
+- `RECURRING_BILLING_ALLOW_SIMULATION`: Set to `false` to disallow synthetic recurring debits.
+
+### STP Automation Variables
+
+- `PAYOUT_RETRY_MAX_ATTEMPTS`: Max automatic payout retry attempts before DLQ dead-lettering.
+- `PAYOUT_RETRY_BATCH_SIZE`: Maximum retry jobs processed per cron cycle.
+- `FRAUD_AUTO_QUEUE_APPROVE_MAX`: Max risk score for automatic approval of inconclusive fraud queue cases.
+- `FRAUD_AUTO_QUEUE_REJECT_MIN`: Min risk score for automatic rejection in fraud queue.
+- `FRAUD_AUTO_QUEUE_BATCH_SIZE`: Maximum fraud queue records auto-resolved per cron cycle.
+
+
 
 ## Table of Contents
 

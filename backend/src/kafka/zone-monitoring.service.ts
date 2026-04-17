@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { Kafka, Consumer, logLevel } from 'kafkajs';
 import { ClaimOrchestratorService } from '../insurance/claim-orchestrator.service';
 import { RedisStateService } from '../state/redis-state.service';
@@ -19,9 +19,9 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
     private readonly zoneState = new Map<string, string>();
 
     constructor(
-        private readonly claimOrchestrator: ClaimOrchestratorService,
         private readonly redisState: RedisStateService,
-    ) { }
+        @Optional() private readonly claimOrchestrator?: ClaimOrchestratorService,
+    ) {}
 
     private normalizeZoneState(payload: Record<string, any>, h3Cell: string) {
         const state = (payload?.state ?? payload?.zone_state ?? 'UNKNOWN').toString().toUpperCase();
@@ -117,7 +117,13 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
                                 ? Math.floor(payload.timestamp)
                                 : Math.floor(Date.now() / 1000);
                             this.logger.log(`Zone ${h3Cell} entered HALTED → triggering auto-claims`);
-                            await this.claimOrchestrator.orchestrateZoneClaims(h3Cell, eventTimestamp);
+                            if (this.claimOrchestrator) {
+                                await this.claimOrchestrator.orchestrateZoneClaims(h3Cell, eventTimestamp);
+                            } else {
+                                this.logger.warn(
+                                    'ClaimOrchestratorService unavailable in Kafka context; skipping auto-claim dispatch',
+                                );
+                            }
                         }
                     },
                 });

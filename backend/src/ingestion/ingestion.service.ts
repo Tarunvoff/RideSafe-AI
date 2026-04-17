@@ -265,6 +265,7 @@ export class IngestionService {
       let selectedApiVersion: 'v1beta' | 'v1' = 'v1beta';
       const apiVersions: Array<'v1beta' | 'v1'> = ['v1beta', 'v1'];
       const failedAttempts: string[] = [];
+      let lastErrorPreview: string | null = null;
 
       for (const apiVersion of apiVersions) {
         for (const model of modelCandidates) {
@@ -292,6 +293,7 @@ export class IngestionService {
           }
 
           const non404Text = await tryRes.text();
+          lastErrorPreview = non404Text;
           failedAttempts.push(`${apiVersion}/${model}:${tryRes.status}:${non404Text.slice(0, 80)}`);
           res = tryRes;
           selectedModel = model;
@@ -312,9 +314,8 @@ export class IngestionService {
       }
 
       if (!res.ok) {
-        const errorText = await res.text();
         this.logger.warn(
-          `Gemini API failed with status ${res.status} for ${selectedApiVersion}/${selectedModel}. Error: ${errorText.slice(0, 100)}`,
+          `Gemini API failed with status ${res.status} for ${selectedApiVersion}/${selectedModel}. Error: ${(lastErrorPreview ?? '').slice(0, 100)}`,
         );
         return null;
       }

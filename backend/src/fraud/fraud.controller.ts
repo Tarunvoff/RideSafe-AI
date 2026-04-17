@@ -55,6 +55,7 @@ export class FraudController {
   }
 
   @Get('zone-risk')
+  @UseGuards(JwtAuthGuard)
   async getLiveZoneRisk(@Query('lat') lat: number, @Query('lng') lng: number) {
     if (!lat || !lng) return {};
     const resolution = 8;
@@ -63,6 +64,7 @@ export class FraudController {
   }
 
   @Get('zone-neighbors')
+  @UseGuards(JwtAuthGuard)
   async getZoneNeighbors(
     @Query('lat') lat: string,
     @Query('lng') lng: string,

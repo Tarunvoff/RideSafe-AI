@@ -6,6 +6,7 @@ import { RedisStateService, PARAMETRIC_TRIGGER_STATES } from '../state/redis-sta
 import { FraudIntegrationService } from '../fraud-integration/fraud-integration.service';
 import { PayoutService } from '../payout/payout.service';
 import { PremiumService } from '../premium/premium.service';
+import { TriggerService } from '../trigger/trigger.service';
 import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
 import { ctForPlan, normalizePlanTier } from './policy-tiers';
 import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
@@ -28,6 +29,7 @@ export class InsuranceService {
     private readonly fraudIntegration: FraudIntegrationService,
     private readonly payoutService: PayoutService,
     private readonly premiumService: PremiumService,
+    private readonly triggerService: TriggerService,
   ) {}
 
   private resolveCtOrThrow(planKey?: string | null) {
@@ -311,14 +313,23 @@ export class InsuranceService {
       this.logger.warn(`Fraud scoring failed for ${driverId}: ${err}`);
     }
 
+    const eventTimestamp = dto.eventTimestamp ?? Math.floor(Date.now() / 1000);
     const trigger = PARAMETRIC_TRIGGER_STATES.includes(zoneState.toUpperCase());
+    const triggerEvaluation = await this.triggerService.evaluateTrigger({
+      driverId,
+      h3Cell: h3Cell ?? undefined,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
+      fraudScore: fraudScore ?? undefined,
+      policyId: activePolicy.id,
+      eventTimestamp,
+    });
 
     const eligible = Boolean(activePolicy);
 
     let payoutAmount = 0;
     let transactionId: string | null = null;
     let decision: 'APPROVED' | 'HOLD' | 'REJECT' | 'NO_TRIGGER' = 'HOLD';
-    const eventTimestamp = dto.eventTimestamp ?? Math.floor(Date.now() / 1000);
 
     const policyState = await this.redisState.getPolicyState(activePolicy.id);
     const policyZone = policyState?.zone ?? null;
@@ -329,11 +340,13 @@ export class InsuranceService {
       decision = 'REJECT';
     } else if (!trigger) {
       decision = 'NO_TRIGGER';
+    } else if (triggerEvaluation.decision === 'HOLD') {
+      decision = 'HOLD';
     } else if (!policyZone || policyZone !== h3Cell) {
       decision = 'REJECT';
     } else if (fraudFailure || fraudScore == null) {
       decision = 'HOLD';
-    } else if (fraudScore > FRAUD_BLOCK_THRESHOLD) {
+    } else if (fraudScore > FRAUD_BLOCK_THRESHOLD || triggerEvaluation.decision === 'REJECTED') {
       decision = 'REJECT';
     } else {
       const payoutCalc = await this.payoutService.calculatePayout({
@@ -359,6 +372,23 @@ export class InsuranceService {
       } else {
         decision = 'HOLD';
       }
+
+      const payoutTransferRail =
+        'transferRail' in payoutResult ? (payoutResult.transferRail ?? null) : null;
+      const payoutTransferReference =
+        'transferReference' in payoutResult ? (payoutResult.transferReference ?? null) : null;
+
+      return {
+        plan: planKey,
+        Ct,
+        premium: activePolicy?.premium ?? 0,
+        payout: payoutAmount,
+        decision,
+        transactionId,
+        payoutTransferRail,
+        payoutTransferReference,
+        triggerEvaluation,
+      };
     }
 
     return {
@@ -368,6 +398,7 @@ export class InsuranceService {
       payout: payoutAmount,
       decision,
       transactionId,
+      triggerEvaluation,
     };
   }
 
