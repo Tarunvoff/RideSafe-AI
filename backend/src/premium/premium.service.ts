@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.service';
 import { RedisStateService } from '../state/redis-state.service';
@@ -21,6 +23,14 @@ type RiskScoreResponse = {
   model_used: 'xgboost' | 'fallback';
 };
 
+type ActivePolicyWithPlan = {
+  id: string;
+  userId: string;
+  startDate: Date;
+  endDate: Date;
+  weeklyPlanId: string | null;
+};
+
 @Injectable()
 export class PremiumService {
   private readonly logger = new Logger(PremiumService.name);
@@ -31,6 +41,335 @@ export class PremiumService {
     private readonly dynamicQCommerce: DynamicQCommerceService,
     private readonly redisState: RedisStateService,
   ) {}
+
+  private async withRetry<T>(operation: () => Promise<T>, retries = 2): Promise<T> {
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (attempt > retries) break;
+        this.logger.warn(`Recurring billing transient failure at attempt ${attempt}; retrying`);
+      }
+    }
+    throw lastError;
+  }
+
+  private resolveCycleWindow(policyStartDate: Date, now: Date) {
+    const elapsedMs = Math.max(0, now.getTime() - policyStartDate.getTime());
+    const cycleIndex = Math.floor(elapsedMs / (7 * 24 * 60 * 60 * 1000));
+    const billingCycleStart = new Date(policyStartDate.getTime() + cycleIndex * 7 * 24 * 60 * 60 * 1000);
+    const billingCycleEnd = new Date(billingCycleStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return { billingCycleStart, billingCycleEnd };
+  }
+
+  private async ensureBillingMandate(policy: ActivePolicyWithPlan, now: Date) {
+    const existing = await this.prisma.billingMandate.findFirst({
+      where: { policyId: policy.id, status: { in: ['ACTIVE', 'PAUSED', 'FAILED'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) return existing;
+
+    return this.prisma.billingMandate.create({
+      data: {
+        userId: policy.userId,
+        policyId: policy.id,
+        status: 'ACTIVE',
+        nextChargeAt: now,
+      },
+    });
+  }
+
+  private async ensureCycleInvoice(params: {
+    policy: ActivePolicyWithPlan;
+    mandateId: string;
+    now: Date;
+    correlationId: string;
+  }) {
+    const { policy, mandateId, now, correlationId } = params;
+    const { billingCycleStart, billingCycleEnd } = this.resolveCycleWindow(policy.startDate, now);
+
+    const existing = await this.prisma.premiumInvoice.findUnique({
+      where: {
+        policyId_billingCycleStart: {
+          policyId: policy.id,
+          billingCycleStart,
+        },
+      },
+    });
+    if (existing) return existing;
+
+    const premium = await this.calculateWeeklyPremium(policy.userId, policy.weeklyPlanId ?? undefined);
+
+    return this.prisma.premiumInvoice.create({
+      data: {
+        userId: policy.userId,
+        policyId: policy.id,
+        mandateId,
+        billingCycleStart,
+        billingCycleEnd,
+        amountDue: premium.premium,
+        status: 'PENDING',
+        dueAt: now,
+        correlationId,
+        metadata: {
+          inputs: {
+            Ew: premium.Ew,
+            Lf: premium.Lf,
+            Ct: premium.Ct,
+            active_days: premium.active_days,
+          },
+          bounds: premium.bounds,
+        },
+      },
+    });
+  }
+
+  private async executeRecurringDebit(params: {
+    invoice: any;
+    amountRupees: number;
+    correlationId: string;
+    attemptNumber: number;
+  }) {
+    const { invoice, amountRupees, correlationId, attemptNumber } = params;
+    const gatewayUrl = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_URL;
+    const gatewayToken = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_TOKEN;
+    const allowSimulation = (process.env.RECURRING_BILLING_ALLOW_SIMULATION ?? 'true').toLowerCase() === 'true';
+
+    if (gatewayUrl) {
+      if (!invoice.mandate?.providerMandateId) {
+        throw new Error('Recurring billing mandate provider id is missing for live debit');
+      }
+
+      const response = await this.withRetry(
+        () =>
+          fetch(gatewayUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(gatewayToken ? { 'x-aegis-recurring-token': gatewayToken } : {}),
+            },
+            body: JSON.stringify({
+              invoiceId: invoice.id,
+              userId: invoice.userId,
+              policyId: invoice.policyId,
+              mandateId: invoice.mandateId,
+              provider: invoice.mandate?.provider ?? 'RAZORPAY',
+              providerMandateId: invoice.mandate?.providerMandateId,
+              amountRupees,
+              amountPaise: Math.round(amountRupees * 100),
+              currency: 'INR',
+              attemptNumber,
+              correlationId,
+            }),
+          }),
+        2,
+      );
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Recurring billing gateway failed (${response.status}): ${body}`);
+      }
+
+      const data = await response.json().catch(() => ({} as any));
+      const gatewayReference =
+        data?.gatewayReference ?? data?.referenceId ?? data?.transactionId ?? data?.id ?? `rec_live_${Date.now()}`;
+
+      return {
+        simulated: false,
+        gatewayReference,
+      };
+    }
+
+    if (!allowSimulation) {
+      throw new Error('Recurring billing mandate debit integration is not configured');
+    }
+
+    return {
+      simulated: true,
+      gatewayReference: `rec_bill_${Date.now()}_${attemptNumber}`,
+    };
+  }
+
+  private async processInvoiceCharge(invoiceId: string, correlationId: string) {
+    const invoice = await this.prisma.premiumInvoice.findUnique({
+      where: { id: invoiceId },
+      include: { mandate: true },
+    });
+    if (!invoice) {
+      this.logger.warn(`cid=${correlationId} recurring charge skipped: invoice missing (${invoiceId})`);
+      return;
+    }
+    if (invoice.status === 'PAID' || invoice.status === 'WAIVED') return;
+
+    const attemptNumber = (await this.prisma.premiumChargeAttempt.count({ where: { invoiceId } })) + 1;
+    const attempt = await this.prisma.premiumChargeAttempt.create({
+      data: {
+        invoiceId,
+        attemptNumber,
+        status: 'STARTED',
+        correlationId,
+      },
+    });
+
+    await this.prisma.premiumInvoice.update({
+      where: { id: invoiceId },
+      data: { status: 'PROCESSING', correlationId },
+    });
+
+    try {
+      const debit = await this.executeRecurringDebit({
+        invoice,
+        amountRupees: invoice.amountDue,
+        correlationId,
+        attemptNumber: attempt.attemptNumber,
+      });
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.premiumChargeAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            status: 'SUCCESS',
+            gatewayReference: debit.gatewayReference,
+            metadata: {
+              simulated: debit.simulated,
+            },
+          },
+        });
+
+        await tx.premiumInvoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: 'PAID',
+            amountPaid: invoice.amountDue,
+            paidAt: new Date(),
+            failureReason: null,
+          },
+        });
+
+        await tx.premiumLedgerEntry.create({
+          data: {
+            userId: invoice.userId,
+            policyId: invoice.policyId,
+            invoiceId,
+            direction: 'CREDIT',
+            amount: invoice.amountDue,
+            description: `Recurring premium for cycle ${invoice.billingCycleStart.toISOString()}`,
+            correlationId,
+          },
+        });
+
+        if (invoice.mandateId) {
+          await tx.billingMandate.update({
+            where: { id: invoice.mandateId },
+            data: {
+              status: 'ACTIVE',
+              lastChargedAt: new Date(),
+              nextChargeAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              failureCount: 0,
+            },
+          });
+        }
+      });
+
+      this.logger.log(`cid=${correlationId} recurring premium collected invoice=${invoiceId}`);
+    } catch (error: any) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.premiumChargeAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            status: 'FAILED',
+            errorCode: 'RECURRING_CHARGE_FAILED',
+            errorMessage: error?.message ?? 'Unknown recurring billing error',
+          },
+        });
+
+        await tx.premiumInvoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: 'FAILED',
+            failureReason: error?.message ?? 'Unknown recurring billing error',
+            correlationId,
+          },
+        });
+
+        if (invoice.mandateId) {
+          await tx.billingMandate.update({
+            where: { id: invoice.mandateId },
+            data: {
+              status: 'FAILED',
+              failureCount: { increment: 1 },
+              nextChargeAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+        }
+      });
+
+      this.logger.error(
+        `cid=${correlationId} recurring premium charge failed invoice=${invoiceId} reason=${error?.message ?? error}`,
+      );
+    }
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async runRecurringBilling() {
+    const correlationId = `recurring_${randomUUID()}`;
+    const now = new Date();
+
+    const policies = await this.prisma.policy.findMany({
+      where: {
+        status: 'ACTIVE',
+        startDate: { lte: now },
+        endDate: { gt: now },
+      },
+      select: {
+        id: true,
+        userId: true,
+        startDate: true,
+        endDate: true,
+        weeklyPlanId: true,
+      },
+    });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const policy of policies) {
+      try {
+        const mandate = await this.ensureBillingMandate(policy, now);
+        if (mandate.status !== 'ACTIVE') {
+          this.logger.warn(`cid=${correlationId} recurring billing skipped inactive mandate policy=${policy.id}`);
+          continue;
+        }
+        if (mandate.nextChargeAt > now) continue;
+
+        const invoice = await this.ensureCycleInvoice({
+          policy,
+          mandateId: mandate.id,
+          now,
+          correlationId,
+        });
+
+        if (invoice.status === 'PAID' || invoice.status === 'WAIVED') {
+          successCount += 1;
+          continue;
+        }
+
+        await this.processInvoiceCharge(invoice.id, correlationId);
+        successCount += 1;
+      } catch (error: any) {
+        failedCount += 1;
+        this.logger.error(
+          `cid=${correlationId} recurring billing failed for policy=${policy.id} reason=${error?.message ?? error}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `cid=${correlationId} recurring billing run complete policies=${policies.length} success=${successCount} failed=${failedCount}`,
+    );
+  }
 
   private resolveCt(planKey?: string | null) {
     const Ct = ctForPlan(planKey ?? null);

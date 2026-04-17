@@ -166,4 +166,17 @@ export class RedisStateService {
       this.logger.warn(`[Redis state] payout retry enqueue failed: ${err}`);
     }
   }
+
+  async popPayoutRetry(): Promise<Record<string, any> | null> {
+    const redis = await this.getRedis();
+    if (!redis) return null;
+    try {
+      const raw = await redis.rPop('payout_retry_queue');
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (err) {
+      this.logger.warn(`[Redis state] payout retry dequeue failed: ${err}`);
+      return null;
+    }
+  }
 }

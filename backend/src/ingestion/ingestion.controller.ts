@@ -1,11 +1,13 @@
-import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { IngestionService } from './ingestion.service';
+import { AdminGuard } from '../auth/jwt-auth.guard';
 
 @Controller('ingestion')
 export class IngestionController {
   constructor(private readonly ingestionService: IngestionService) {}
 
   @Get('test-sweep')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async forceTestIngestion() {
     // Manually force the AI Cron Job to trigger immediately instead of waiting 10 minutes

@@ -21,6 +21,7 @@ export class TelemetryController {
   }
 
   @Post('ingest-batch')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async ingestHighVolumeTelemetryBatch(@Body() body: any) {
     if (!body.events || !Array.isArray(body.events)) {
@@ -50,6 +51,7 @@ export class TelemetryController {
   }
 
   @Post('location-failure')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   reportLocationFailure(@Body() dto: LocationFailureDto) {
     this.telemetryService.reportLocationFailure(dto);

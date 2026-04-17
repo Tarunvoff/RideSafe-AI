@@ -1,11 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import * as h3 from 'h3-js';
 
 // ── Python Fraud Feature Service (port 8002) ──────────────────────────────────
-const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL ?? 'http://localhost:8002';
+const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL;
+const FRAUD_AUTO_QUEUE_APPROVE_MAX = Number(process.env.FRAUD_AUTO_QUEUE_APPROVE_MAX ?? 55);
+const FRAUD_AUTO_QUEUE_REJECT_MIN = Number(process.env.FRAUD_AUTO_QUEUE_REJECT_MIN ?? 75);
+const FRAUD_AUTO_QUEUE_BATCH_SIZE = Number(process.env.FRAUD_AUTO_QUEUE_BATCH_SIZE ?? 50);
 
 // ── Shape of the Python service response ─────────────────────────────────────
 interface FraudFeatureResponse {
@@ -567,6 +571,52 @@ export class FraudService {
       velocityCheck:   analysis.velocityCheck,
       analysis:        JSON.parse(analysis.analysisDetails ?? '{}'),
     };
+  }
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async autoResolveFraudQueue() {
+    const pending = await this.prisma.fraudAnalysis.findMany({
+      where: { status: 'INCONCLUSIVE' },
+      orderBy: { createdAt: 'asc' },
+      take: FRAUD_AUTO_QUEUE_BATCH_SIZE,
+    });
+
+    if (pending.length === 0) return;
+
+    let approved = 0;
+    let rejected = 0;
+
+    for (const row of pending) {
+      const score = Number(row.riskScore ?? 0);
+      const autoStatus = score >= FRAUD_AUTO_QUEUE_REJECT_MIN
+        ? 'AUTO_REJECTED'
+        : score <= FRAUD_AUTO_QUEUE_APPROVE_MAX
+          ? 'APPROVED'
+          : 'AUTO_REJECTED';
+
+      const note = autoStatus === 'APPROVED'
+        ? `Auto-approved by STP queue policy (riskScore=${score}, maxApprove=${FRAUD_AUTO_QUEUE_APPROVE_MAX})`
+        : `Auto-rejected by STP queue policy (riskScore=${score}, rejectMin=${FRAUD_AUTO_QUEUE_REJECT_MIN})`;
+
+      await this.prisma.fraudAnalysis.update({
+        where: { id: row.id },
+        data: {
+          status: autoStatus,
+          reviewedAt: new Date(),
+          reviewNote: note,
+        },
+      });
+
+      if (autoStatus === 'APPROVED') {
+        approved += 1;
+      } else {
+        rejected += 1;
+      }
+    }
+
+    this.logger.log(
+      `Auto-resolved fraud queue entries total=${pending.length} approved=${approved} rejected=${rejected}`,
+    );
   }
 
   async getSubmissions() {

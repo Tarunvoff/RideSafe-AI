@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   BadRequestException,
   Body,
   Controller,
@@ -25,7 +26,7 @@ import {
   OAuthExchangeDto,
   OAuthTokenDto,
 } from './dto/auth.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { AdminGuard, JwtAuthGuard } from './jwt-auth.guard';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 
 @Controller('auth')
@@ -116,7 +117,11 @@ export class AuthController {
 
   @Post('seed/create-admin')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AdminGuard)
   seedAdmin() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Admin seed endpoint is disabled in production');
+    }
     return this.authService.seedAdmin();
   }
 

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
 import { RedisStateService } from '../state/redis-state.service';
@@ -16,6 +17,8 @@ const AEGIS_ERR_INVALID_PLAN = 'AEGIS_ERR_202';
 const AEGIS_ERR_ZONE_MISMATCH = 'AEGIS_ERR_203';
 const AEGIS_ERR_ZONE_NOT_HALTED = 'AEGIS_ERR_204';
 const AEGIS_ERR_H3_MISSING = 'AEGIS_ERR_205';
+const PAYOUT_RETRY_MAX_ATTEMPTS = Number(process.env.PAYOUT_RETRY_MAX_ATTEMPTS ?? 5);
+const PAYOUT_RETRY_BATCH_SIZE = Number(process.env.PAYOUT_RETRY_BATCH_SIZE ?? 25);
 
 @Injectable()
 export class PayoutService {
@@ -217,6 +220,8 @@ export class PayoutService {
         payoutId: payoutResult.payoutId,
         transactionId: payoutResult.transactionId ?? null,
         cached: payoutResult.cached ?? false,
+        transferRail: payoutResult.transferRail ?? null,
+        transferReference: payoutResult.transferReference ?? null,
       };
     } catch (err) {
       this.logger.error(
@@ -276,5 +281,61 @@ export class PayoutService {
       trigger: p.disruptionEvent?.type ?? 'UNKNOWN',
       createdAt: p.createdAt,
     }));
+  }
+
+  @Cron('0 */2 * * * *')
+  async processPayoutRetryQueue() {
+    let processed = 0;
+
+    while (processed < PAYOUT_RETRY_BATCH_SIZE) {
+      const entry = await this.redisState.popPayoutRetry();
+      if (!entry) break;
+
+      processed += 1;
+      const attempts = Number(entry.attempts ?? 0) + 1;
+
+      try {
+        await this.payments.processParametricPayout({
+          userId: entry.driverId,
+          policyId: entry.policyId,
+          disruptionEventId: entry.disruptionEventId,
+          eventTimestamp: Number(entry.eventTimestamp ?? Math.floor(Date.now() / 1000)),
+          h3Cell: String(entry.h3Cell),
+          approvedPayout: Number(entry.approvedPayout ?? 0),
+          correlationId: `retry_${Date.now()}_${processed}`,
+        });
+      } catch (err: any) {
+        if (attempts >= PAYOUT_RETRY_MAX_ATTEMPTS) {
+          await this.prisma.kafkaDLQ.create({
+            data: {
+              topic: 'PAYOUT_RETRY_EXHAUSTED',
+              eventKey: entry.driverId,
+              payload: JSON.stringify({
+                ...entry,
+                attempts,
+                exhaustedAt: new Date().toISOString(),
+              }),
+              error: err?.message ?? String(err),
+              status: 'DEAD',
+              retryCount: attempts,
+            },
+          });
+          this.logger.error(
+            `Payout retry exhausted for driver=${entry.driverId} disruption=${entry.disruptionEventId} attempts=${attempts}`,
+          );
+        } else {
+          await this.redisState.pushPayoutRetry({
+            ...entry,
+            attempts,
+            lastError: err?.message ?? String(err),
+            lastRetryAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    if (processed > 0) {
+      this.logger.log(`Processed payout retry queue batch size=${processed}`);
+    }
   }
 }

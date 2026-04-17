@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Request, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PremiumCalculateQueryDto } from './dto/premium-calculate-query.dto';
 import { WeeklyPremiumRequestDto } from './dto/weekly-premium.dto';
 import { PremiumService } from './premium.service';
@@ -29,6 +29,17 @@ export class PremiumController {
         Lf: result.Lf,
         Ct: result.Ct,
       },
+    };
+  }
+
+  @Post('recurring/run')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async runRecurringBilling() {
+    await this.premiumService.runRecurringBilling();
+    return {
+      success: true,
+      message: 'Recurring billing run completed',
     };
   }
 }

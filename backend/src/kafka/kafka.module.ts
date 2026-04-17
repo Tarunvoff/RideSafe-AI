@@ -1,11 +1,10 @@
 // kafka.module.ts — Aegis Stream 2 Kafka Pipeline
 // Production-grade module: DLQ service + Redis fallback + Reliable producer
 
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StateModule } from '../state/state.module';
-import { InsuranceModule } from '../insurance/insurance.module';
 
 import { KafkaProducerService } from './kafka.producer.service';
 import { KafkaReliableProducerService } from './kafka-reliable-producer.service';
@@ -19,7 +18,6 @@ import { logLevel } from 'kafkajs';
   imports: [
     PrismaModule,
     StateModule,
-    forwardRef(() => InsuranceModule),
     ClientsModule.register([
       {
         name: 'KAFKA_SERVICE',

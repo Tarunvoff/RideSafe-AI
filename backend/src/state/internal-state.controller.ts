@@ -1,11 +1,13 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { RedisStateService } from './redis-state.service';
+import { AdminGuard } from '../auth/jwt-auth.guard';
 
 @Controller('internal')
 export class InternalStateController {
   constructor(private readonly redisState: RedisStateService) {}
 
   @Post('zone-state')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async setZoneState(
     @Body()
