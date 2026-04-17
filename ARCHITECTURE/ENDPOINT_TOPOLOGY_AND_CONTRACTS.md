@@ -263,7 +263,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 
 50. **GET** `/premium/calculate` (Insurance Service)
 - **Service Domain**: NestJS Core / Premium
-- **Production Purpose**: Returns the current premium calculation logic for simulation purposes.
+- **Production Purpose**: Returns the current premium calculation logic for adversarial stress-testing.
 - **Enterprise Rationale**: Allows for "What-If" testing of pricing model adjustments for administrators.
 
 51. **POST** `/premium/recurring/run`
@@ -358,7 +358,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 
 69. **POST** `/dynamic-qcommerce/drivers/seed`
 - **Service Domain**: NestJS Core / QCommerce
-- **Production Purpose**: Developer utility for populating the simulation environment.
+- **Production Purpose**: Developer utility for populating the adversarial test layer.
 - **Enterprise Rationale**: Disabled in production environments to maintain data integrity.
 
 70. **POST** `/dynamic-qcommerce/drivers/create`

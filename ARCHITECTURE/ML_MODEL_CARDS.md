@@ -133,12 +133,12 @@ Unlike standard analytical systems, the Aegis 4-model ensemble is **wired direct
 > **Consensus-Driven Enforcement**: The trigger is not based on a single rule, but on the mathematical agreement of the GBDT and Isolation Forest models, ensuring that high-stakes SMS warnings are sent only when confidence is actuarially verified.
 
 ### Production-Grade Adversarial Red-Teaming (Best-in-Class)
-Aegis models are not just trained; they are **battle-hardened**. The pipeline includes unique adversarial auditing scripts (`dynamic_audit.py` and `production_drill.py`) that simulate a "Perfect Attacker" in the gig economy.
+Aegis models are not just trained; they are **battle-hardened**. The pipeline includes unique adversarial auditing scripts (`dynamic_audit.py` and `production_drill.py`) that red-team against a "Perfect Attacker" in the gig economy.
 
 | Adversarial Drill | Purpose | Outcome |
 | :--- | :--- | :--- |
 | **Monotonicity Audit** | Red-teaming the Risk Model logic. | Ensures the model cannot be "tricked" into low-risk scores during high-rainfall events. |
-| **Teleport Stress Test** | Simulated GPS Spoofing. | Injects impossible physics (Teleport Ratio 100.0) to verify the immediate trigger of the **Compliance SMS**. |
+| **Teleport Stress Test** | Adversarial GPS Spoofing | Injects impossible physics (Teleport Ratio 100.0) to verify the immediate trigger of the **Compliance SMS**. |
 | **Soft-Tail Stress Test** | Actuarial Pool Defense. | Stress-tests extreme earnings outliers to ensure the premium calculation never defaults to zero or erratic values. |
 
 ### Elite Resilience Verdict
