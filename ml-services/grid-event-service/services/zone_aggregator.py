@@ -172,12 +172,36 @@ class ZoneAggregator:
             for h3_cell, ml_data in results.items():
                 rider_count = len(snapshot.get(h3_cell, set()))
 
-                # Skip failed or exception results
+                # v2 FIX: Implement "Degraded Mode" marker instead of silent skip.
+                # This ensures claim-orchestrator doesn't miss the trigger, but routes to HOLD.
                 if ml_data is None or isinstance(ml_data, Exception):
                     logger.warning(
-                        "Skipping Redis write for %s: ML pipeline unavailable (%s)",
-                        h3_cell, ml_data if isinstance(ml_data, Exception) else "None"
+                        "ML pipeline failed for %s. Writing DEGRADED state to Redis.",
+                        h3_cell
                     )
+                    # We write a TTL-gated degraded status to Redis so TriggerService can handle it.
+                    # Default Lf to 0.5 (conservative) and type to DEGRADED.
+                    # Note: We skip Kafka publish for degraded to avoid flooding secondary effects.
+                    try:
+                        import redis
+                        r = redis.Redis(
+                            host=os.getenv("REDIS_HOST", "localhost"),
+                            port=int(os.getenv("REDIS_PORT", 6379)),
+                            decode_responses=True
+                        )
+                        r.setex(
+                            f"zone:{h3_cell}",
+                            300, # 5 min TTL
+                            json.dumps({
+                                "h3_cell": h3_cell,
+                                "Lf": 0.5,
+                                "zone_state": "DEGRADED",
+                                "timestamp": time.time(),
+                                "source": "aggregator-fail-safe"
+                            })
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to write degraded state to Redis for {h3_cell}: {e}")
                     continue
 
                 lf_score  = ml_data["Lf"]

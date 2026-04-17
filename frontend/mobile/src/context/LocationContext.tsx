@@ -25,6 +25,9 @@ export type LocationState = {
   latitude: number | null;
   longitude: number | null;
   accuracy: number | null;
+  altitudeAccuracy: number | null;
+  isMocked: boolean;
+  mockProvider: string | null;
   isInauthentic: boolean;
   isValid: boolean;
   fetchedAt: Date | null;
@@ -58,6 +61,9 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     latitude: null,
     longitude: null,
     accuracy: null,
+    altitudeAccuracy: null,
+    isMocked: false,
+    mockProvider: null,
     isInauthentic: false,
     isValid: false,
     fetchedAt: null,
@@ -75,6 +81,9 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       latitude: null,
       longitude: null,
       accuracy: null,
+      altitudeAccuracy: null,
+      isMocked: false,
+      mockProvider: null,
       isInauthentic: false,
       isValid: false,
       fetchedAt: new Date(),
@@ -138,7 +147,10 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         latitude: coords.latitude,
         longitude: coords.longitude,
         accuracy: Number.isFinite(coords.accuracy) ? coords.accuracy : null,
-        isInauthentic: false,
+        altitudeAccuracy: Number.isFinite(coords.altitudeAccuracy) ? coords.altitudeAccuracy : null,
+        isMocked: (coords as any).mocked || false,
+        mockProvider: (coords as any).mockProvider || null,
+        isInauthentic: (coords as any).mocked || false,
         isValid: true,
         fetchedAt: new Date(),
         loading: false,

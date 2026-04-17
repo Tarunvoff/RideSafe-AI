@@ -147,7 +147,7 @@ export class FraudService {
 
     let mlScore: FraudMlScoreResponse;
     try {
-      mlScore = await this.fetchHybridFraudScore(userId, features);
+      mlScore = await this.fetchHybridFraudScore(userId, features, dto);
     } catch (err) {
       const fallback = this.scoreFromFeatures(features, dto);
       this.logger.warn(`Fraud ML scoring failed for ${userId}; using rule-only fallback. Error: ${err}`);
@@ -267,7 +267,11 @@ export class FraudService {
     };
   }
 
-  private async fetchHybridFraudScore(userId: string, features: FraudFeatureResponse): Promise<FraudMlScoreResponse> {
+  private async fetchHybridFraudScore(
+    userId: string,
+    features: FraudFeatureResponse,
+    dto: AnalyzeFraudDto,
+  ): Promise<FraudMlScoreResponse> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { phone: true },
@@ -285,8 +289,11 @@ export class FraudService {
       earnings_pattern_deviation: Number(features.behavior.earnings_pattern_deviation ?? 0),
       mismatch: Number(features.identity.device_id_uniqueness ?? 1) < 0.3,
       shared_driver_count_24h: Number(features.meta.device_user_count ?? 1),
-      driver_id: userId,
       phone_number: user?.phone ?? null,
+      altitude_accuracy: Number(dto.altitudeAccuracy ?? 0),
+      is_mocked: Number(dto.isMocked ?? 0),
+      mock_provider: dto.mockProvider ?? null,
+      developer_mode: Number(dto.developerMode ?? 0),
     };
 
     const response = await fetch(`${this.mlServiceUrl}/fraud/score`, {
@@ -342,6 +349,11 @@ export class FraudService {
     if (dto.networkType === 'Premium VPN')           score += 15;
     if (dto.networkType === 'Proxy')                 score += 25;
     if (dto.velocityCheck === 'Suspicious')          score += 20;
+
+    // ── Layer 8: GPS Spoof Intelligence ───────────────────────────────────────
+    if (dto.isMocked)                                score += 60; // critical spoof signal
+    if (dto.developerMode)                           score += 30; // dev mode active
+    if (dto.altitudeAccuracy != null && dto.altitudeAccuracy > 10) score += 10; // poor signal / possible indoor spoof
 
     return Math.min(score, 100);
   }

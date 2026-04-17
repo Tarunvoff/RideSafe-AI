@@ -103,7 +103,10 @@ export class TriggerService {
     let decision: 'APPROVED' | 'HOLD' | 'REJECTED' = 'APPROVED';
     let reason = 'passed-all-thresholds';
 
-    if (!zoneGatePassed) {
+    if (zoneStateLabel === 'DEGRADED') {
+      decision = 'HOLD';
+      reason = 'ml-pipeline-degraded';
+    } else if (!zoneGatePassed) {
       decision = 'HOLD';
       reason = `zone-state-${zoneStateLabel.toLowerCase()}-not-in-approval-list`;
     } else if (!lfGatePassed) {

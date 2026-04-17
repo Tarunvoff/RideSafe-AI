@@ -37,6 +37,22 @@ export class AnalyzeFraudDto {
   @IsOptional()
   @IsString()
   velocityCheck?: string;   // 'Suspicious' | null
+
+  @IsOptional()
+  @IsNumber()
+  altitudeAccuracy?: number;
+
+  @IsOptional()
+  @IsNumber()
+  isMocked?: number;
+
+  @IsOptional()
+  @IsString()
+  mockProvider?: string;
+
+  @IsOptional()
+  @IsNumber()
+  developerMode?: number;
 }
 
 export class ReviewFraudDto {

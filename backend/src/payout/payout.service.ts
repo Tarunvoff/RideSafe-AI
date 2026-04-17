@@ -183,16 +183,53 @@ export class PayoutService {
       throw new BadRequestException({ code: AEGIS_ERR_ZONE_NOT_HALTED, message: 'Zone is not halted' });
     }
 
-    const disruption = await this.prisma.disruptionEvent.create({
-      data: {
+    // ── Idempotent Disruption Event Identification ─────────────────────────────
+    // Instead of creating a new event for every request, we look for a canonical 
+    // event within a 1-hour window to maintain strict event-scoped idempotency.
+    let disruption = await this.prisma.disruptionEvent.findFirst({
+      where: {
         type: params.disruptionType ?? 'SOVEREIGN_PARAMETRIC_TRIGGER',
-        title: 'Sovereign Parametric Settlement Event',
-        expectedLoss: params.payoutAmount ?? 0,
-        expectedPayout: params.payoutAmount ?? 0,
-        occurredAt: now,
-        verified: true,
+        occurredAt: { gte: new Date(Date.now() - 3600 * 1000) },
+      },
+      orderBy: { occurredAt: 'desc' },
+    });
+
+    if (!disruption) {
+      disruption = await this.prisma.disruptionEvent.create({
+        data: {
+          type: params.disruptionType ?? 'SOVEREIGN_PARAMETRIC_TRIGGER',
+          title: 'Sovereign Parametric Settlement Event',
+          expectedLoss: params.payoutAmount ?? 0,
+          expectedPayout: params.payoutAmount ?? 0,
+          occurredAt: now,
+          verified: true,
+        },
+      });
+    }
+
+    // ── High-Fidelity Event-Scoped Pre-check ──────────────────────────────
+    // Replace legacy driver-level lookup with strict {policyId, disruptionEventId} 
+    // verification as identified in Finding #1.
+    const existingPayout = await this.prisma.payout.findUnique({
+      where: {
+        policyId_disruptionEventId: {
+          policyId: policy.id,
+          disruptionEventId: disruption.id,
+        },
       },
     });
+
+    if (existingPayout) {
+      this.logger.log(`Found existing settlement for event ${disruption.id} / policy ${policy.id} — returning cached success.`);
+      return {
+        success: true,
+        cached: true,
+        payoutId: existingPayout.id,
+        transactionId: existingPayout.transactionId ?? null,
+        grossAmount: params.payoutAmount ?? 0,
+        netAmount: Number(existingPayout.approvedPayout ?? 0),
+      };
+    }
 
     const deductible = this.resolveDeductible(policy.planType);
     const grossAmount = params.payoutAmount ?? 0;

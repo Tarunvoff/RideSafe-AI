@@ -21,4 +21,20 @@ export class GpsTelemetryDto {
   @IsOptional()
   @IsString()
   platform?: string;
+
+  @IsOptional()
+  @IsNumber()
+  altitudeAccuracy?: number;
+
+  @IsOptional()
+  @IsNumber() // Represented as 0 or 1 for legacy compatibility if needed
+  isMocked?: number;
+
+  @IsOptional()
+  @IsString()
+  mockProvider?: string;
+
+  @IsOptional()
+  @IsNumber()
+  developerMode?: number;
 }
