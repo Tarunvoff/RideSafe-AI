@@ -65,7 +65,7 @@ Responsible for calculating the final dynamic premium in Indian Rupees (₹). It
 | :--- | :--- | :--- |
 | `weekly_earnings` | Float | Historical weekly earnings snapshot. |
 | `lf` | Float | Loss Fraction output from the Risk Model. |
-| `ct` | Float | Coverage Tier selected by the user (Basic, Standard, Premium). |
+| `ct` | Float | Coverage Tier selected by the user (Essential, Standard, Premium). |
 | `margin` | Float | Sustainability and operation margin (M).. |
 
 ### Advanced Implementation Details

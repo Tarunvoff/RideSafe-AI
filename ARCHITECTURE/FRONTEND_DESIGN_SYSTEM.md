@@ -1,7 +1,7 @@
 # Aegis Frontend Design System: High-Fidelity Client Architecture
 
 ## Executive Summary
-The Aegis platform utilizes a **Bespoke, High-Fidelity UI Architecture**, a deliberate engineering departure from the generic, template-driven designs common in industry-standard insurance software. In a FinTech environment where trust and millisecond-level precision are paramount, the Aegis frontend is treated not as a secondary "visual layer," but as a performance-critical subsystem. By rejecting "vibe-coded" component libraries in favor of a strictly professional, SaaS-level interface, Aegis ensures that both field operators (Drivers) and risk analysts (Admins) interact with a platform that is optimized for clarity, speed, and actuarial reliability.
+The Aegis platform utilizes a **Bespoke, High-Fidelity UI Architecture**, a deliberate engineering departure from the generic, template-driven designs common in industry-standard insurance software. In a FinTech environment where trust and millisecond-level precision are paramount, the Aegis frontend is treated not as a secondary "visual layer," but as a performance-critical subsystem. by rejecting superficial, aesthetic-only libraries in favor of a strictly professional, SaaS-level interface, Aegis ensures that both field operators (Drivers) and risk analysts (Admins) interact with a platform that is optimized for clarity, speed, and actuarial reliability.
 
 ---
 
@@ -44,7 +44,7 @@ The specific choice of the **Vite + Tailwind + Motion** stack is an architectura
 | **Mobile State** | Optimistic Cache Sync | TanStack Query |
 | **Admin UI** | Zero-Layout Shift Rendering | Framer Motion + Shadcn |
 | **Admin Styling** | Utility-First Consistency | Tailwind CSS |
-| **Shared Vibe** | Professional Neobrutalism | High-Contrast Typography & Sharp Borders |
+| **Design Resonance** | Professional Neobrutalism | High-Contrast Typography & Sharp Borders |
 
 ---
 

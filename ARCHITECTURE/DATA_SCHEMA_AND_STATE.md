@@ -78,7 +78,7 @@ model PayoutIdempotencyKey {
 By enforcing a `@@unique` constraint across the `userId`, `h3Cell`, and `eventTimestamp`, the Aegis database **physically rejects** any duplicate payout trigger. 
 
 *   **Conflict Prevention**: If multiple Kafka consumers attempt to process the same driver payout, the database-level lock ensures only the first transaction succeeds.
-*   **State Recovery**: If a payout fails mid-process, the `payoutState` field allows the system to identify and retry specific failed disbursements without ever risking a duplicate.
+*   **State Recovery**: If a payout requires forensic reconciliation, the system maintains high-integrity idempotency, where the `payoutState` field allows the system to identify and retry specific disbursements without ever risking a duplicate.
 
 ---
 
@@ -99,9 +99,9 @@ Aegis converts every GPS ping into a 15-character **H3 Hexagonal Index** at the 
 
 ---
 
-# 6. Resilience & Fallback (Kafka DLQ)
+# 6. Autonomous Contingency Loop (Kafka DLQ)
 
-Aegis provides a high-tier fallback for data persistence during infrastructure instability via the **Kafka Dead Letter Queue (DLQ)** database.
+Aegis provides a Principal Redundancy Layer for data persistence during infrastructure instability via the **Kafka Dead Letter Queue (DLQ)** database.
 
-*   **Topic Monitoring**: Every failed event is persisted to the `KafkaDLQ` table.
-*   **Automatic Replay**: A dedicated health-worker monitors the status of the Kafka brokers and automatically replays failed events once stability is restored, ensuring **Zero-Loss Data Integrity**.
+*   **Topic Monitoring**: Every operational anomaly is captured within the `payout-dlq` topic.
+*   **Autonomous State Reconciliation**: A dedicated worker routine polls the DLQ and automatically replays events once stability is restored, ensuring **Zero-Loss Data Integrity**.

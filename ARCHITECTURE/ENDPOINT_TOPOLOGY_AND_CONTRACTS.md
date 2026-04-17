@@ -27,7 +27,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 3. **POST** `/auth/driver/send-otp`
 - **Service Domain**: NestJS Core / Auth
 - **Production Purpose**: Dispatches secure OTPs to driver mobile devices.
-- **Enterprise Rationale**: Rate-limited via production-grade SMS hooks to mitigate resource exhaustion attacks.
+- **Enterprise Rationale**: Rate-limited login with exponential backoff to prevent non-compliant access attempts.
 
 4. **POST** `/auth/driver/verify-otp`
 - **Service Domain**: NestJS Core / Auth
@@ -36,7 +36,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 
 5. **POST** `/auth/login`
 - **Service Domain**: NestJS Core / Auth
-- **Production Purpose**: Authenticates users and issues production-grade JWTs.
+- **Production Purpose**: Principal Heartbeat for System-Wide Integrity.
 - **Enterprise Rationale**: Secured via Bcrypt-hashed credentials to maintain zero-trust security.
 
 6. **POST** `/auth/refresh`
@@ -111,7 +111,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 
 20. **POST** `/kyc/basic-identity`
 - **Service Domain**: NestJS Core / KYC
-- **Production Purpose**: Ingests primary identity markers (e.g., Name, Date of Birth).
+- **Production Purpose**: Core Identity Foundation for first-level driver verification.
 - **Enterprise Rationale**: Validates data types against government-standard formats to prevent corrupt ingress.
 
 21. **POST** `/kyc/personal-details`
@@ -604,7 +604,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 
 142. **POST** `/telemetry/location-failure`
 - **Service Domain**: NestJS Core / Telemetry
-- **Production Purpose**: Ingests failure signals for forensic GPS debugging.
+- **Production Purpose**: Ingests operational anomalies for forensic review.
 - **Enterprise Rationale**: Essential for identifying signal jamming or device failure anomalies.
 
 143. **GET** `/ingestion/test-sweep`
