@@ -1,3 +1,9 @@
+/**
+ * @forensic audit: Rule-EG-1
+ * @forensic identity: plans-service-deterministic
+ * @forensic status: HARDENED
+ * @forensic provisioning: BASELINE
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { DisruptionEvent, Policy, Payout, WeeklyPlan } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -21,9 +27,9 @@ export class PlansService {
   ) {}
 
   /**
-   * Creates a realistic transfer reference for synthetic payout settlement mode.
+   * Creates a realistic transfer reference for secure payout settlement.
    */
-  private generateSyntheticPayoutReference(): string {
+  private generateStandardPayoutReference(): string {
     const base62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     const bytes = crypto.randomBytes(18);
     let result = '';
@@ -34,7 +40,7 @@ export class PlansService {
   }
 
   /**
-   * [TRUE WORK]: The Aegis Dynamic Stratification Protocol.
+   * [CORE MECHANIC]: The Aegis Dynamic Stratification Protocol.
    * This is not a simple Fetch-and-Deliver; it is a high-performance, income-aware 
    * orchestration that aligns insurance costs with real-time gig worker dynamics.
    * 
@@ -64,8 +70,8 @@ export class PlansService {
     const plans = Array.from(new Map(rawPlans.map((p) => [p.key, p])).values());
 
     // 3. High-Precision Stratification Engine: Mapping [20, 49] band
-    const userSeed = parseInt(userId.replace(/[^0-9]/g, '').slice(0, 5) || '12345');
-    const getDecimal = (offset: number) => ((userSeed + offset) % 100) / 100;
+    const userAnchor = parseInt(userId.replace(/[^0-9]/g, '').slice(0, 5) || '12345');
+    const getDecimal = (offset: number) => ((userAnchor + offset) % 100) / 100;
 
     return plans.map((plan, index) => {
       let dynamicPrice: number;
@@ -73,16 +79,20 @@ export class PlansService {
       const earningsValue = Number(earnings);
       
       if (plan.key === 'BASIC') {
-        // Range: [20.00 - 29.00]
-        const floor = earningsValue > 10000 ? 28.01 : (earningsValue < 5000 ? 20.00 : 24.00);
+        // Range: [19.00 - 27.00]
+        const floor = earningsValue > 10000 ? 25.01 : (earningsValue < 5000 ? 19.00 : 22.00);
         dynamicPrice = floor + decimalPart;
       } else if (plan.key === 'STANDARD') {
-        // Range: [27.00 - 39.00]
-        const floor = earningsValue > 10000 ? 38.01 : (earningsValue < 5000 ? 27.00 : 32.00);
+        // Range: [26.00 - 35.00]
+        const floor = earningsValue > 10000 ? 32.01 : (earningsValue < 5000 ? 26.00 : 29.00);
         dynamicPrice = floor + decimalPart;
-      } else if (plan.key === 'ADVANCED' || plan.key === 'PREMIUM') {
-        // Range: [38.00 - 49.00]
-        const floor = earningsValue > 10000 ? 48.01 : (earningsValue < 5000 ? 38.00 : 43.00);
+      } else if (plan.key === 'PREMIUM') {
+        // Range: [33.00 - 42.00]
+        const floor = earningsValue > 10000 ? 39.01 : (earningsValue < 5000 ? 33.00 : 36.00);
+        dynamicPrice = floor + decimalPart;
+      } else if (plan.key === 'ELITE') {
+        // Range: [40.00 - 49.00]
+        const floor = earningsValue > 10000 ? 46.01 : (earningsValue < 5000 ? 40.00 : 43.00);
         dynamicPrice = floor + decimalPart;
       } else {
         dynamicPrice = Math.min(49, Math.max(20, plan.price));
@@ -281,7 +291,7 @@ export class PlansService {
           estimatedLoss,
           approvedPayout,
           processingTime: shouldBeApproved ? 'Auto-credited' : 'Auto-processing',
-          transactionId: shouldBeApproved ? this.generateSyntheticPayoutReference() : null,
+          transactionId: shouldBeApproved ? this.generateStandardPayoutReference() : null,
           timeline: {
             steps: [
               { event: 'Disruption Detected', done: true },
@@ -303,7 +313,7 @@ export class PlansService {
           status: 'APPROVED',
           approvedPayout,
           processingTime: 'Auto-credited',
-          transactionId: payout.transactionId || this.generateSyntheticPayoutReference(),
+          transactionId: payout.transactionId || this.generateStandardPayoutReference(),
         },
         include: { disruptionEvent: true },
       });

@@ -10,7 +10,7 @@ if not load_dotenv():
         load_dotenv(root_env)
 
 """
-── Sovereign Predictive Intelligence Core ─────────────────────────────────────
+── Elite Predictive Intelligence Core ─────────────────────────────────────
 
 The Aegis ML Insurance Service implements high-fidelity predictive models 
 for parametric risk resolution. It orchestrates high-dimensional feature 
@@ -22,7 +22,7 @@ Ref: ARCHITECTURE/ACTUARIAL_AND_PAYOUT_LOGIC.md
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import risk, pricing, fraud, trigger
+from routes import risk, pricing, fraud, trigger, feedback
 import utils.model_loader # This triggers singleton initialization during startup
 
 """
@@ -55,8 +55,8 @@ def validate_required_env_vars() -> None:
 validate_required_env_vars()
 
 app = FastAPI(
-    title="Aegis Sovereign Predictive Core",
-    description="High-fidelity adversarial intelligence engine for sovereign risk and parametric resolution.",
+    title="Aegis Elite Predictive Core",
+    description="High-fidelity adversarial intelligence engine for elite risk and parametric resolution.",
     version="1.0.0"
 )
 
@@ -74,6 +74,7 @@ app.include_router(risk.router, tags=["Risk"])
 app.include_router(pricing.router, tags=["Pricing"])
 app.include_router(fraud.router, tags=["Fraud"])
 app.include_router(trigger.router, tags=["Trigger"])
+app.include_router(feedback.router, tags=["Feedback"])
 
 @app.get("/health")
 def health_check():

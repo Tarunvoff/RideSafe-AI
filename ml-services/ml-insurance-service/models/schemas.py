@@ -58,7 +58,7 @@ class PricingRequest(BaseModel):
     Ew: float = Field(ge=0)
     Lf: float = Field(ge=0, le=1)
     M: float = Field(ge=0, le=1)
-    platform: Optional[str] = "uber"
+    platform: Optional[str] = "blinkit"
     Ct: Optional[float] = Field(default=None, ge=0, le=1)
     demand_ratio: Optional[float] = Field(default=1.0, ge=0, le=5)
     zone_volatility: Optional[float] = Field(default=0.5, ge=0, le=1)
@@ -118,6 +118,7 @@ class FraudHybridScoreRequest(BaseModel):
     shared_driver_count_24h: int = Field(default=1, ge=1, le=100)
     driver_id: Optional[str] = None
     phone_number: Optional[str] = None
+    auth_token: Optional[str] = None
 
 
 class FraudHybridScoreResponse(BaseModel):

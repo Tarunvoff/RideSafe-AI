@@ -13,10 +13,8 @@ _PLATFORM_CT: dict[str, float] = {
     "zepto":     0.60,
     "blinkit":   0.65,
     "instamart": 0.55,
-    "swiggy":    0.60,
-    "zomato":    0.62,
-    "uber":      0.60,
-    "ola":       0.58,
+    "jiomart":   0.60,
+    "bigbasket": 0.62,
 }
 _DEFAULT_CT = 0.60
 

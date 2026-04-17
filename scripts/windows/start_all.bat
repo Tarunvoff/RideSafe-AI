@@ -80,6 +80,9 @@ start "Aegis Backend API" cmd /k "cd /d %~dp0..\..\backend && npm run start:dev"
 echo [6/8] Starting Expo Mobile Application...
 start "Aegis Mobile App" cmd /k "cd /d %~dp0..\..\frontend\mobile && npm install && npx expo start -c"
 
+echo [7/8] Starting Admin Web Dashboard...
+start "Aegis Admin Dashboard" cmd /k "cd /d %~dp0..\..\frontend\admin-dashboard && npm install && npm run dev"
+
 echo.
 echo ========================================================
 echo ✅ [AEGIS_IGNITION_COMPLETE] All services are now online.

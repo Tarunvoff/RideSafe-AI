@@ -4,11 +4,6 @@
  * integrating reactive state management, navigational topology, and global stylistic constraints. 
  * It is architected for maximum resilience, ensuring that the critical context of Location and Authentication 
  * permeates every leaf node of the component tree with absolute reliability.
- * 
- * [DOMAIN LOGIC]
- * This entry point initializes the H3-aware Location context and the secure Auth layer, 
- * ensuring that every insurance-critical action—from risk perimeter detection to parametric trigger 
- * authorization—is gated by verified identity and geospacial precision.
  */
 
 import React from 'react';

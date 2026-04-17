@@ -1,0 +1,199 @@
+version: "3.9"
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: aegis-zookeeper-prod
+    networks:
+      - aegis-net
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: aegis-kafka-prod
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CREATE_TOPICS: "aegis-events:1:1,driver_telemetry:1:1,zone_state_updates:1:1,driver_telemetry_dlq:1:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - kafka_prod_data:/kafka
+    depends_on:
+      - zookeeper
+    networks:
+      - aegis-net
+
+  # ── Core Data Layer ──────────────────────────────────────────────────────────
+  aegis-redis:
+    image: redis:7-alpine
+    container_name: aegis-redis-prod
+    command: redis-server --appendonly yes --save 60 1 --loglevel notice
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - aegis-net
+
+  aegis-db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: aegis-db-prod
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-12345678}
+      POSTGRES_DB: Aegis_DB
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_prod_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    networks:
+      - aegis-net
+
+  # ── Intelligence Layer (Fail-Closed Architecture) ──────────────────────────
+  ml-insurance-service:
+    build:
+      context: ./ml-services/ml-insurance-service
+      dockerfile: Dockerfile
+    container_name: aegis-ml-brain
+    environment:
+      - REDIS_URL=redis://aegis-redis:6379/0
+      - ML_SERVICE_PORT=8000
+    depends_on:
+      - aegis-redis
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+        reservations:
+          memory: 512M
+    networks:
+      - aegis-net
+
+  fraud-feature-service:
+    build:
+      context: ./ml-services/fraud-feature-service
+      dockerfile: Dockerfile
+    container_name: aegis-fraud-scout
+    environment:
+      - REDIS_URL=redis://aegis-redis:6379/0
+      - FEATURE_SERVICE_PORT=8002
+    depends_on:
+      - aegis-redis
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - aegis-net
+
+  h3-feature-service:
+    build:
+      context: ./ml-services/h3-feature-service
+      dockerfile: Dockerfile
+    container_name: aegis-h3-brain
+    env_file:
+      - ./ml-services/.env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_URL=redis://aegis-redis:6379/0
+      - ML_INSURANCE_SERVICE_URL=http://ml-insurance-service:8000
+      - ML_SERVICE_URL=http://ml-insurance-service:8000
+      - BACKEND_INTERNAL_URL=http://aegis-backend:3001/internal/zone-state
+      - PLATFORM_API_URL=http://aegis-backend:3001/api/platform/activity
+    depends_on:
+      - kafka
+      - aegis-redis
+      - ml-insurance-service
+    ports:
+      - "8004:8004"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 1G
+    networks:
+      - aegis-net
+
+  grid-event-service:
+    build:
+      context: ./ml-services/grid-event-service
+      dockerfile: Dockerfile
+    container_name: aegis-grid-event
+    env_file:
+      - ./ml-services/.env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_URL=redis://aegis-redis:6379/0
+      - ML_SERVICE_URL=http://ml-insurance-service:8000
+      - H3_FEATURE_SERVICE_URL=http://h3-feature-service:8004
+      - USE_REDIS=True
+    depends_on:
+      - kafka
+      - aegis-redis
+      - ml-insurance-service
+      - h3-feature-service
+    ports:
+      - "8003:8003"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 1G
+    networks:
+      - aegis-net
+
+  # ── Application Layer ──────────────────────────────────────────────────────
+  aegis-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aegis-api-gateway
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://aegis-redis:6379/0
+      - REDIS_HOST=aegis-redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://postgres:12345678@aegis-db:5432/Aegis_DB?schema=public
+      - KAFKA_BROKER_URL=kafka:9092
+      - PORT=3001
+      - ML_SERVICE_URL=http://ml-insurance-service:8000
+    depends_on:
+      - aegis-db
+      - aegis-redis
+      - kafka
+      - ml-insurance-service
+      - h3-feature-service
+      - grid-event-service
+    ports:
+      - "3001:3001"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - aegis-net
+
+networks:
+  aegis-net:
+    driver: bridge
+
+volumes:
+  redis_prod_data:
+  pg_prod_data:
+  kafka_prod_data:

@@ -1,11 +1,11 @@
 import { createHash } from 'crypto';
 
-// Simple LCG seeded RNG to keep dynamic data deterministic while still varied
-export class SeededRandom {
+// Simple LCG deterministic RNG to keep dynamic data stable while still varied
+export class DeterministicRandom {
   private state: number;
 
-  constructor(seed: number) {
-    this.state = seed % 2147483647;
+  constructor(anchor: number) {
+    this.state = anchor % 2147483647;
     if (this.state <= 0) {
       this.state += 2147483646;
     }
@@ -37,9 +37,9 @@ export class SeededRandom {
   }
 }
 
-export const createSeedFromString = (input: string): number => {
+export const createAnchorFromString = (input: string): number => {
   const hash = createHash('sha256').update(input).digest();
-  // Use first 6 bytes to keep seed within 32-bit range without collisions
-  const seed = hash.readUIntBE(0, 6);
-  return seed;
+  // Use first 6 bytes to keep anchor within 32-bit range without collisions
+  const anchor = hash.readUIntBE(0, 6);
+  return anchor;
 };

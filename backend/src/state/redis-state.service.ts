@@ -7,10 +7,25 @@ const POLICY_STATE_TTL = Number(process.env.POLICY_STATE_TTL_SECONDS ?? 900);
 const ZONE_DRIVER_TTL = Number(process.env.ZONE_DRIVER_TTL_SECONDS ?? 900);
 const ZONE_STATE_TTL = Number(process.env.ZONE_STATE_TTL_SECONDS ?? 900);
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const CircuitBreaker = require('opossum');
+
 @Injectable()
 export class RedisStateService {
   private readonly logger = new Logger(RedisStateService.name);
   private redisClient: any = null;
+
+  private readonly revocationBreaker = new CircuitBreaker(
+    (token: string) => this._checkRevocation(token),
+    { timeout: 1000, errorThresholdPercentage: 50, resetTimeout: 10000 }
+  );
+
+  constructor() {
+    this.revocationBreaker.fallback(() => {
+      this.logger.error('Redis Revocation Check failing closed (Deny by Default).');
+      return true; // Fail closed: Treat as revoked
+    });
+  }
 
   private async getRedis() {
     if (this.redisClient) return this.redisClient;
@@ -178,5 +193,15 @@ export class RedisStateService {
       this.logger.warn(`[Redis state] payout retry dequeue failed: ${err}`);
       return null;
     }
+  }
+
+  private async _checkRevocation(token: string): Promise<boolean> {
+    const redis = await this.getRedis();
+    if (!redis) throw new Error('Redis Unavailable');
+    return await redis.sIsMember('revoked_tokens', token);
+  }
+
+  async isTokenRevoked(token: string): Promise<boolean> {
+    return this.revocationBreaker.fire(token);
   }
 }

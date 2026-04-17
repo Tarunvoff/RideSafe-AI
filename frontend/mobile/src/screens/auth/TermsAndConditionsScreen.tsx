@@ -2,9 +2,10 @@
  * [EXCELLENCE SUMMARY]
  * The TermsAndConditionsScreen is the legal and ethical anchor of the Aegis 
  * platform. It ensures that drivers are fully informed of the technical 
- * telemetry and risk-sharing model they are entering. Notably, it implements 
- * a cross-platform (iOS/Android) high-fidelity PDF viewer using a custom 
- * PDF.js bridge to ensure the 'Policy Document' remains legible for all users.
+ * telemetry and risk-sharing model they are entering.
+ * 
+ * For the legal framework and compliance standards, refer to 
+ * ARCHITECTURE/REGULATORY_COMPLIANCE_ARCHITECTURE.md.
  * 
  * [DOMAIN LOGIC]
  * Defines the 'Contractual Nexus' of the parametric insurance. By securing 
@@ -171,6 +172,7 @@ export default function TermsAndConditionsScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
+
             <Text style={styles.sectionTitle}>{t('auth.terms.sections.telemetry_title')}</Text>
             <Text style={styles.bodyText}>
               {t('auth.terms.sections.telemetry_body')}

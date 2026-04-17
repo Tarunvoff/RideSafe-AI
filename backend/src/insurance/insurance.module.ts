@@ -6,6 +6,7 @@ import { FraudIntegrationModule } from '../fraud-integration/fraud-integration.m
 import { PayoutModule } from '../payout/payout.module';
 import { PremiumModule } from '../premium/premium.module';
 import { TriggerModule } from '../trigger/trigger.module';
+import { ComplianceModule } from '../compliance/compliance.module';
 import { InsuranceController } from './insurance.controller';
 import { InsuranceService } from './insurance.service';
 import { PolicyController } from './policy.controller';
@@ -21,6 +22,7 @@ import { ClaimOrchestratorService } from './claim-orchestrator.service';
     PayoutModule,
     PremiumModule,
     forwardRef(() => TriggerModule),
+    ComplianceModule,
   ],
   controllers: [InsuranceController, PolicyController, ClaimsController],
   providers: [InsuranceService, ClaimOrchestratorService],

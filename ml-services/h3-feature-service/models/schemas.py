@@ -27,7 +27,7 @@ class FeatureResponse(BaseModel):
     pm25: float               # µg/m³
     pm10: float               # µg/m³
 
-    # Platform Activity (sourced from Sovereign DynamicQCommerce real-time telemetry pipeline)
+    # Platform Activity (sourced from Elite DynamicQCommerce real-time telemetry pipeline)
     active_orders: int
     active_riders: int
     demand_ratio: float       # orders / riders
@@ -69,7 +69,7 @@ class PipelineRequest(BaseModel):
     Ew:       float           = Field(..., description="Weekly earnings in ₹", example=8000.0)
     Ct:       Optional[float] = Field(None,  description="Coverage tier (0.4/0.6/0.8) — auto-resolved from platform if omitted")
     M:        float           = Field(0.1,   description="Margin hint (0.08–0.15)")
-    platform: Optional[str]   = Field(None,  description="Platform name for Ct auto-resolution: zepto/blinkit/swiggy/zomato/ola/uber")
+    platform: Optional[str]   = Field(None,  description="Platform name for Ct auto-resolution: zepto/blinkit/instamart/jiomart/bigbasket")
 
 
 class PipelineResponse(BaseModel):

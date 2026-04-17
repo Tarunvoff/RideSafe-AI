@@ -9,7 +9,7 @@ import os
 # Set USE_REDIS=True and configure REDIS_URL to switch from in-memory to Redis.
 USE_REDIS: bool = False
 REDIS_URL: str = "redis://localhost:6379/0"
-BEHAVIOR_STORE_MODE: str = os.getenv("BEHAVIOR_STORE_MODE", "synthetic_prior")
+BEHAVIOR_STORE_MODE: str = os.getenv("BEHAVIOR_STORE_MODE", "baseline_prior")
 
 # ── Cache TTL ─────────────────────────────────────────────────────────────────
 USER_CACHE_TTL_SECONDS: int = 120        # Re-compute user features every 2 min

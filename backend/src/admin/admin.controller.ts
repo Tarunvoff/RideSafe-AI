@@ -1,3 +1,9 @@
+/** 
+ * Intelligent Dashboard: Provides predictive analytics, loss-ratio monitoring, 
+ * and operational transparency for insurers and platform administrators.
+ *
+ * For the admin control plane architecture, refer to ARCHITECTURE/ADMIN_CONTROL_PLANE.md.
+ */
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';

@@ -44,6 +44,8 @@ class LocationFeatures(BaseModel):
         description="True if user has previously appeared in this H3 cell")
     h3_burst_detected: bool = Field(...,
         description="True if an anomalous number of distinct users appeared in this cell concurrently")
+    telemetry_spoof_detected: bool = Field(False,
+        description="True if relative velocity exceeds logical human limits (v > 300km/h)")
 
 
 class BehaviorFeatures(BaseModel):

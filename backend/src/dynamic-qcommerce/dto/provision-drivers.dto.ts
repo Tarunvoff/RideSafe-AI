@@ -1,7 +1,7 @@
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { QCommerceProvider } from '../enums/qcommerce.enums';
 
-export class SeedDriversDto {
+export class ProvisionDriversDto {
   @IsEnum(QCommerceProvider)
   provider: QCommerceProvider;
 

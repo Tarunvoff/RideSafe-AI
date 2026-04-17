@@ -22,4 +22,4 @@ For an in-depth dive into our model engineering, monotonic constraints, and adve
 5. **Mitigation**: The **Compliance Hammer** dispatches autonomous SMS warnings if Fraud Scores cross the catastrophic threshold.
 
 ---
-**Build Status**: **ELITE** ✅ | **Orchestration**: **DOCKER-READY** 🚀 | **Compliance**: **GUIDEWIRE-CERTIFIED** 🛡️
+**Build Status**: **ELITE** ✓ | **Orchestration**: **DOCKER-READY** 🚀 | **Compliance**: **GUIDEWIRE-CERTIFIED** 🛡️

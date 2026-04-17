@@ -1,4 +1,26 @@
+/**
+ * ── Elite Admin Control Plane API Orchestration ──────────────────────────
+ * 
+ * The adminApi service provides the authoritative data bridge between the 
+ * Aegis Admin Dashboard and the platform's high-fidelity backend services. 
+ * Designed for low-latency telemetry ingestion and risk enforcement.
+ * 
+ * For implementation details of the underlying actuarial logic, refer to:
+ * - ARCHITECTURE/ADMIN_CONTROL_PLANE.md
+ * 
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ */
+
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const AUTH_EXPIRED_EVENT = 'aegis-auth-expired';
+
+function emitAuthExpired(reason: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT, { detail: { reason } }));
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('adminToken');
@@ -20,6 +42,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const error = await response.json().catch(() => ({ message: 'API Error' }));
     console.error(`[API ERROR] Path: ${path} | Status: ${response.status}`, error);
     const errMsg = error?.error || error?.message || 'Something went wrong';
+
+    if (response.status === 401) {
+      localStorage.removeItem('adminToken');
+      emitAuthExpired(errMsg);
+    }
+
     throw new Error(errMsg);
   }
 
@@ -75,3 +103,5 @@ export const adminApi = {
     body: JSON.stringify(data),
   }),
 };
+
+export { AUTH_EXPIRED_EVENT };

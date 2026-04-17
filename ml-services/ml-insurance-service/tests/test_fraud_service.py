@@ -4,20 +4,20 @@ from models.schemas import DeviceInfo, FraudScoreRequest, GPSInfo, HistoryInfo
 from services import fraud_service
 
 
-class _SyntheticAnomalyModel:
+class _ReferenceAnomalyModel:
     def decision_function(self, features):
         return [-0.8]
 
 
-class _SyntheticClassifierModel:
+class _ReferenceClassifierModel:
     def predict_proba(self, features):
         return [[0.12, 0.88]]
 
 
 class FraudServiceTests(unittest.TestCase):
     def setUp(self):
-        fraud_service.model_loader.fraud_anomaly_model = _SyntheticAnomalyModel()
-        fraud_service.model_loader.fraud_classifier_model = _SyntheticClassifierModel()
+        fraud_service.model_loader.fraud_anomaly_model = _ReferenceAnomalyModel()
+        fraud_service.model_loader.fraud_classifier_model = _ReferenceClassifierModel()
         fraud_service.model_loader.fraud_feature_names = [
             'speed_kmh',
             'claims_rejection_rate',

@@ -8,6 +8,7 @@ type ZoneStateUpdatePayload = {
     old_state?: string;
     new_state?: string;
     lf_score?: number;
+    aqi?: number;
     timestamp?: number;
 };
 
@@ -31,6 +32,8 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
             state,
             lf_score: Number.isFinite(lfScore) ? lfScore : 0,
             active_riders: Number(payload?.active_riders ?? 0),
+            rainfall_mm: Number(payload?.rainfall_mm ?? 0),
+            aqi: Number(payload?.aqi ?? 0),
             timestamp: payload?.timestamp ?? payload?.updated_at ?? new Date().toISOString(),
             source: payload?.source ?? 'unknown',
         };
@@ -88,8 +91,14 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
                         const h3Cell = payload?.h3_cell;
                         if (!h3Cell) return;
 
-                        const newState = (payload?.new_state ?? '').toUpperCase();
+                        let newState = (payload?.new_state ?? '').toUpperCase();
                         const previousState = (this.zoneState.get(h3Cell) ?? payload?.old_state ?? '').toUpperCase();
+
+                        // DevTrails Rule: AQI > 300 explicitly forces payouts (HALTED state)
+                        if (payload?.aqi != null && payload.aqi > 300) {
+                            this.logger.warn(`[zone-monitor] AQI > 300 detected in ${h3Cell}. Forcing HALTED state.`);
+                            newState = 'HALTED';
+                        }
 
                         this.zoneState.set(h3Cell, newState || previousState || 'UNKNOWN');
                         this.zoneCache.set(h3Cell, {

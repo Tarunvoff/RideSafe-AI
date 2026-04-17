@@ -1,7 +1,7 @@
-# Aegis Security and Fraud Matrix: Zero-Trust Defense Grid
+# Aegis Security and Fraud Matrix: Production-Ready Zero-Trust Defense Grid
 
 ## Executive Summary
-The Aegis platform operates on a **Zero-Trust Gig-Economy Defense Grid**, a multi-layered security architecture designed to maintain cryptographic identity integrity and adversarial resilience in high-concurrency environments. The perimeter is hardened through automated anomaly detection, edge-level rate limiting, and a cryptographically verified identity pipeline. This matrix serves as the definitive forensic guide to the platform's security posture and the operational mechanics of the "Aegis Shield" fraud defense infrastructure.
+The Aegis platform operates on a **Production-Ready, Tier-1 Zero-Trust Gig-Economy Defense Grid**, a multi-layered security architecture designed to maintain cryptographic identity integrity and adversarial resilience in high-concurrency environments. The perimeter is hardened through automated anomaly detection, edge-level rate limiting, and a cryptographically verified identity pipeline. This matrix serves as the definitive forensic guide to the platform's security posture and the operational mechanics of the "Aegis Shield" fraud defense infrastructure.
 
 ---
 
@@ -14,7 +14,7 @@ The system utilizes a dual-token rotation strategy for session management and pr
 *   **Refresh Tokens**: Long-lived (7 days default), hashed and persisted in the relational core (`refreshToken` column) to prevent replay attacks and facilitate immediate session invalidation.
 
 ### 1.2 Federated Identity (OAuth 2.0 / SSO)
-Aegis integrates with major gig-economy providers (Swiggy, Zomato, Zepto) to establish a "Network of Trust."
+Aegis integrates with major gig-economy providers (Blinkit, Zepto, Instamart, JioMart, BigBasket) to establish a "Network of Trust."
 *   **Flow**: Authorization Code Grant with optional PKCE (Proof Key for Code Exchange) support.
 *   **Internal Mapping**: Provider identities are mapped to a unique internal `driverId`, ensuring that first-party auditing remains consistent regardless of the third-party source.
 
@@ -77,7 +77,7 @@ To prevent Distributed Denial of Service (DDoS) attacks and brute-force claim bu
 | **SQL Injection** | Parameterized Queries (Prisma) | `PrismaService` |
 | **XSS / CSRF** | Strict CORS + Content-Security Policy | NestJS CORS Module |
 | **Replay Attack** | JWT Refresh Token Rotation | `generateTokens` Logic |
-| **Identity Theft** | Federated OAuth + Mandatory MFA | Swiggy/Zomato SSO Integrations |
+| **Identity Theft** | Federated OAuth + Mandatory MFA | Blinkit/Zepto/Instamart/JioMart/BigBasket SSO Integrations |
 | **Systemic Fraud** | Aegis Shield ML Ensemble | `FraudService` (Python/NestJS) |
 
 ---

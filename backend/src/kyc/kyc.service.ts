@@ -8,7 +8,7 @@ import {
 } from '../compliance/driver-eligibility.util';
 
 /**
- * ── Sovereign Identity & Principal Verification (KYC) ─────────────────────────
+ * ── Elite Identity & Principal Verification (KYC) ─────────────────────────
  * 
  * The KycService implements the platform's high-fidelity identity provisioning 
  * protocol. It orchestrates multi-stage forensic validation to ensure that 

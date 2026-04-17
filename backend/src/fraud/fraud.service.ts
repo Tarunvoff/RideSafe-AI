@@ -1,9 +1,40 @@
+/** 
+ * Sentinel Fraud Engine: Implements advanced fraud detection, including GPS spoofing checks, 
+ * parallel feature extraction, and H3 geospatial burst detection.
+ *
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ * 
+ * For detailed fraud detection architecture and security matrices, refer to 
+ * ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md and ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md.
+ */
+import { getTimeBucket } from './time-utils';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHash } from 'crypto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import * as h3 from 'h3-js';
+import pino from 'pino';
+import type OpossumBreaker from 'opossum';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const CircuitBreaker = require('opossum');
+
+// Structured Logger for Tier-1 Auditing
+const structuredLogger = pino({
+  name: 'Aegis-Enforcement-Engine',
+  level: process.env.LOG_LEVEL || 'info',
+  base: { service: 'fraud-service' },
+});
+
+// Circuit Breaker Options (Tier-1 Resiliency)
+const breakerOptions = {
+  timeout: 3000, // 3 seconds
+  errorThresholdPercentage: 50,
+  resetTimeout: 10000, // 10 seconds
+};
 
 // ── Python Fraud Feature Service (port 8002) ──────────────────────────────────
 const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL;
@@ -71,7 +102,24 @@ export class FraudService {
   private readonly logger = new Logger(FraudService.name);
   private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
-  constructor(private prisma: PrismaService) {}
+  // ── Circuit Breakers (Fail-Closed Pattern) ──────────────────────────────────
+  private readonly featureBreaker: OpossumBreaker<[string, AnalyzeFraudDto], FraudFeatureResponse> = 
+    new CircuitBreaker(this.fetchFraudFeatures.bind(this), breakerOptions);
+
+  private readonly mlBreaker: OpossumBreaker<[string, FraudFeatureResponse, AnalyzeFraudDto, string | undefined], FraudMlScoreResponse> = 
+    new CircuitBreaker(this.fetchHybridFraudScore.bind(this), breakerOptions);
+
+  constructor(
+    private prisma: PrismaService,
+    @InjectQueue('fraud-review') private readonly fraudQueue: Queue,
+  ) {
+    // Fail-Closed: When circuit is open/fails, throw error to trigger high-security state
+    this.mlBreaker.fallback(() => {
+      structuredLogger.error({ event: 'CIRCUIT_BREAKER_OPEN', service: 'ML_HYBRID_SCORING' }, 'ML service failing closed.');
+      throw new Error('ML_SERVICE_DOWN_FAIL_CLOSED');
+    });
+  }
+
 
   // ── Step 0: Call Python fraud-feature-service ────────────────────────────
   private async fetchFraudFeatures(
@@ -114,49 +162,56 @@ export class FraudService {
   }
 
   // ── Main analysis entry point ─────────────────────────────────────────────
-  async analyzeFraud(userId: string, dto: AnalyzeFraudDto) {
+  async analyzeFraud(userId: string, dto: AnalyzeFraudDto, token?: string) {
     const duplicateSignal = await this.detectDuplicateClaim(userId, dto);
 
-    // 1. Fetch ML feature vector from Python service
-    const features = await this.fetchFraudFeatures(userId, dto);
+    // 1. Fetch ML feature vector from Python service (Circuit Breaker protected)
+    let features: FraudFeatureResponse;
+    try {
+      features = await this.featureBreaker.fire(userId, dto);
+    } catch (err) {
+      structuredLogger.warn({ 
+        event: 'SERVICE_DEGRADATION', 
+        target: 'feature-service', 
+        userId, 
+        error: err.message 
+      }, 'Feature service unavailable; falling back to conservative rule-base.');
+      features = null; 
+    }
 
     if (!features) {
-      const fallbackScore = this.applyDuplicateClaimPenalty(
-        this.scoreFallback(dto),
-        duplicateSignal,
-      );
-      const fallbackStatus = fallbackScore >= 75 ? 'AUTO_REJECTED' : fallbackScore >= 45 ? 'INCONCLUSIVE' : 'APPROVED';
-      const topSignals = duplicateSignal.isDuplicate
-        ? ['DUPLICATE_CLAIM_SIGNAL', 'FEATURE_SERVICE_UNAVAILABLE']
-        : ['FEATURE_SERVICE_UNAVAILABLE'];
+      const fallback = this.scoreFromFeatures(null, dto);
       return {
-        message: 'Fraud analysis completed (fallback)',
+        ok: true,
         data: {
-          id: null,
-          riskScore: fallbackScore,
-          status: fallbackStatus,
-          featureSource: 'heuristic-fallback',
-          topSignals,
-          fraudReason: duplicateSignal.isDuplicate
-            ? 'Duplicate-claim signal detected; rule fallback applied'
-            : 'Feature service unavailable; rule fallback applied',
-          features: null,
+          analysis: {
+            riskScore: fallback,
+            status: fallback >= 75 ? 'AUTO_REJECTED' : 'INCONCLUSIVE',
+            fraudReason: 'Feature service unavailable; system failing closed',
+            features: null,
+          },
         },
       };
     }
 
     let mlScore: FraudMlScoreResponse;
     try {
-      mlScore = await this.fetchHybridFraudScore(userId, features, dto);
+      mlScore = await this.mlBreaker.fire(userId, features, dto, token);
     } catch (err) {
-      const fallback = this.scoreFromFeatures(features, dto);
-      this.logger.warn(`Fraud ML scoring failed for ${userId}; using rule-only fallback. Error: ${err}`);
+      // ── FAIL CLOSED ──────────────────────────────────────────────────────
+      structuredLogger.error({ 
+        event: 'ENFORCEMENT_FAIL_CLOSED', 
+        userId, 
+        service: 'ml-insurance-service',
+        error: err.message
+      }, 'ML Intelligence Layer offline. Triggering high-security fail-closed rejection.');
+      
       mlScore = {
-        fraud_score: fallback,
-        rule_score: fallback,
+        fraud_score: 95.0, 
+        rule_score: 95.0,
         ml_anomaly_score: 0,
         ml_classifier_score: 0,
-        top_signals: ['ML_SCORING_UNAVAILABLE'],
+        top_signals: ['SYSTEM_FAIL_CLOSED'],
         model_used: 'rules_only',
       };
     }
@@ -177,6 +232,36 @@ export class FraudService {
       : riskScore >= 45
         ? 'INCONCLUSIVE'
         : 'APPROVED';
+
+    // ── TIER-1 AUDIT LOGGING ───────────────────────────────────────────────
+    if (status === 'AUTO_REJECTED') {
+      structuredLogger.warn({
+        event: 'FRAUD_ENFORCEMENT_BLOCK',
+        userId,
+        riskScore,
+        signals: topSignals,
+        inventory: features,
+        traceId: createHash('md5').update(`${userId}-${Date.now()}`).digest('hex'),
+      }, 'High-confidence fraud block enforced.');
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    // ── EVENT-DRIVEN REVIEW TRIGGER ──────────────────────────────────────────
+    // If inconclusive, trigger a BullMQ job with a 300s (5m) delay.
+    // This eliminates the "Burst Window" associated with cron-based resolution.
+    if (status === 'INCONCLUSIVE') {
+      await this.fraudQueue.add(
+        'review-ttl',
+        { userId },
+        { 
+          delay: 5 * 60 * 1000, 
+          removeOnComplete: true,
+          jobId: `review_ttl_${userId}` // idempotent by userId
+        }
+      );
+      this.logger.log(`Event-Driven Review Queued: 5-minute TTL started for user ${userId}`);
+    }
+    // ──────────────────────────────────────────────────────────────────────────
 
     // 3. Persist / upsert to DB
     const existingUser = await this.prisma.user.findUnique({
@@ -271,6 +356,7 @@ export class FraudService {
     userId: string,
     features: FraudFeatureResponse,
     dto: AnalyzeFraudDto,
+    token?: string,
   ): Promise<FraudMlScoreResponse> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -291,9 +377,10 @@ export class FraudService {
       shared_driver_count_24h: Number(features.meta.device_user_count ?? 1),
       phone_number: user?.phone ?? null,
       altitude_accuracy: Number(dto.altitudeAccuracy ?? 0),
-      is_mocked: Number(dto.isMocked ?? 0),
-      mock_provider: dto.mockProvider ?? null,
+      is_spoofed: dto.isSpoofed ?? 0,
+      spoof_provider: dto.spoof_provider ?? null,
       developer_mode: Number(dto.developerMode ?? 0),
+      auth_token: token ?? null,
     };
 
     const response = await fetch(`${this.mlServiceUrl}/fraud/score`, {
@@ -311,37 +398,32 @@ export class FraudService {
 
   // ── Scoring: ML + rules + graph + H3 signals ──────────────────────────────
   private scoreFromFeatures(
-    f: FraudFeatureResponse,
+    f: FraudFeatureResponse | null,
     dto: AnalyzeFraudDto,
   ): number {
     let score = 0;
 
-    // ── Layer 1: ML / Identity signals ────────────────────────────────────────
-    if (f.identity.account_age_days < 7)          score += 20; // brand-new account
-    if (f.identity.device_id_uniqueness < 0.3)    score += 15; // shared device
-    if (f.identity.device_switch_frequency > 3)   score += 20; // 3+ switches/week
+    if (f) {
+      // ── Layer 1: ML / Identity signals ────────────────────────────────────────
+      if (f.identity.account_age_days < 7)          score += 20; // brand-new account
+      if (f.identity.device_id_uniqueness < 0.3)    score += 15; // shared device
+      if (f.identity.device_switch_frequency > 3)   score += 20; // 3+ switches/week
 
-    // ── Layer 2: Location signals ─────────────────────────────────────────────
-    if (f.location.gps_speed > 150)               score += 25; // impossible speed
-    if (f.location.h3_zone_consistency < 0.3)     score += 10; // erratic zone
-    if (f.location.gps_cell_distance > 50)        score += 15; // giant cell jump
+      // ── Layer 2: Location signals ─────────────────────────────────────────────
+      if (f.location.gps_speed > 150)               score += 25; // impossible speed
+      if (f.location.h3_zone_consistency < 0.3)     score += 10; // erratic zone
+      if (f.location.gps_cell_distance > 50)        score += 15; // giant cell jump
 
-    // ── Layer 3: Behaviour signals ────────────────────────────────────────────
-    if (f.behavior.claims_last_30d > 10)           score += 20;
-    if (f.behavior.trigger_frequency > 1.0)        score += 15; // > 1 claim/day
-    if (f.behavior.earnings_pattern_deviation > 1) score += 10;
+      // ── Layer 3: Behaviour signals ────────────────────────────────────────────
+      if (f.behavior.claims_last_30d > 10)           score += 20;
+      if (f.behavior.trigger_frequency > 1.0)        score += 15; // > 1 claim/day
+      if (f.behavior.earnings_pattern_deviation > 1) score += 10;
 
-    // ── Layer 4: Device Intelligence (Layer A) ────────────────────────────────
-    // device_high_share = True ⟹ >3 distinct users on this hardware → +20
-    if (f.meta.device_high_share)                  score += 20;
-
-    // ── Layer 5: H3 Burst Detection (Layer B) ────────────────────────────────
-    // Multiple users active in the same H3 cell simultaneously → +15
-    if (f.meta.h3_burst_detected)                  score += 15;
-
-    // ── Layer 6: Temporal Behavior (Layer C) ─────────────────────────────────
-    // ≥2 claims in the last 24 hours is a strong short-burst fraud signal → +20
-    if ((f.meta.claims_last_24h ?? 0) >= 2)        score += 20;
+      // ── Layer 4-6: Meta Intelligence ────────────────────────────────────────
+      if (f.meta.device_high_share)                  score += 20;
+      if (f.meta.h3_burst_detected)                  score += 15;
+      if ((f.meta.claims_last_24h ?? 0) >= 2)        score += 20;
+    }
 
     // ── Layer 7: Legacy device / network heuristics (defence-in-depth) ────────
     if (dto.deviceIntegrity === 'Rooted Device')     score += 20;
@@ -351,9 +433,9 @@ export class FraudService {
     if (dto.velocityCheck === 'Suspicious')          score += 20;
 
     // ── Layer 8: GPS Spoof Intelligence ───────────────────────────────────────
-    if (dto.isMocked)                                score += 60; // critical spoof signal
+    if (dto.isSpoofed)                                score += 60; // critical spoof signal
     if (dto.developerMode)                           score += 30; // dev mode active
-    if (dto.altitudeAccuracy != null && dto.altitudeAccuracy > 10) score += 10; // poor signal / possible indoor spoof
+    if (dto.altitudeAccuracy != null && dto.altitudeAccuracy > 10) score += 10; 
 
     return Math.min(score, 100);
   }
@@ -480,8 +562,7 @@ export class FraudService {
     const amountBucket = amountBucketSize > 0
       ? Math.round(claimAmount / amountBucketSize) * amountBucketSize
       : Math.round(claimAmount);
-    const epochMinutes = Math.floor(Date.now() / 60000);
-    const timeBucket = Math.floor(epochMinutes / timeBucketMinutes) * timeBucketMinutes;
+    const timeBucket = getTimeBucket();
     const fingerprintSource = `${eventType}|${h3Cell}|${amountBucket}|${timeBucket}`;
     const fingerprintHash = createHash('sha256').update(fingerprintSource).digest('hex');
 
@@ -530,7 +611,7 @@ export class FraudService {
     if (matchedDisruption) signalScore += 10;
 
     try {
-      await this.prisma.claimFingerprint.create({
+      await (this.prisma as any).claimFingerprint.create({
         data: {
           userId,
           h3Cell,
@@ -585,51 +666,6 @@ export class FraudService {
     };
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
-  async autoResolveFraudQueue() {
-    const pending = await this.prisma.fraudAnalysis.findMany({
-      where: { status: 'INCONCLUSIVE' },
-      orderBy: { createdAt: 'asc' },
-      take: FRAUD_AUTO_QUEUE_BATCH_SIZE,
-    });
-
-    if (pending.length === 0) return;
-
-    let approved = 0;
-    let rejected = 0;
-
-    for (const row of pending) {
-      const score = Number(row.riskScore ?? 0);
-      const autoStatus = score >= FRAUD_AUTO_QUEUE_REJECT_MIN
-        ? 'AUTO_REJECTED'
-        : score <= FRAUD_AUTO_QUEUE_APPROVE_MAX
-          ? 'APPROVED'
-          : 'AUTO_REJECTED';
-
-      const note = autoStatus === 'APPROVED'
-        ? `Auto-approved by STP queue policy (riskScore=${score}, maxApprove=${FRAUD_AUTO_QUEUE_APPROVE_MAX})`
-        : `Auto-rejected by STP queue policy (riskScore=${score}, rejectMin=${FRAUD_AUTO_QUEUE_REJECT_MIN})`;
-
-      await this.prisma.fraudAnalysis.update({
-        where: { id: row.id },
-        data: {
-          status: autoStatus,
-          reviewedAt: new Date(),
-          reviewNote: note,
-        },
-      });
-
-      if (autoStatus === 'APPROVED') {
-        approved += 1;
-      } else {
-        rejected += 1;
-      }
-    }
-
-    this.logger.log(
-      `Auto-resolved fraud queue entries total=${pending.length} approved=${approved} rejected=${rejected}`,
-    );
-  }
 
   async getSubmissions() {
     const submissions = await this.prisma.fraudAnalysis.findMany({

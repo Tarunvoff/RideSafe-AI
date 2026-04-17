@@ -1,9 +1,9 @@
-# AEGIS: PRODUCTION-GRADE SYSTEM DESIGN & ARCHITECTURAL TRADE-OFFS
+# AEGIS: PRODUCTION-READY SYSTEM DESIGN & TIER-1 ARCHITECTURAL STANDARDS
 
 ## Executive Summary
 
-Aegis is an elite, **production-grade parametric insurance platform** architected for high-concurrency gig-economy logistics at an industrial scale. The technology stack is not merely a collection of tools but a highly deliberate, best-in-class selection engineered to solve the "zone unserviceability" problem with zero-friction automation. This audit evaluates the strategic rationale behind every architectural layer, specifically highlighting where standard alternatives were rejected in favor of more robust, **enterprise-ready engineering**.
-
+Aegis is an elite, **Production-Ready, Tier-1 parametric insurance platform** architected for high-concurrency gig-economy logistics at an industrial scale. The technology stack is not merely a collection of tools but a highly deliberate, best-in-class selection engineered to solve the "zone unserviceability" problem with zero-friction automation. This audit evaluates the strategic rationale behind every architectural layer, specifically highlighting where standard alternatives were rejected in favor of more robust, **enterprise-ready engineering**.
+ 
 ---
 
 ## 1. Frontend & Mobile UX Domain
@@ -28,7 +28,7 @@ The backend acts as the central nervous system, managing identity life-cycles, p
 | :--- | :--- | :--- | :--- |
 | **NestJS (TypeScript)** | Enterprise-grade modular orchestration. | Provides an opinionated, modular architecture that strictly decouples claim logic from payment processing and ML inference. | Raw Express.js is too permissive for financial systems. NestJS enforces Type Safety and Dependency Injection, preventing data corruption during mass telemetry spikes. |
 | **Prisma ORM** | Schema management and relational mapping. | Facilitates strict relational integrity between users, policies, and payouts, ensuring no orphaned data during state transitions. | NoSQL solutions like MongoDB lack the ACID-compliant relational rigidity required for actuarial ledgering and complex multi-table joins. |
-| **PostgreSQL** | Primary relational data store. | Offers rock-solid persistence and support for advanced extensions required for geospatial and time-series data. | While MySQL is common, PostgreSQL's advanced indexing (GIN/GiST) and support for extensions like TimescaleDB make it the superior choice for spatial-temporal data. |
+| **PostgreSQL** | Primary relational data store. | Offers rock-solid persistence and support for elite extensions required for geospatial and time-series data. | While MySQL is common, PostgreSQL's elite indexing (GIN/GiST) and support for extensions like TimescaleDB make it the superior choice for spatial-temporal data. |
 
 > **Integrity Principle: Idempotency**: Parametric insurance depends on the absolute prevention of double-payments. Aegis utilizes Prisma's type-safe client to implement strict unique constraints at the database layer (e.g., `PayoutIdempotencyKey`), ensuring exactly-once semantics for every payout event.
 

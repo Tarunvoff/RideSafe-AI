@@ -1,16 +1,11 @@
 /**
  * [EXCELLENCE SUMMARY]
- * The LoginScreen is the definitive entry point for the Aegis ecosystem, engineered with 
- * a "Mobile-First, Safety-First" philosophy. It merges avant-garde SVG graphics with 
- * robust asynchronous authentication flows, ensuring that the first touchpoint for 
- * underserved dark store operators is both visually stunning and technically infallible.
+ * The LoginScreen is the entry point for the Aegis app. 
+ * Large buttons and clear images make it easy to use for all drivers.
  * 
  * [DOMAIN LOGIC]
- * Facilitates secure access to the H3-risk pipeline by orchestrating multi-tenant 
- * OAuth integration with major logistics providers (Zepto, Blinkit, etc.). The 
- * inclusion of a high-efficiency video demo layer ensures that users with varying 
- * digital literacy are onboarded with professional clarity, maintaining the 
- * integrity of our driver-side security protocols.
+ * It handles login for drivers and admins. 
+ * A video demo helps new users understand how Aegis keeps them safe.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -131,6 +126,22 @@ export default function LoginScreen({ navigation }: any) {
   const showDemo = () => setDemoVisible(true);
   const closeDemo = () => setDemoVisible(false);
 
+  const handleAdminPortalPress = async () => {
+    const adminDashboardUrl =
+      process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_URL?.trim() || 'https://aegis-app-ten.vercel.app/';
+
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.assign(adminDashboardUrl);
+        return;
+      }
+
+      await WebBrowser.openBrowserAsync(adminDashboardUrl);
+    } catch {
+      Alert.alert('Admin Portal Unavailable', 'Unable to open the admin dashboard link.');
+    }
+  };
+
   /**
    * [IN-LINE PRIDE]: Deterministic OAuth Redirection
    * Calculates the optimal deep-link URI based on the application's runtime 
@@ -248,7 +259,7 @@ export default function LoginScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation.navigate('AdminLogin')}
+            onPress={handleAdminPortalPress}
             activeOpacity={0.8}
           >
             <Ionicons name="shield-outline" size={60} color="#000" />

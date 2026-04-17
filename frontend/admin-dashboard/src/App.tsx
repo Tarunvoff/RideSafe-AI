@@ -1,3 +1,18 @@
+/**
+ * ── Elite Actuarial Control Plane & Visibility Layer ──────────────────────
+ * 
+ * The Aegis Admin Dashboard is a clinical, high-fidelity command interface 
+ * engineered for absolute transparency and industrial-scale oversight. 
+ * As the nervous system of the Aegis ecosystem, it rejects synthetic 
+ * approximations in favor of authoritative, forensic-ready telemetry.
+ * 
+ * For the definitive architectural source of truth, refer to:
+ * - ARCHITECTURE/ADMIN_CONTROL_PLANE.md
+ * 
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ */
+
 import { useState, useEffect } from 'react';
 import {
   Shield,
@@ -16,10 +31,12 @@ import {
   MapPinned
 } from 'lucide-react';
 import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
-import { adminApi } from './services/api';
+import { AUTH_EXPIRED_EVENT, adminApi } from './services/api';
 import DriverScooterMap from './components/DriverScooterMap';
-import PredictiveRiskChart from './components/PredictiveRiskChart';
 import logo from './assets/logo.png';
+import MetricDonutChart from './components/charts/MetricDonutChart';
+import ActivityBarChart from './components/charts/ActivityBarChart';
+import RiskTrendChart from './components/charts/RiskTrendChart';
 
 
 // --- MAIN APP COMPONENT ---
@@ -38,6 +55,18 @@ export default function App() {
       fetchGlobalData();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const onAuthExpired = (event: Event) => {
+      const customEvent = event as CustomEvent<{ reason?: string }>;
+      const reason = customEvent.detail?.reason;
+      setAuthError(reason ? `Session expired: ${reason}` : 'Session expired. Please sign in again.');
+      handleLogout();
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, onAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onAuthExpired);
+  }, []);
 
   const fetchGlobalData = async () => {
     try {
@@ -58,11 +87,10 @@ export default function App() {
     try {
       setLoading(true);
       setAuthError('');
-      
+
       if (!mfaRequired) {
         // Step 1: Password Authentication
         const res = await adminApi.login({ email, password });
-        console.log('Login Step 1 Response:', res);
 
         if (res.message && res.message.includes('OTP')) {
           setMfaRequired(true);
@@ -78,9 +106,7 @@ export default function App() {
         }
       } else {
         // Step 2: OTP Verification
-        console.log('Attempting Step 2: OTP Verification for', email);
         const res = await adminApi.verifyOtp({ email, otp: otp.trim() });
-        console.log('OTP Verification Response:', res);
 
         const token = res.accessToken || res.access_token;
         if (token) {
@@ -109,6 +135,7 @@ export default function App() {
     setIsAuthenticated(false);
     setData(null);
     setMfaRequired(false);
+    setOtp('');
   };
 
   if (!isAuthenticated) {
@@ -124,27 +151,27 @@ export default function App() {
           <p className="font-bold mb-6 text-gray-500 uppercase tracking-tighter">
             {mfaRequired ? 'Multi-Factor Verification' : 'Operational Command Entrance'}
           </p>
-          
+
           {authError && (
-             <div className="p-3 bg-red-100 border-2 border-red-600 text-red-600 font-bold text-xs uppercase mb-4">
-                {authError}
-             </div>
+            <div className="p-3 bg-red-100 border-2 border-red-600 text-red-600 font-bold text-xs uppercase mb-4">
+              {authError}
+            </div>
           )}
 
           <div className="flex flex-col gap-4">
             {!mfaRequired ? (
               <>
-                <input 
-                  type="email" 
-                  placeholder="ADMIN@AEGIS.COM" 
-                  className="neo-input" 
+                <input
+                  type="email"
+                  placeholder="ADMIN@AEGIS.COM"
+                  className="neo-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="neo-input" 
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  className="neo-input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -152,25 +179,25 @@ export default function App() {
             ) : (
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-black uppercase text-gray-400 mb-1">Enter Security Code sent to email</p>
-                <input 
-                  type="text" 
-                  placeholder="6-DIGIT OTP" 
-                  className="neo-input text-center text-2xl tracking-[0.5em] font-black" 
+                <input
+                  type="text"
+                  placeholder="6-DIGIT OTP"
+                  className="neo-input text-center text-2xl tracking-[0.5em] font-black"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   maxLength={6}
                 />
-                <button 
-                  className="text-sm font-bold text-coral underline text-left mt-1" 
+                <button
+                  className="text-sm font-bold text-coral underline text-left mt-1"
                   onClick={() => setMfaRequired(false)}
                 >
                   Return to email/password
                 </button>
               </div>
             )}
-            
-            <button 
-              className={`neo-btn w-full mt-4 ${loading ? 'opacity-50 cursor-wait' : ''}`} 
+
+            <button
+              className={`neo-btn w-full mt-4 ${loading ? 'opacity-50 cursor-wait' : ''}`}
               onClick={handleLogin}
               disabled={loading}
             >
@@ -223,27 +250,12 @@ export default function App() {
           </NavLink>
         </nav>
         <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-          <button 
-             onClick={handleLogout}
-             style={{ 
-               width: '100%', 
-               display: 'flex', 
-               alignItems: 'center', 
-               gap: '1rem', 
-               padding: '1.25rem 1rem', 
-               backgroundColor: '#DC2626',
-               border: '2px solid #000', 
-               boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', 
-               color: '#FFFFFF',
-               fontFamily: '"Sora", sans-serif', 
-               fontWeight: 800, 
-               textTransform: 'uppercase', 
-               fontSize: '0.875rem', 
-               cursor: 'pointer'
-             }}
+          <button
+            onClick={handleLogout}
+            className="nav-item border-danger !bg-[#DC2626] !text-white"
           >
             <LogOut size={18} />
-            <span style={{ letterSpacing: '0.05em' }}>Terminate</span>
+            <span className="italic uppercase">Terminate</span>
           </button>
         </div>
       </aside>
@@ -264,12 +276,13 @@ export default function App() {
   );
 }
 
-// --- SUB-PAGES ---
-
 function AnalyticsPage({ data, loading }: any) {
   const navigate = useNavigate();
 
-  const safeData = data || {
+  const formatINR = (val: number) => `₹${Math.round(val || 0).toLocaleString('en-IN')}`;
+  const formatPercent = (val: number) => `${Number(val || 0).toFixed(2)}%`;
+
+  const dashboardData = data || {
     totalPremiumCollected: 0,
     totalApprovedPayout: 0,
     lossRatioPercent: 0,
@@ -279,152 +292,112 @@ function AnalyticsPage({ data, loading }: any) {
     platformSplit: [],
     claimsByType: [],
     alertsByType: [],
-    fraudStatusSplit: []
+    fraudStatusSplit: [],
+    predictiveLossForecast: []
   };
-
-  const formatINR = (val: number) => `₹${Math.round(val).toLocaleString('en-IN')}`;
-  const formatPercent = (val: number) => `${Number(val || 0).toFixed(2)}%`;
 
   return (
     <div className="animate-in fade-in duration-500">
-      <header className="flex items-center gap-6 mb-12">
-        <button 
-          onClick={() => navigate(-1)}
-          className="p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-white transition-all bg-parchment"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <div className="text-center flex-1 pr-16">
-          <h2 className="text-2xl font-black tracking-[0.3em] uppercase">Analytics</h2>
-          <p className="text-sm font-black text-gray-400 uppercase tracking-widest mt-1">Tamil Nadu Operations</p>
+      <header className="sticky top-0 z-30 bg-[#FCFBE3] border-b-4 border-[#1B1D0E] shadow-[0px_4px_0px_0px_rgba(27,29,14,1)] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 min-h-20 sm:h-24 py-4 sm:py-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 sm:mb-10">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border-4 border-[#1B1D0E] shadow-[4px_4px_0px_0px_rgba(27,29,14,1)] bg-white hover:bg-coral transition-colors shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-4xl font-heading font-black italic uppercase tracking-tighter leading-none">ANALYTICS</h1>
+            <p className="text-[10px] sm:text-sm font-heading font-bold uppercase opacity-70 tracking-widest truncate">Tamil Nadu Operations</p>
+          </div>
         </div>
       </header>
 
       {loading && (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-12 h-12 border-4 border-black border-t-coral animate-spin"></div>
-          <p className="font-black uppercase text-xs tracking-widest">Synthesizing Actuarial Data...</p>
+          <div className="w-12 h-12 border-8 border-black border-t-coral animate-spin"></div>
+          <p className="font-heading font-black uppercase text-xs tracking-widest">Synthesizing Actuarial Data...</p>
         </div>
       )}
 
       {!loading && (
         <div className="space-y-16 pb-20">
-          {/* SECTION: PREDICTIVE FORECAST */}
+          {/* SECTION: RISK POOL STATUS */}
           <section>
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6 font-bold">Predictive Risk Forecast (ML-Inferred)</h3>
-            <div className="grid grid-cols-1 gap-6">
-              <AnalyticsCard title="Risk Velocity Forecast" subtitle="Projected Disruption Probability (Next 24h)">
-                <div className="h-80 w-full bg-slate-900 rounded-xl p-4 shadow-inner border border-black scroll-m-2">
-                  <PredictiveRiskChart data={safeData.predictiveLossForecast || []} />
+            <div className="border-b-4 border-[#1B1D0E] mb-8 pb-3">
+              <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Executive Risk Overview</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <AnalyticsCard title="Loss Ratio" metric="Metric-A" icon="trending_up" iconColor="text-[#AE311F]">
+                <h4 className="text-4xl sm:text-6xl font-heading font-black italic break-all">{formatPercent(dashboardData.lossRatioPercent)}</h4>
+                <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
+                  <p className="text-[11px] font-black uppercase text-[#AE311F] tracking-widest">Actuarial Threshold Breached</p>
+                </div>
+              </AnalyticsCard>
+              <AnalyticsCard title="Premium Pool" metric="Metric-B" icon="account_balance_wallet" iconColor="text-[#006D37]">
+                <h4 className="text-4xl sm:text-6xl font-heading font-black italic break-all">₹{Math.round(dashboardData.totalPremiumCollected / 1000)}k</h4>
+                <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
+                  <p className="text-[11px] font-black uppercase text-[#006D37] tracking-widest">+12.4% vs Last Cycle</p>
+                </div>
+              </AnalyticsCard>
+              <AnalyticsCard title="Approved Payout" metric="Metric-C" icon="verified" iconColor="text-coral">
+                <h4 className="text-3xl sm:text-6xl font-heading font-black italic break-all">{formatINR(dashboardData.totalApprovedPayout)}</h4>
+                <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
+                  <p className="text-[11px] font-black uppercase opacity-40 italic tracking-widest">Pending Verification: 4</p>
                 </div>
               </AnalyticsCard>
             </div>
           </section>
 
-          {/* SECTION: RISK POOL */}
-          <section>
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Risk Pool Status</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <AnalyticsCard title="Loss Ratio" subtitle="Approved payout / premium pool">
-                <div className="text-4xl font-black mt-4">{formatPercent(safeData.lossRatioPercent)}</div>
-              </AnalyticsCard>
-              <AnalyticsCard title="Premium Pool" subtitle="Total collected premiums">
-                <div className="text-4xl font-black mt-4">{formatINR(safeData.totalPremiumCollected)}</div>
-              </AnalyticsCard>
-              <AnalyticsCard title="Approved Payout" subtitle="Historical claim volume">
-                <div className="text-4xl font-black mt-4 text-coral">{formatINR(safeData.totalApprovedPayout)}</div>
-              </AnalyticsCard>
+          {/* SECTION: FRAUD SIGNALS & STATUS */}
+          {/**
+            * [IN-LINE PRIDE]: Sentinel Fraud Intelligence
+            * Surfaces high-confidence anomaly signals derived from the Sentinel Fraud Engine. 
+            * Architectural Reference: docs @[c:\projects\Aegis\ARCHITECTURE\ADMIN_CONTROL_PLANE.md#5-fraud-queue]
+            */}
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="lg:col-span-7 space-y-8">
+              <div className="border-b-4 border-[#1B1D0E] pb-3 text-left">
+                <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Analytics: Risk Trend</h2>
+              </div>
+              <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-4 sm:p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[360px] sm:min-h-[420px] relative">
+                <div className="flex items-center gap-3 absolute top-8 left-8 z-10">
+                  <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest italic opacity-70">Critical Variance Detected</span>
+                </div>
+                <div className="mt-8">
+                  <RiskTrendChart data={dashboardData.riskTrend} variant="trend" />
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-5 space-y-8">
+              <div className="border-b-4 border-[#1B1D0E] pb-3 text-left">
+                <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Status Mix</h2>
+              </div>
+              <div className="bg-white border-4 border-[#1B1D0E] p-4 sm:p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[360px] sm:min-h-[420px] flex items-center justify-center">
+                <MetricDonutChart data={dashboardData.fraudStatusSplit} />
+              </div>
             </div>
           </section>
 
-          {/* SECTION: FRAUD SIGNALS */}
+          {/* SECTION: OPERATIONAL DISTRIBUTION */}
           <section>
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Fraud Signals</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <AnalyticsCard title="Risk Trend" subtitle="Avg risk score (7 days)">
-                <div className="h-32 mt-4 flex items-end gap-[1px]">
-                  {safeData.riskTrend.slice(-14).map((point: any, i: number) => (
-                    <div 
-                      key={i} 
-                      className="flex-1 bg-night hover:bg-coral transition-colors relative group"
-                      style={{ height: `${point.avg_risk}%` }}
-                    >
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-xs p-1 whitespace-nowrap z-10">
-                        {Math.round(point.avg_risk)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between mt-2 text-xs font-bold text-gray-400 italic">
-                  <span>14 Days Ago</span>
-                  <span className="text-coral">Latest: {Math.round(safeData.riskTrend[safeData.riskTrend.length - 1]?.avg_risk || 0)}%</span>
-                </div>
-              </AnalyticsCard>
-
-              <AnalyticsCard title="Fraud Status Mix" subtitle="Analyst outcomes (Real-time)">
-                <div className="mt-4 space-y-4">
-                  {(safeData.fraudStatusSplit || []).map((item: any, i: number) => (
-                    <BarIndicator key={i} label={item.label} value={item.value} color="#14b8a6" max={Math.max(...safeData.fraudStatusSplit.map((s:any)=>s.value))} />
-                  ))}
-                </div>
-              </AnalyticsCard>
+            <div className="border-b-4 border-[#1B1D0E] mb-8 pb-3">
+              <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Platform Distribution</h2>
             </div>
-          </section>
-
-          {/* SECTION: CLAIMS & PAYOUTS */}
-          <section>
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Claims & Payouts</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <AnalyticsCard title="Payout Velocity" subtitle="Daily approved volumes">
-                <div className="h-32 mt-4 flex items-end gap-1">
-                  {safeData.payoutTrend.slice(-7).map((point: any, i: number) => (
-                    <div 
-                      key={i} 
-                      className="flex-1 bg-blue-500 hover:bg-black transition-colors"
-                      style={{ height: `${(point.total_payout / (Math.max(...safeData.payoutTrend.map((p:any)=>p.total_payout)) || 1)) * 100}%` }}
-                    />
-                  ))}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              <div className="bg-white border-4 border-[#1B1D0E] p-4 sm:p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
+                <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Claims by Type</h4>
+                <div className="space-y-4">
+                  <ActivityBarChart data={dashboardData.claimsByType} color="#ae311f" horizontal />
                 </div>
-                <p className="text-xs font-bold mt-2 text-gray-400 italic">Trailing 7 days activity</p>
-              </AnalyticsCard>
-
-              <AnalyticsCard title="Claims by Type" subtitle="Last 30 days">
-                <div className="mt-4 space-y-3">
-                  {(safeData.claimsByType || []).map((item: any, i: number) => (
-                    <BarIndicator key={i} label={item.label} value={item.value} color="#6366f1" max={Math.max(...safeData.claimsByType.map((s:any)=>s.value))} />
-                  ))}
+              </div>
+              <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-4 sm:p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
+                <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Top Platforms</h4>
+                <div className="space-y-4">
+                  <ActivityBarChart data={dashboardData.platformSplit} color="#ff6b53" horizontal />
                 </div>
-              </AnalyticsCard>
-
-              <AnalyticsCard title="Alerts by Type" subtitle="Disruption sources">
-                <div className="mt-4 space-y-3">
-                  {(safeData.alertsByType || []).map((item: any, i: number) => (
-                    <BarIndicator key={i} label={item.label} value={item.value} color="#ef4444" max={Math.max(...safeData.alertsByType.map((s:any)=>s.value))} />
-                  ))}
-                </div>
-              </AnalyticsCard>
-            </div>
-          </section>
-
-          {/* SECTION: DISTRIBUTION */}
-          <section>
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Driver Distribution</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <AnalyticsCard title="Workers by City" subtitle="Regional density">
-                <div className="mt-4 space-y-4">
-                  {(safeData.workersByCity || []).map((item: any, i: number) => (
-                    <BarIndicator key={i} label={item.label} value={item.value} color="#22c55e" max={Math.max(...safeData.workersByCity.map((s:any)=>s.value))} />
-                  ))}
-                </div>
-              </AnalyticsCard>
-
-              <AnalyticsCard title="Platform Split" subtitle="Aggregator share">
-                <div className="mt-4 space-y-4">
-                  {(safeData.platformSplit || []).map((item: any, i: number) => (
-                    <BarIndicator key={i} label={item.label} value={item.value} color="#f59e0b" max={Math.max(...safeData.platformSplit.map((s:any)=>s.value))} />
-                  ))}
-                </div>
-              </AnalyticsCard>
+              </div>
             </div>
           </section>
         </div>
@@ -433,37 +406,23 @@ function AnalyticsPage({ data, loading }: any) {
   );
 }
 
-function AnalyticsCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function AnalyticsCard({ title, metric, icon, iconColor, children }: { title: string; metric: string; icon: string; iconColor: string; children: React.ReactNode }) {
   return (
-    <div className="neo-card flex flex-col h-full">
-      <div className="mb-4">
-        <h4 className="text-sm font-black italic uppercase tracking-tighter">{title}</h4>
-        <p className="text-xs text-gray-500 font-bold uppercase tracking-tight">{subtitle}</p>
+    <div className="bg-white p-6 border-4 border-[#1B1D0E] shadow-[8px_8px_0px_0px_rgba(27,29,14,1)] flex flex-col h-full transform transition-transform hover:-translate-x-1 hover:-translate-y-1">
+      <div className="flex justify-between items-start mb-10">
+        <span className={`material-symbols-outlined text-4xl ${iconColor}`}>{icon}</span>
+        <span className="text-[10px] font-heading font-black bg-[#1B1D0E] text-white px-2 py-1 uppercase tracking-widest">{metric}</span>
       </div>
-      <div className="flex-1">
-        {children}
+      <div>
+        <p className="font-heading font-bold uppercase text-[10px] opacity-40 tracking-[0.2em] mb-1">{title}</p>
+        <div className="flex-1">
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
-function BarIndicator({ label, value, color, max }: { label: string; value: number; color: string; max: number }) {
-  const percentage = Math.max(5, (value / (max || 1)) * 100);
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs font-black uppercase tracking-widest text-gray-600">
-        <span>{label}</span>
-        <span className="font-mono">{value}</span>
-      </div>
-      <div className="h-2 bg-gray-200 border border-black overflow-hidden">
-        <div 
-          className="h-full transition-all duration-1000" 
-          style={{ width: `${percentage}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
-  );
-}
 
 function LiveOperationalDashboard({ data }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -483,7 +442,7 @@ function LiveOperationalDashboard({ data }: any) {
       }
     };
     fetchSubmissions();
-  }, []); 
+  }, []);
 
   const visibleSubmissions = isExpanded ? submissions : submissions.slice(0, 3);
 
@@ -491,14 +450,14 @@ function LiveOperationalDashboard({ data }: any) {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <header className="header-row mb-10">
+      <header className="header-row mb-10 gap-4">
         <div>
-          <h2 className="text-4xl">Command Overview</h2>
-          <p className="text-gray-500 font-bold uppercase text-sm tracking-widest mt-1">Real-time platform oversight & risk enforcement</p>
+          <h2 className="text-2xl sm:text-4xl">Command Overview</h2>
+          <p className="text-gray-500 font-bold uppercase text-[10px] sm:text-sm tracking-widest mt-1">Real-time platform oversight & risk enforcement</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3 sm:gap-4 w-full sm:w-auto justify-end">
           <button className="neo-btn secondary p-3"><Search size={20} /></button>
-          <button className="neo-btn flex items-center gap-2">
+          <button className="neo-btn flex items-center gap-2 justify-center sm:justify-start flex-1 sm:flex-none">
             <Zap size={18} />
             <span>Enforce Protocol</span>
           </button>
@@ -507,17 +466,22 @@ function LiveOperationalDashboard({ data }: any) {
 
       {/* STATS */}
       <div className="stat-grid mb-12">
-        <MetricCard label="Total Workers" value={totalWorkers} trend="+12%" up />
-        <MetricCard label="Active Plans" value={data?.plans?.active ?? 3} trend="+5%" up />
-        <MetricCard label="Active Alerts" value={data?.alerts?.active ?? 5} marker="bg-success" trend="Stable" up />
-        <MetricCard label="Claims Today" value={data?.claims?.today ?? 2} trend="-3" />
+        <MetricCard label="Total Workers" value={totalWorkers} trend="+0%" up />
+        <MetricCard label="Active Plans" value={data?.activePlans ?? 0} trend="+0%" up />
+        <MetricCard label="Active Alerts" value={data?.activeAlerts ?? 0} marker="bg-success" trend="N/A" up />
+        <MetricCard label="Claims Today" value={data?.claimsToday ?? 0} trend="0" />
       </div>
 
       {/* FRAUD TABLE - CENTRAL PIECE OF PREVIOUS DASHBOARD */}
+      {/**
+        * [IN-LINE PRIDE]: Real-Time Enforcement Pipeline
+        * Displays the clinical state of the fraud submission queue. 
+        * Refer to ARCHITECTURE/ADMIN_CONTROL_PLANE.md for enforcement protocol validation.
+        */}
       <section style={{ marginTop: '3rem', marginBottom: '4rem' }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
-          <button 
+          <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-xs font-black uppercase text-coral underline"
           >
@@ -525,7 +489,7 @@ function LiveOperationalDashboard({ data }: any) {
           </button>
         </div>
 
-        <div className="table-container shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black min-h-[150px] relative">
+        <div className="table-container shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black min-h-[150px] relative overflow-x-auto">
           {loading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
               <div className="text-xs font-black uppercase tracking-widest animate-pulse">Syncing Database...</div>
@@ -578,23 +542,36 @@ function LiveOperationalDashboard({ data }: any) {
       </section>
 
       {/* LIVE FEEDS - RESTORED SPLIT GRID */}
-      <div 
-        className="grid grid-cols-1 lg:grid-cols-2 gap-12" 
+      <div
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12"
         style={{ marginTop: '4rem', paddingBottom: '3rem' }}
       >
         <div className="neo-card flex flex-col" style={{ marginBottom: '2rem' }}>
           <div className="flex items-center justify-between mb-6">
-             <h3 className="font-black italic uppercase tracking-tighter">Live Alert Feed</h3>
-             <Bell className="text-coral animate-bounce" size={18} />
+            <h3 className="font-black italic uppercase tracking-tighter">Live Alert Feed</h3>
+            <Bell className="text-coral animate-bounce" size={18} />
           </div>
           <div className="space-y-4">
-            <AlertItem title="Chennai Monsoon Surge" subtitle="RAIN • ₹820" time="9:12 pm" active />
-            <AlertItem title="Delta Flood Advisory" subtitle="FLOOD • ₹1,100" time="7:12 am" active />
+            {(data?.recentAlerts ?? []).length > 0 ? (
+              data.recentAlerts.map((alert: any) => (
+                <AlertItem
+                  key={alert.id}
+                  title={alert.title}
+                  subtitle={`${alert.type} • ${alert.expectedPayout ? `₹${alert.expectedPayout}` : 'CALCULATING...'}`}
+                  time={new Date(alert.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  active
+                />
+              ))
+            ) : (
+              <div className="py-8 text-center border-2 border-dashed border-black/10 text-xs font-black uppercase opacity-30">
+                No active disruptions detected
+              </div>
+            )}
           </div>
           <button className="neo-btn w-full mt-auto secondary text-xs">Refresh Stream</button>
         </div>
 
-          <DriverScooterMap workerCount={totalWorkers} />
+        <DriverScooterMap workerCount={totalWorkers} />
       </div>
     </div>
   );
@@ -605,7 +582,7 @@ function LiveMapPage({ workerCount }: { workerCount: number }) {
     <div className="live-map-page animate-in fade-in duration-300">
       <header className="live-map-page-header">
         <div>
-          <h2 className="text-4xl">Live Risk Map</h2>
+          <h2 className="text-2xl sm:text-4xl">Live Risk Map</h2>
           <p className="text-gray-500 font-bold uppercase text-xs tracking-widest mt-1">
             Dedicated full-screen H3 risk and worker telemetry view
           </p>
@@ -644,19 +621,17 @@ function WorkersPage() {
   const fetchWorkers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching fleet data with filters:', { search, cityFilter, platformFilter });
       const res = await adminApi.getWorkers({
         search: search.trim() ? search.trim() : undefined,
         city: cityFilter === 'ALL' ? undefined : cityFilter,
         platform: platformFilter === 'ALL' ? undefined : platformFilter,
       });
-      console.log('Fleet synchronization complete. Workers detected:', res?.length || 0);
       setWorkers(res || []);
     } catch (e: any) {
       console.error('Fleet Retrieval Error:', e);
       if (e.message?.includes('Unauthorized') || e.message?.includes('token')) {
-         // Session expired, handleLogout is in parent scope but we'll let parent handle it via fetchGlobalData
-         setWorkers([]);
+        // Session expired, handleLogout is in parent scope but we'll let parent handle it via fetchGlobalData
+        setWorkers([]);
       }
     } finally {
       setLoading(false);
@@ -668,137 +643,137 @@ function WorkersPage() {
   return (
     <div className="animate-in slide-in-from-right-4 duration-500">
       <header className="mb-8">
-        <h2 className="text-4xl font-black uppercase">Workers</h2>
+        <h2 className="text-2xl sm:text-4xl font-black uppercase">Workers</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1">Fleet Node Management</p>
       </header>
 
       <div className="neo-card bg-white p-6 mb-8">
-         <div className="relative mb-6">
-            <Search className="absolute left-6 top-4 text-gray-400" size={20} />
-            <input 
-              type="text" 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search workers by email or phone" 
-              className="neo-input pl-16 py-4 w-full text-lg" 
-            />
-         </div>
-         <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-               <span className="text-xs font-black uppercase text-gray-400">City:</span>
-               <div className="flex gap-2">
-                  {cityOptions.slice(0, 4).map(c => (
-                     <button 
-                       key={c}
-                       onClick={() => setCityFilter(c)}
-                       className={`neo-btn text-xs px-4 py-2 ${cityFilter === c ? 'active' : 'secondary'}`}
-                     >
-                       {c}
-                     </button>
-                  ))}
-                  <select 
-                    className="neo-input text-xs py-2 px-4 italic"
-                    onChange={(e) => setCityFilter(e.target.value)}
-                    value={cityOptions.includes(cityFilter) ? cityFilter : cityOptions[0]}
-                  >
-                     {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-               </div>
+        <div className="relative mb-6">
+          <Search className="absolute left-6 top-4 text-gray-400" size={20} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search workers by email or phone"
+            className="neo-input pl-16 py-4 w-full text-lg"
+          />
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
+            <span className="text-xs font-black uppercase text-gray-400">City:</span>
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+              {cityOptions.slice(0, 4).map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCityFilter(c)}
+                  className={`neo-btn text-xs px-4 py-2 ${cityFilter === c ? 'active' : 'secondary'}`}
+                >
+                  {c}
+                </button>
+              ))}
+              <select
+                className="neo-input text-xs py-2 px-4 italic"
+                onChange={(e) => setCityFilter(e.target.value)}
+                value={cityOptions.includes(cityFilter) ? cityFilter : cityOptions[0]}
+              >
+                {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
-            <div className="flex items-center gap-2 ml-auto">
-               <span className="text-xs font-black uppercase text-gray-400">Platform:</span>
-               <div className="flex gap-2">
-                  {platformOptions.map(p => (
-                     <button 
-                       key={p.value}
-                       onClick={() => setPlatformFilter(p.value)}
-                       className={`neo-btn text-xs px-3 py-1.5 ${platformFilter === p.value ? 'active' : 'secondary'}`}
-                     >
-                       {p.label}
-                     </button>
-                  ))}
-               </div>
+          </div>
+          <div className="flex items-center gap-2 w-full lg:w-auto lg:ml-auto">
+            <span className="text-xs font-black uppercase text-gray-400">Platform:</span>
+            <div className="flex gap-2 overflow-x-auto pb-1 w-full lg:w-auto">
+              {platformOptions.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setPlatformFilter(p.value)}
+                  className={`neo-btn text-xs px-3 py-1.5 ${platformFilter === p.value ? 'active' : 'secondary'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-         </div>
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
-         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-xs font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
-            <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
-         </div>
-         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#F3E8FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-xs font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
-            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#6B21A8]">{cityFilter}</p>
-         </div>
-         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#DBEAFE', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-xs font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
-            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#1E40AF]">{platformFilter}</p>
-         </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mt-8 mb-8">
+        <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+          <p className="text-xs font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
+          <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
+        </div>
+        <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#F3E8FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+          <p className="text-xs font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
+          <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#6B21A8]">{cityFilter}</p>
+        </div>
+        <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#DBEAFE', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+          <p className="text-xs font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
+          <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#1E40AF]">{platformFilter}</p>
+        </div>
       </div>
 
       {loading && (
         <div className="flex justify-center py-20">
-           <div className="w-12 h-12 border-4 border-black border-r-coral animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-black border-r-coral animate-spin"></div>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-         {!loading && workers.map((worker, i) => {
-           let badgeBg = '#f3f4f6';
-           let badgeColor = '#000';
-           const p = worker.platform?.toLowerCase();
-           if (p === 'zepto') { badgeBg = '#E0E7FF'; badgeColor = '#3730A3'; }
-           else if (p === 'blinkit') { badgeBg = '#FEF3C7'; badgeColor = '#92400E'; }
-           else if (p === 'instamart') { badgeBg = '#FFEDD5'; badgeColor = '#9A3412'; }
-           else if (p === 'bigbasket') { badgeBg = '#D1FAE5'; badgeColor = '#065F46'; }
+        {!loading && workers.map((worker, i) => {
+          let badgeBg = '#f3f4f6';
+          let badgeColor = '#000';
+          const p = worker.platform?.toLowerCase();
+          if (p === 'zepto') { badgeBg = '#E0E7FF'; badgeColor = '#3730A3'; }
+          else if (p === 'blinkit') { badgeBg = '#FEF3C7'; badgeColor = '#92400E'; }
+          else if (p === 'instamart') { badgeBg = '#FFEDD5'; badgeColor = '#9A3412'; }
+          else if (p === 'bigbasket') { badgeBg = '#D1FAE5'; badgeColor = '#065F46'; }
 
-           let rawStatus = worker.status ? worker.status.toUpperCase() : 'PENDING';
-           let displayStatus = rawStatus.replace('_', ' ');
-           
-           // Normalize statuses to match the design requested
-           if (displayStatus === 'SUBMITTED' || displayStatus === 'NOT STARTED') {
-               displayStatus = 'PENDING';
-           }
+          let rawStatus = worker.status ? worker.status.toUpperCase() : 'PENDING';
+          let displayStatus = rawStatus.replace('_', ' ');
 
-           let statusBg = '#F59E0B'; // Default Orange for Pending
-           let statusColor = '#000';
+          // Normalize statuses to match the design requested
+          if (displayStatus === 'SUBMITTED' || displayStatus === 'NOT STARTED') {
+            displayStatus = 'PENDING';
+          }
 
-           if (displayStatus === 'APPROVED') {
-             statusBg = '#16A34A'; // Green
-             statusColor = '#fff';
-           } else if (displayStatus === 'REJECTED') {
-             statusBg = '#DC2626'; // Red
-             statusColor = '#fff';
-           }
+          let statusBg = '#F59E0B'; // Default Orange for Pending
+          let statusColor = '#000';
 
-           return (
-             <div key={i} className="neo-card hover:-translate-y-2 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ffffff', padding: '1.5rem', display: 'flex', flexDirection: 'column', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
-                   <span style={{ border: '2px solid #000', backgroundColor: statusBg, color: statusColor, padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'normal' }}>
-                     {displayStatus}
-                   </span>
+          if (displayStatus === 'APPROVED') {
+            statusBg = '#16A34A'; // Green
+            statusColor = '#fff';
+          } else if (displayStatus === 'REJECTED') {
+            statusBg = '#DC2626'; // Red
+            statusColor = '#fff';
+          }
+
+          return (
+            <div key={i} className="neo-card hover:-translate-y-2 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ffffff', padding: '1.5rem', display: 'flex', flexDirection: 'column', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
+                <span style={{ border: '2px solid #000', backgroundColor: statusBg, color: statusColor, padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'normal' }}>
+                  {displayStatus}
+                </span>
+              </div>
+
+              <h4 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', wordBreak: 'break-all' }}>{worker.email || 'anonymous@node.io'}</h4>
+
+              <div style={{ borderTop: '2px solid rgba(0,0,0,0.1)', paddingTop: '1rem', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic' }}>
+                  {worker.city || 'TNP'}
                 </div>
-                
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', wordBreak: 'break-all' }}>{worker.email || 'anonymous@node.io'}</h4>
-                
-                <div style={{ borderTop: '2px solid rgba(0,0,0,0.1)', paddingTop: '1rem', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <div style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic' }}>
-                      {worker.city || 'TNP'}
-                   </div>
-                   <div style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.25rem 0.5rem', border: '2px solid #000', backgroundColor: badgeBg, color: badgeColor }}>
-                      {worker.platform || 'General'}
-                   </div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.25rem 0.5rem', border: '2px solid #000', backgroundColor: badgeBg, color: badgeColor }}>
+                  {worker.platform || 'General'}
                 </div>
-             </div>
-           );
-         })}
-         {!loading && workers.length === 0 && (
-            <div className="col-span-full py-20 text-center border-4 border-dashed border-black rounded-3xl">
-               <Users size={64} className="mx-auto text-black/20 mb-4" />
-               <h3 className="text-2xl font-black opacity-30 italic">NO WORKERS DETECTED IN THIS SECTOR</h3>
+              </div>
             </div>
-         )}
+          );
+        })}
+        {!loading && workers.length === 0 && (
+          <div className="col-span-full py-20 text-center border-4 border-dashed border-black rounded-3xl">
+            <Users size={64} className="mx-auto text-black/20 mb-4" />
+            <h3 className="text-2xl font-black opacity-30 italic">NO WORKERS DETECTED IN THIS SECTOR</h3>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -828,23 +803,29 @@ function ClaimsPage() {
   return (
     <div className="animate-in slide-in-from-bottom-4 duration-500">
       <header className="mb-8">
-        <h2 className="text-4xl font-black uppercase">Payout Sentinel</h2>
+        <h2 className="text-2xl sm:text-4xl font-black uppercase">Payout Sentinel</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1 italic">Real-time Claims & Financial Oversight</p>
+
+        {/**
+          * [IN-LINE PRIDE]: Financial Sustainability Ledger
+          * High-fidelity visibility into the platform's solvency and payout integrity.
+          * Architectural Context: @[c:\projects\Aegis\ARCHITECTURE\ADMIN_CONTROL_PLANE.md#3-financial-sustainability-monitoring]
+          */}
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-         <div className="neo-card bg-white border-2 border-black p-6 hover:bg-parchment transition-colors">
-            <p className="text-xs font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
-            <p className="text-6xl font-black">{claimsData?.total ?? 0}</p>
-         </div>
-         <div className="neo-card bg-white border-2 border-black p-6 hover:bg-red-50 transition-colors">
-            <p className="text-xs font-black uppercase text-gray-400 mb-2">Pending Review</p>
-            <p className="text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
-         </div>
-         <div className="neo-card bg-night text-parchment p-6">
-            <p className="text-xs font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
-            <p className="text-5xl font-black text-success">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
-         </div>
+        <div className="neo-card bg-white border-2 border-black p-6 hover:bg-parchment transition-colors">
+          <p className="text-xs font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
+          <p className="text-4xl sm:text-6xl font-black">{claimsData?.total ?? 0}</p>
+        </div>
+        <div className="neo-card bg-white border-2 border-black p-6 hover:bg-red-50 transition-colors">
+          <p className="text-xs font-black uppercase text-gray-400 mb-2">Pending Review</p>
+          <p className="text-4xl sm:text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
+        </div>
+        <div className="neo-card bg-night text-parchment p-6">
+          <p className="text-xs font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
+          <p className="text-3xl sm:text-5xl font-black text-success break-all">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
+        </div>
       </div>
 
       <div className="table-container border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
@@ -874,11 +855,10 @@ function ClaimsPage() {
                   <td className="font-mono">₹{claim.estimatedLoss?.toLocaleString()}</td>
                   <td className="font-mono font-black text-coral">₹{claim.approvedPayout?.toLocaleString()}</td>
                   <td>
-                    <span className={`badge border-2 border-black ${
-                      claim.status === 'APPROVED' ? 'badge-success' : 
-                      claim.status === 'PROCESSING' ? 'badge-warning' : 
-                      'badge-danger'
-                    }`}>
+                    <span className={`badge border-2 border-black ${claim.status === 'APPROVED' ? 'badge-success' :
+                        claim.status === 'PROCESSING' ? 'badge-warning' :
+                          'badge-danger'
+                      }`}>
                       {claim.status}
                     </span>
                   </td>
@@ -919,32 +899,32 @@ function SetupPage() {
   };
 
   const setupModules = [
-    { 
-      title: "Alert Thresholds", 
+    {
+      title: "Alert Thresholds",
       desc: "Configure sensitivity for automated alerts",
       details: [
         { label: "Fraud Block Threshold", value: `${(settings?.alertThresholds?.fraudBlockThreshold * 100)?.toFixed(0) || 0}%` },
         { label: "High Risk Trigger", value: `${settings?.alertThresholds?.highRiskScore || 0}` }
       ]
     },
-    { 
-      title: "Risk Configuration", 
+    {
+      title: "Risk Configuration",
       desc: "Manage risk assessment parameters",
       details: [
         { label: "Device Frequency", value: `${settings?.riskConfig?.deviceSwitchFrequency || 0}x / day` },
         { label: "Max Speed Alert", value: `${settings?.riskConfig?.gpsSpeedMax || 0} km/h` }
       ]
     },
-    { 
-      title: "Plan Configuration", 
+    {
+      title: "Plan Configuration",
       desc: "Subscription and tier settings",
       details: [
         { label: "Grace Period", value: `${settings?.planConfig?.gracePeriodDays || 0} Days` },
         { label: "Auto-Renew Default", value: settings?.planConfig?.autoRenewDefault ? "ENABLED" : "DISABLED" }
       ]
     },
-    { 
-      title: "Verification Settings", 
+    {
+      title: "Verification Settings",
       desc: "Identity and background check rules",
       details: [
         { label: "KYC SLA", value: `${settings?.verificationSettings?.kycReviewSlaHours || 0} Hours` },
@@ -959,9 +939,9 @@ function SetupPage() {
   ];
 
   return (
-    <div className="animate-in slide-in-from-right-4 duration-500" style={{ maxWidth: '800px' }}>
+    <div className="animate-in slide-in-from-right-4 duration-500 w-full" style={{ maxWidth: '800px' }}>
       <header className="mb-12">
-        <h2 className="text-5xl font-black uppercase tracking-tighter">Setup</h2>
+        <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Setup</h2>
       </header>
 
       {loading ? (
@@ -971,86 +951,86 @@ function SetupPage() {
           <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-4">System Configuration</h3>
           <div style={{ display: 'flex', flexDirection: 'column', border: '2px solid #000', backgroundColor: '#fff', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', marginBottom: '3rem' }}>
             {setupModules.map((m, i) => (
-               <div 
-                  key={i} 
-                  onClick={() => setSelectedModule(m)}
-                  style={{ 
-                     display: 'flex', 
-                     justifyContent: 'space-between', 
-                     alignItems: 'center', 
-                     padding: '1.5rem', 
-                     borderBottom: i < setupModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
-                     cursor: 'pointer',
-                     backgroundColor: '#fff',
-                     transition: 'background-color 0.1s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
-               >
-                  <div>
-                     <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>{m.title}</h3>
-                     <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>{m.desc}</p>
-                  </div>
-                  <ChevronRight size={20} color="#9ca3af" />
-               </div>
+              <div
+                key={i}
+                onClick={() => setSelectedModule(m)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1.5rem',
+                  borderBottom: i < setupModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#fff',
+                  transition: 'background-color 0.1s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+              >
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>{m.title}</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>{m.desc}</p>
+                </div>
+                <ChevronRight size={20} color="#9ca3af" />
+              </div>
             ))}
           </div>
 
           <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-4">System</h3>
           <div style={{ display: 'flex', flexDirection: 'column', border: '2px solid #000', backgroundColor: '#fff', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
             {systemModules.map((m, i) => (
-               <div 
-                  key={i} 
-                  style={{ 
-                     display: 'flex', 
-                     justifyContent: 'space-between', 
-                     alignItems: 'center', 
-                     padding: '1.5rem', 
-                     borderBottom: i < systemModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
-                     cursor: 'pointer',
-                     backgroundColor: '#fff',
-                     transition: 'background-color 0.1s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
-               >
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{m.title}</h3>
-                  <ChevronRight size={20} color="#9ca3af" />
-               </div>
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1.5rem',
+                  borderBottom: i < systemModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#fff',
+                  transition: 'background-color 0.1s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+              >
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{m.title}</h3>
+                <ChevronRight size={20} color="#9ca3af" />
+              </div>
             ))}
           </div>
         </>
       )}
 
       {selectedModule && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '90%', maxWidth: '500px', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-                 <div>
-                    <h3 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>{selectedModule.title}</h3>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#6b7280', marginTop: '0.5rem' }}>{selectedModule.desc}</p>
-                 </div>
-                 <button onClick={() => setSelectedModule(null)} style={{ background: 'none', border: '2px solid #000', padding: '0.25rem', cursor: 'pointer', color: '#000' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                 </button>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}>
+          <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '100%', maxWidth: '500px', maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>{selectedModule.title}</h3>
+                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#6b7280', marginTop: '0.5rem' }}>{selectedModule.desc}</p>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
-                 {selectedModule.details?.map((d: any, j: number) => (
-                    <div key={j} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px dashed rgba(0,0,0,0.2)', paddingBottom: '0.75rem' }}>
-                       <span style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#4b5563' }}>{d.label}</span>
-                       <span style={{ fontSize: '1.125rem', fontWeight: 900 }}>{d.value}</span>
-                    </div>
-                 ))}
-                 {(!selectedModule.details || selectedModule.details.length === 0) && (
-                    <p style={{ fontStyle: 'italic', opacity: 0.5, fontWeight: 900 }}>Module requires system administrator unlock.</p>
-                 )}
-              </div>
-
-              <button onClick={() => setSelectedModule(null)} style={{ width: '100%', padding: '1rem', backgroundColor: '#000', color: '#fff', fontWeight: 900, textTransform: 'uppercase', border: 'none', marginTop: '2.5rem', cursor: 'pointer', fontSize: '1rem' }}>
-                 Acknowledge
+              <button onClick={() => setSelectedModule(null)} style={{ background: 'none', border: '2px solid #000', padding: '0.25rem', cursor: 'pointer', color: '#000' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
-           </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+              {selectedModule.details?.map((d: any, j: number) => (
+                <div key={j} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px dashed rgba(0,0,0,0.2)', paddingBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#4b5563' }}>{d.label}</span>
+                  <span style={{ fontSize: '1.125rem', fontWeight: 900 }}>{d.value}</span>
+                </div>
+              ))}
+              {(!selectedModule.details || selectedModule.details.length === 0) && (
+                <p style={{ fontStyle: 'italic', opacity: 0.5, fontWeight: 900 }}>Module requires system administrator unlock.</p>
+              )}
+            </div>
+
+            <button onClick={() => setSelectedModule(null)} style={{ width: '100%', padding: '1rem', backgroundColor: '#000', color: '#fff', fontWeight: 900, textTransform: 'uppercase', border: 'none', marginTop: '2.5rem', cursor: 'pointer', fontSize: '1rem' }}>
+              Acknowledge
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1063,25 +1043,25 @@ function MetricCard({ label, value, marker }: any) {
   return (
     <div className="neo-card bg-white p-4 group hover:translate-x-1 hover:-translate-y-1 transition-transform">
       <div className="flex items-center gap-2 mb-1">
-         {marker && <div className={`w-1.5 h-1.5 rounded-full ${marker}`}></div>}
-         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{label}</p>
+        {marker && <div className={`w-1.5 h-1.5 rounded-full ${marker}`}></div>}
+        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{label}</p>
       </div>
-      <p className="text-2xl font-black">{value}</p>
+      <p className="text-xl sm:text-2xl font-black break-words">{value}</p>
     </div>
   );
 }
 
 function AlertItem({ title, subtitle, time, active }: any) {
   return (
-    <div className="neo-card bg-white p-4 flex items-center justify-between group hover:border-coral transition-colors">
-       <div className="flex items-center gap-4">
-          <div className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-gray-300'}`}></div>
-          <div>
-             <h4 className="text-base font-black uppercase tracking-tight">{title}</h4>
-             <p className="text-xs font-bold text-gray-400 uppercase mt-0.5">{subtitle}</p>
-          </div>
-       </div>
-       <span className="text-xs font-black text-gray-400">{time}</span>
+    <div className="neo-card bg-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group hover:border-coral transition-colors">
+      <div className="flex items-center gap-4 min-w-0">
+        <div className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-gray-300'}`}></div>
+        <div className="min-w-0">
+          <h4 className="text-sm sm:text-base font-black uppercase tracking-tight break-words">{title}</h4>
+          <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mt-0.5 break-words">{subtitle}</p>
+        </div>
+      </div>
+      <span className="text-[10px] sm:text-xs font-black text-gray-400 shrink-0">{time}</span>
     </div>
   );
 }

@@ -2,7 +2,7 @@
   "__EXCELLENCE_SUMMARY": "The dependency graph for Aegis Mobile, curated to balance cutting-edge reactive performance (React 19) with the rock-solid stability required for high-stakes insurance logistics.",
   "__DOMAIN_LOGIC": "Manages core libraries for geospatial H3 mapping (react-native-maps), secure authentication, and real-time sensor integration (expo-location).",
   "name": "aegis",
-  "main": "expo/AppEntry.js",
+  "main": "index.js",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
@@ -37,6 +37,7 @@
     "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
+    "fast-text-encoding": "^1.0.6",
     "h3-js": "^4.4.0",
     "i18next": "^26.0.3",
     "react": "19.1.0",
@@ -54,6 +55,7 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@types/fast-text-encoding": "^1.0.3",
     "@types/react": "~19.1.0",
     "@types/react-native-maps": "^0.24.1",
     "eslint": "^9.25.0",

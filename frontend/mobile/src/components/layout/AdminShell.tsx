@@ -2,9 +2,9 @@
  * [EXCELLENCE SUMMARY]
  * The AdminShell is the architectural scaffolding for the administrative 
  * experience of the Aegis platform. It centralizes layout concerns, 
- * session management, and cross-screen navigation (Top/Bottom Navbars) 
- * into a single high-order component. This ensure that every admin 
- * screen inherits a consistent structural footprint and security posture.
+ * session management, and cross-screen navigation into a single high-order component.
+ * 
+ * For the admin control plane architecture, refer to ARCHITECTURE/ADMIN_CONTROL_PLANE.md.
  * 
  * [DOMAIN LOGIC]
  * Serves as the 'Operational Perimeter'. By wrapping all admin screens, 

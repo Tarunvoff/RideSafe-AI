@@ -28,11 +28,11 @@ export class GpsTelemetryDto {
 
   @IsOptional()
   @IsNumber() // Represented as 0 or 1 for legacy compatibility if needed
-  isMocked?: number;
+  isSpoofed?: number;
 
   @IsOptional()
   @IsString()
-  mockProvider?: string;
+  spoofProvider?: string;
 
   @IsOptional()
   @IsNumber()

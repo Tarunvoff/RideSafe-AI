@@ -263,9 +263,9 @@ def _new_user_record(user_id: str, created_at: int) -> dict:
 
 # ── Baseline behavior store initialization ───────────────────────────────────
 
-def _init_synthetic_prior_profiles() -> int:
+def _init_baseline_prior_profiles() -> int:
     """
-    Initializes in-memory baseline behavior store with calibrated synthetic profiles.
+    Initializes in-memory baseline behavior store with calibrated reference profiles.
     These represent the statistical prior for new users before real behavior
     accumulates. Based on Fairwork India 2023 distributions.
     """
@@ -339,15 +339,15 @@ def _init_synthetic_prior_profiles() -> int:
 
 def _init_from_production_store() -> int:
     # In production mode, existing profiles are expected to be persisted in Redis/DB.
-    # This function is intentionally conservative and does not create synthetic records.
+    # This function is intentionally conservative and does not create baseline records.
     return 0
 
 def init_baseline_behavior_store() -> None:
-    mode = (BEHAVIOR_STORE_MODE or "synthetic_prior").strip().lower()
+    mode = (BEHAVIOR_STORE_MODE or "baseline_prior").strip().lower()
     if mode == "production":
         count = _init_from_production_store()
     else:
-        count = _init_synthetic_prior_profiles()
-        mode = "synthetic_prior"
+        count = _init_baseline_prior_profiles()
+        mode = "baseline_prior"
 
     logger.info("Behavior store initialized in %s mode with %d profiles", mode, count)

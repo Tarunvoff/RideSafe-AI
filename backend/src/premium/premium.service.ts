@@ -15,6 +15,7 @@ import {
   resolveTierFloor,
   MINIMUM_WEEKLY_PREMIUM_INR,
 } from './premium-calculation.util';
+import { LiquidityPoolService } from '../compliance/liquidity-pool.service';
 
 type RiskScoreResponse = {
   lf_score: number;
@@ -40,6 +41,7 @@ export class PremiumService {
     private readonly prisma: PrismaService,
     private readonly dynamicQCommerce: DynamicQCommerceService,
     private readonly redisState: RedisStateService,
+    private readonly liquidityPool: LiquidityPoolService,
   ) {}
 
   private async withRetry<T>(operation: () => Promise<T>, retries = 2): Promise<T> {
@@ -135,7 +137,7 @@ export class PremiumService {
     const { invoice, amountRupees, correlationId, attemptNumber } = params;
     const gatewayUrl = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_URL;
     const gatewayToken = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_TOKEN;
-    const allowStagedProvisioning = (process.env.SOVEREIGN_RECURRING_BILLING_ALLOW_STAGED ?? 'true').toLowerCase() === 'true';
+    const allowStagedProvisioning = (process.env.ELITE_RECURRING_BILLING_ALLOW_STAGED ?? 'true').toLowerCase() === 'true';
 
     if (gatewayUrl) {
       if (!invoice.mandate?.providerMandateId) {
@@ -272,6 +274,11 @@ export class PremiumService {
             },
           });
         }
+
+        // Unique Implementation: Actuarial Pool Replenishment
+        // Recurring premiums are automatically stratified to ensure 
+        // the platform's long-term liquidity and payout capability.
+        await this.liquidityPool.injectPremium(invoice.amountDue, correlationId);
       });
 
       this.logger.log(`cid=${correlationId} recurring premium collected invoice=${invoiceId}`);
@@ -505,8 +512,22 @@ export class PremiumService {
       return data;
     } catch (err) {
       this.logger.warn(`ML Service unavailable or timed out, returning fallback Lf. Error: ${String(err)}`);
+      
+      let fallbackLf = 0.15;
+      try {
+        const settings = await this.prisma.adminSettings.findFirst();
+        if (settings?.riskConfig) {
+          const config = settings.riskConfig as any;
+          if (config.fallbackLf != null) {
+            fallbackLf = Number(config.fallbackLf);
+          }
+        }
+      } catch (dbErr) {
+        this.logger.error(`Failed to fetch fallback Lf from DB: ${dbErr}`);
+      }
+
       return {
-        lf_score: 0.15, // Safe fallback
+        lf_score: fallbackLf,
         zone_state: 'UNKNOWN',
         confidence: 0,
         model_used: 'fallback',
@@ -528,7 +549,13 @@ export class PremiumService {
       this.logger.warn(`AEGIS_ERR_301: Missing policy tier for ${driverId}; using safe default 0.5`);
     }
 
-    const safeCt = Ct ?? 0.5;
+    let safeCt = Ct ?? 0.5;
+
+    // DevTrails Rule: Workers with < 5 active days in 30 -> lower tier (BASIC coverage Ct=0.4)
+    if (activeDays < 5) {
+      this.logger.warn(`Driver ${driverId} has < 5 active days (${activeDays}). Forcing lower coverage tier (0.4).`);
+      safeCt = 0.4;
+    }
 
     let Lf = 0;
     let modelUsed: 'redis' | 'xgboost' | 'fallback' = 'redis';

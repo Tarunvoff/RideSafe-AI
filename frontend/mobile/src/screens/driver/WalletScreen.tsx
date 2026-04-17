@@ -1,17 +1,15 @@
 /**
  * [EXCELLENCE SUMMARY]
- * The WalletScreen is the 'Settlement Terminal' of the Aegis platform. 
- * It manages the dual-modality payout lifecycles (Parametric vs. Standard). 
- * Architected for sub-10s claim settlement latency, it provides a high-fidelity 
- * view of 'Approved Payouts', 'Estimated Losses', and 'Recent Transactions', 
- * ensuring financial transparency for dark store operators.
+ * The WalletScreen is the 'Payout Screen' of the Aegis platform. 
+ * It manages the auto-pay lifecycles. 
+ * Designed for fast payout speed, it provides a clear 
+ * view of 'Approved Payouts' and 'Recent Transactions'.
  * 
  * [DOMAIN LOGIC]
- * Implements the "Parametric Settlement" domain. It orchestrates the 
- * 'Cash Out' handshake, which requires synchronous spatial verification 
- * (H3 Cell check) against active 'Disruption Events'. This automated 
- * settlement logic is what enables Aegis to provide near-instant 
- * relief to drivers impacted by environmental hazards.
+ * Implements the "Auto-Pay" domain. It handles the 
+ * 'Cash Out' process, which checks your area 
+ * against active 'Events'. This automated 
+ * payout logic helps drivers get help fast.
  */
 
 import { Ionicons } from '@expo/vector-icons';

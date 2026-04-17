@@ -1,8 +1,8 @@
-# Aegis: Production-Grade ML Infrastructure & Actuarial Model Cards
+# Aegis: Production-Ready ML Infrastructure & Tier-1 Actuarial Model Cards
 
 # Executive Summary: The Quad-Model Architecture
 
-Aegis implements a **best-in-class, production-grade Quad-Model Architecture**, a uniquely deliberate engineering choice that departs from standard, single-model "black box" approaches. While most systems favor a monolithic model to reduce microservice complexity, Aegis utilizes four specialized, decoupled ML engines to achieve a **Defense-in-Depth** security posture and actuarial precision at scale.
+Aegis implements a **best-in-class, Production-Ready, Tier-1 Quad-Model Architecture**, a uniquely deliberate engineering choice that departs from standard, single-model "black box" approaches. While most systems favor a monolithic model to reduce microservice complexity, Aegis utilizes four specialized, decoupled ML engines to achieve a **Defense-in-Depth** security posture and actuarial precision at scale.
 
 ### Why Four Models?
 By modularizing the intelligence layer into four discrete micro-models, Aegis achieves specialized, **production-grade inference** that a single model cannot replicate:
@@ -34,7 +34,7 @@ This model computes the **Loss Fraction (Lf)**, which represents the probability
 | `zone_historical_risk` | Float | Beta-distributed historical risk score for the H3 cell. |
 | `driver_tenure_days` | Float | Number of days since the rider joined the platform. |
 
-### Advanced Implementation Details
+### Elite Implementation Details
 The model achieves production-grade actuarial soundness through the use of **Monotonic Constraints**. As evidenced in the training pipeline (`train_models.py:L252`), the system enforces that specific environmental variables can only influence risk in a predefined direction:
 
 > ```python
@@ -65,10 +65,10 @@ Responsible for calculating the final dynamic premium in Indian Rupees (₹). It
 | :--- | :--- | :--- |
 | `weekly_earnings` | Float | Historical weekly earnings snapshot. |
 | `lf` | Float | Loss Fraction output from the Risk Model. |
-| `ct` | Float | Coverage Tier selected by the user (Essential, Standard, Premium). |
+| `ct` | Float | Coverage Tier selected by the user (Basic, Standard, Elite). |
 | `margin` | Float | Sustainability and operation margin (M).. |
 
-### Advanced Implementation Details
+### Elite Implementation Details
 The codebase implements a **Log-Target Transformation** to stabilize gradients during the training of the premium engine (`train_models.py:L311`):
 > `price_model.fit(Xp_train, np.log(yp_train))`
 
@@ -87,7 +87,7 @@ A **state-of-the-art Isolation Forest** implementation. This unsupervised ensemb
 ### Core Purpose
 Detects "Burst Events" and hardware abnormalities. It serves as the primary detector for anomalous behavior that has no historical precedent in the supervised dataset.
 
-### Advanced Implementation Details
+### Elite Implementation Details
 The model is calibrated with a strict **Contamination Factor (0.08)**, matching the estimated baseline fraud rate in urban delivery logistics.
 > `anomaly_model = IsolationForest(n_estimators=240, contamination=FRAUD_BASE_RATE, ...)`
 
@@ -113,7 +113,7 @@ Categorizes events into "Suspicious" vs "Trusted" by analyzing historical patter
 | `h3_zone_consistency` | Float | Ratio of pings landing in the primary service zone. |
 | `teleport_ratio` | Float | Ratio of distance jumped to time elapsed. |
 
-### Advanced Implementation Details
+### Elite Implementation Details
 The implementation demonstrates high engineering maturity through **Engineered Feature Crosses**. Specifically, it computes the `teleport_ratio`, a derived feature that mathematically proves impossible movement:
 > `teleport_ratio = delta_distance_m / np.maximum(delta_t_s, 0.5)`
 

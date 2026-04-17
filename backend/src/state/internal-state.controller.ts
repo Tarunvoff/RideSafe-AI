@@ -24,7 +24,7 @@ export class InternalStateController {
       computed_at?: string;
     },
   ) {
-    const secret = process.env.INTERNAL_AUTH_KEY || 'aegis_telemetry_sovereign_2026';
+    const secret = process.env.INTERNAL_AUTH_KEY || 'aegis_telemetry_elite_2026';
     if (internalKey !== secret) {
       throw new UnauthorizedException('Invalid Internal Auth Key');
     }
@@ -44,7 +44,7 @@ export class InternalStateController {
       source: 'h3-feature-service',
     });
 
-    // ── Phase 3: Forensic Persistence Layer ──────────────────────────────────
+    // ── Forensic Persistence Layer ──────────────────────────────────────────
     // We persist the telemetry snapshot into ZoneTelemetryLog (TimescaleDB) 
     // to enable historical cross-referencing for claim audits.
     await this.prisma.zoneTelemetryLog.create({

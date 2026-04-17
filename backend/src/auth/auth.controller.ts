@@ -29,12 +29,14 @@ import {
 import { AdminGuard, JwtAuthGuard } from './jwt-auth.guard';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 
-/**
- * ── Sovereign Identity & Security Perimeter ───────────────────────────────────
+/** 
+ * ── Elite Identity & Security Perimeter ───────────────────────────────────
  * 
  * The AuthController serves as the high-fidelity gateway for the Aegis identity 
  * ecosystem. It orchestrates cryptographically verified session lifecycles, 
- * ensuring zero-trust persistence across multi-market geographic nodes.
+ * ensuring zero-trust persistence and rigorous KYC verification.
+ * 
+ * For the identity and KYC architecture, refer to ARCHITECTURE/ZERO_TRUST_IDENTITY_AND_KYC_MATRIX.md.
  * 
  * For comprehensive architectural governance, refer to:
  * - ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md
@@ -47,7 +49,7 @@ export class AuthController {
   // ── DRIVER AUTH ──────────────────────────────────────────────────────────
 
   /**
-   * ── Sovereign Identity Provisioning ──────────────────────────────────────────
+   * ── Elite Identity Provisioning ──────────────────────────────────────────
    * 
    * Initializes a high-fidelity driver principal within the relational core. 
    * Enforces immediate MFA sequencing for production-ready verification.
@@ -87,7 +89,7 @@ export class AuthController {
    * ── Forensic Token Reconciliation ───────────────────────────────────────────
    * 
    * Reconciles the contingent MFA identity with the core persistence layer, 
-   * completing the sovereign login sequence.
+   * completing the elite login sequence.
    */
   @Post('driver/verify-otp')
   @HttpCode(HttpStatus.OK)
@@ -137,7 +139,7 @@ export class AuthController {
 
   // ── ADMIN AUTH ───────────────────────────────────────────────────────────
 
-  // ── Administrative Sovereignty ─────────────────────────────────────────────
+  // ── Elite Privileges ─────────────────────────────────────────────
 
   /**
    * ── Global Oversight Ingress ───────────────────────────────────────────────
