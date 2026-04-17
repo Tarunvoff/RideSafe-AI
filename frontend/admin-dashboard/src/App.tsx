@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   Shield,
   Users,
-  Map as MapIcon,
   Settings,
   LogOut,
   Search,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import { adminApi } from './services/api';
+import DriverScooterMap from './components/DriverScooterMap';
 
 
 // --- MAIN APP COMPONENT ---
@@ -572,17 +572,7 @@ function LiveOperationalDashboard({ data }: any) {
           <button className="neo-btn w-full mt-auto secondary text-[10px]">Refresh Stream</button>
         </div>
 
-        <div className="neo-card bg-night text-parchment flex flex-col items-center justify-center p-12 min-h-[300px] group overflow-hidden relative">
-          <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none"></div>
-          <div className="bg-white/10 p-4 border border-white/20 mb-4 group-hover:scale-110 transition-transform">
-             <MapIcon size={48} className="text-coral" />
-          </div>
-          <h3 className="text-2xl font-black italic">SPATIAL INSIGHT</h3>
-          <p className="text-xs font-bold opacity-50 mt-2 uppercase tracking-widest text-center">Connecting to H3 Grid Layer...</p>
-          <button className="neo-btn mt-8 secondary border-parchment text-parchment hover:bg-parchment hover:text-night">
-             Explore Risk Map
-          </button>
-        </div>
+          <DriverScooterMap />
       </div>
     </div>
   );
