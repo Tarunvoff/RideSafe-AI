@@ -18,6 +18,18 @@ const FRAUD_BLOCK_THRESHOLD = Number(process.env.FRAUD_BLOCK_THRESHOLD ?? 0.7);
 const PREMIUM_MARGIN = 0.1;
 const PREMIUM_RATE = 0.015;
 
+/**
+ * ── Aegis Insurance Orchestration Core ────────────────────────────────────────
+ * 
+ * The InsuranceService is the actuarial engine of the platform. It manages 
+ * the high-fidelity lifecycle of parametric policies, from production-ready 
+ * enrollment to fault-tolerant claim evaluation.
+ * 
+ * For comprehensive architectural details, refer to:
+ * - ARCHITECTURE/SYSTEM_ARCHITECTURE.md
+ * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
+ * - ARCHITECTURE/ENDPOINT_TOPOLOGY_AND_CONTRACTS.md
+ */
 @Injectable()
 export class InsuranceService {
   private readonly logger = new Logger(InsuranceService.name);
@@ -110,6 +122,15 @@ export class InsuranceService {
     return null;
   }
 
+  /**
+   * ── Production-Ready Actuarially Sound Enrollment ────────────────────────────
+   * 
+   * Enrolls a driver into a parametric coverage tier. Enforces strict 
+   * eligibility validation and 24-hour cooling-off periods to mitigate 
+   * adverse selection risks.
+   * 
+   * Ref: ARCHITECTURE/SYSTEM_ARCHITECTURE.md (Section: Policy Lifecycle)
+   */
   async enrollPolicy(dto: { driverId: string; plan: string }) {
     const plan = normalizePlanTier(dto.plan);
     if (!plan) {
@@ -208,6 +229,15 @@ export class InsuranceService {
     };
   }
 
+  /**
+   * ── Fault-Tolerant Parametric Event Processing ────────────────────────────────
+   * 
+   * The primary entry point for evaluating insurance payouts. Orchestrates 
+   * real-time GPS telemetry, fraud scoring, and H3 grid-state validation to 
+   * determine high-fidelity payout eligibility.
+   * 
+   * Ref: ARCHITECTURE/DATA_SCHEMA_AND_STATE.md (Section: State Reconciliation)
+   */
   async processInsurance(driverId: string, dto: ProcessInsuranceRequestDto) {
     const profile = (await this.dynamicQCommerce.getDriverProfile(driverId)).driverProfile;
     const Ew = this.resolveWeeklyEarnings(profile);

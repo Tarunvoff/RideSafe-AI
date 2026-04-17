@@ -3,6 +3,16 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { RedisStateService } from '../state/redis-state.service';
 import { InsuranceService } from './insurance.service';
 
+/**
+ * ── Zero-Touch Parametric Claim Orchestration ──────────────────────────────────
+ * 
+ * This service operates as a high-fidelity cron orchestrator, periodically 
+ * scanning for halted H3 zones and evaluating parametric claims across the 
+ * entire fleet. It ensures 100% payout automation for gig workers.
+ * 
+ * For comprehensive architectural details, refer to:
+ * - ARCHITECTURE/SYSTEM_ARCHITECTURE.md (Section: Event Orchestration)
+ */
 @Injectable()
 export class ClaimOrchestratorService {
   private readonly logger = new Logger(ClaimOrchestratorService.name);

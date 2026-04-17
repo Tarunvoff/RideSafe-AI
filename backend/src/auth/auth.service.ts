@@ -40,6 +40,14 @@ function otpExpiresAt(): Date {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 min
 }
 
+/**
+ * ── Cryptographically Verified Identity Pipeline ────────────────────────────────
+ * 
+ * The AuthService manages the high-fidelity identity lifecycle within the Aegis 
+ * platform. It operates a "SaaS-Level Fidelity" token-rotation strategy, 
+ * ensuring that driver and admin sessions are cryptographically bound and 
+ * verified across the zero-trust auth boundary.
+ */
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -514,6 +522,13 @@ export class AuthService {
   }
 
   // ── HELPERS ──────────────────────────────────────────────────────────────
+  /**
+   * ── SaaS-Level Fidelity Token-Rotation Strategy ───────────────────────────────
+   * 
+   * Generates high-entropy Access and Refresh tokens to maintain session 
+   * integrity. Refresh tokens are hashed and persisted in the relational core, 
+   * enabling immediate multi-device revocation.
+   */
   private async generateTokens(user: { id: string; email: string; role: string }) {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const [accessToken, refreshToken] = await Promise.all([

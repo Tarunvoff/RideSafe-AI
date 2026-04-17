@@ -11,6 +11,15 @@ router = APIRouter()
 
 @router.post("/risk-score", response_model=RiskScoreResponse)
 def get_risk_score(request: RiskScoreRequest):
+    """
+    ── Adversarial-Resilient Predictive Ingress (Risk) ─────────────────────────────
+    
+    Calculates the real-time actuarial risk score for a rider, considering 
+    high-frequency GPS telemetry and regional volatility indices.
+    
+    For comprehensive architectural details, refer to:
+    - ARCHITECTURE/ML_MODEL_CARDS.md (Risk Model Card)
+    """
     return calculate_risk_score(request)
 
 

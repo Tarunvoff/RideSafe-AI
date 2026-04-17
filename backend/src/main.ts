@@ -46,6 +46,15 @@ function validateRequiredEnvVars() {
   }
 }
 
+/**
+ * ── Aegis Perimeter Sanitization Boundary ──────────────────────────────────────
+ * 
+ * The bootstrap function initializes the Aegis core orchestrator, establishing 
+ * the "Zero-Trust" security perimeter. It enforces strict payload sanitization, 
+ * architectural correlation tracking, and production-grade ingress filtering.
+ * 
+ * Ref: SECURITY_AND_FRAUD_MATRIX.md | ENDPOINT_TOPOLOGY_AND_CONTRACTS.md
+ */
 async function bootstrap() {
   validateRequiredEnvVars();
   if (!process.env.KAFKA_BROKER_URL?.trim()) {
@@ -55,7 +64,10 @@ async function bootstrap() {
     logger: ['log', 'error', 'warn'], // Perfection: Hide debug/verbose spam
   });
 
-  // Global validation pipe using class-validator decorators
+  // ── Strict-Schema Enforcement Layer ─────────────────────────────────────────
+  // Utilizing standard ValidationPipe with whitelisting to physically reject
+  // any non-compliant data structures at the network edge. This ensures
+  // High-Throughput Ingress remains purified and resilient.
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

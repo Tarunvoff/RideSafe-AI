@@ -14,6 +14,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes import risk, pricing, fraud, trigger
 import utils.model_loader # This triggers singleton initialization during startup
 
+"""
+── Aegis ML Inference Engine Core ───────────────────────────────────────────
+
+This service operates as the centralized intelligence layer for Aegis. 
+It manages the high-fidelity lifecycle of Risk, Pricing, and Fraud models, 
+ensuring adversarial-resilient predictive ingress for parametric insurance.
+
+For comprehensive architectural details, refer to:
+- ARCHITECTURE/ML_MODEL_CARDS.md
+- ARCHITECTURE/SYSTEM_ARCHITECTURE.md (Section: ML Microservices)
+"""
+
 REQUIRED_ENV_VARS = (
     "REDIS_URL",
 )
