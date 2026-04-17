@@ -12,6 +12,8 @@ import {
   View,
   StatusBar,
 } from 'react-native';
+import AegisNavbar from '../../components/layout/AegisNavbar';
+import { Theme } from '../../theme';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
@@ -107,7 +109,7 @@ export default function DriverRiskPipelineScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FF6B4E" />
+      <StatusBar barStyle="dark-content" backgroundColor={Theme.colors.brandOrange} />
       <LoadingOverlay visible={loading} message={t('dashboard.loading_intel')} />
 
       <DriverLogoutMenu
@@ -119,17 +121,10 @@ export default function DriverRiskPipelineScreen() {
         }}
       />
 
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <MaterialCommunityIcons name="shield-check" size={24} color="white" />
-          </View>
-          <Text style={styles.headerBrand}>Aegis</Text>
-        </View>
-        <TouchableOpacity onPress={() => setProfileMenuVisible(true)}>
-          <Image source={{ uri: 'https://i.pravatar.cc/100' }} style={styles.avatar} />
-        </TouchableOpacity>
-      </View>
+      <AegisNavbar 
+        onProfile={() => setProfileMenuVisible(true)}
+        light
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.heroTitle}>Stay sharp ^_^</Text>
@@ -200,7 +195,7 @@ export default function DriverRiskPipelineScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FF6B4E',
+    backgroundColor: Theme.colors.brandOrange,
   },
   header: {
     flexDirection: 'row',
@@ -223,6 +218,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     transform: [{ rotate: '-10deg' }],
+  },
+  logoImage: {
+    width: 24,
+    height: 24,
   },
   headerBrand: {
     fontSize: 24,

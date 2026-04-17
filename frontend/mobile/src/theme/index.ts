@@ -18,6 +18,7 @@ export const Theme = {
    */
   colors: {
     primary: '#16a34a',
+    brandOrange: '#FF6B53', // Definitive Aegis Salmon/Orange
     background: '#ffffff',
     surface: '#f5f5f5',
     text: '#111111',

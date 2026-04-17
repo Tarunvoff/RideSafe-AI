@@ -21,7 +21,7 @@ import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-n
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
-import MainTopNavbar from '../../components/layout/MainTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
@@ -151,7 +151,7 @@ export default function WalletScreen() {
         onClose={() => setProfileMenuVisible(false)}
         onLogout={() => { void handleLogout(); }}
       />
-      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <AegisNavbar onProfile={() => setProfileMenuVisible(true)} light />
       <LoadingOverlay visible={loading} message={t('wallet.syncing')} />
       <ScrollView contentContainerStyle={styles.container}>
         
@@ -214,7 +214,7 @@ export default function WalletScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Theme.colors.surface },
+  safeArea: { flex: 1, backgroundColor: Theme.colors.brandOrange },
   container: { padding: Theme.spacing.lg },
   balanceCard: { 
     backgroundColor: Theme.colors.text, 

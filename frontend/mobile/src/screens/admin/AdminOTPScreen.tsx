@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInp
 import AuthCard from '../../components/auth/AuthCard';
 import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
-import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 
@@ -72,7 +72,7 @@ export default function AdminOTPScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message="Verifying admin access..." />
-      <AuthTopNavbar onBack={() => navigation.goBack()} title="Two-Factor Auth" />
+      <AegisNavbar onBack={() => navigation.goBack()} title="Two-Factor Auth" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <View style={styles.content}>
           <AuthCard style={styles.card}>

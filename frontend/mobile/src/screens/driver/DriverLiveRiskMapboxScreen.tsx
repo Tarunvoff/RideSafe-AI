@@ -30,9 +30,11 @@ import {
 import MapView from 'react-native-maps';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
+import { Theme } from '../../theme';
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -64,7 +66,7 @@ function riskLevelFromScore(score: number): RiskLevel {
   return 'LOW';
 }
 
-const BRAND_BG = '#ff6b53';
+const BRAND_BG = Theme.colors.brandOrange;
 const CARD_BG = '#f0ecce';
 
 export default function DriverLiveRiskScreen({ navigation }: any) {
@@ -230,18 +232,10 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       />
       <LoadingOverlay visible={loading} message={t('live_risk.refreshing')} />
 
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="umbrella" size={28} color="#000" style={{ transform: [{ rotate: '-15deg' }] }} />
-          <Text style={styles.headerTitle}>Aegis</Text>
-        </View>
-        <TouchableOpacity style={styles.avatarContainer} onPress={() => setProfileMenuVisible(true)}>
-          <ImageBackground
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }}
-            style={styles.avatar}
-          />
-        </TouchableOpacity>
-      </View>
+      <AegisNavbar 
+        onProfile={() => setProfileMenuVisible(true)}
+        light
+      />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
@@ -358,7 +352,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: BRAND_BG },
+  safeArea: { flex: 1, backgroundColor: Theme.colors.brandOrange },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -390,6 +384,7 @@ const styles = StyleSheet.create({
 
   container: {
     paddingHorizontal: 20,
+    paddingTop: 24, // High-fidelity padding to clear the navbar
     paddingBottom: 40,
   },
 
@@ -403,7 +398,8 @@ const styles = StyleSheet.create({
   mapCardWrapper: {
     padding: 0,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginTop: 12, // Distinct separation from the header
+    marginBottom: 24, 
   },
   mapHero: {
     height: 260,

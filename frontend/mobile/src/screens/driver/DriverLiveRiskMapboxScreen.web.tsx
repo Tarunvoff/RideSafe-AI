@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useAuth } from '../../context/AuthContext';
 
 const BRAND_BG = '#ff6b53';
@@ -39,15 +39,11 @@ export default function DriverLiveRiskScreenWeb() {
         onLogout={() => { void handleLogout(); }}
       />
 
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="umbrella" size={28} color="#000" style={{ transform: [{ rotate: '-15deg' }] }} />
-          <Text style={styles.headerTitle}>Aegis</Text>
-        </View>
-        <TouchableOpacity style={styles.avatarContainer} onPress={() => setProfileMenuVisible(true)}>
-          <Ionicons name="person-circle-outline" size={30} color="#111827" />
-        </TouchableOpacity>
-      </View>
+      <AegisNavbar 
+        onProfile={() => setProfileMenuVisible(true)}
+        backgroundColor={BRAND_BG}
+        light
+      />
 
       <View style={styles.container}>
         <View style={[styles.neoCard, styles.mapCardWrapper]}>
