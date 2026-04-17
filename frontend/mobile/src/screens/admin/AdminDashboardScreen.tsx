@@ -149,7 +149,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <Text style={styles.viewAll} onPress={() => navigation.navigate('AdminAlerts')}>VIEW ALL</Text>
             </View>
             <View style={styles.simpleList}>
-              {safeSummary.recentAlerts.map((a: any) => (
+              {(safeSummary.recentAlerts || []).map((a: any) => (
                 <View key={a.id} style={styles.simpleListRow}>
                   <View style={styles.greenDot} />
                   <View style={{ flex: 1 }}>
@@ -172,7 +172,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <Text style={styles.viewAll}>VIEW ALL</Text>
             </View>
             <View style={styles.simpleList}>
-              {safeSummary.recentClaims.map((c: any) => (
+              {(safeSummary.recentClaims || []).map((c: any) => (
                 <View key={c.payoutId} style={styles.simpleListRow}>
                   <View
                     style={[

@@ -197,11 +197,15 @@ async function request<T>(
       }
     }
 
-    const err: any = new Error(data?.message ?? 'Something went wrong');
+    const errMsg = data?.error || data?.message || 'Something went wrong';
+    const err: any = new Error(errMsg);
     err.response = { data }; // Preserve the structured JSON body
     throw err;
   }
 
+  if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+    return data.data as T;
+  }
   return data as T;
 }
 
