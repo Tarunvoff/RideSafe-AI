@@ -55,8 +55,8 @@ export default function AegisNavbar({
   showLogoWithBack = false
 }: AegisNavbarProps) {
   const { t } = useTranslation();
-  const textColor = light ? '#fff' : '#000';
-  const iconColor = light ? '#fff' : '#000';
+  const textColor = '#000'; // Forced black for brand consistency
+  const iconColor = '#000'; // Forced black for brand consistency
   const navBg = backgroundColor || Theme.colors.brandOrange;
 
   return (
@@ -76,7 +76,7 @@ export default function AegisNavbar({
         {(showLogoWithBack || !onBack) && (
           <Image
             source={require('../../../assets/images/productlogo.png')}
-            style={[styles.logo, light && { tintColor: '#fff' }]}
+            style={[styles.logo, { tintColor: '#000' }]} // Black logo
             resizeMode="contain"
           />
         )}
@@ -94,7 +94,7 @@ export default function AegisNavbar({
             onPress={onNotifications}
             activeOpacity={0.8}
           >
-            <Ionicons name="notifications" size={20} color={light ? '#000' : '#fff'} style={{ marginTop: 2, marginLeft: 1 }} />
+            <Ionicons name="notifications" size={24} color={light ? '#000' : '#fff'} style={{ marginTop: 4 }} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
         )}
@@ -104,7 +104,7 @@ export default function AegisNavbar({
             style={[styles.profileBtn, light && { borderColor: 'rgba(255,255,255,0.4)' }]} 
             onPress={onProfile}
             activeOpacity={0.8}
-          >https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq
+          >
             <ImageBackground
               source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }}
               style={styles.avatarImg}
@@ -134,13 +134,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    height: '100%',
   },
   sectionRight: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    height: '100%',
     gap: 16,
   },
   actionBtn: {
@@ -161,23 +159,22 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   notifBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 0,
-    margin: 0,
     position: 'relative',
+    marginTop: 3, // Align circle bottom with profile avatar circle bottom
   },
   notifBtnLight: {
     backgroundColor: '#fff',
   },
   notifDot: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 6,
+    right: 6,
     width: 8,
     height: 8,
     borderRadius: 4,

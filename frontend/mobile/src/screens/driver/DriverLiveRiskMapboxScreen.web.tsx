@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import AegisNavbar from '../../components/layout/AegisNavbar';
+import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 
 const BRAND_BG = '#ff6b53';
