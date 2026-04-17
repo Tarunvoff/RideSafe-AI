@@ -19,6 +19,7 @@ import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom'
 import { adminApi } from './services/api';
 import DriverScooterMap from './components/DriverScooterMap';
 import PredictiveRiskChart from './components/PredictiveRiskChart';
+import logo from './assets/logo.png';
 
 
 // --- MAIN APP COMPONENT ---
@@ -118,7 +119,7 @@ export default function App() {
             <div className="bg-night p-2 border-2 border-black">
               <Shield className="text-coral" size={32} />
             </div>
-            <h1 className="text-3xl italic">AEGIS ADMIN</h1>
+            <h1 className="text-4xl italic">AEGIS ADMIN</h1>
           </div>
           <p className="font-bold mb-6 text-gray-500 uppercase tracking-tighter">
             {mfaRequired ? 'Multi-Factor Verification' : 'Operational Command Entrance'}
@@ -150,7 +151,7 @@ export default function App() {
               </>
             ) : (
               <div className="flex flex-col gap-2">
-                <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Enter Security Code sent to email</p>
+                <p className="text-xs font-black uppercase text-gray-400 mb-1">Enter Security Code sent to email</p>
                 <input 
                   type="text" 
                   placeholder="6-DIGIT OTP" 
@@ -160,7 +161,7 @@ export default function App() {
                   maxLength={6}
                 />
                 <button 
-                  className="text-xs font-bold text-coral underline text-left mt-1" 
+                  className="text-sm font-bold text-coral underline text-left mt-1" 
                   onClick={() => setMfaRequired(false)}
                 >
                   Return to email/password
@@ -176,7 +177,7 @@ export default function App() {
               {loading ? 'VERIFYING...' : mfaRequired ? 'Complete Sign-In' : 'Initialize Secure Session'}
             </button>
           </div>
-          <p className="text-[10px] mt-8 text-gray-400 font-bold uppercase tracking-[0.2em] text-center">
+          <p className="text-xs mt-8 text-gray-400 font-bold uppercase tracking-[0.2em] text-center">
             {mfaRequired ? 'MFA Protocol v2 - Node Validated' : 'Secured by Aegis Enforcer v2 • Real-time Monitoring Active'}
           </p>
         </div>
@@ -188,11 +189,11 @@ export default function App() {
     <div className="dashboard-shell">
       {/* SIDEBAR */}
       <aside className="sidebar">
-        <div className="flex items-center gap-3 mb-12 p-3 border-2 border-black bg-parchment shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <div className="bg-night p-1.5 border-2 border-black">
-            <Shield className="text-coral" size={18} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem', padding: '0.75rem', border: '2px solid #000', backgroundColor: '#FFFFFF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+          <div style={{ width: '40px', height: '40px', backgroundColor: '#111827', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+            <img src={logo} alt="Aegis Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'invert(1) brightness(100%)' }} />
           </div>
-          <h1 className="text-xl font-black italic tracking-tighter">AEGIS</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 900, fontStyle: 'italic', letterSpacing: '-0.05em', color: '#000', margin: 0 }}>AEGIS</h1>
         </div>
 
         <nav className="sidebar-nav">
@@ -295,7 +296,7 @@ function AnalyticsPage({ data, loading }: any) {
         </button>
         <div className="text-center flex-1 pr-16">
           <h2 className="text-2xl font-black tracking-[0.3em] uppercase">Analytics</h2>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Tamil Nadu Operations</p>
+          <p className="text-sm font-black text-gray-400 uppercase tracking-widest mt-1">Tamil Nadu Operations</p>
         </div>
       </header>
 
@@ -310,7 +311,7 @@ function AnalyticsPage({ data, loading }: any) {
         <div className="space-y-16 pb-20">
           {/* SECTION: PREDICTIVE FORECAST */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6 font-bold">Predictive Risk Forecast (ML-Inferred)</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6 font-bold">Predictive Risk Forecast (ML-Inferred)</h3>
             <div className="grid grid-cols-1 gap-6">
               <AnalyticsCard title="Risk Velocity Forecast" subtitle="Projected Disruption Probability (Next 24h)">
                 <div className="h-80 w-full bg-slate-900 rounded-xl p-4 shadow-inner border border-black scroll-m-2">
@@ -322,7 +323,7 @@ function AnalyticsPage({ data, loading }: any) {
 
           {/* SECTION: RISK POOL */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Risk Pool Status</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Risk Pool Status</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <AnalyticsCard title="Loss Ratio" subtitle="Approved payout / premium pool">
                 <div className="text-4xl font-black mt-4">{formatPercent(safeData.lossRatioPercent)}</div>
@@ -338,7 +339,7 @@ function AnalyticsPage({ data, loading }: any) {
 
           {/* SECTION: FRAUD SIGNALS */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Fraud Signals</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Fraud Signals</h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <AnalyticsCard title="Risk Trend" subtitle="Avg risk score (7 days)">
                 <div className="h-32 mt-4 flex items-end gap-[1px]">
@@ -348,13 +349,13 @@ function AnalyticsPage({ data, loading }: any) {
                       className="flex-1 bg-night hover:bg-coral transition-colors relative group"
                       style={{ height: `${point.avg_risk}%` }}
                     >
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-[10px] p-1 whitespace-nowrap z-10">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-xs p-1 whitespace-nowrap z-10">
                         {Math.round(point.avg_risk)}%
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 italic">
+                <div className="flex justify-between mt-2 text-xs font-bold text-gray-400 italic">
                   <span>14 Days Ago</span>
                   <span className="text-coral">Latest: {Math.round(safeData.riskTrend[safeData.riskTrend.length - 1]?.avg_risk || 0)}%</span>
                 </div>
@@ -372,7 +373,7 @@ function AnalyticsPage({ data, loading }: any) {
 
           {/* SECTION: CLAIMS & PAYOUTS */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Claims & Payouts</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Claims & Payouts</h3>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <AnalyticsCard title="Payout Velocity" subtitle="Daily approved volumes">
                 <div className="h-32 mt-4 flex items-end gap-1">
@@ -384,7 +385,7 @@ function AnalyticsPage({ data, loading }: any) {
                     />
                   ))}
                 </div>
-                <p className="text-[10px] font-bold mt-2 text-gray-400 italic">Trailing 7 days activity</p>
+                <p className="text-xs font-bold mt-2 text-gray-400 italic">Trailing 7 days activity</p>
               </AnalyticsCard>
 
               <AnalyticsCard title="Claims by Type" subtitle="Last 30 days">
@@ -407,7 +408,7 @@ function AnalyticsPage({ data, loading }: any) {
 
           {/* SECTION: DISTRIBUTION */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Driver Distribution</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Driver Distribution</h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <AnalyticsCard title="Workers by City" subtitle="Regional density">
                 <div className="mt-4 space-y-4">
@@ -437,7 +438,7 @@ function AnalyticsCard({ title, subtitle, children }: { title: string; subtitle:
     <div className="neo-card flex flex-col h-full">
       <div className="mb-4">
         <h4 className="text-sm font-black italic uppercase tracking-tighter">{title}</h4>
-        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">{subtitle}</p>
+        <p className="text-xs text-gray-500 font-bold uppercase tracking-tight">{subtitle}</p>
       </div>
       <div className="flex-1">
         {children}
@@ -450,7 +451,7 @@ function BarIndicator({ label, value, color, max }: { label: string; value: numb
   const percentage = Math.max(5, (value / (max || 1)) * 100);
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-600">
+      <div className="flex justify-between text-xs font-black uppercase tracking-widest text-gray-600">
         <span>{label}</span>
         <span className="font-mono">{value}</span>
       </div>
@@ -493,7 +494,7 @@ function LiveOperationalDashboard({ data }: any) {
       <header className="header-row mb-10">
         <div>
           <h2 className="text-4xl">Command Overview</h2>
-          <p className="text-gray-500 font-bold uppercase text-xs tracking-widest mt-1">Real-time platform oversight & risk enforcement</p>
+          <p className="text-gray-500 font-bold uppercase text-sm tracking-widest mt-1">Real-time platform oversight & risk enforcement</p>
         </div>
         <div className="flex gap-4">
           <button className="neo-btn secondary p-3"><Search size={20} /></button>
@@ -518,7 +519,7 @@ function LiveOperationalDashboard({ data }: any) {
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
           <button 
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-[10px] font-black uppercase text-coral underline"
+            className="text-xs font-black uppercase text-coral underline"
           >
             {isExpanded ? 'Show Less' : 'View Full Queue'}
           </button>
@@ -590,7 +591,7 @@ function LiveOperationalDashboard({ data }: any) {
             <AlertItem title="Chennai Monsoon Surge" subtitle="RAIN • ₹820" time="9:12 pm" active />
             <AlertItem title="Delta Flood Advisory" subtitle="FLOOD • ₹1,100" time="7:12 am" active />
           </div>
-          <button className="neo-btn w-full mt-auto secondary text-[10px]">Refresh Stream</button>
+          <button className="neo-btn w-full mt-auto secondary text-xs">Refresh Stream</button>
         </div>
 
           <DriverScooterMap workerCount={totalWorkers} />
@@ -668,7 +669,7 @@ function WorkersPage() {
     <div className="animate-in slide-in-from-right-4 duration-500">
       <header className="mb-8">
         <h2 className="text-4xl font-black uppercase">Workers</h2>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1">Fleet Node Management</p>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1">Fleet Node Management</p>
       </header>
 
       <div className="neo-card bg-white p-6 mb-8">
@@ -684,7 +685,7 @@ function WorkersPage() {
          </div>
          <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
-               <span className="text-[10px] font-black uppercase text-gray-400">City:</span>
+               <span className="text-xs font-black uppercase text-gray-400">City:</span>
                <div className="flex gap-2">
                   {cityOptions.slice(0, 4).map(c => (
                      <button 
@@ -705,13 +706,13 @@ function WorkersPage() {
                </div>
             </div>
             <div className="flex items-center gap-2 ml-auto">
-               <span className="text-[10px] font-black uppercase text-gray-400">Platform:</span>
+               <span className="text-xs font-black uppercase text-gray-400">Platform:</span>
                <div className="flex gap-2">
                   {platformOptions.map(p => (
                      <button 
                        key={p.value}
                        onClick={() => setPlatformFilter(p.value)}
-                       className={`neo-btn text-[10px] px-3 py-1.5 ${platformFilter === p.value ? 'active' : 'secondary'}`}
+                       className={`neo-btn text-xs px-3 py-1.5 ${platformFilter === p.value ? 'active' : 'secondary'}`}
                      >
                        {p.label}
                      </button>
@@ -723,15 +724,15 @@ function WorkersPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
          <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
+            <p className="text-xs font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
             <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
          </div>
          <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#F3E8FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
+            <p className="text-xs font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
             <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#6B21A8]">{cityFilter}</p>
          </div>
          <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#DBEAFE', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
+            <p className="text-xs font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
             <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#1E40AF]">{platformFilter}</p>
          </div>
       </div>
@@ -828,20 +829,20 @@ function ClaimsPage() {
     <div className="animate-in slide-in-from-bottom-4 duration-500">
       <header className="mb-8">
         <h2 className="text-4xl font-black uppercase">Payout Sentinel</h2>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1 italic">Real-time Claims & Financial Oversight</p>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1 italic">Real-time Claims & Financial Oversight</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
          <div className="neo-card bg-white border-2 border-black p-6 hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
-            <p className="text-5xl font-black">{claimsData?.total ?? 0}</p>
+            <p className="text-xs font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
+            <p className="text-6xl font-black">{claimsData?.total ?? 0}</p>
          </div>
          <div className="neo-card bg-white border-2 border-black p-6 hover:bg-red-50 transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Pending Review</p>
+            <p className="text-xs font-black uppercase text-gray-400 mb-2">Pending Review</p>
             <p className="text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
          </div>
          <div className="neo-card bg-night text-parchment p-6">
-            <p className="text-[10px] font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
+            <p className="text-xs font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
             <p className="text-5xl font-black text-success">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
          </div>
       </div>
@@ -866,8 +867,8 @@ function ClaimsPage() {
                   <td className="font-bold">{claim.userEmail}</td>
                   <td>
                     <div className="flex flex-col">
-                      <span className="font-black text-xs uppercase tracking-tighter">{claim.disruption?.type}</span>
-                      <span className="text-[10px] text-gray-400 font-bold">{claim.disruption?.title}</span>
+                      <span className="font-black text-sm uppercase tracking-tighter">{claim.disruption?.type}</span>
+                      <span className="text-xs text-gray-400 font-bold">{claim.disruption?.title}</span>
                     </div>
                   </td>
                   <td className="font-mono">₹{claim.estimatedLoss?.toLocaleString()}</td>
@@ -1063,7 +1064,7 @@ function MetricCard({ label, value, marker }: any) {
     <div className="neo-card bg-white p-4 group hover:translate-x-1 hover:-translate-y-1 transition-transform">
       <div className="flex items-center gap-2 mb-1">
          {marker && <div className={`w-1.5 h-1.5 rounded-full ${marker}`}></div>}
-         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
+         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{label}</p>
       </div>
       <p className="text-2xl font-black">{value}</p>
     </div>
@@ -1076,11 +1077,11 @@ function AlertItem({ title, subtitle, time, active }: any) {
        <div className="flex items-center gap-4">
           <div className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-gray-300'}`}></div>
           <div>
-             <h4 className="text-sm font-black uppercase tracking-tight">{title}</h4>
-             <p className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{subtitle}</p>
+             <h4 className="text-base font-black uppercase tracking-tight">{title}</h4>
+             <p className="text-xs font-bold text-gray-400 uppercase mt-0.5">{subtitle}</p>
           </div>
        </div>
-       <span className="text-[10px] font-black text-gray-400">{time}</span>
+       <span className="text-xs font-black text-gray-400">{time}</span>
     </div>
   );
 }
