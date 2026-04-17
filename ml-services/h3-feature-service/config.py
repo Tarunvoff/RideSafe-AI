@@ -37,6 +37,7 @@ PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:3001/api/plat
 PLATFORM_TIMEOUT_SEC = float(os.getenv("PLATFORM_TIMEOUT_SECONDS", "6.0"))
 BACKEND_INTERNAL_URL = os.getenv("BACKEND_INTERNAL_URL", "http://127.0.0.1:3001/internal/zone-state")
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://127.0.0.1:8000")
+INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "aegis_telemetry_sovereign_2026")
 
 # ── Strict realtime mode (no fallbacks) ──────────────────────────────────────
 STRICT_REALTIME = os.getenv("STRICT_REALTIME", "false").lower() == "true"

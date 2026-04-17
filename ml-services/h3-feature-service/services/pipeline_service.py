@@ -22,15 +22,13 @@ import uuid
 import httpx
 import h3 as h3lib
 from fastapi import HTTPException
-from config import H3_RESOLUTION, STRICT_REALTIME, BACKEND_INTERNAL_URL, INTERNAL_AUTH_KEY
+from config import H3_RESOLUTION, STRICT_REALTIME, BACKEND_INTERNAL_URL, INTERNAL_AUTH_KEY, ML_SERVICE_URL
 from services.feature_service import get_features
 from services.circuit_breaker import get_breaker
 from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
 
 logger = logging.getLogger(__name__)
 
-ML_SERVICE_URL    = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000")
-INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "aegis_telemetry_sovereign_2026")
 ML_TIMEOUT        = float(os.getenv("ML_TIMEOUT_SECONDS",  "10.0"))   # per-call timeout
 PIPELINE_DEADLINE = float(os.getenv("PIPELINE_DEADLINE_SECONDS", "10.0"))  # hard end-to-end cap
 REDIS_ZONE_TTL    = int(os.getenv("ZONE_KEY_TTL_SECONDS", "300"))
