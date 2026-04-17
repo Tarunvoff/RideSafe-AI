@@ -621,8 +621,7 @@ export class FraudService {
 
   async getSubmissions() {
     const submissions = await this.prisma.fraudAnalysis.findMany({
-      where:   { status: 'INCONCLUSIVE' },
-      include: { user: { select: { id: true, email: true, phone: true, createdAt: true } } },
+      include: { user: { select: { id: true, email: true, phone: true, createdAt: true, driverName: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return {
@@ -630,6 +629,7 @@ export class FraudService {
       submissions: submissions.map((sub: any) => ({
         analysisId: sub.id,
         userId:     sub.userId,
+        user:       sub.user.driverName || sub.user.email,
         email:      sub.user.email,
         phone:      sub.user.phone,
         riskScore:  sub.riskScore,

@@ -124,13 +124,7 @@ h4,
   display: grid;
   grid-template-columns: 280px 1fr;
   min-height: 100vh;
-}
-
-/* Dashboard Layout */
-.dashboard-shell {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  min-height: 100vh;
+  border-top: 6px solid #22c55e; /* LIVE DATABASE INDICATOR */
 }
 
 .sidebar {
