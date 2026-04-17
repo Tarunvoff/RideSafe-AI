@@ -1,6 +1,17 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+/**
+ * ── Global Platform Governance & Oversight ────────────────────────────────────
+ * 
+ * The AdminService acts as the high-order control plane for the Aegis ecosystem. 
+ * It manages global governance parameters, risk thresholds, and executive 
+ * reporting metrics with deterministic precision.
+ * 
+ * For comprehensive architectural governance, refer to:
+ * - ARCHITECTURE/DEVOPS_AND_INFRASTRUCTURE.md
+ * - ARCHITECTURE/FRONTEND_DESIGN_SYSTEM.md
+ */
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -99,6 +110,13 @@ export class AdminService {
     };
   }
 
+  /**
+   * ── Executive Dashboard Forensic Summary ─────────────────────────────────────
+   * 
+   * Aggregates real-time platform metrics across all architectural nodes, 
+   * including driver enrollment, actuarial risk trends, and financial 
+   * settlement velocity.
+   */
   async getDashboardSummary() {
     const now = new Date();
     const startOfDay = new Date(now);
@@ -278,7 +296,6 @@ export class AdminService {
       claimsToday,
       highRiskWorkers,
       projectedPayout,
-      simulatedPayout: projectedPayout,
       totalApprovedPayout,
       totalPremiumCollected,
       lossRatio,

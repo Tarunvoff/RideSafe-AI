@@ -55,7 +55,6 @@ export default function AdminDashboardScreen({ navigation }: any) {
     claimsToday: 0,
     highRiskWorkers: 0,
     projectedPayout: 0,
-    simulatedPayout: 0,
     totalApprovedPayout: 0,
     totalPremiumCollected: 0,
     lossRatio: 0,
@@ -76,9 +75,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
     [],
   );
 
-  const projectedPayout = Number(
-    safeSummary.projectedPayout ?? safeSummary.simulatedPayout ?? 0,
-  );
+  const projectedPayout = Number(safeSummary.projectedPayout ?? 0);
   const lossRatioPercent = Number(safeSummary.lossRatioPercent ?? 0);
   
   // P-012: Benefit-Cost Ratio = Premium (Benefit) / Payouts (Cost)

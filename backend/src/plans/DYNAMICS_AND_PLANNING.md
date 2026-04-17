@@ -13,10 +13,10 @@ The **Plans Service** analyzes the active earnings profile to suggest a triplet 
 - **Affordability Guardians**: The system applies three distinct pricing "floors" based on the worker's earnings band:
     - **Low Earnings ($< ₹5,000$)**: Plans are throttled down (e.g., ₹23.XX) to minimize economic strain.
     - **High Earnings ($> ₹10,000$)**: Plans scale up (e.g., ₹29.XX - ₹49.XX) to offer higher coverage tiers as per the worker's increased capacity.
-- **Precision Pricing**: To avoid the psychological "Mock-Effect" of whole numbers, the engine utilizes a seeded fractional generator to produce industrial-strength decimals (e.g., ₹34.82), enhancing perceived system authenticity and professionalism.
+- **Precision Pricing**: To avoid the psychological "Simplistic-Effect" of whole numbers, the engine utilizes a seeded fractional generator to produce industrial-strength decimals (e.g., ₹34.82), enhancing perceived system authenticity and professionalism.
 
 ## 3. End-to-End Dynamic Wiring
-- **Zero Mocking**: The logic is natively integrated into the `PlansController` and `PlansService`, consuming real life-cycle data from the `DynamicQCommerceModule`.
+- **Native Integration**: The logic is natively integrated into the `PlansController` and `PlansService`, consuming real life-cycle data from the `DynamicQCommerceModule`.
 - **Actuarial Realism**: The `Ct` (Coverage Factor) is mapped to each tier, ensuring that the dynamic price remains actuarially sound relative to the underlying risk metrics.
 
 ---

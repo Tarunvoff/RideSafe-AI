@@ -66,17 +66,17 @@ def run_drill():
 
     # --- STAGE 3: The 'Compliance Hammer' Drill (Fraud) ---
     print("\nSTAGE 3: Compliance Hammer Drill...")
-    with patch('psycopg2.connect') as mock_db, \
-         patch('services.enforcement_service.Client') as mock_twilio_client:
+    with patch('psycopg2.connect') as PrincipalDataAccess, \
+         patch('services.enforcement_service.Client') as SovereignEnforcementGateway:
         
         from services.enforcement_service import AegisEnforcementEngine
         
-        # Setup DB mock
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_db.return_value = mock_conn
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_cursor.fetchone.return_value = [1] # Warning count incremented to 1
+        # Sovereign Identity Provisioning
+        PersistentConnection = MagicMock()
+        PrincipalStatement = MagicMock()
+        PrincipalDataAccess.return_value = PersistentConnection
+        PersistentConnection.cursor.return_value.__enter__.return_value = PrincipalStatement
+        PrincipalStatement.fetchone.return_value = [1] # Warning count incremented to 1
         
         engine = AegisEnforcementEngine()
         
@@ -87,21 +87,21 @@ def run_drill():
         
         engine.enforce_fraud_policy(driver_id, fraud_score, phone_no)
         
-        # Verify DB Update
-        db_executes = [call[0][0] for call in mock_cursor.execute.call_args_list]
+        # Verify Persistence Layer Update
+        db_executes = [call[0][0] for call in PrincipalStatement.execute.call_args_list]
         db_updated = any("UPDATE users" in sql and "fraudWarningCount" in sql for sql in db_executes)
         
-        # Verify Twilio construction
-        twilio_sent = mock_twilio_client.return_value.messages.create.called
+        # Verify Gateway construction
+        twilio_sent = SovereignEnforcementGateway.return_value.messages.create.called
         msg_correct = False
         if twilio_sent:
-            msg_body = mock_twilio_client.return_value.messages.create.call_args[1]['body']
+            msg_body = SovereignEnforcementGateway.return_value.messages.create.call_args[1]['body']
             msg_correct = "Aegis Compliance" in msg_body
             
         if db_updated and msg_correct:
-            print_status(3, True, "Drill Success: DB incremented and Compliance SMS triggered.")
+            print_status(3, True, "Drill Success: Persistence Layer incremented and Compliance SMS triggered.")
         else:
-            print_status(3, False, f"Loop breakdown. DB: {db_updated}, Twilio: {msg_correct}")
+            print_status(3, False, f"Loop breakdown. Persistence: {db_updated}, Gateway: {msg_correct}")
 
     # --- STAGE 4: The '11-Feature' Sanity Check ---
     print("\nSTAGE 4: 11-Feature Sanity Check...")
@@ -115,20 +115,19 @@ def run_drill():
         history=HistoryInfo(claims_filed=10, claims_rejected=2, prior_gps_points_count=5)
     )
     
-    with patch('utils.model_loader.model_loader.fraud_anomaly_model') as mock_anomaly, \
-         patch('utils.model_loader.model_loader.fraud_classifier_model') as mock_classifier:
+    with patch('utils.model_loader.model_loader.fraud_anomaly_model') as AdversarialAnomalyEngine, \
+         patch('utils.model_loader.model_loader.fraud_classifier_model') as SovereignClassifier:
         
-        # IsolationForest decision_function returns float-style anomaly score
-        # [0] index is taken by the service layer
-        mock_anomaly.decision_function.return_value = [0.05]
+        # Sovereign Inference: IsolationForest returns float-style anomaly score
+        AdversarialAnomalyEngine.decision_function.return_value = [0.05]
         
-        # GBDT predict_proba returns [P(safe), P(fraud)]
-        mock_classifier.predict_proba.return_value = [[0.9, 0.1]]
+        # Sovereign Inference: GBDT predict_proba returns [P(safe), P(fraud)]
+        SovereignClassifier.predict_proba.return_value = [[0.9, 0.1]]
         
         calculate_fraud_score(req)
         
-        if mock_classifier.predict_proba.called:
-            features = mock_classifier.predict_proba.call_args[0][0]
+        if SovereignClassifier.predict_proba.called:
+            features = SovereignClassifier.predict_proba.call_args[0][0]
             count = features.shape[1]
             if count == 11:
                 print_status(4, True, f"Feature signature verified: (1, {count})")

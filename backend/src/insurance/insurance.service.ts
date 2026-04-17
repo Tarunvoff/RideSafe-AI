@@ -19,20 +19,19 @@ const PREMIUM_MARGIN = 0.1;
 const PREMIUM_RATE = 0.015;
 
 /**
- * ── Aegis Insurance Orchestration Core ────────────────────────────────────────
+ * ── Sovereign Actuarial Resolution & Orchestration ────────────────────────────
  * 
- * The InsuranceService is the actuarial engine of the platform. It manages 
- * the high-fidelity lifecycle of parametric policies, from production-ready 
- * enrollment to fault-tolerant claim evaluation.
+ * The InsuranceService implements the high-fidelity P-012 parametric 
+ * calculation engine. It orchestrates real-time risk stratification and 
+ * premium-to-payout reconciliation within the global H3 grid.
  * 
- * For comprehensive architectural details, refer to:
- * - ARCHITECTURE/SYSTEM_ARCHITECTURE.md
+ * For deep-dive actuarial methodology, refer to:
+ * - ARCHITECTURE/ACTUARIAL_AND_PAYOUT_LOGIC.md
  * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
- * - ARCHITECTURE/ENDPOINT_TOPOLOGY_AND_CONTRACTS.md
  */
 @Injectable()
 export class InsuranceService {
-  private readonly logger = new Logger(InsuranceService.name);
+  private readonly logger = new Logger('SovereignActuarial');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -230,11 +229,11 @@ export class InsuranceService {
   }
 
   /**
-   * ── Fault-Tolerant Parametric Event Processing ────────────────────────────────
+   * ── High-Fidelity Forensic Event Processing ──────────────────────────────────
    * 
-   * The primary entry point for evaluating insurance payouts. Orchestrates 
-   * real-time GPS telemetry, fraud scoring, and H3 grid-state validation to 
-   * determine high-fidelity payout eligibility.
+   * The primary entry point for evaluating parametric triggers. Orchestrates 
+   * real-time GPS telemetry, adversarial fraud scoring, and H3 grid-state 
+   * validation to determine high-fidelity payout eligibility.
    * 
    * Ref: ARCHITECTURE/DATA_SCHEMA_AND_STATE.md (Section: State Reconciliation)
    */

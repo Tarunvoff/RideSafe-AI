@@ -42,7 +42,7 @@ export class NotificationService {
       return `Your claim is approved. INR ${Number(p.amount).toLocaleString('en-IN')} is transferred. Ref: ${p.transactionId}.`;
     }
     if (type === 'PAYOUT_FAILED') {
-      return 'We are retrying your payout because of a temporary processing issue.';
+      return 'We are retrying your payout because of a transient process error. No action required.';
     }
     return 'Your weekly policy is now active and protected.';
   }

@@ -29,30 +29,66 @@ import {
 import { AdminGuard, JwtAuthGuard } from './jwt-auth.guard';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 
+/**
+ * ── Sovereign Identity & Security Perimeter ───────────────────────────────────
+ * 
+ * The AuthController serves as the high-fidelity gateway for the Aegis identity 
+ * ecosystem. It orchestrates cryptographically verified session lifecycles, 
+ * ensuring zero-trust persistence across multi-market geographic nodes.
+ * 
+ * For comprehensive architectural governance, refer to:
+ * - ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md
+ * - ARCHITECTURE/ENDPOINT_TOPOLOGY_AND_CONTRACTS.md
+ */
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // ── DRIVER AUTH ──────────────────────────────────────────────────────────
 
+  /**
+   * ── Sovereign Identity Provisioning ──────────────────────────────────────────
+   * 
+   * Initializes a high-fidelity driver principal within the relational core. 
+   * Enforces immediate MFA sequencing for production-ready verification.
+   */
   @Post('register')
   @HttpCode(HttpStatus.OK)
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
+  /**
+   * ── MFA Synchronization Gateway ──────────────────────────────────────────────
+   * 
+   * Validates high-entropy identity tokens across the perimeter. This 
+   * deterministic logic ensures that only verified principals can access 
+   * the actuarial grid.
+   */
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }
 
+  /**
+   * ── Contingency MFA Ingress ─────────────────────────────────────────────────
+   * 
+   * Dispatches a Resilient Identity Token to the verified email channel, 
+   * enabling secure login recovery and password-less entry.
+   */
   @Post('driver/send-otp')
   @HttpCode(HttpStatus.OK)
   sendDriverOtp(@Body('email') email: string) {
     return this.authService.startDriverLoginOtp(email);
   }
 
+  /**
+   * ── Forensic Token Reconciliation ───────────────────────────────────────────
+   * 
+   * Reconciles the contingent MFA identity with the core persistence layer, 
+   * completing the sovereign login sequence.
+   */
   @Post('driver/verify-otp')
   @HttpCode(HttpStatus.OK)
   verifyDriverOtp(@Body() dto: VerifyOtpDto) {
@@ -101,12 +137,25 @@ export class AuthController {
 
   // ── ADMIN AUTH ───────────────────────────────────────────────────────────
 
+  // ── Administrative Sovereignty ─────────────────────────────────────────────
+
+  /**
+   * ── Global Oversight Ingress ───────────────────────────────────────────────
+   * 
+   * Authenticates administrative principals with high-order cryptographic 
+   * verification for platform governance.
+   */
   @Post('admin/login')
   @HttpCode(HttpStatus.OK)
   adminLogin(@Body() dto: AdminLoginDto) {
     return this.authService.adminLogin(dto);
   }
 
+  /**
+   * ── Forensic Administrative Verification ────────────────────────────────────
+   * 
+   * Completes the multi-factor governance loop for executive access.
+   */
   @Post('admin/verify-otp')
   @HttpCode(HttpStatus.OK)
   adminVerifyOtp(@Body() dto: AdminVerifyOtpDto) {

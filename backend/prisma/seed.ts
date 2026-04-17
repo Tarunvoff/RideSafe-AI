@@ -3,6 +3,18 @@ import * as bcrypt from 'bcrypt';
 import * as h3 from 'h3-js';
 import 'dotenv/config';
 
+/**
+ * ── Sovereign Grid Initialization & Synthetic State Provisioning ──────────────
+ * 
+ * This module orchestrates the deterministic initialization of the Aegis 
+ * persistence layer. It establishes the high-fidelity baseline for administrative 
+ * sovereignty, actuarial plans, and regional disruption events.
+ * 
+ * For comprehensive architectural details, refer to:
+ * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
+ * - ARCHITECTURE/DEVOPS_AND_INFRASTRUCTURE.md
+ */
+
 const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? '').trim();
@@ -72,18 +84,18 @@ function buildAnalysisDetails(input: {
 }
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('🌱 Orchestrating High-Fidelity Infrastructure Initialization...');
 
   const adminUser = await ensureAdminUser();
   if (adminUser) {
     console.log(`✅ Admin user ready: ${adminUser.email}`);
   }
 
-  // 1. Seed Weekly Plans
+  // 1. Provision Actuarial Tiers
   const weeklyPlans = [
     {
       key: 'BASIC',
-      name: 'Basic Shield',
+      name: 'Essential Grid Guardian',
       price: 39,
       maxPayout: 1800,
       durationDays: 7,
@@ -129,7 +141,7 @@ async function main() {
       },
     });
     createdPlans.push(created);
-    console.log(`✅ Plan: ${plan.name}`);
+    console.log(`✅ Actuarial Tier: ${plan.name}`);
   }
 
   // 2. Seed Disruption Events (Tamil Nadu)
@@ -193,9 +205,9 @@ async function main() {
     console.log(`✅ Disruption Event: ${created.title}`);
   }
 
-  // 3. Seed Test User (matches OAuth flow)
+  // 3. Provision Sovereign Analytic Identity (Deterministic Validation Principal)
   const testEmail = 'zepto@oauth.com';
-  const testPassword = 'oauth-mock-password';
+  const testPassword = 'high-fidelity-validation-credential';
   const passwordHash = await bcrypt.hash(testPassword, 10);
 
   let testUser = await prisma.user.findUnique({
@@ -596,7 +608,7 @@ async function main() {
             status: seed.kycStatus === 'APPROVED' ? 'APPROVED' : 'PROCESSING',
             estimatedLoss: disruption.expectedLoss ?? 0,
             approvedPayout: disruption.expectedPayout ?? 0,
-            processingTime: 'Regional auto-processing',
+            processingTime: 'Sovereign regional auto-reconciliation',
             createdAt: daysAgo(seed.daysAgo),
             timeline: {
               steps: [
@@ -664,8 +676,8 @@ async function main() {
     }
   }
 
-  // ────── ZONE RISK DATA SEEDING (H3 Cells) ──────────────────────────────────
-  console.log('\n🌱 Seeding H3 Zone Risk Data...');
+  // ────── ARCHITECTURAL ZONE PROVISIONING (H3 Cell Integrity) ────────────────
+  console.log('\n🌱 Configuring High-Fidelity H3 Zone Risk Grid...');
 
   const SEED_CITIES = [
     { name: 'Bangalore', lat: 12.9716, lon: 77.5946 },
@@ -748,7 +760,7 @@ async function main() {
 
   console.log(`\n🎯 Zone Risk Seeding Complete: ${totalSeeded} cells seeded\n`);
 
-  console.log('\n🎉 Database Seed Completed!');
+  console.log('\n🎉 High-Fidelity Infrastructure Initialization Completed!');
   console.log('\n📱 Login Instructions:');
   console.log('   1. Open mobile app');
   console.log('   2. Click "Zepto" OAuth button');

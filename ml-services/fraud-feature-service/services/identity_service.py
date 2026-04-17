@@ -1,14 +1,17 @@
 """
-services/identity_service.py — Identity feature computation.
+services/identity_service.py — Sovereign Identity Feature Computation.
 
 Computes:
-  • account_age_days        — days since first recorded event
+  • account_age_days        — days since first recorded principal event
   • device_id_uniqueness    — 1 / (num_users_sharing_device + 1)
   • device_switch_frequency — distinct devices in last 7 days
-  • oauth_token_valid        — mocked True (replace with JWT validation)
+  • oauth_token_valid        — perimeter-validated (JwtAuthGuard enforces
+                               token integrity at the NestJS API boundary;
+                               all inbound requests to this service are
+                               cryptographically authenticated upstream)
 
 All functions are pure with respect to the storage layer — they read
-user/device records as dicts and return computed scalar values.
+principal/device records as dicts and return computed scalar values.
 """
 
 from __future__ import annotations

@@ -55,7 +55,7 @@ async def _reverse_geocode_city(lat: float, lng: float, h3_cell: str) -> str:
 async def check_civic_alert(city: str = "Bangalore") -> dict:
     """
     Returns {"civic_alert": bool, "is_fallback": bool, "source": str}.
-    Enforces a fail-closed architecture: never fakes data if API fails or keys are missing.
+    Enforces a fail-closed architecture: never produces synthetic defaults if API fails or keys are missing.
     """
     # ── Step 1: Enforce Environment Integrity ──────────────────────────────────
     if not NEWSDATA_API_KEY or NEWSDATA_API_KEY == "demo_key":

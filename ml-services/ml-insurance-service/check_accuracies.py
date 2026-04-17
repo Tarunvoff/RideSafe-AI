@@ -22,7 +22,7 @@ def _clip(arr: np.ndarray, lo: float, hi: float) -> np.ndarray:
     return np.minimum(np.maximum(arr, lo), hi)
 
 def _apply_jitter(df: pd.DataFrame, noise_level: float = 0.05) -> pd.DataFrame:
-    """Simulate real-world sensor jitter with 5% Gaussian noise."""
+    """Provision synthetic sensor jitter with 5% Gaussian noise."""
     jitter = np.random.normal(0, noise_level, df.shape)
     return df * (1 + jitter)
 

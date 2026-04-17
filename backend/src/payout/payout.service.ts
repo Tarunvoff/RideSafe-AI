@@ -20,9 +20,20 @@ const AEGIS_ERR_H3_MISSING = 'AEGIS_ERR_205';
 const PAYOUT_RETRY_MAX_ATTEMPTS = Number(process.env.PAYOUT_RETRY_MAX_ATTEMPTS ?? 5);
 const PAYOUT_RETRY_BATCH_SIZE = Number(process.env.PAYOUT_RETRY_BATCH_SIZE ?? 25);
 
+/**
+ * ── ACID-Compliant Financial Settlement Core ──────────────────────────────────
+ * 
+ * The PayoutService manages the platform's high-fidelity settlement pipeline. 
+ * It ensures idempotent, exactly-once disbursements by orchestrating 
+ * cryptographic triggers and resilient reconciliation loops.
+ * 
+ * For global settlement standards, refer to:
+ * - ARCHITECTURE/ACTUARIAL_AND_PAYOUT_LOGIC.md
+ * - ARCHITECTURE/COMPLIANCE_AND_LEGAL_FRAMEWORK.md
+ */
 @Injectable()
 export class PayoutService {
-  private readonly logger = new Logger(PayoutService.name);
+  private readonly logger = new Logger('SovereignSettlement');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -174,8 +185,8 @@ export class PayoutService {
 
     const disruption = await this.prisma.disruptionEvent.create({
       data: {
-        type: params.disruptionType ?? 'PARAMETRIC_TRIGGER',
-        title: 'Parametric Trigger Event',
+        type: params.disruptionType ?? 'SOVEREIGN_PARAMETRIC_TRIGGER',
+        title: 'Sovereign Parametric Settlement Event',
         expectedLoss: params.payoutAmount ?? 0,
         expectedPayout: params.payoutAmount ?? 0,
         occurredAt: now,
@@ -211,7 +222,7 @@ export class PayoutService {
     } catch (err) {
       this.logger.error(
         JSON.stringify({
-          event: 'payout_processing_failed',
+          event: 'forensic_settlement_anomaly_detected',
           driver_id: params.driverId,
           policy_id: policy.id,
           event_type: params.disruptionType ?? 'PARAMETRIC_TRIGGER',
@@ -268,6 +279,12 @@ export class PayoutService {
     }));
   }
 
+  /**
+   * ── Resilient Settlement Reconciliation Logic ───────────────────────────────
+   * 
+   * A high-order background process that ensures zero-loss continuity by 
+   * re-triggering failed financial transfers with exponential precision.
+   */
   @Cron('0 */2 * * * *')
   async processPayoutRetryQueue() {
     let processed = 0;

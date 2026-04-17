@@ -9,6 +9,17 @@ if not load_dotenv():
     if os.path.exists(root_env):
         load_dotenv(root_env)
 
+"""
+── Sovereign Predictive Intelligence Core ─────────────────────────────────────
+
+The Aegis ML Insurance Service implements high-fidelity predictive models 
+for parametric risk resolution. It orchestrates high-dimensional feature 
+analysis to ensure deterministic, actuarially sound payouts across the 
+global H3 grid.
+
+Ref: ARCHITECTURE/ACTUARIAL_AND_PAYOUT_LOGIC.md
+     ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md
+"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import risk, pricing, fraud, trigger
@@ -44,8 +55,8 @@ def validate_required_env_vars() -> None:
 validate_required_env_vars()
 
 app = FastAPI(
-    title="Aegis ML Microservice",
-    description="ML service for risk, pricing, fraud detection, and parametric triggers.",
+    title="Aegis Sovereign Predictive Core",
+    description="High-fidelity adversarial intelligence engine for sovereign risk and parametric resolution.",
     version="1.0.0"
 )
 

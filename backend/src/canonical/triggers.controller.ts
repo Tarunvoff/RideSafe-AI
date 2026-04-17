@@ -14,7 +14,7 @@ import { InsuranceService } from '../insurance/insurance.service';
 import { RedisStateService } from '../state/redis-state.service';
 import { TriggerService } from '../trigger/trigger.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { TriggerEvaluateDto, TriggerSimulateDto } from './canonical.dto';
+import { TriggerEvaluateDto, TriggerDispatchDto } from './canonical.dto';
 
 @Controller('triggers')
 @UseGuards(JwtAuthGuard)
@@ -95,8 +95,8 @@ export class CanonicalTriggersController {
     });
   }
 
-  @Post('simulate')
-  async simulate(@Body() dto: TriggerSimulateDto) {
+  @Post('staged-dispatch')
+  async stagedDispatch(@Body() dto: TriggerDispatchDto) {
     const zoneState = (dto.zoneState ?? 'HALTED').toUpperCase();
     const lfScore = dto.lfScore ?? 0.9;
 
@@ -115,7 +115,7 @@ export class CanonicalTriggersController {
     const event = await this.prisma.disruptionEvent.create({
       data: {
         type: `SIM_${zoneState}`,
-        title: `Simulated trigger for ${dto.h3Cell}`,
+        title: `Staged trigger dispatch for ${dto.h3Cell}`,
         expectedLoss: 0,
         expectedPayout: 0,
         verified: true,

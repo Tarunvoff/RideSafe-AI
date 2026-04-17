@@ -27,7 +27,8 @@ import { plansApi, premiumApi, type PurchasedPolicy, type WeeklyPlan } from '../
 
 const BRAND_BG = '#ff6b53';
 const CARD_BG = '#f0ecce';
-const GREEN_ACCENT = '#1b8b48'; // Exact green from mock
+/** ── Sovereign Design System Primary Green ────────────────────────────────── */
+const GREEN_ACCENT = '#1b8b48'; 
 const BORDER_DARK = '#000000';
 
 type PlansTabKey = 'available' | 'purchased';
@@ -131,22 +132,22 @@ function getRazorpayCheckoutHTML(opts: {
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="hint">
-        <div class="spinner"></div>
-        ${opts.loadingMessage}
-      </div>
-    </div>
+        <div class="wrap">
+          <div class="hint">
+            <div class="spinner"></div>
+            ${opts.loadingMessage}
+          </div>
+        </div>
 
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script>
-      (function() {
-        var options = {
-          key: ${JSON.stringify(keyId)},
-          amount: ${JSON.stringify(amount)},
-          currency: ${JSON.stringify(currency)},
-          name: ${JSON.stringify(name)},
-          description: ${JSON.stringify(description)},
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+        <script>
+          (function() {
+            var options = {
+              key: ${JSON.stringify(keyId)},
+              amount: ${JSON.stringify(amount)},
+              currency: ${JSON.stringify(currency)},
+              name: "Aegis Sovereign Settlement",
+              description: ${JSON.stringify(description)},
           order_id: ${JSON.stringify(orderId)},
           prefill: {
             email: ${JSON.stringify(email)},
@@ -478,7 +479,7 @@ export default function DriverPlansScreen({ navigation }: any) {
           />
         }
       >
-        <Text style={styles.pageTitle}>Plans</Text>
+        <Text style={styles.pageTitle}>Sovereign Coverage</Text>
 
         <View style={styles.tabsWrapper}>
           <TouchableOpacity
@@ -486,14 +487,14 @@ export default function DriverPlansScreen({ navigation }: any) {
             onPress={() => setTab('available')}
             style={[styles.tabBtn, isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>Available Plans</Text>
+            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>Coverage Tiers</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => setTab('purchased')}
             style={[styles.tabBtn, !isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>Purchased Plans</Text>
+            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>Active Coverage</Text>
           </TouchableOpacity>
         </View>
 
@@ -534,7 +535,7 @@ export default function DriverPlansScreen({ navigation }: any) {
                       onPress={() => startCheckout(plan)}
                       disabled={loading || isPremiumLoading}
                     >
-                      <Text style={styles.buyBtnText}>{isPremiumLoading ? 'Calculating...' : 'Pay with Razorpay'}</Text>
+                      <Text style={styles.buyBtnText}>{isPremiumLoading ? 'Calculating...' : 'Initialize Sovereign Settlement'}</Text>
                     </TouchableOpacity>
                   </View>
                 );

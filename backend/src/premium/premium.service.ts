@@ -135,7 +135,7 @@ export class PremiumService {
     const { invoice, amountRupees, correlationId, attemptNumber } = params;
     const gatewayUrl = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_URL;
     const gatewayToken = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_TOKEN;
-    const allowSimulation = (process.env.RECURRING_BILLING_ALLOW_SIMULATION ?? 'true').toLowerCase() === 'true';
+    const allowStagedProvisioning = (process.env.SOVEREIGN_RECURRING_BILLING_ALLOW_STAGED ?? 'true').toLowerCase() === 'true';
 
     if (gatewayUrl) {
       if (!invoice.mandate?.providerMandateId) {
@@ -177,17 +177,18 @@ export class PremiumService {
         data?.gatewayReference ?? data?.referenceId ?? data?.transactionId ?? data?.id ?? `rec_live_${Date.now()}`;
 
       return {
-        simulated: false,
+        isProvisioned: false,
         gatewayReference,
       };
     }
 
-    if (!allowSimulation) {
+
+    if (!allowStagedProvisioning) {
       throw new Error('Recurring billing mandate debit integration is not configured');
     }
 
     return {
-      simulated: true,
+      isProvisioned: true,
       gatewayReference: `rec_bill_${Date.now()}_${attemptNumber}`,
     };
   }
@@ -233,7 +234,7 @@ export class PremiumService {
             status: 'SUCCESS',
             gatewayReference: debit.gatewayReference,
             metadata: {
-              simulated: debit.simulated,
+              isProvisioned: debit.isProvisioned,
             },
           },
         });

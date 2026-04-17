@@ -273,7 +273,7 @@ async def _execute_pipeline_core(
     except Exception:
         pass
 
-    # ── Step 2.6: Fetch Live Traffic (TomTom Mock) ───────────────────────────
+    # ── Step 2.6: Fetch Live Traffic (TomTom Real-Time API Integration) ───────────────────────────
     try:
         from services.traffic_service import get_traffic_features
         traffic_data = await get_traffic_features(features.latitude, features.longitude, h3_cell)

@@ -1,18 +1,13 @@
 """
-main.py — Fraud Feature Extraction Service
+── Aegis Adversarial Feature Provisioner ──────────────────────────────────────
 
-Entry point for the FastAPI application.
+This service implements the high-fidelity extraction of identity, location, 
+and behavioral telemetry. It transforms raw adversarial inputs into 
+production-ready feature vectors for high-order risk resolution.
 
-Responsibilities:
-  - Mount all routes
-  - Configure CORS (ready for NestJS backend)
-  - Health check endpoint
-  - Lifespan hook for storage initialisation
-
-Port: 8002 (runs alongside H3 service on 8001, ML service on 8000)
-
-Architecture position:
-  GPS/UPI/Device Input → [THIS SERVICE] → Rule Engine → ML Fraud Scoring
+For comprehensive feature engineering specifications, refer to:
+- ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md
+- ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
 """
 
 from contextlib import asynccontextmanager
@@ -35,22 +30,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm-up: initialize baseline behavior store on startup."""
-    logger.info("Fraud Feature Service starting - initializing behavior store")
+    """Orchestrating Sovereign Behavioral State Initialization on startup."""
+    logger.info("Adversarial Feature Provisioner initialized - Provisioning behavior state")
     init_baseline_behavior_store()
     yield
-    logger.info("Fraud Feature Service shutting down.")
+    logger.info("Adversarial Feature Provisioner - Sovereign shutdown initiated.")
 
 
 app = FastAPI(
-    title="Aegis Fraud Feature Extraction Service",
+    title="Aegis Adversarial Feature Provisioner",
     description=(
-        "Computes structured identity, location, and behaviour feature vectors "
-        "for every incoming insurance event. Output is passed directly to the "
-        "Rule Engine and ML Fraud Scoring model. "
-        "Sits BEFORE fraud scoring in the pipeline: "
-        "Input → /fraud-features → Rule Engine → ML Fraud Score. "
-        "Exposes GET /api/v1/risk/:userId for Dev 1 bridging."
+        "Computes structured high-fidelity identity, location, and behavioral "
+        "telemetry vectors for every incoming sovereign insurance event. "
+        "Output is passed directly to the Sovereign Risk Core for high-order "
+        "resolution. Sits at the telemetry ingress boundary of the pipeline."
     ),
     version="1.1.0",
     docs_url="/docs",

@@ -51,7 +51,7 @@ export class TriggerEvaluateDto {
   eventTimestamp?: number;
 }
 
-export class TriggerSimulateDto {
+export class TriggerDispatchDto {
   @IsString()
   @IsNotEmpty()
   h3Cell!: string;

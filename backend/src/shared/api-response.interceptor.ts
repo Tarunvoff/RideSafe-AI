@@ -12,6 +12,16 @@ type StandardResponse<T = unknown> = {
   error: string | null;
 };
 
+/**
+ * ── Architectural Response Normalization Layer ────────────────────────────────
+ * 
+ * Ensures a deterministic, high-fidelity contract for all outgoing data. 
+ * Envelops payloads in a standard production-ready schema for consumption 
+ * by the sovereign mobile and dashboard clients.
+ * 
+ * For UI design system integration, refer to:
+ * - ARCHITECTURE/FRONTEND_DESIGN_SYSTEM.md
+ */
 @Injectable()
 export class ApiResponseInterceptor<T> implements NestInterceptor<T, StandardResponse<T>> {
   intercept(_context: ExecutionContext, next: CallHandler): Observable<StandardResponse<T>> {

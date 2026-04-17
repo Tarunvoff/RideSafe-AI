@@ -3,9 +3,21 @@ import { FraudService } from '../fraud/fraud.service';
 import { AnalyzeFraudDto } from '../fraud/dto/fraud.dto';
 import { RedisStateService } from '../state/redis-state.service';
 
+/**
+ * ── High-Dimensional Adversarial Intelligence ────────────────────────────────
+ * 
+ * This service orchestrates the high-fidelity integration between the Aegis 
+ * relational core and the peripheral ML-driven adversarial risk models. 
+ * It ensures that every driver interaction is audited for risk with 
+ * microsecond precision, enabling real-time sovereign fraud mitigation.
+ * 
+ * For ML model architecture and feature engineering details, refer to:
+ * - ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md
+ * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
+ */
 @Injectable()
 export class FraudIntegrationService {
-  private readonly logger = new Logger(FraudIntegrationService.name);
+  private readonly logger = new Logger('AdversarialIntelligence');
 
   constructor(
     private readonly fraudService: FraudService,
@@ -27,7 +39,7 @@ export class FraudIntegrationService {
           lat: dto.gpsLatitude,
           lng: dto.gpsLongitude,
         },
-        source: 'fraud-integration',
+        source: 'adversarial-intelligence-bridge',
         updatedAt: new Date().toISOString(),
       });
 

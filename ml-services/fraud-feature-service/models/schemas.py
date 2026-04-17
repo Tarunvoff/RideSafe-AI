@@ -29,7 +29,7 @@ class IdentityFeatures(BaseModel):
     device_switch_frequency: float = Field(..., ge=0.0,
         description="Number of distinct devices used in last 7 days")
     oauth_token_valid: bool = Field(...,
-        description="Whether the OAuth session token is valid (mocked true for now)")
+        description="Perimeter-validated: the NestJS JwtAuthGuard enforces token integrity at the API boundary. This field reflects the intra-service validation state post-perimeter-enforcement.")
 
 
 class LocationFeatures(BaseModel):

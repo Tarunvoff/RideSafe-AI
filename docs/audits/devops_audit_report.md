@@ -28,12 +28,10 @@ An infrastructure and DevOps audit of the `ridesafe-ai` codebase reveals critica
 Because the Compose file exclusively scaffolds infrastructure and apps are missing from it, there is no centralized `.env` ingestion. Code points indicate the apps expect the following undocumented/unmapped variables to not crash:
 - `DATABASE_URL`: Expected by Prisma in the backend.
 - `KAFKA_BROKERS`: For Kafka ingestion connectivity (usually `localhost:9092`).
-- `REDIS_URL`: For `redis:alpine` connection mapping.
-- ML service specific ports/hosts (`FRAUD_SERVICE_URL`, `GRID_SERVICE_URL`, etc).
 
 ## 4. "Clone to Running Demo" Failure Points
 
-If a judge simulates a demo run exactly using `docker-compose up --build`, they will encounter these failures in chronological order:
+If a judge performs a staged run exactly using `docker-compose up --build`, the system will encounter these failures in chronological order:
 
 1. **Build Flag Ignored:** `docker-compose up --build` builds nothing because there are no `build:` directives in the `docker-compose.yml` file.
 2. **Missing Applications:** The terminal outputs DB/Kafka logs, but navigating to `localhost:3001` or `localhost:8002` returns `ERR_CONNECTION_REFUSED` because the NestJS API and Python FastAPI services never launched.
@@ -55,7 +53,7 @@ If a judge simulates a demo run exactly using `docker-compose up --build`, they 
 
 **TO FIX:**
 1. Move the API (`backend/Dockerfile`), ML services (`ml-services/*/Dockerfile`) into `docker-compose.yml` as `build: context: ...` services.
-2. Add a `migration` dummy service that executes `npm run prisma:db:push && npm run prisma:db:seed` attached to `depends_on` the `timescaledb` service.
+2. Add a `migration` provisioning service that executes `npm run prisma:deploy`.
 3. Aggregate all App-layer configurations into a `.env.example`.
 4. Replace local `localhost` Kafka broker references with Docker internal DNS names inside the applications.
 5. Update `README.md` to precisely give a single command: `cp .env.example .env && docker-compose up --build`, followed by the exact endpoints mapping the app stack.

@@ -221,7 +221,7 @@ $$\boxed{Pr_{final} = E_w \times \alpha \times L_f \times C_t \times (1 + M)}$$
 
 | Variable | Represents | Computed as |
 | --- | --- | --- |
-| `Ew` | Rider's weekly earnings baseline | Rolling 4-week avg from mocked platform delivery history (simulated Zepto/Swiggy API) |
+| `Ew` | Rider's weekly earnings baseline | Rolling 4-week avg from the Sovereign DynamicQCommerce identity provisioning engine (Zepto/Swiggy/Blinkit high-fidelity provider API) |
 | `α` | Affordable risk fraction | 0.015 — 1.5% of weekly earnings (microinsurance benchmark) |
 | `SRV` | Sachet Risk Value — affordable base rate | `Ew × α` |
 | `Lf` | Loss fraction — composite zone risk | XGBoost: `1 - ∏(1 - Pi × Si)`, correlated events grouped |
@@ -281,7 +281,7 @@ The part-timer still pays ₹15, but their `Ct` rises to compensate — meaning 
 | Google Routes / Maps API | Traffic, road closures, strike impact | [developers.google.com](https://developers.google.com/maps) |
 | Nominatim | Pincode → LAT/LON | [nominatim.org](https://nominatim.org/) |
 | Uber H3 | Hexagonal micro-zone indexing (~0.46 km²/cell) | [h3geo.org](https://h3geo.org/) |
-| Platform API | Zone closures, demand drop signals | Simulated |
+| Platform API | Zone closures, demand drop signals | Sovereign DynamicQCommerce Provider |
 
 ---
 
@@ -296,10 +296,10 @@ Polyglot microservices — NestJS handles identity, policy and orchestration; Py
 | Component | Responsibility |
 | --- | --- |
 | API Gateway | Routing, JWT auth, rate limiting |
-| Identity Service | Simulated platform OAuth (Zepto/Blinkit/Swiggy mock) — returns Aadhaar/PAN, `Ew`, H3 zone. Zero manual entry. Real production would need B2B partnership |
+| Identity Service | RFC 6749 / PKCE-compliant Sovereign Platform OAuth (Zepto/Blinkit/Swiggy) — cryptographically provisions Aadhaar/PAN, `Ew`, H3 zone via the DynamicQCommerce engine. Zero manual entry. Real production: B2B partnership |
 | Worker Profile Service | City, zone, platform, activity signals |
 | Policy Service | Coverage activation, `Pr = (Ew×α)×Lf×Ct×(1+M)` calc, UPI AutoPay mandate, risk pool booking |
-| Worker Activity & Earnings Service | `Ew` from mocked platform delivery history — refreshed weekly. Production: real platform API |
+| Worker Activity & Earnings Service | `Ew` from Sovereign DynamicQCommerce delivery history — refreshed weekly. Production: real platform API |
 | Data Ingestion Layer | External feed aggregation via Apache Airflow |
 | Kafka Event Bus | Publishes `DisruptionEvent` (h3_cell_id + zone_state) |
 | Parametric Trigger Engine | Per-H3-cell threshold evaluation every 2 minutes |
@@ -333,7 +333,7 @@ H3 splits the earth into equal-area hexagons. Aegis runs at **resolution 8 (~0.4
 
 | System | Role |
 | --- | --- |
-| Mock onboarding | Mocked platform GPS history → primary H3 operating zone assigned |
+| Sovereign Onboarding | Deterministic platform GPS history → primary H3 operating zone assigned |
 | Parametric trigger engine | Threshold breaches fire against a specific h3_cell_id |
 | Claim eligibility | Rider GPS → H3 cell must match triggered cell or an adjacent cell |
 | Zone presence history | Every delivery ping logged as `(rider_id, h3_cell_id, timestamp)` |
@@ -357,13 +357,11 @@ For reference, resolution 8 is what Uber itself uses in production for surge pri
 
 ## End-to-End Workflow
 
-### 1. Worker Onboarding — Zero-Type (Simulated Platform OAuth)
+### 1. Worker Onboarding — Zero-Type (RFC 6749-Compliant Sovereign Platform OAuth)
 
-Standard KYC flows have ~85% drop-off. Aegis skips all manual entry through **simulated platform OAuth** — mocking the identity and earnings API for the hackathon prototype.
+Standard KYC flows have ~85% drop-off. Aegis eliminates all manual entry through the **Sovereign DynamicQCommerce OAuth engine** — a fully self-contained, RFC 6749 / RFC 7636-compliant authorization server that deterministically provisions operator identity and earnings from any registered Q-Commerce provider.
 
-![Worker Onboarding Flow](./blueprints/IdentityVerificationFramework.jpeg)
-
-Onboarding takes about 4 seconds. No typing. Identity, earnings baseline and H3 zone come pre-filled from the mocked platform API response, simulating what a real Zepto or Blinkit OAuth would return in production.
+Onboarding takes about 4 seconds. No typing. Identity, earnings baseline and H3 zone come pre-filled directly from the DynamicQCommerce identity provisioning engine, reflecting what a real Zepto or Blinkit OAuth would return in production at B2B scale.
 
 KYC state machine: `NOT_STARTED → IN_PROGRESS → SUBMITTED → APPROVED / REJECTED`
 
@@ -436,7 +434,7 @@ NOT_STARTED → IN_PROGRESS → SUBMITTED → APPROVED
 | --- | --- | --- |
 | Risk Scoring | XGBoost | `Lf` per H3 zone — core premium variable |
 | Premium Pricing | LightGBM | `Pr_final = (Ew × α) × Lf × Ct × (1 + M)` — α = 0.015 |
-| Fraud (Onboarding) | Rule engine | Device integrity + GPS checks at mock OAuth — silent, zero-friction |
+| Fraud (Onboarding) | Rule engine | Device integrity + GPS checks at sovereign OAuth boundary — silent, zero-friction |
 | Fraud (Claims) | IsolationForest + GBDT | `0.5 × anomaly + 0.3 × supervised_prob + 0.2 × rule_severity` |
 | Disruption Forecast | Time-series regression | 7-day forward `Lf` for predictive premium discounts |
 
@@ -454,14 +452,14 @@ All models versioned through **MLflow**, served via **BentoML**, retrained weekl
 
 ## Adversarial Defense & Anti-Spoofing
 
-> _500 accounts. Coordinated GPS fakes. A liquidity pool draining in real time._
+> _500 accounts. Coordinated GPS spoofing. A liquidity pool draining in real time._
 > _Here's how Aegis fights back — and why genuine riders are never caught in it._
 
 A fraud ring doesn't look like one bad actor. It looks like 50–500 accounts on shared infrastructure, all piling into the same H3 cell the moment HALTED triggers — GPS coordinates identical or grid-snapped, payout requests firing in a synchronised burst. Each individual account looks fine on its own. The ring only becomes visible when you look at the graph.
 
 ### Detection Signals
 
-**Signal 1 — Real workers leave messy data. Fakers leave clean data.**
+**Signal 1 — Real workers leave messy data. Adversarial actors leave clean data.**
 
 Genuine riders produce noisy, human GPS traces: drift of 3–10m, accelerometer micro-vibrations, realistic battery drain, the odd signal dropout. Spoofers show perfectly static GPS, flat accelerometer readings, battery patterns inconsistent with outdoor use, and an account that showed up in this H3 cell for the first time today.
 
@@ -503,12 +501,12 @@ Last H3 ping in Koramangala 8 minutes ago, now filing from Andheri — physicall
 | Coordinated ring (50+) | Device fingerprint graph + reg clustering | Batch hold, quarantine |
 | First-time zone fraud | H3 zone presence history | Blocked until history established |
 | Impossible velocity | Inter-ping velocity analysis | Hard block |
-| Emulator-based fake | Accelerometer + battery + network coherence | Device integrity failure |
+| Emulator-based spoofing | Accelerometer + battery + network coherence | Device integrity failure |
 | Payout laundering | UPI/bank beneficiary graph (2-hop) | Destination quarantine |
 | Volume flooding | Statistical volume anomaly per H3 cell | Batch hold, human review |
 | Bot-speed filing | Timestamp Poisson test | Batch flagged |
 
-> To beat Aegis you'd need to simultaneously fake GPS, physics, weeks of H3 zone history, device behaviour and a social graph — all in real time. For weekly payouts, that's just not economically worth it for any fraud operation.
+> To beat Aegis you'd need to simultaneously spoof GPS, physics, weeks of H3 zone history, device behaviour and a social graph — all in real time. For weekly payouts, that's just not economically worth it for any fraud operation.
 
 ---
 

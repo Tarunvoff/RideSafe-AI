@@ -145,7 +145,7 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     return {
-      message: 'Email verified successfully.',
+      message: 'Sovereign identity verified successfully.',
       ...tokens,
       role: user.role,
       userId: user.id,
@@ -153,9 +153,9 @@ export class AuthService {
     };
   }
 
-  // ── LOGIN ────────────────────────────────────────────────────────────────
+  // ── AUTHENTICATION INGRESS: LOGIN ─────────────────────────────────────────
   async login(dto: LoginDto) {
-    this.logger.log(`[AUTH_INGRESS] Received login request for: ${dto.email}`);
+    this.logger.log(`[AUTH_INGRESS] Processing high-fidelity principal authentication: ${dto.email}`);
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
@@ -177,7 +177,7 @@ export class AuthService {
     }
 
     return {
-      message: 'Login successful',
+      message: 'High-fidelity authentication successful',
       ...tokens,
       role: user.role,
       userId: user.id,
@@ -249,8 +249,8 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user) {
-      // Don't reveal if email exists
-      return { message: 'If this email is registered, you will receive an OTP.' };
+      /** Implementing sovereign zero-information disclosure for principal shadows */
+      return { message: 'If this principal is registered, an OTP sequence will be initialized.' };
     }
 
     const otp = generateOTP();
@@ -507,12 +507,12 @@ export class AuthService {
     };
   }
 
-  // ── SEED ADMIN ───────────────────────────────────────────────────────────
+  // ── PROVISION ADMINISTRATIVE SOVEREIGNTY ────────────────────────────────────
   async seedAdmin() {
     const adminCreds = this.getAdminEnvCreds();
     const adminUser = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
     return {
-      message: 'Admin ensured successfully!',
+      message: 'Administrative principal provisioned successfully.',
       admin: {
         id: adminUser.id,
         email: adminUser.email,

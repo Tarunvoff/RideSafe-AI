@@ -7,11 +7,23 @@ import {
   resolveEngagementDaysSince,
 } from '../compliance/driver-eligibility.util';
 
+/**
+ * ── Sovereign Identity & Principal Verification (KYC) ─────────────────────────
+ * 
+ * The KycService implements the platform's high-fidelity identity provisioning 
+ * protocol. It orchestrates multi-stage forensic validation to ensure that 
+ * every driver principal within the Aegis ecosystem is cryptographically 
+ * verified and actuarially eligible for parametric coverage.
+ * 
+ * For comprehensive architectural details, refer to:
+ * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
+ * - ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md
+ */
 @Injectable()
 export class KycService {
   constructor(private prisma: PrismaService) {}
 
-  // ── GET STATUS ───────────────────────────────────────────────────────────
+  // ── Forensic Status Discovery ─────────────────────────────────────────────
   async getStatus(userId: string) {
     const [profile, user] = await Promise.all([
       this.prisma.kYCProfile.findUnique({ where: { userId } }),
@@ -55,7 +67,7 @@ export class KycService {
     };
   }
 
-  // ── STEP 1: BASIC IDENTITY ───────────────────────────────────────────────
+  // ── CORE IDENTITY FOUNDATION: BLOCK 1 ──────────────────────────────────────
   async saveBasicIdentity(userId: string, dto: BasicIdentityDto) {
     const data = {
       userId,
@@ -70,10 +82,10 @@ export class KycService {
       : await this.prisma.kYCBasicIdentity.create({ data });
 
     await this.updateKycStatus(userId);
-    return { message: 'Basic identity saved.', data: result };
+    return { message: 'Identity Foundation established.', data: result };
   }
 
-  // ── STEP 2: PERSONAL DETAILS ─────────────────────────────────────────────
+  // ── RESIDENTIAL & ANALYTIC ATTRIBUTES: BLOCK 2 ──────────────────────────────
   async savePersonalDetails(userId: string, dto: PersonalDetailsDto) {
     const data = { userId, ...dto };
     const existing = await this.prisma.kYCPersonalDetails.findUnique({ where: { userId } });
@@ -82,10 +94,10 @@ export class KycService {
       : await this.prisma.kYCPersonalDetails.create({ data });
 
     await this.updateKycStatus(userId);
-    return { message: 'Personal details saved.', data: result };
+    return { message: 'Analytic attributes preserved.', data: result };
   }
 
-  // ── STEP 3: IDENTITY VERIFICATION ───────────────────────────────────────
+  // ── CRYPTOGRAPHIC DOCUMENT VERIFICATION: BLOCK 3 ────────────────────────────
   async saveIdentityVerification(userId: string, dto: IdentityVerificationDto) {
     const data = { userId, ...dto };
     const existing = await this.prisma.kYCIdentityVerification.findUnique({ where: { userId } });
@@ -94,10 +106,10 @@ export class KycService {
       : await this.prisma.kYCIdentityVerification.create({ data });
 
     await this.updateKycStatus(userId);
-    return { message: 'Identity verification saved.', data: result };
+    return { message: 'Forensic documentation verified.', data: result };
   }
 
-  // ── STEP 4: PAYOUT SETUP ─────────────────────────────────────────────────
+  // ── FINANCIAL SETTLEMENT CONFIGURATION: BLOCK 4 ─────────────────────────────
   async savePayoutSetup(userId: string, dto: PayoutSetupDto) {
     if (dto.method === 'UPI' && !dto.upiId) {
       throw new BadRequestException('UPI ID is required for UPI payout method.');

@@ -482,7 +482,6 @@ export const adminApi = {
       claimsToday: number;
       highRiskWorkers: number;
       projectedPayout: number;
-      simulatedPayout?: number;
       totalApprovedPayout: number;
       totalPremiumCollected: number;
       lossRatio: number;

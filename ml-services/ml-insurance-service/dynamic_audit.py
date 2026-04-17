@@ -36,7 +36,7 @@ def ghost_test():
     df_risk = pd.DataFrame(inputs, columns=risk_features)
     probs = risk_model.predict_proba(df_risk)[:, 1]
     print(f"Risk Outputs (A, B, C): {probs}")
-    if len(set(probs)) < 3: print("FLAG: Risk model outputs non-unique! Potential Mock.")
+    if len(set(probs)) < 3: print("FLAG: Risk model outputs non-unique! Potential constant output — verify training diversity.")
 
     # 2. Pricing Model Ghost Test
     # Features: ["weekly_earnings", "lf", "ct", "margin"]
@@ -49,7 +49,7 @@ def ghost_test():
     # Note: Model predicts log(premium)
     preds = np.exp(price_model.predict(df_price))
     print(f"Pricing Outputs (A, B, C): {preds}")
-    if len(set(preds)) < 3: print("FLAG: Pricing model outputs non-unique! Potential Mock.")
+    if len(set(preds)) < 3: print("FLAG: Pricing model outputs non-unique! Potential constant output — verify training diversity.")
 
     # 3. Fraud GB Ghost Test
     inputs = [
@@ -60,7 +60,7 @@ def ghost_test():
     df_fraud = pd.DataFrame(inputs, columns=fraud_features)
     probs = fraud_gb.predict_proba(df_fraud)[:, 1]
     print(f"Fraud GB Outputs (A, B, C): {probs}")
-    if len(set(probs)) < 3: print("FLAG: Fraud GB outputs non-unique! Potential Mock.")
+    if len(set(probs)) < 3: print("FLAG: Fraud GB outputs non-unique! Potential constant output — verify training diversity.")
 
 def sensitivity_probe():
     print("\n=== SENSITIVITY & LOGIC PROBE ===")

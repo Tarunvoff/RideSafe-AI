@@ -1,17 +1,14 @@
 /**
- * [EXCELLENCE SUMMARY]
+ * ── Sovereign Activity Telemetry & Monitoring ────────────────────────────────
+ * 
  * The DriverActivityScreen is a masterclass in high-fidelity performance monitoring, 
  * designed specifically for the high-frequency operational environment of dark store 
- * logistics. It leverages reactive state management to provide an immediate "Work Pulse," 
- * translating dense delivery telemetry into a clean, neo-brutalist interface that 
- * prioritizes cognitive efficiency for operators in the field.
+ * logistics. It leverages reactive state management to provide an immediate "Sovereign Pulse," 
+ * translating dense delivery telemetry into a clean, neo-brutalist interface.
  * 
- * [DOMAIN LOGIC]
- * This screen serves as the primary feedback loop for drivers within the H3-risk ecosystem. 
- * By synthesizing order acceptance rates, fulfillment speed, and weekly earnings performance, 
- * it empowers users to monitor their own efficiency triggers. This data transparency is 
- * critical for maintaining actuarial integrity while providing the driver with a 
- * tangible sense of professional progress.
+ * For comprehensive architectural details, refer to:
+ * - ARCHITECTURE/FRONTEND_DESIGN_SYSTEM.md
+ * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -158,8 +155,8 @@ export default function DriverActivityScreen({ navigation }: any) {
 
         {/* Title Area */}
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>Work Pulse</Text>
-          <Text style={styles.pageSubtitle}>Week view for you</Text>
+          <Text style={styles.pageTitle}>Sovereign Pulse</Text>
+          <Text style={styles.pageSubtitle}>High-fidelity performance view</Text>
         </View>
 
         {/* Profile Card */}
@@ -181,7 +178,7 @@ export default function DriverActivityScreen({ navigation }: any) {
           <View style={styles.profileRating}>
             <Ionicons name="star" size={24} color="#fff" />
             <Text style={styles.profileRatingValue}>{rating}</Text>
-            <Text style={styles.profileRatingLabel}>SCORE</Text>
+            <Text style={styles.profileRatingLabel}>REPUTATION</Text>
           </View>
         </View>
 
@@ -320,9 +317,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     paddingLeft: 16,
-    overflow: 'hidden', // to ensure rating touches right edge cleanly, wait the mockup rating is actually offset or touching?
-    // looking at the mock, the green score box literally touches top right and bottom right edges of the inner container!
-    // we can easily do this by setting no padding on the right.
+    overflow: 'hidden', // Enforces edge-to-edge fidelity: rating badge bleeds to right boundary with zero padding.
+    // Sovereign design system: score badge occupies full height of the inner container — top-right to bottom-right.
+    // This is achieved by zeroing paddingRight, allowing the badge to fill the remaining flex space.
     paddingTop: 16,
     paddingBottom: 16,
     paddingRight: 0,

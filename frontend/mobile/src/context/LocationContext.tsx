@@ -16,9 +16,10 @@ import React, { createContext, useCallback, useContext, useState } from 'react';
 import { telemetryApi } from '../services/api';
 
 /**
- * [IN-LINE PRIDE]: Location State Schema
- * Explicitly tracks 'isValid' and 'isMock' status to prevent fraudulent geospatial 
- * claims and ensure actuarial data integrity.
+ * ── Sovereign Geospatial State Schema ─────────────────────────────────
+ * Explicitly tracks `isValid` and `isInauthentic` sentinel flags to enforce
+ * actuarial data integrity and deterministically prevent fraudulent geospatial
+ * claims from propagating into the H3 risk resolution pipeline.
  */
 export type LocationState = {
   latitude: number | null;
