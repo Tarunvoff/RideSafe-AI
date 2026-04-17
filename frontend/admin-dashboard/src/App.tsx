@@ -193,7 +193,7 @@ export default function App() {
         </div>
 
         <nav className="sidebar-nav">
-          <SidebarItem icon={<LayoutDashboard size={18} />} label="Dash" to="/" active={location.pathname === '/'} />
+          <SidebarItem icon={<LayoutDashboard size={18} />} label="Dashboard" to="/" active={location.pathname === '/'} />
           <SidebarItem icon={<Users size={18} />} label="Workers" to="/workers" active={location.pathname === '/workers'} />
           <SidebarItem icon={<ShieldAlert size={18} />} label="Claims" to="/claims" active={location.pathname === '/claims'} />
           <SidebarItem icon={<Settings size={18} />} label="Setup" to="/setup" active={location.pathname === '/setup'} />
@@ -796,10 +796,11 @@ function SidebarItem({ icon, label, active, to }: any) {
   return (
     <Link 
       to={to}
-      className={`nav-item group ${active ? 'active' : ''}`}
+      className={`nav-item group no-underline text-black ${active ? 'active' : ''}`}
+      style={{ textDecoration: 'none', color: '#000000' }}
     >
       <span className={`${active ? 'text-black' : 'text-gray-500 group-hover:text-black'} transition-colors`}>{icon}</span>
-      <span>{label}</span>
+      <span style={{ color: '#000000', textDecoration: 'none' }}>{label}</span>
       {active && <div className="ml-auto w-2 h-2 bg-black rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>}
     </Link>
   );

@@ -19,11 +19,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'API Error' }));
     console.error(`[API ERROR] Path: ${path} | Status: ${response.status}`, error);
-    throw new Error(error.message || 'Something went wrong');
+    const errMsg = error?.error || error?.message || 'Something went wrong';
+    throw new Error(errMsg);
   }
 
   const result = await response.json();
   console.log(`[API SUCCESS] Path: ${path} | Payload Size:`, Array.isArray(result) ? result.length : 'Object');
+  if (result && typeof result === 'object' && 'success' in result && 'data' in result) {
+    return result.data;
+  }
   return result;
 }
 
