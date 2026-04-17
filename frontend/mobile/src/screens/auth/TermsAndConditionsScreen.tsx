@@ -31,6 +31,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
+import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 import Button from '../../components/ui/Button';
@@ -154,13 +155,10 @@ export default function TermsAndConditionsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <AuthTopNavbar title={t('auth.terms.title')} />
       <View style={styles.container}>
         {/* Header Section */}
         <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="shield-checkmark" size={32} color={Theme.colors.primary} />
-          </View>
-          <Text style={styles.title}>{t('auth.terms.title')}</Text>
           <Text style={styles.subtitle}>
             {t('auth.terms.subtitle')}
           </Text>
@@ -283,7 +281,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 10,
     paddingBottom: 24,
   },
   header: {

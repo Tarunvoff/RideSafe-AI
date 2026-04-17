@@ -5,6 +5,7 @@ import AuthCard from '../../components/auth/AuthCard';
 import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import Input from '../../components/ui/Input';
+import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
 import { Theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -40,14 +41,11 @@ export default function AdminLoginScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message="Authenticating admin..." />
+      <AuthTopNavbar onBack={() => navigation.goBack()} title="Admin Portal" />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-
         <View style={styles.content}>
           <View style={styles.brandContainer}>
             <View style={styles.logoPlaceholder}>
