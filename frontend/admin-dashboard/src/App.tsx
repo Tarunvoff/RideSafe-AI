@@ -454,18 +454,18 @@ function WorkersPage() {
          </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-0 mb-8 border-4 border-black divide-x-4 divide-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-         <div className="p-6 bg-white hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Total Managed</p>
-            <p className="text-5xl font-black italic">{workers.length}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+         <div className="neo-card bg-white hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ffe4e6', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#db2777] mb-2">Total Managed</p>
+            <p className="text-5xl font-black italic text-[#db2777]">{workers.length}</p>
          </div>
-         <div className="p-6 bg-white hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Selected City</p>
-            <p className="text-4xl font-black uppercase tracking-tighter">{cityFilter}</p>
+         <div className="neo-card bg-white hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#fef08a', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#a16207] mb-2">Selected City</p>
+            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#a16207]">{cityFilter}</p>
          </div>
-         <div className="p-6 bg-white hover:bg-parchment transition-colors">
-            <p className="text-[10px] font-black uppercase text-gray-400 mb-2">Active platform</p>
-            <p className="text-4xl font-black uppercase tracking-tighter">{platformFilter}</p>
+         <div className="neo-card bg-white hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ccfbf1', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#0f766e] mb-2">Active Platform</p>
+            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#0f766e]">{platformFilter}</p>
          </div>
       </div>
 
