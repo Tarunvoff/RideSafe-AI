@@ -241,11 +241,26 @@ export default function App() {
 // --- SUB-PAGES ---
 
 function DashboardPage({ data }: any) {
-  const [submissions] = useState([
-    { id: 'ANL-9021', user: 'Maya Johnson', score: 12, status: 'APPROVED', date: '2026-04-16' },
-    { id: 'ANL-8932', user: 'Carlos Rodriguez', score: 68, status: 'REJECTED', date: '2026-04-16' },
-    { id: 'ANL-8841', user: 'Sarah Chen', score: 45, status: 'PENDING', date: '2026-04-15' },
-  ]);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        setLoading(true);
+        const res = await adminApi.getSubmissions();
+        setSubmissions(res.submissions || []);
+      } catch (e) {
+        console.error('Failed to fetch fraud submissions:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubmissions();
+  }, []);
+
+  const visibleSubmissions = isExpanded ? submissions : submissions.slice(0, 3);
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -275,10 +290,20 @@ function DashboardPage({ data }: any) {
       <section style={{ marginTop: '3rem', marginBottom: '4rem' }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
-          <button className="text-[10px] font-black uppercase text-coral underline">View Full Queue</button>
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-[10px] font-black uppercase text-coral underline"
+          >
+            {isExpanded ? 'Show Less' : 'View Full Queue'}
+          </button>
         </div>
 
-        <div className="table-container shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black">
+        <div className="table-container shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black min-h-[150px] relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+              <div className="text-xs font-black uppercase tracking-widest animate-pulse">Syncing Database...</div>
+            </div>
+          )}
           <table>
             <thead>
               <tr>
@@ -289,25 +314,25 @@ function DashboardPage({ data }: any) {
                 <th className="text-right">Action</th>
               </tr>
             </thead>
-            <tbody>
-              {submissions.map((sub, i) => (
-                <tr key={i}>
-                  <td className="font-mono font-bold text-coral">{sub.id}</td>
-                  <td className="font-bold">{sub.user}</td>
+            <tbody className="animate-in slide-in-from-top-2 duration-300">
+              {visibleSubmissions.map((sub, i) => (
+                <tr key={sub.analysisId || i} className="animate-in fade-in duration-300">
+                  <td className="font-mono font-bold text-coral">{sub.analysisId || 'SYNCING...'}</td>
+                  <td className="font-bold">{sub.user || 'Unknown'}</td>
                   <td>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-2 bg-gray-200 w-32 border border-black">
                         <div
-                          className={`h-full ${sub.score > 60 ? 'bg-danger' : sub.score > 30 ? 'bg-warning' : 'bg-success'}`}
-                          style={{ width: `${sub.score}%` }}
+                          className={`h-full ${sub.riskScore > 60 ? 'bg-danger' : sub.riskScore > 30 ? 'bg-warning' : 'bg-success'}`}
+                          style={{ width: `${sub.riskScore}%` }}
                         ></div>
                       </div>
-                      <span className="font-black text-xs">{sub.score}</span>
+                      <span className="font-black text-xs text-center min-w-[3ch]">{Math.round(sub.riskScore)}</span>
                     </div>
                   </td>
                   <td>
-                    <span className={`badge ${sub.status === 'APPROVED' ? 'badge-success' : sub.status === 'REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
-                      {sub.status}
+                    <span className={`badge ${sub.status === 'APPROVED' || sub.status === 'AUTO_APPROVED' ? 'badge-success' : sub.status === 'REJECTED' || sub.status === 'AUTO_REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
+                      {sub.status?.replace('_', ' ') || 'PENDING'}
                     </span>
                   </td>
                   <td className="text-right">
@@ -315,6 +340,11 @@ function DashboardPage({ data }: any) {
                   </td>
                 </tr>
               ))}
+              {!loading && visibleSubmissions.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center py-12 italic text-gray-400">No recent submissions detected in database</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
