@@ -23,7 +23,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AuthCard from '../../components/auth/AuthCard';
 import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
-import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 import { getBaseUrl } from '../../services/api';
@@ -167,7 +167,7 @@ export default function DriverOTPScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message={success ? t('auth.otp.loading_connecting', { provider }) : t('auth.otp.loading_verifying')} />
-      <AuthTopNavbar onBack={() => navigation.goBack()} />
+      <AegisNavbar onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <View style={styles.content}>
           <AuthCard style={styles.card}>

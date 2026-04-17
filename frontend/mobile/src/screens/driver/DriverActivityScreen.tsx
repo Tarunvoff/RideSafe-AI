@@ -15,12 +15,14 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View, ImageBackground, TouchableOpacity } from 'react-native';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { driverApi, plansApi } from '../../services/api';
+import { Theme } from '../../theme';
 
-const BRAND_BG = '#ff6b53';
+const BRAND_BG = Theme.colors.brandOrange;
 const CARD_BG = '#f0ecce';
 
 export default function DriverActivityScreen({ navigation }: any) {
@@ -138,18 +140,10 @@ export default function DriverActivityScreen({ navigation }: any) {
         }}
       />
 
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="umbrella" size={28} color="#000" style={{ transform: [{ rotate: '-15deg' }] }} />
-          <Text style={styles.headerTitle}>Aegis</Text>
-        </View>
-        <TouchableOpacity style={styles.avatarContainer} onPress={() => setProfileMenuVisible(true)}>
-          <ImageBackground
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTIkvlbxtF8Srcz_Cbugho4nxtNwxEgZ5rkeHZSy6E9BSEcqdj52m1gjQ5Ln04L3Cj42Jp-5EEJfISSDs1bg9ljCoHBEVxm4Z8qk7wkc1QVrwGgErxrBvjSYGYyVbjd1hdbsHQYw5etDbImLeRNen_-I3XBRA0bpHiYSDBshxoZGzhTdeYoLCIVqXROGHAyF2Uoj-JZ7VtGj9VWylbpWrw03AM7q0pa_t0ySFKRjj7uWUE8UQwRPxoYOHOdRdHfuQhvkFTIIlkDySq' }}
-            style={styles.avatar}
-          />
-        </TouchableOpacity>
-      </View>
+      <AegisNavbar 
+        onProfile={() => setProfileMenuVisible(true)}
+        light
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 

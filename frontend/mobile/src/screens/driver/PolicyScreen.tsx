@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { Animated, PanResponder, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
-import MainTopNavbar from '../../components/layout/MainTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import { useAuth } from '../../context/AuthContext';
 import { plansApi, policyApi } from '../../services/api';
@@ -170,7 +170,7 @@ export default function PolicyScreen({ navigation }: any) {
         onClose={() => setProfileMenuVisible(false)}
         onLogout={() => { void handleLogout(); }}
       />
-      <MainTopNavbar onProfilePress={() => setProfileMenuVisible(true)} />
+      <AegisNavbar onProfile={() => setProfileMenuVisible(true)} light />
       <LoadingOverlay visible={loading || actionLoading} message={actionLoading ? actionMessage : t('policy.loading')} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -315,7 +315,7 @@ export default function PolicyScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
+  safeArea: { flex: 1, backgroundColor: Theme.colors.brandOrange },
   container: { paddingBottom: 32 },
   
   heroSection: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 16, alignItems: 'center' },

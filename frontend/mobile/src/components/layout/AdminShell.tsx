@@ -15,7 +15,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
-import MainTopNavbar from './MainTopNavbar';
+import AegisNavbar from './AegisNavbar';
 import DriverLogoutMenu from '../driver/DriverLogoutMenu';
 import AdminBottomNavbar, { type AdminBottomNavKey } from './AdminBottomNavbar';
 import { useAuth } from '../../context/AuthContext';
@@ -52,8 +52,9 @@ export default function AdminShell({ navigation, activeKey, children }: AdminShe
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Sticky top admin navbar (stays outside of scroll views) */}
-      <MainTopNavbar
-        onProfilePress={() => setProfileMenuVisible(true)}
+      <AegisNavbar
+        onProfile={() => setProfileMenuVisible(true)}
+        onNotifications={() => {}}
       />
 
       <DriverLogoutMenu

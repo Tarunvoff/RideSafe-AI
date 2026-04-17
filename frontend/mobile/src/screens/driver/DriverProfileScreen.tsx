@@ -33,6 +33,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useNotificationCenter } from '../../components/notifications/GlobalNotificationCenter';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
@@ -825,7 +826,7 @@ export default function DriverProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FF6B4E" />
+      <StatusBar barStyle="dark-content" backgroundColor={Theme.colors.brandOrange} />
       <LoadingOverlay
         visible={kycLoading || nameSaving}
         message={nameSaving ? t('profile.edit_name.saving') : t('profile.loading_details')}
@@ -850,17 +851,10 @@ export default function DriverProfileScreen({ navigation }: any) {
         loading={kycLoading}
       />
 
-      <View style={styles.headerMain}>
-        <View style={styles.headerLeftMain}>
-          <View style={styles.logoContainerMain}>
-            <MaterialCommunityIcons name="shield-check" size={24} color="white" />
-          </View>
-          <Text style={styles.headerBrandMain}>Aegis</Text>
-        </View>
-        <TouchableOpacity onPress={() => setProfileMenuVisible(true)}>
-          <Image source={{ uri: 'https://i.pravatar.cc/100' }} style={styles.avatarMainTop} />
-        </TouchableOpacity>
-      </View>
+      <AegisNavbar 
+        onProfile={() => setProfileMenuVisible(true)}
+        light
+      />
 
       <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {/* Profile Header — avatar top-left matching top navbar DP */}
@@ -1019,7 +1013,7 @@ export default function DriverProfileScreen({ navigation }: any) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FF6B4E' },
+  safeArea: { flex: 1, backgroundColor: Theme.colors.brandOrange },
   headerMain: {
     flexDirection: 'row',
     alignItems: 'center',

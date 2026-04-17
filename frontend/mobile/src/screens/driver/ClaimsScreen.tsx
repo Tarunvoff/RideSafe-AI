@@ -13,6 +13,8 @@ import {
   View,
 } from 'react-native';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
+import AegisNavbar from '../../components/layout/AegisNavbar';
+import { Theme } from '../../theme';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
 import { plansApi, type ClaimRecord } from '../../services/api';
@@ -124,18 +126,10 @@ export default function ClaimsScreen() {
         }}
       />
 
-      <View style={styles.headerTop}>
-        <View style={styles.logoAndBrand}>
-          <View style={styles.logoBlackBox}>
-            <MaterialCommunityIcons name="shield-check" size={24} color="white" />
-          </View>
-          <Text style={styles.brandText}>Aegis</Text>
-        </View>
-
-        <TouchableOpacity onPress={() => setProfileMenuVisible(true)}>
-          <Image source={{ uri: 'https://i.pravatar.cc/100' }} style={styles.avatarTop} />
-        </TouchableOpacity>
-      </View>
+      <AegisNavbar 
+        onProfile={() => setProfileMenuVisible(true)}
+        light
+      />
 
       <LoadingOverlay visible={loading} message={t('claims.loading')} />
 
@@ -214,7 +208,7 @@ export default function ClaimsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FF6B4E',
+    backgroundColor: Theme.colors.brandOrange,
   },
   headerTop: {
     flexDirection: 'row',

@@ -36,7 +36,7 @@ import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
-import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -196,7 +196,7 @@ export default function LoginScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message={t('auth.login.modal.authenticating')} />
-      <AuthTopNavbar light />
+      <AegisNavbar light />
 
       {/* Background Decorative Text Layer */}
       <View style={styles.backgroundLayer} pointerEvents="none">

@@ -31,7 +31,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
-import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 import Button from '../../components/ui/Button';
@@ -155,7 +155,7 @@ export default function TermsAndConditionsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <AuthTopNavbar title={t('auth.terms.title')} />
+      <AegisNavbar title={t('auth.terms.title')} />
       <View style={styles.container}>
         {/* Header Section */}
         <View style={styles.header}>

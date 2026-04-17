@@ -5,7 +5,7 @@ import AuthCard from '../../components/auth/AuthCard';
 import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import Input from '../../components/ui/Input';
-import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
+import AegisNavbar from '../../components/layout/AegisNavbar';
 import { Theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -41,7 +41,7 @@ export default function AdminLoginScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message="Authenticating admin..." />
-      <AuthTopNavbar onBack={() => navigation.goBack()} title="Admin Portal" />
+      <AegisNavbar onBack={() => navigation.goBack()} title="Admin Portal" />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
