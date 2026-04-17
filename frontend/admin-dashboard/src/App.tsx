@@ -272,7 +272,7 @@ function DashboardPage({ data }: any) {
       </div>
 
       {/* FRAUD TABLE - CENTRAL PIECE OF PREVIOUS DASHBOARD */}
-      <section className="mt-8">
+      <section style={{ marginTop: '3rem', marginBottom: '4rem' }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
           <button className="text-[10px] font-black uppercase text-coral underline">View Full Queue</button>
@@ -321,8 +321,11 @@ function DashboardPage({ data }: any) {
       </section>
 
       {/* LIVE FEEDS - RESTORED SPLIT GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-        <div className="neo-card flex flex-col">
+      <div 
+        className="grid grid-cols-1 lg:grid-cols-2 gap-12" 
+        style={{ marginTop: '4rem', paddingBottom: '3rem' }}
+      >
+        <div className="neo-card flex flex-col" style={{ marginBottom: '2rem' }}>
           <div className="flex items-center justify-between mb-6">
              <h3 className="font-black italic uppercase tracking-tighter">Live Alert Feed</h3>
              <Bell className="text-coral animate-bounce" size={18} />
