@@ -41,7 +41,7 @@ The predictive layer is the core differentiator of Aegis, transforming raw envir
 | Technology | Context | Architectural Rationale (The Why) | Competitive Advantage (The Why Not) |
 | :--- | :--- | :--- :--- |
 | **XGBoost & LightGBM** | Risk scoring (`Lf`) and pricing engines. | Provides high interpretability and supports Monotone Constraints, ensuring that increasing rainfall always correlates with equal or higher risk. | Deep Learning "black box" models can exhibit erratic behavior on tabular data. XGBoost allows for transparent actuarial auditing of feature importance. |
-| **Uber H3 Indexing** | Geospatial grid system (Resolution 8). | Maps the world as a integer grid, enabling $O(1)$ lookup times for proximity matching between riders and flood events. | Standard PostGIS lookups require significant CPU overhead for point-in-polygon checks. H3 hexagons provide uniform areas for direct risk comparison. |
+| **Uber H3 Indexing** | Geospatial grid system (Resolution 8). | Maps the world as a integer grid, enabling **O(1)** lookup times for proximity matching between riders and flood events. | Standard PostGIS lookups require significant CPU overhead for point-in-polygon checks. H3 hexagons provide uniform areas for direct risk comparison. |
 | **BentoML** | Model packaging and inference serving. | Accelerates the deployment of ML models into a production-ready environment with built-in versioning and scaling. | Custom Flask/FastAPI wrappers for models lack the automated dependency management and "model-as-a-service" optimization that BentoML provides. |
 
 > **Actuarial Standard: Monotone Constraints**: In a regulated context, insurance models must be logical. Aegis implements strict monotonic constraints to prevent the model from learning "decreasing risk with increasing rainfall" due to noisy training data, ensuring permanent fairness.
@@ -58,7 +58,7 @@ Aegis handles millions of telemetry pings daily. The infrastructure is designed 
 | **TimescaleDB** | Time-series telemetry storage. | Provides hyper-table compression, allowing the system to store millions of telemetry logs with minimal storage overhead. | Storing time-series data in standard PostgreSQL leads to index bloat. TimescaleDB automates chunking, keeping queries for the "latest zone state" consistently fast. |
 | **Redis** | Real-time feature store and state cache. | Enables sub-millisecond access to driver states and zone risk scores during the parametric trigger evaluation. | Relying on the primary DB for real-time trigger evaluation would create bottlenecks. Redis acts as the "hot path" for live decision-making. |
 
-> **Resilience Pattern: Event Replayability**: Through Kafka, Aegis treats the entire history of zone states and rider pings as a replayable log. This ensures that even in the event of partial system failure, all legitimate claims can be retroactively processed with $100\%$ accuracy.
+> **Resilience Pattern: Event Replayability**: Through Kafka, Aegis treats the entire history of zone states and rider pings as a replayable log. This ensures that even in the event of partial system failure, all legitimate claims can be retroactively processed with **100%** accuracy.
 
 ---
 

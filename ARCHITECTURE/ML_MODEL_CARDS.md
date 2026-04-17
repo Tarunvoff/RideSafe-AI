@@ -21,7 +21,7 @@ This **production-grade Microservice-Driven ML Architecture** enables independen
 The Risk Model utilizes a **highly constrained XGBoost Gradient Boosted Decision Tree (GBDT)**. This algorithm was selected as the definitive choice for parametric risk assessment due to its exceptional performance on structured tabular data and its support for strict actuarial constraints.
 
 ### Core Purpose
-This model computes the **Loss Fraction ($L_f$)**, which represents the probability of a "Zone Halted" event occurring within a specific H3 geospatial cell given environmental and historical triggers. It is the primary engine for determining policy eligibility and risk stratification.
+This model computes the **Loss Fraction (Lf)**, which represents the probability of a "Zone Halted" event occurring within a specific H3 geospatial cell given environmental and historical triggers. It is the primary engine for determining policy eligibility and risk stratification.
 
 ### Input Features & Data Types
 | Feature | Data Type | Description |
@@ -66,7 +66,7 @@ Responsible for calculating the final dynamic premium in Indian Rupees (₹). It
 | `weekly_earnings` | Float | Historical weekly earnings snapshot. |
 | `lf` | Float | Loss Fraction output from the Risk Model. |
 | `ct` | Float | Coverage Tier selected by the user (Basic, Standard, Premium). |
-| `margin` | Float | Sustainability and operation margin ($M$).. |
+| `margin` | Float | Sustainability and operation margin (M).. |
 
 ### Advanced Implementation Details
 The codebase implements a **Log-Target Transformation** to stabilize gradients during the training of the premium engine (`train_models.py:L311`):
@@ -127,7 +127,7 @@ Precision and Recall are prioritized through **Pattern Injection Training**. The
 Aegis distinguishes itself through a "Zero-Trust" production pipeline that bridges high-concurrency Machine Learning with automated regulatory enforcement.
 
 ### Model-Triggered SMS Enforcement (Unique Implementation)
-Unlike standard analytical systems, the Aegis 4-model ensemble is **wired directly to legal compliance gateways**. When the hybrid consensus (Risk + Fraud + Anomaly) crosses a $Score \geq 90$ threshold, the system triggers an immediate **Automated Compliance SMS via Twilio** to the driver. This creates a real-time, zero-latency enforcement loop that is unique in the micro-insurance domain.
+Unlike standard analytical systems, the Aegis 4-model ensemble is **wired directly to legal compliance gateways**. When the hybrid consensus (Risk + Fraud + Anomaly) crosses a **Score >= 90** threshold, the system triggers an immediate **Automated Compliance SMS via Twilio** to the driver. This creates a real-time, zero-latency enforcement loop that is unique in the micro-insurance domain.
 
 > [!IMPORTANT]
 > **Consensus-Driven Enforcement**: The trigger is not based on a single rule, but on the mathematical agreement of the GBDT and Isolation Forest models, ensuring that high-stakes SMS warnings are sent only when confidence is actuarially verified.
