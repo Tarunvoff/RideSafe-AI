@@ -8,18 +8,19 @@ import {
   Search,
   Zap,
   LayoutDashboard,
-  ShieldAlert,
   ChevronRight,
   Bell,
-  User
+  BarChart3,
+  Target,
+  FileText,
+  ArrowLeft
 } from 'lucide-react';
-import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import { adminApi } from './services/api';
 
 
 // --- MAIN APP COMPONENT ---
 export default function App() {
-  const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('adminToken'));
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -193,10 +194,26 @@ export default function App() {
         </div>
 
         <nav className="sidebar-nav">
-          <SidebarItem icon={<LayoutDashboard size={18} />} label="Dashboard" to="/" active={location.pathname === '/'} />
-          <SidebarItem icon={<Users size={18} />} label="Workers" to="/workers" active={location.pathname === '/workers'} />
-          <SidebarItem icon={<ShieldAlert size={18} />} label="Claims" to="/claims" active={location.pathname === '/claims'} />
-          <SidebarItem icon={<Settings size={18} />} label="Setup" to="/setup" active={location.pathname === '/setup'} />
+          <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <LayoutDashboard size={20} />
+            <span>Dashboard</span>
+          </NavLink>
+          <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <BarChart3 size={20} />
+            <span>Analytics</span>
+          </NavLink>
+          <NavLink to="/workers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <Target size={20} />
+            <span>Workers</span>
+          </NavLink>
+          <NavLink to="/claims" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FileText size={20} />
+            <span>Claims</span>
+          </NavLink>
+          <NavLink to="/setup" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <Settings size={20} />
+            <span>Setup</span>
+          </NavLink>
         </nav>
         <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
           <button 
@@ -228,6 +245,7 @@ export default function App() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<LiveOperationalDashboard data={data} loading={loading} />} />
+          <Route path="/analytics" element={<AnalyticsPage data={data} loading={loading} />} />
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/claims" element={<ClaimsPage />} />
           <Route path="/setup" element={<SetupPage />} />
@@ -239,6 +257,193 @@ export default function App() {
 }
 
 // --- SUB-PAGES ---
+
+function AnalyticsPage({ data, loading }: any) {
+  const navigate = useNavigate();
+
+  const safeData = data || {
+    totalPremiumCollected: 0,
+    totalApprovedPayout: 0,
+    lossRatioPercent: 0,
+    riskTrend: [],
+    payoutTrend: [],
+    workersByCity: [],
+    platformSplit: [],
+    claimsByType: [],
+    alertsByType: [],
+    fraudStatusSplit: []
+  };
+
+  const formatINR = (val: number) => `₹${Math.round(val).toLocaleString('en-IN')}`;
+  const formatPercent = (val: number) => `${Number(val || 0).toFixed(2)}%`;
+
+  return (
+    <div className="animate-in fade-in duration-500">
+      <header className="flex items-center gap-6 mb-12">
+        <button 
+          onClick={() => navigate(-1)}
+          className="p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-white transition-all bg-parchment"
+        >
+          <ArrowLeft size={24} />
+        </button>
+        <div className="text-center flex-1 pr-16">
+          <h2 className="text-2xl font-black tracking-[0.3em] uppercase">Analytics</h2>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Tamil Nadu Operations</p>
+        </div>
+      </header>
+
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-12 h-12 border-4 border-black border-t-coral animate-spin"></div>
+          <p className="font-black uppercase text-xs tracking-widest">Synthesizing Actuarial Data...</p>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="space-y-16 pb-20">
+          {/* SECTION: RISK POOL */}
+          <section>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Risk Pool Status</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <AnalyticsCard title="Loss Ratio" subtitle="Approved payout / premium pool">
+                <div className="text-4xl font-black mt-4">{formatPercent(safeData.lossRatioPercent)}</div>
+              </AnalyticsCard>
+              <AnalyticsCard title="Premium Pool" subtitle="Total collected premiums">
+                <div className="text-4xl font-black mt-4">{formatINR(safeData.totalPremiumCollected)}</div>
+              </AnalyticsCard>
+              <AnalyticsCard title="Approved Payout" subtitle="Historical claim volume">
+                <div className="text-4xl font-black mt-4 text-coral">{formatINR(safeData.totalApprovedPayout)}</div>
+              </AnalyticsCard>
+            </div>
+          </section>
+
+          {/* SECTION: FRAUD SIGNALS */}
+          <section>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Fraud Signals</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <AnalyticsCard title="Risk Trend" subtitle="Avg risk score (7 days)">
+                <div className="h-32 mt-4 flex items-end gap-[1px]">
+                  {safeData.riskTrend.slice(-14).map((point: any, i: number) => (
+                    <div 
+                      key={i} 
+                      className="flex-1 bg-night hover:bg-coral transition-colors relative group"
+                      style={{ height: `${point.avg_risk}%` }}
+                    >
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-[10px] p-1 whitespace-nowrap z-10">
+                        {Math.round(point.avg_risk)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 italic">
+                  <span>14 Days Ago</span>
+                  <span className="text-coral">Latest: {Math.round(safeData.riskTrend[safeData.riskTrend.length - 1]?.avg_risk || 0)}%</span>
+                </div>
+              </AnalyticsCard>
+
+              <AnalyticsCard title="Fraud Status Mix" subtitle="Analyst outcomes (Real-time)">
+                <div className="mt-4 space-y-4">
+                  {(safeData.fraudStatusSplit || []).map((item: any, i: number) => (
+                    <BarIndicator key={i} label={item.label} value={item.value} color="#14b8a6" max={Math.max(...safeData.fraudStatusSplit.map((s:any)=>s.value))} />
+                  ))}
+                </div>
+              </AnalyticsCard>
+            </div>
+          </section>
+
+          {/* SECTION: CLAIMS & PAYOUTS */}
+          <section>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Claims & Payouts</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <AnalyticsCard title="Payout Velocity" subtitle="Daily approved volumes">
+                <div className="h-32 mt-4 flex items-end gap-1">
+                  {safeData.payoutTrend.slice(-7).map((point: any, i: number) => (
+                    <div 
+                      key={i} 
+                      className="flex-1 bg-blue-500 hover:bg-black transition-colors"
+                      style={{ height: `${(point.total_payout / (Math.max(...safeData.payoutTrend.map((p:any)=>p.total_payout)) || 1)) * 100}%` }}
+                    />
+                  ))}
+                </div>
+                <p className="text-[10px] font-bold mt-2 text-gray-400 italic">Trailing 7 days activity</p>
+              </AnalyticsCard>
+
+              <AnalyticsCard title="Claims by Type" subtitle="Last 30 days">
+                <div className="mt-4 space-y-3">
+                  {(safeData.claimsByType || []).map((item: any, i: number) => (
+                    <BarIndicator key={i} label={item.label} value={item.value} color="#6366f1" max={Math.max(...safeData.claimsByType.map((s:any)=>s.value))} />
+                  ))}
+                </div>
+              </AnalyticsCard>
+
+              <AnalyticsCard title="Alerts by Type" subtitle="Disruption sources">
+                <div className="mt-4 space-y-3">
+                  {(safeData.alertsByType || []).map((item: any, i: number) => (
+                    <BarIndicator key={i} label={item.label} value={item.value} color="#ef4444" max={Math.max(...safeData.alertsByType.map((s:any)=>s.value))} />
+                  ))}
+                </div>
+              </AnalyticsCard>
+            </div>
+          </section>
+
+          {/* SECTION: DISTRIBUTION */}
+          <section>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Driver Distribution</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <AnalyticsCard title="Workers by City" subtitle="Regional density">
+                <div className="mt-4 space-y-4">
+                  {(safeData.workersByCity || []).map((item: any, i: number) => (
+                    <BarIndicator key={i} label={item.label} value={item.value} color="#22c55e" max={Math.max(...safeData.workersByCity.map((s:any)=>s.value))} />
+                  ))}
+                </div>
+              </AnalyticsCard>
+
+              <AnalyticsCard title="Platform Split" subtitle="Aggregator share">
+                <div className="mt-4 space-y-4">
+                  {(safeData.platformSplit || []).map((item: any, i: number) => (
+                    <BarIndicator key={i} label={item.label} value={item.value} color="#f59e0b" max={Math.max(...safeData.platformSplit.map((s:any)=>s.value))} />
+                  ))}
+                </div>
+              </AnalyticsCard>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnalyticsCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="neo-card flex flex-col h-full">
+      <div className="mb-4">
+        <h4 className="text-sm font-black italic uppercase tracking-tighter">{title}</h4>
+        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">{subtitle}</p>
+      </div>
+      <div className="flex-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function BarIndicator({ label, value, color, max }: { label: string; value: number; color: string; max: number }) {
+  const percentage = Math.max(5, (value / (max || 1)) * 100);
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-600">
+        <span>{label}</span>
+        <span className="font-mono">{value}</span>
+      </div>
+      <div className="h-2 bg-gray-200 border border-black overflow-hidden">
+        <div 
+          className="h-full transition-all duration-1000" 
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function LiveOperationalDashboard({ data }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -824,20 +1029,6 @@ function SetupPage() {
 }
 
 // --- SHARED UI COMPONENTS ---
-
-function SidebarItem({ icon, label, active, to }: any) {
-  return (
-    <Link 
-      to={to}
-      className={`nav-item group no-underline text-black ${active ? 'active' : ''}`}
-      style={{ textDecoration: 'none', color: '#000000' }}
-    >
-      <span className={`${active ? 'text-black' : 'text-gray-500 group-hover:text-black'} transition-colors`}>{icon}</span>
-      <span style={{ color: '#000000', textDecoration: 'none' }}>{label}</span>
-      {active && <div className="ml-auto w-2 h-2 bg-black rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>}
-    </Link>
-  );
-}
 
 function MetricCard({ label, value, marker }: any) {
   return (
