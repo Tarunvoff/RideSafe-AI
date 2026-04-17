@@ -227,7 +227,7 @@ export default function App() {
       {/* MAIN CONTENT AREA */}
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<DashboardPage data={data} loading={loading} />} />
+          <Route path="/" element={<LiveOperationalDashboard data={data} loading={loading} />} />
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/claims" element={<ClaimsPage />} />
           <Route path="/setup" element={<SetupPage />} />
@@ -240,7 +240,7 @@ export default function App() {
 
 // --- SUB-PAGES ---
 
-function DashboardPage({ data }: any) {
+function LiveOperationalDashboard({ data }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submissions, setSubmissions] = useState<any[]>([]);
