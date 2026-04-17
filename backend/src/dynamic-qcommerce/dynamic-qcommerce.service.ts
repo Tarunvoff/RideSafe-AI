@@ -597,14 +597,22 @@ export class DynamicQCommerceService {
       this.seedDrivers(provider, undefined, 'auto', Math.max(12, count));
     }
 
-    const driverIds = Array.from(this.driverRecords.values())
+    let driverIds = Array.from(this.driverRecords.values())
       .filter((record) => record.provider === provider)
       .map((record) => record.internalDriverId);
+
+    if (driverIds.length < count) {
+      this.seedDrivers(provider, undefined, `${provider}-auto`, Math.max(count, 12));
+      driverIds = Array.from(this.driverRecords.values())
+        .filter((record) => record.provider === provider)
+        .map((record) => record.internalDriverId);
+    }
 
     const selected = driverIds.length ? driverIds.slice(0, count) : [];
     const timestamp = Math.floor(Date.now() / 1000);
 
     const published: string[] = [];
+    const positions: Array<{ driverId: string; lat: number; lng: number; timestamp: number }> = [];
     for (const driverId of selected) {
       const prev = this.driverPositions.get(driverId);
       const { latOffset: jitterLat, lngOffset: jitterLng } = this.deterministicJitter(driverId, timestamp);
@@ -620,6 +628,7 @@ export class DynamicQCommerceService {
         platform: provider,
       });
       published.push(driverId);
+      positions.push({ driverId, lat: nextLat, lng: nextLng, timestamp });
     }
 
     return {
@@ -628,6 +637,7 @@ export class DynamicQCommerceService {
       published: published.length,
       driverIds: published,
       base: { lat: baseLat, lng: baseLng },
+      positions,
     };
   }
 

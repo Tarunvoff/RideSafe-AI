@@ -57,7 +57,7 @@ const PredictiveRiskChart: React.FC<PredictiveRiskChartProps> = ({ data }) => {
             fontSize={12}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => `${value}%`}
+            tickFormatter={(value: number) => `${value}%`}
           />
           <Tooltip 
             contentStyle={{ 

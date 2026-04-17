@@ -12,7 +12,8 @@ import {
   BarChart3,
   Target,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  MapPinned
 } from 'lucide-react';
 import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import { adminApi } from './services/api';
@@ -207,6 +208,10 @@ export default function App() {
             <Target size={20} />
             <span>Workers</span>
           </NavLink>
+          <NavLink to="/live-map" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <MapPinned size={20} />
+            <span>Live Map</span>
+          </NavLink>
           <NavLink to="/claims" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FileText size={20} />
             <span>Claims</span>
@@ -248,6 +253,7 @@ export default function App() {
           <Route path="/" element={<LiveOperationalDashboard data={data} loading={loading} />} />
           <Route path="/analytics" element={<AnalyticsPage data={data} loading={loading} />} />
           <Route path="/workers" element={<WorkersPage />} />
+          <Route path="/live-map" element={<LiveMapPage workerCount={data?.totalWorkers ?? data?.workers?.total ?? 0} />} />
           <Route path="/claims" element={<ClaimsPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="*" element={<Navigate to="/" />} />
@@ -476,9 +482,11 @@ function LiveOperationalDashboard({ data }: any) {
       }
     };
     fetchSubmissions();
-  }, []);
+  }, []); 
 
   const visibleSubmissions = isExpanded ? submissions : submissions.slice(0, 3);
+
+  const totalWorkers = data?.totalWorkers ?? data?.workers?.total ?? 0;
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -498,7 +506,7 @@ function LiveOperationalDashboard({ data }: any) {
 
       {/* STATS */}
       <div className="stat-grid mb-12">
-        <MetricCard label="Total Workers" value={data?.workers?.total ?? 10} trend="+12%" up />
+        <MetricCard label="Total Workers" value={totalWorkers} trend="+12%" up />
         <MetricCard label="Active Plans" value={data?.plans?.active ?? 3} trend="+5%" up />
         <MetricCard label="Active Alerts" value={data?.alerts?.active ?? 5} marker="bg-success" trend="Stable" up />
         <MetricCard label="Claims Today" value={data?.claims?.today ?? 2} trend="-3" />
@@ -585,21 +593,25 @@ function LiveOperationalDashboard({ data }: any) {
           <button className="neo-btn w-full mt-auto secondary text-[10px]">Refresh Stream</button>
         </div>
 
-          <DriverScooterMap />
-
-          <div className="neo-card flex flex-col bg-slate-900 border-2 border-black">
-            <div className="flex items-center justify-between mb-6">
-               <h3 className="font-black italic uppercase tracking-tighter text-white">Projected Risk Velocity</h3>
-               <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Live Forecast</span>
-               </div>
-            </div>
-            <div className="h-64">
-              <PredictiveRiskChart data={data?.predictiveLossForecast || []} />
-            </div>
-          </div>
+          <DriverScooterMap workerCount={totalWorkers} />
       </div>
+    </div>
+  );
+}
+
+function LiveMapPage({ workerCount }: { workerCount: number }) {
+  return (
+    <div className="live-map-page animate-in fade-in duration-300">
+      <header className="live-map-page-header">
+        <div>
+          <h2 className="text-4xl">Live Risk Map</h2>
+          <p className="text-gray-500 font-bold uppercase text-xs tracking-widest mt-1">
+            Dedicated full-screen H3 risk and worker telemetry view
+          </p>
+        </div>
+      </header>
+
+      <DriverScooterMap workerCount={workerCount} variant="full" />
     </div>
   );
 }

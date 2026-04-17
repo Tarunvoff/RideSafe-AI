@@ -41,7 +41,15 @@ export const adminApi = {
       }
     }
     const query = new URLSearchParams(cleanParams).toString();
-    return request<any[]>(`/admin/workers?${query}`);
+    return request<any[]>(`/admin/workers${query ? `?${query}` : ''}`);
+  },
+  getLiveGps: (params: { zone: string; provider?: string; count?: number }) => {
+    const query = new URLSearchParams({
+      zone: params.zone,
+      ...(params.provider ? { provider: params.provider } : {}),
+      ...(params.count ? { count: String(params.count) } : {}),
+    }).toString();
+    return request<any>(`/platform/live-gps?${query}`);
   },
   getClaims: (params: any = {}) => {
     const cleanParams: any = {};

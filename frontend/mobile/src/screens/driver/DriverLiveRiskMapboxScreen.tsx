@@ -27,7 +27,8 @@ import {
   useWindowDimensions,
   ImageBackground
 } from 'react-native';
-import MapView from 'react-native-maps';
+import { cellToBoundary } from 'h3-js';
+import MapView, { Polygon } from 'react-native-maps';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
@@ -36,7 +37,7 @@ import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 
-type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'HALT';
 
 /**
  * [IN-LINE PRIDE]: Parametric Risk Normalization
@@ -54,6 +55,7 @@ type CellRisk = {
   trafficStatus: string;
   riskScore: number;
   riskLevel: RiskLevel;
+  polygon: { latitude: number; longitude: number }[];
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -67,6 +69,66 @@ function riskLevelFromScore(score: number): RiskLevel {
 }
 
 const BRAND_BG = Theme.colors.brandOrange;
+
+function riskPalette(level: RiskLevel) {
+  if (level === 'HALT') {
+    return {
+      stroke: '#B91C1C',
+      fill: 'rgba(239, 68, 68, 0.28)',
+      chipBg: '#FEE2E2',
+      chipText: '#7F1D1D',
+    };
+  }
+  if (level === 'HIGH') {
+    return {
+      stroke: '#C2410C',
+      fill: 'rgba(249, 115, 22, 0.24)',
+      chipBg: '#FFEDD5',
+      chipText: '#9A3412',
+    };
+  }
+  if (level === 'MEDIUM') {
+    return {
+      stroke: '#A16207',
+      fill: 'rgba(250, 204, 21, 0.22)',
+      chipBg: '#FEF9C3',
+      chipText: '#854D0E',
+    };
+  }
+  return {
+    stroke: '#0F766E',
+    fill: 'rgba(45, 212, 191, 0.2)',
+    chipBg: '#CCFBF1',
+    chipText: '#115E59',
+  };
+}
+
+function resolveRiskLevel(rawRiskLevel: unknown, riskScore: number, trafficStatus: string): RiskLevel {
+  if (trafficStatus === 'Halt') return 'HALT';
+  const level = String(rawRiskLevel ?? '').toUpperCase();
+  if (level === 'HALT' || level === 'HIGH' || level === 'MEDIUM' || level === 'LOW') {
+    return level as RiskLevel;
+  }
+  return riskLevelFromScore(riskScore);
+}
+
+function h3BoundaryToCoordinates(h3Cell: string, fallbackLat: number, fallbackLng: number) {
+  try {
+    const boundary = cellToBoundary(h3Cell);
+    return boundary.map((point) => ({ latitude: point[0], longitude: point[1] }));
+  } catch {
+    const d = 0.0016;
+    return [
+      { latitude: fallbackLat + d, longitude: fallbackLng },
+      { latitude: fallbackLat + d / 2, longitude: fallbackLng + d },
+      { latitude: fallbackLat - d / 2, longitude: fallbackLng + d },
+      { latitude: fallbackLat - d, longitude: fallbackLng },
+      { latitude: fallbackLat - d / 2, longitude: fallbackLng - d },
+      { latitude: fallbackLat + d / 2, longitude: fallbackLng - d },
+    ];
+  }
+}
+
 const CARD_BG = '#f0ecce';
 
 export default function DriverLiveRiskScreen({ navigation }: any) {
@@ -78,6 +140,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState('c0');
   const [loading, setLoading] = useState(false);
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
@@ -99,8 +162,9 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const mapH = 260;
 
   const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
-    const riskScore: number = raw?.riskScore ?? 0;
-    const riskLevel: RiskLevel = (raw?.riskLevel as RiskLevel) ?? riskLevelFromScore(riskScore);
+    const baseLat = Number(raw?.lat ?? coords?.lat ?? 12.9716);
+    const baseLng = Number(raw?.lng ?? coords?.lng ?? 77.5946);
+    const riskScore: number = Number(raw?.riskScore ?? Math.round(Number(raw?.Lf ?? raw?.lf_score ?? 0) * 100) ?? 0);
     const disruptionScore: number = Number((raw?.disruptionScore ?? 0).toFixed(2));
 
     const rawFloodChance: string = raw?.floodChance ?? '';
@@ -119,9 +183,12 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
           ? 'Slow Traffic'
           : 'Stable Flow';
 
+    const h3Id = String(raw?.h3_cell ?? '—');
+    const riskLevel: RiskLevel = resolveRiskLevel(raw?.riskLevel, riskScore, trafficStatus);
+
     return {
       id,
-      h3Id: raw?.h3_cell ?? '—',
+      h3Id,
       rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
       aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
       floodChance,
@@ -129,8 +196,9 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       trafficStatus,
       riskScore,
       riskLevel,
+      polygon: h3BoundaryToCoordinates(h3Id, baseLat, baseLng),
     };
-  }, []);
+  }, [coords?.lat, coords?.lng]);
 
   /**
    * [IN-LINE PRIDE]: Telemetry & Zone Exploration
@@ -158,9 +226,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         neighbors.push({ ...center, id: `n${neighbors.length + 1}` });
       }
       setCellData({ current: center, neighbors });
+      setSelectedCellId((prev) => {
+        const ids = new Set(['c0', ...neighbors.map((n) => n.id)]);
+        return ids.has(prev) ? prev : 'c0';
+      });
     } catch {
       const fallback = toCellRisk({}, 'c0');
       setCellData({ current: fallback, neighbors: Array.from({ length: 6 }, (_, i) => ({ ...fallback, id: `n${i + 1}` })) });
+      setSelectedCellId('c0');
     } finally {
       setLoading(false);
     }
@@ -175,7 +248,11 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     neighbors: Array.from({ length: 6 }, (_, i) => ({ ...toCellRisk({}, 'c0'), id: `n${i + 1}` })),
   }, [cellData, toCellRisk]);
 
-  const selectedCell: CellRisk = useMemo(() => cells.current, [cells.current]);
+  const allCells = useMemo(() => [cells.current, ...cells.neighbors], [cells]);
+
+  const selectedCell: CellRisk = useMemo(() => {
+    return allCells.find((cell) => cell.id === selectedCellId) ?? allCells[0];
+  }, [allCells, selectedCellId]);
 
   const driverLat = coords?.lat ?? 0;
   const driverLon = coords?.lng ?? 0;
@@ -247,7 +324,23 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                 ref={mapRef}
                 style={[styles.mapView, { width: mapW, height: mapH }]}
                 initialRegion={mapRegion}
-              />
+              >
+                {allCells.map((cell) => {
+                  const tone = riskPalette(cell.riskLevel);
+                  const active = cell.id === selectedCell.id;
+                  return (
+                    <Polygon
+                      key={cell.id}
+                      coordinates={cell.polygon}
+                      tappable
+                      onPress={() => setSelectedCellId(cell.id)}
+                      strokeColor={tone.stroke}
+                      fillColor={tone.fill}
+                      strokeWidth={active ? 3 : 1.6}
+                    />
+                  );
+                })}
+              </MapView>
             ) : (
               <View style={styles.mapFallback}>
                 <Ionicons name="location-outline" size={28} color="#9ca3af" />
@@ -262,7 +355,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
             {/* Overlays */}
             <View style={styles.liveFeedBadge}>
               <Ionicons name="radio-outline" size={14} color="#fff" />
-              <Text style={styles.liveFeedText}>Live Feed</Text>
+              <Text style={styles.liveFeedText}>Live H3 Feed</Text>
             </View>
 
             <View style={styles.h3CenterBadgeBox}>
@@ -270,11 +363,21 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
             </View>
 
             <View style={styles.secureGridBadge}>
-              <Text style={styles.secureGridText}>Secure Grid</Text>
+              <Text style={styles.secureGridText}>{selectedCell.h3Id}</Text>
             </View>
 
-            <View style={styles.highHazardBadge}>
-              <Text style={styles.highHazardText}>High Hazard</Text>
+            <View
+              style={[
+                styles.highHazardBadge,
+                {
+                  backgroundColor: riskPalette(selectedCell.riskLevel).chipBg,
+                  borderColor: riskPalette(selectedCell.riskLevel).stroke,
+                },
+              ]}
+            >
+              <Text style={[styles.highHazardText, { color: riskPalette(selectedCell.riskLevel).chipText }]}>
+                {selectedCell.riskLevel} Zone
+              </Text>
             </View>
           </View>
         </View>
@@ -323,7 +426,12 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
           </View>
           <View style={[styles.neoCard, styles.readoutCard]}>
             <Text style={styles.readoutLabel}>RISK LEVEL</Text>
-            <Text style={[styles.readoutValue, { color: '#E87D25', fontSize: 18 }]}>
+            <Text
+              style={[
+                styles.readoutValue,
+                { color: riskPalette(selectedCell.riskLevel).chipText, fontSize: 18 },
+              ]}
+            >
               {selectedCell.riskLevel}
             </Text>
           </View>
@@ -462,27 +570,28 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     left: 12,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.94)',
     borderWidth: 1.5,
     borderColor: '#000',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    maxWidth: '62%',
   },
-  secureGridText: { color: '#000', fontSize: 12, fontWeight: '800' },
+  secureGridText: { color: '#000', fontSize: 10, fontWeight: '900' },
 
   highHazardBadge: {
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.94)',
     borderWidth: 1.5,
     borderColor: '#000',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  highHazardText: { color: '#000', fontSize: 12, fontWeight: '800' },
+  highHazardText: { color: '#000', fontSize: 11, fontWeight: '900' },
 
   readoutGrid: {
     flexDirection: 'row',
