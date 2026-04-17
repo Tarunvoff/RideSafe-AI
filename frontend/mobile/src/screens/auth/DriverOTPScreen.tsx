@@ -23,6 +23,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AuthCard from '../../components/auth/AuthCard';
 import Button from '../../components/ui/Button';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
+import AuthTopNavbar from '../../components/layout/AuthTopNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { Theme } from '../../theme';
 import { getBaseUrl } from '../../services/api';
@@ -166,11 +167,8 @@ export default function DriverOTPScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LoadingOverlay visible={loading} message={success ? t('auth.otp.loading_connecting', { provider }) : t('auth.otp.loading_verifying')} />
+      <AuthTopNavbar onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} disabled={success || loading}>
-          <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-
         <View style={styles.content}>
           <AuthCard style={styles.card}>
             <View style={styles.iconContainer}>
