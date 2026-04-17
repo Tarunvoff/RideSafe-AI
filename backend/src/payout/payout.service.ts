@@ -172,21 +172,6 @@ export class PayoutService {
       throw new BadRequestException({ code: AEGIS_ERR_ZONE_NOT_HALTED, message: 'Zone is not halted' });
     }
 
-    const existingPayout = await this.prisma.payout.findFirst({
-      where: {
-        policy: { userId: params.driverId },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (existingPayout) {
-      return {
-        success: true,
-        cached: true,
-        payoutId: existingPayout.id,
-        transactionId: existingPayout.transactionId ?? null,
-      };
-    }
-
     const disruption = await this.prisma.disruptionEvent.create({
       data: {
         type: params.disruptionType ?? 'PARAMETRIC_TRIGGER',
