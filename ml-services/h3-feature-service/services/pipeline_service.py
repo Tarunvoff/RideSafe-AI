@@ -22,7 +22,7 @@ import uuid
 import httpx
 import h3 as h3lib
 from fastapi import HTTPException
-from config import H3_RESOLUTION, STRICT_REALTIME
+from config import H3_RESOLUTION, STRICT_REALTIME, BACKEND_INTERNAL_URL, INTERNAL_AUTH_KEY
 from services.feature_service import get_features
 from services.circuit_breaker import get_breaker
 from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
@@ -30,6 +30,7 @@ from models.schemas import PipelineRequest, PipelineResponse, FeatureResponse
 logger = logging.getLogger(__name__)
 
 ML_SERVICE_URL    = os.getenv("ML_INSURANCE_SERVICE_URL", "http://127.0.0.1:8000")
+INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "aegis_telemetry_sovereign_2026")
 ML_TIMEOUT        = float(os.getenv("ML_TIMEOUT_SECONDS",  "10.0"))   # per-call timeout
 PIPELINE_DEADLINE = float(os.getenv("PIPELINE_DEADLINE_SECONDS", "10.0"))  # hard end-to-end cap
 REDIS_ZONE_TTL    = int(os.getenv("ZONE_KEY_TTL_SECONDS", "300"))
@@ -144,7 +145,7 @@ def _sanity_check(Lf: float, premium: float, zone_state: str, trace_id: str) -> 
     return Lf, premium, zone_state
 
 
-def _write_zone_to_redis(h3_cell: str, Lf: float, zone_state: str, trace_id: str):
+def _write_zone_to_redis(h3_cell: str, Lf: float, zone_state: str, trace_id: str, rainfall: float = 0.0, aqi: float = 0.0):
     """
     Write the ML-authoritative zone state to Redis.
     Schema: { Lf, lf_score (compat alias), zone_state, source, timestamp, trace_id }
@@ -167,6 +168,32 @@ def _write_zone_to_redis(h3_cell: str, Lf: float, zone_state: str, trace_id: str
             "[tid=%s] Redis zone:%s → Lf=%.4f state=%s (TTL=%ds)",
             trace_id, h3_cell, Lf, zone_state, REDIS_ZONE_TTL
         )
+        
+        # ── Phase 3: Forensic Database Logging ──────────────────────────────────
+        # We also notify the backend so it can persist this to ZoneTelemetryLog.
+        # This occurs outside the critical path (async fire-and-forget or background).
+        async def _log_to_db():
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                try:
+                    # Note: Using ADMIN_SECRET if required by AdminGuard or relying on 
+                    # internal network trust for /internal/* endpoints.
+                    await client.post(
+                        f"{BACKEND_INTERNAL_URL}",
+                        headers={"x-aegis-internal-key": INTERNAL_AUTH_KEY},
+                        json={
+                            "h3_cell": h3_cell,
+                            "Lf": Lf,
+                            "zone_state": zone_state,
+                            "rainfall_mm": rainfall,
+                            "aqi": aqi,
+                            "computed_at": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                        }
+                    )
+                except Exception as e:
+                    logger.warning("[tid=%s] Telemetry persistence handshake failed: %s", trace_id, e)
+
+        asyncio.create_task(_log_to_db())
+
     except Exception as exc:
         logger.error("[tid=%s] Redis zone write failed for %s: %s", trace_id, h3_cell, exc)
 
@@ -428,7 +455,7 @@ async def _execute_pipeline_core(
         Lf, premium, zone_state = _sanity_check(Lf, premium, zone_state, trace_id)
 
     # ── Step 4.9: Write ML-authoritative zone state to Redis ─────────────────
-    _write_zone_to_redis(h3_cell, Lf, zone_state, trace_id)
+    _write_zone_to_redis(h3_cell, Lf, zone_state, trace_id, rainfall=features.rainfall, aqi=features.aqi)
 
     # ── Step 5: Assemble result ───────────────────────────────────────────────
     if features.is_fallback:

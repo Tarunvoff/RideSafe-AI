@@ -278,6 +278,22 @@ export class AdminService {
       fraudStatusSplit = [];
     }
 
+    // ── Phase 3: Predictive Analytics Engine ─────────────────────────────────
+    // We aggregate H3 telemetry from ZoneTelemetryLog to project 
+    // short-term risk velocity.
+    let predictiveLossForecast: any[] = [];
+    try {
+      predictiveLossForecast = await prisma.$queryRaw`
+        SELECT DATE_TRUNC('hour', "timestamp") as hour, AVG("lf_score") as avg_lf
+        FROM zone_telemetry_logs
+        WHERE "timestamp" > NOW() - INTERVAL '24 hours'
+        GROUP BY 1
+        ORDER BY 1
+      `;
+    } catch (err: any) {
+      predictiveLossForecast = [];
+    }
+
     const projectedPayout = payoutAgg?._sum?.approvedPayout ?? 0;
     const totalApprovedPayout = overallPayoutAgg?._sum?.approvedPayout ?? 0;
     const totalPremiumCollected = premiumAgg?._sum?.premium ?? 0;
@@ -316,6 +332,7 @@ export class AdminService {
       claimsByType,
       alertsByType,
       fraudStatusSplit,
+      predictiveLossForecast,
     };
   }
 

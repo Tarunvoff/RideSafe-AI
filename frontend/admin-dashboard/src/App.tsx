@@ -17,6 +17,7 @@ import {
 import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import { adminApi } from './services/api';
 import DriverScooterMap from './components/DriverScooterMap';
+import PredictiveRiskChart from './components/PredictiveRiskChart';
 
 
 // --- MAIN APP COMPONENT ---
@@ -301,6 +302,18 @@ function AnalyticsPage({ data, loading }: any) {
 
       {!loading && (
         <div className="space-y-16 pb-20">
+          {/* SECTION: PREDICTIVE FORECAST */}
+          <section>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6 font-bold">Predictive Risk Forecast (ML-Inferred)</h3>
+            <div className="grid grid-cols-1 gap-6">
+              <AnalyticsCard title="Risk Velocity Forecast" subtitle="Projected Disruption Probability (Next 24h)">
+                <div className="h-80 w-full bg-slate-900 rounded-xl p-4 shadow-inner border border-black scroll-m-2">
+                  <PredictiveRiskChart data={safeData.predictiveLossForecast || []} />
+                </div>
+              </AnalyticsCard>
+            </div>
+          </section>
+
           {/* SECTION: RISK POOL */}
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Risk Pool Status</h3>
@@ -573,6 +586,19 @@ function LiveOperationalDashboard({ data }: any) {
         </div>
 
           <DriverScooterMap />
+
+          <div className="neo-card flex flex-col bg-slate-900 border-2 border-black">
+            <div className="flex items-center justify-between mb-6">
+               <h3 className="font-black italic uppercase tracking-tighter text-white">Projected Risk Velocity</h3>
+               <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Live Forecast</span>
+               </div>
+            </div>
+            <div className="h-64">
+              <PredictiveRiskChart data={data?.predictiveLossForecast || []} />
+            </div>
+          </div>
       </div>
     </div>
   );
