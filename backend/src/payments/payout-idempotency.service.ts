@@ -40,29 +40,30 @@ export class PayoutIdempotencyService {
   /**
    * [TASK 2]: Deterministic Financial Idempotency
    * Constructs a cryptographic SHA-256 hash using the claim identifier and 
-   * the current disruption time-window. This ensures that even if a network 
-   * stutter occurs, the same claim window results in the same stable key.
+   * the current disruption time-window (YYYYMMDD_HH). This ensures that even 
+   * if a network stutter occurs, the same claim window results in the same stable key.
    */
-  buildKey(userId: string, h3Cell: string, eventTimestamp: number): string {
+  buildKey(claimId: string, eventTimestamp: number): string {
     const now = new Date(eventTimestamp * 1000);
     const window = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}_${String(now.getUTCHours()).padStart(2, '0')}`;
-    // We use userId + h3Cell + eventTimestamp as the 'claimId' root since they uniquely identify any parametric trigger event for a user.
-    const base = `${userId}_${h3Cell}_${eventTimestamp}_${window}`;
+    
+    // Deterministic hash: SHA-256(claimId + window)
+    const base = `${claimId}_${window}`;
     return crypto.createHash('sha256').update(base).digest('hex');
   }
 
   /**
-   * Check-or-create an idempotency record.
-   *
-   * Returns { shouldProcess: true  } → caller must execute the payout.
-   * Returns { shouldProcess: false } → payout already succeeded; skip.
+   * Check-or-create an idempotency record using a deterministic key.
    */
   async checkOrCreate(
     userId: string,
     h3Cell: string,
     eventTimestamp: number,
+    policyId: string,
+    disruptionEventId: string,
   ): Promise<IdempotencyCheckResult> {
-    const key = this.buildKey(userId, h3Cell, eventTimestamp);
+    const claimId = `${policyId}_${disruptionEventId}`;
+    const key = this.buildKey(claimId, eventTimestamp);
 
     // 1. Look up an existing record by our deterministic hash ID
     const existing = await this.prisma.payoutIdempotencyKey.findUnique({
@@ -106,7 +107,7 @@ export class PayoutIdempotencyService {
       // Unique constraint violation: another request raced us — re-read
       if (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === 'P2002') {
         this.logger.warn(`[idempotency] Race detected for key ${key} — re-reading`);
-        return this.checkOrCreate(userId, h3Cell, eventTimestamp);
+        return this.checkOrCreate(userId, h3Cell, eventTimestamp, policyId, disruptionEventId);
       }
       throw err;
     }

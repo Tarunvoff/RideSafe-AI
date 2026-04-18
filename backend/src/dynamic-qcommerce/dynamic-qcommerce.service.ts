@@ -472,8 +472,19 @@ export class DynamicQCommerceService {
     const records = Array.from(this.driverRecords.values());
 
     if (!records.length) {
-      this.seedDrivers(QCommerceProvider.ZEPTO, undefined, 'auto', 12);
-      return this.getZoneActivity(zone);
+      // [TASK 3B]: Simulation Fallback Purged.
+      // Actuarial tools must not fabricate data. Returning empty state 
+      // to trigger 'INSUFFICIENT DATA' UI protocols.
+      return {
+        zone,
+        active_riders: 0,
+        active_orders: 0,
+        demand_ratio: 0,
+        order_density: 0,
+        sla_breach_rate: 0,
+        avg_delivery_delay_min: 0,
+        source: 'dynamic-qcommerce',
+      };
     }
 
     const zoneLabel = (value?: string) =>
@@ -586,18 +597,17 @@ export class DynamicQCommerceService {
     const [baseLat, baseLng] = center as [number, number];
 
     if (!this.driverRecords.size) {
-      this.seedDrivers(provider, undefined, 'auto', Math.max(12, count));
+      // [TASK 3B]: Simulation Fallback Purged.
+      // Do not auto-seed drivers if DB is empty; let the system reflect true telemetry state.
+      this.logger.log('publishLiveTelemetry: Zero active drivers detected. Skipping simulation.');
     }
 
-    let driverIds = Array.from(this.driverRecords.values())
+    const driverIds = Array.from(this.driverRecords.values())
       .filter((record) => record.provider === provider)
       .map((record) => record.internalDriverId);
 
     if (driverIds.length < count) {
-      this.seedDrivers(provider, undefined, `${provider}-auto`, Math.max(count, 12));
-      driverIds = Array.from(this.driverRecords.values())
-        .filter((record) => record.provider === provider)
-        .map((record) => record.internalDriverId);
+      this.logger.log(`publishLiveTelemetry: Insufficient drivers (${driverIds.length}/${count}). Returning available set.`);
     }
 
     const selected = driverIds.length ? driverIds.slice(0, count) : [];

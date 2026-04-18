@@ -64,7 +64,6 @@ export default function App() {
       if (!mfaRequired) {
         // Step 1: Password Authentication
         const res = await adminApi.login({ email, password });
-        console.log('Login Step 1 Response:', res);
 
         if (res.message && res.message.includes('OTP')) {
           setMfaRequired(true);
@@ -80,9 +79,7 @@ export default function App() {
         }
       } else {
         // Step 2: OTP Verification
-        console.log('Attempting Step 2: OTP Verification for', email);
         const res = await adminApi.verifyOtp({ email, otp: otp.trim() });
-        console.log('OTP Verification Response:', res);
 
         const token = res.accessToken || res.access_token;
         if (token) {
@@ -586,13 +583,11 @@ function WorkersPage() {
   const fetchWorkers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching fleet data with filters:', { search, cityFilter, platformFilter });
       const res = await adminApi.getWorkers({
         search: search.trim() ? search.trim() : undefined,
         city: cityFilter === 'ALL' ? undefined : cityFilter,
         platform: platformFilter === 'ALL' ? undefined : platformFilter,
       });
-      console.log('Fleet synchronization complete. Workers detected:', res?.length || 0);
       setWorkers(res || []);
     } catch (e: any) {
       console.error('Fleet Retrieval Error:', e);

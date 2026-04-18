@@ -1,5 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Shield } from 'lucide-react';
 
 interface MetricDonutChartProps {
   data: any[];
@@ -33,9 +34,10 @@ const MetricDonutChart: React.FC<MetricDonutChartProps> = ({ data }) => {
 
   if (chartData.length === 0) {
     return (
-      <div className="h-[240px] w-full flex flex-col items-center justify-center border-4 border-dashed border-black/10 rounded-full aspect-square max-w-[240px] mx-auto">
-        <div className="w-12 h-12 border-4 border-black/10 border-t-black/40 rounded-full animate-spin"></div>
-        <p className="text-[9px] font-black uppercase text-black/30 mt-3 font-heading">Processing Mix...</p>
+      <div className="h-[240px] w-full flex flex-col items-center justify-center border-4 border-dashed border-black/10 rounded-full aspect-square max-w-[240px] mx-auto animate-in fade-in duration-500">
+        <Shield className="text-black/10 mb-2" size={32} />
+        <h4 className="font-heading font-black uppercase text-black/20 tracking-widest text-[9px]">INSUFFICIENT DATA</h4>
+        <p className="text-[8px] font-bold uppercase text-black/20 font-heading mt-1 italic">Awaiting Telemetry</p>
       </div>
     );
   }

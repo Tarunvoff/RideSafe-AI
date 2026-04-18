@@ -1,5 +1,6 @@
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar, Cell } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar, Cell } from 'recharts';
+import { Shield } from 'lucide-react';
 
 interface RiskTrendChartProps {
   data: any[];
@@ -14,9 +15,16 @@ const CustomTooltip = ({ active, payload, variant }: any) => {
           {variant === 'predictive' ? 'Temporal Node' : 'Anomaly Signal'}
         </p>
         <p className="font-black text-2xl">{Math.round(payload[0].value)}%</p>
-        <p className={`font-black text-[10px] uppercase ${variant === 'predictive' ? 'text-coral' : 'text-primary-container'}`}>
-           {variant === 'predictive' ? 'Projected Loss' : 'Risk Velocity'}
-        </p>
+        <div className="mt-2 space-y-1">
+          <p className={`font-black text-[10px] uppercase ${variant === 'predictive' ? 'text-coral' : 'text-primary-container'}`}>
+             {variant === 'predictive' ? 'Projected Loss' : 'Risk Velocity'}
+          </p>
+          {variant === 'predictive' && payload[0].payload.projected_claims !== undefined && (
+            <p className="font-black text-[9px] uppercase opacity-60">
+              Anticipated Claims: {payload[0].payload.projected_claims ?? 'N/A'}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -24,19 +32,22 @@ const CustomTooltip = ({ active, payload, variant }: any) => {
 };
 
 const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ data, variant = 'trend' }) => {
-  const normalizedData = (data || []).map(d => ({
-    ...d,
-    displayDate: d.date || d.day || d.hour || 'Awaiting...',
-    riskValue: d.avg_lf ?? d.avg_risk ?? d.risk ?? (d.total_payout ? Math.min(100, d.total_payout/1000) : 0)
-  }));
+  const normalizedData = (data || [])
+    .filter(d => d.avg_lf !== null && d.avg_risk !== null) // Filter out strict nulls from Task 3B
+    .map(d => ({
+      ...d,
+      displayDate: d.date || d.day || d.hour || 'Awaiting...',
+      riskValue: d.avg_lf ?? d.avg_risk ?? d.risk ?? (d.total_payout ? Math.min(100, d.total_payout/1000) : 0)
+    }));
 
   if (normalizedData.length === 0) {
     return (
-      <div className="h-[200px] w-full flex flex-col items-center justify-center border-4 border-dashed border-black/20 bg-black/5">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-8 w-32 bg-black/10 mb-2"></div>
-          <p className="text-[10px] font-black uppercase text-black/40 font-heading">Synchronizing Stream...</p>
-        </div>
+      <div className="h-[200px] w-full flex flex-col items-center justify-center border-4 border-dashed border-red-600 bg-red-50 p-6 text-center animate-in fade-in duration-500">
+        <Shield className="text-red-600 mb-3 animate-pulse" size={40} />
+        <h4 className="font-heading font-black uppercase text-red-600 tracking-tighter text-sm">INSUFFICIENT DATA: AWAITING TELEMETRY</h4>
+        <p className="text-[10px] font-bold uppercase text-red-600/60 font-heading mt-2 italic max-w-[240px]">
+          Actuarial Pool Inconclusive • Primary Nodes Offline • Predictive ML requires telemetry stream
+        </p>
       </div>
     );
   }

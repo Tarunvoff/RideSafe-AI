@@ -1,5 +1,6 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Shield } from 'lucide-react';
 
 interface ActivityBarChartProps {
   data: any[];
@@ -25,11 +26,12 @@ const ActivityBarChart: React.FC<ActivityBarChartProps> = ({ data, color = "#ff6
 
   if (chartData.length === 0) {
     return (
-      <div className="h-[200px] w-full flex flex-col items-center justify-center border-4 border-dashed border-black/10">
-        <div className="flex gap-1 items-end h-8">
-           {[1,2,3,4,5].map(i => <div key={i} className="w-4 bg-black/5 animate-pulse" style={{ height: `${20 + i*15}%` }} />)}
-        </div>
-        <p className="text-[9px] font-black uppercase text-black/30 mt-3 tracking-widest font-heading">Awaiting Metrics...</p>
+      <div className="h-[200px] w-full flex flex-col items-center justify-center border-4 border-dashed border-black/10 bg-white/50 p-6 text-center animate-in fade-in duration-500">
+        <Shield className="text-black/20 mb-2" size={32} />
+        <h4 className="font-heading font-black uppercase text-black/30 tracking-widest text-[10px]">INSUFFICIENT DATA</h4>
+        <p className="text-[9px] font-bold uppercase text-black/20 font-heading mt-1 italic">
+          Telemetric Feed Offline • Awaiting Sector Sync
+        </p>
       </div>
     );
   }

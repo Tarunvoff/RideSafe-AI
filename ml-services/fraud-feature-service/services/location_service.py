@@ -191,10 +191,18 @@ def compute_location_features(
     gps_speed = compute_gps_speed(gps_history, current_lat, current_lng, now_ts)
     gps_cell_distance = compute_gps_cell_distance(gps_history, current_lat, current_lng)
     
-    # [TASK 1]: Telemetry Spoof Detection (Relative Velocity Check)
-    # Threshold based on audit recommendation (150 km/h is the upper limit for typical transit).
-    # Any speed exceeding this suggests digital teleportation or sensor injection.
-    telemetry_spoof_detected = gps_speed > MAX_PLAUSIBLE_SPEED_KMH
+    # [TASK 1]: Dynamic Telemetry Spoof Detection (Relative Velocity Audit)
+    # We remove the static 150km/h clipping. We audit the raw velocity vector between pings.
+    # Logic: Calculate distance / exact time delta. If it exceeds logical human limits for 
+    # ground transport (e.g., > 300 km/h), flag as TELEMETRY_SPOOF_DETECTED.
+    # An extreme jump (e.g., 10km in 2 seconds = 18,000 km/h) is a definitive spoof.
+    telemetry_spoof_detected = gps_speed > 300.0
+
+    if telemetry_spoof_detected:
+        logger.error(
+            "CRITICAL: TELEMETRY_SPOOF_DETECTED for user. Relative velocity %.2f km/h exceeds physical limits.",
+            gps_speed
+        )
 
     h3_zone_consistency = compute_h3_zone_consistency(
         gps_history, current_lat, current_lng, now_ts

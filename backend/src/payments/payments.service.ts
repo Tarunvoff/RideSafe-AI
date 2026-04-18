@@ -496,9 +496,15 @@ export class PaymentsService {
     correlationId?: string;
   }) {
     const { userId, policyId, disruptionEventId, eventTimestamp, h3Cell, approvedPayout } = dto;
-    const correlationId = dto.correlationId ?? `payout_${randomUUID()}`;
+    
+    // [TASK 2]: Deterministic Financial Idempotency
+    // We eradicate the random UUID generator for payoutIdempotencyKey.
+    // Instead, we derive a stable key from the claim context (policy + disruption) and time window.
+    const claimId = `${policyId}_${disruptionEventId}`;
+    const deterministicId = this.idempotency.buildKey(claimId, eventTimestamp);
+    const correlationId = dto.correlationId ?? `cid_${deterministicId.substring(0, 16)}`;
 
-    this.logger.log(`cid=${correlationId} Payout Hardening: ACID transaction initiated for user=${userId}`);
+    this.logger.log(`cid=${correlationId} Payout Hardening: Deterministic ACID transaction initiated for user=${userId}`);
 
     // 1. PHASE 1: PRE-GATEWAY TRANSACTION
     // We lock idempotency and create the PROCESSING row in a single atomic block.
@@ -510,10 +516,17 @@ export class PaymentsService {
       });
       if (!policy || policy.userId !== userId) throw new Error('ACID_FAIL: Invalid policy');
 
-      // 1.2 Idempotency Acquisition
-      const idemp = await tx.payoutIdempotencyKey.findUnique({
-        where: { userId_h3Cell_eventTimestamp: { userId, h3Cell, eventTimestamp } },
+      // 1.2 Deterministic Idempotency Acquisition
+      // Search by primary key (deterministic hash) or legacy composite unique constraint
+      let idemp = await tx.payoutIdempotencyKey.findUnique({
+        where: { id: deterministicId },
       });
+      
+      if (!idemp) {
+        idemp = await tx.payoutIdempotencyKey.findUnique({
+          where: { userId_h3Cell_eventTimestamp: { userId, h3Cell, eventTimestamp } },
+        });
+      }
 
       if (idemp && idemp.payoutState === 'SUCCESS') {
         return { 
@@ -521,17 +534,23 @@ export class PaymentsService {
           cached: true, 
           payoutId: idemp.payoutId,
           transferRail: 'UPI', 
-          transferReference: idemp.id // For cached, we use the idempotency ID as ref if specific ref missing
+          transferReference: idemp.id 
         };
       }
       if (idemp && idemp.payoutState === 'PROCESSING') {
         throw new Error('ACID_LOCK: Payout already in flight');
       }
 
-      // 1.3 Create or Lock Idempotency
+      // 1.3 Create or Lock Idempotency (Enforce deterministic ID)
       const idempRecord = await tx.payoutIdempotencyKey.upsert({
-        where: { userId_h3Cell_eventTimestamp: { userId, h3Cell, eventTimestamp } },
-        create: { userId, h3Cell, eventTimestamp, payoutState: 'PROCESSING' },
+        where: { id: deterministicId },
+        create: { 
+          id: deterministicId, 
+          userId, 
+          h3Cell, 
+          eventTimestamp, 
+          payoutState: 'PROCESSING' 
+        },
         update: { payoutState: 'PROCESSING' },
       });
 
