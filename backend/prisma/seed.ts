@@ -95,7 +95,7 @@ async function main() {
   const weeklyPlans = [
     {
       key: 'BASIC',
-      name: 'Essential Grid Guardian',
+      name: 'Basic Protection',
       price: 39,
       maxPayout: 1800,
       durationDays: 7,
@@ -103,7 +103,7 @@ async function main() {
     },
     {
       key: 'STANDARD',
-      name: 'Standard Guard',
+      name: 'Standard Protection',
       price: 79,
       maxPayout: 3600,
       durationDays: 7,
@@ -111,7 +111,7 @@ async function main() {
     },
     {
       key: 'PREMIUM',
-      name: 'Premium Armor',
+      name: 'Premium Protection',
       price: 129,
       maxPayout: 6500,
       durationDays: 7,
@@ -608,7 +608,7 @@ async function main() {
             status: seed.kycStatus === 'APPROVED' ? 'APPROVED' : 'PROCESSING',
             estimatedLoss: disruption.expectedLoss ?? 0,
             approvedPayout: disruption.expectedPayout ?? 0,
-            processingTime: 'Sovereign regional auto-reconciliation',
+            processingTime: 'Automatic payment processing',
             createdAt: daysAgo(seed.daysAgo),
             timeline: {
               steps: [

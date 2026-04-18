@@ -148,7 +148,7 @@ function getRazorpayCheckoutHTML(opts: {
               key: ${JSON.stringify(keyId)},
               amount: ${JSON.stringify(amount)},
               currency: ${JSON.stringify(currency)},
-              name: "Aegis Sovereign Settlement",
+              name: "Aegis Payment",
               description: ${JSON.stringify(description)},
           order_id: ${JSON.stringify(orderId)},
           prefill: {
@@ -472,7 +472,7 @@ export default function DriverPlansScreen({ navigation }: any) {
           />
         }
       >
-        <Text style={styles.pageTitle}>Sovereign Coverage</Text>
+        <Text style={styles.pageTitle}>{t('plans.title')}</Text>
 
         <View style={styles.tabsWrapper}>
           <TouchableOpacity
@@ -480,14 +480,14 @@ export default function DriverPlansScreen({ navigation }: any) {
             onPress={() => setTab('available')}
             style={[styles.tabBtn, isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>Coverage Tiers</Text>
+            <Text style={[styles.tabText, isAvailableTab && styles.tabTextActive]}>{t('plans.tabs.available')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => setTab('purchased')}
             style={[styles.tabBtn, !isAvailableTab && styles.tabBtnActive]}
           >
-            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>Active Coverage</Text>
+            <Text style={[styles.tabText, !isAvailableTab && styles.tabTextActive]}>{t('plans.tabs.purchased')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -528,7 +528,7 @@ export default function DriverPlansScreen({ navigation }: any) {
                       onPress={() => startCheckout(plan)}
                       disabled={loading || isPremiumLoading}
                     >
-                      <Text style={styles.buyBtnText}>{isPremiumLoading ? 'Calculating...' : 'Initialize Sovereign Settlement'}</Text>
+                      <Text style={styles.buyBtnText}>{isPremiumLoading ? t('common.loading') : 'Buy Now'}</Text>
                     </TouchableOpacity>
                   </View>
                 );

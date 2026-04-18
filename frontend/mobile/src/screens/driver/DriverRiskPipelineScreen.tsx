@@ -237,7 +237,7 @@ export default function DriverRiskPipelineScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heroTitle}>Stay sharp ^_^</Text>
+        <Text style={styles.heroTitle}>{t('dashboard.greetings.stay_sharp')}</Text>
 
         <View style={styles.mainCard}>
           <View style={styles.cardHeaderRow}>
@@ -274,7 +274,7 @@ export default function DriverRiskPipelineScreen() {
           <View style={[styles.cardHeaderRow, { marginBottom: 16 }]}>
             <View style={styles.rowAlign}>
               <Ionicons name="location-sharp" size={20} color="black" />
-              <Text style={styles.locationTitle}>Location Intelligence</Text>
+              <Text style={styles.locationTitle}>{t('dashboard.location_intel')}</Text>
             </View>
             <Text style={styles.gpsStatus}>{hasValidLocation ? 'LIVE GPS' : 'NO GPS'}</Text>
           </View>
@@ -300,7 +300,7 @@ export default function DriverRiskPipelineScreen() {
           <View style={styles.lightH3Header}>
             <View>
               <Text style={styles.lightH3Eyebrow}>Live Grid Snapshot</Text>
-              <Text style={styles.lightH3Title}>H3 Risk Cells</Text>
+              <Text style={styles.lightH3Title}>Nearby Risk</Text>
             </View>
             <View style={styles.lightH3StatusPill}>
               <Text style={styles.lightH3StatusText}>Light Mode</Text>

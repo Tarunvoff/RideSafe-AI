@@ -149,8 +149,8 @@ export default function DriverActivityScreen({ navigation }: any) {
 
         {/* Title Area */}
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>Sovereign Pulse</Text>
-          <Text style={styles.pageSubtitle}>High-fidelity performance view</Text>
+          <Text style={styles.pageTitle}>{t('activity.title')}</Text>
+          <Text style={styles.pageSubtitle}>Weekly performance</Text>
         </View>
 
         {/* Profile Card */}
