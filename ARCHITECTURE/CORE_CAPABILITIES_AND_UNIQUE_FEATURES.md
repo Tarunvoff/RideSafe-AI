@@ -1,4 +1,4 @@
-# Aegis Platform: Authority, Production Readiness & Unique Capabilities
+# Aegis Platform: Core System Capabilities & Unique Features
 ## Engineering Canonicity. Exacting Execution. Total System Determinism.
 
 ### Executive Preface
