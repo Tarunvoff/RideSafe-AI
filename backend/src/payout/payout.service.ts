@@ -1,6 +1,6 @@
 /** 
- * Parametric Payout Pipeline: Manages the platform's high-fidelity settlement pipeline, 
- * ensuring idempotent, exactly-once disbursements by orchestrating cryptographic triggers.
+ * Instant Payout System: Manages the platform's high-fidelity settlement pipeline, 
+ * ensuring idempotent, exactly-once disbursements for workers.
  *
  * For detailed payout logic and architecture, refer to ARCHITECTURE/PAYOUT_PIPELINE_ARCHITECTURE.md.
  */

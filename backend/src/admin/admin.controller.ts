@@ -1,6 +1,6 @@
 /** 
- * Admin Control Plane: Provides high-fidelity system monitoring, manual overrides, and 
- * operational transparency for platform administrators.
+ * Intelligent Dashboard: Provides predictive analytics, loss-ratio monitoring, 
+ * and operational transparency for insurers and platform administrators.
  *
  * For the admin control plane architecture, refer to ARCHITECTURE/ADMIN_CONTROL_PLANE.md.
  */

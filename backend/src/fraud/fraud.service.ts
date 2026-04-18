@@ -1,6 +1,6 @@
 /** 
- * Sentinel Fraud Engine: The core security layer that performs real-time parallel feature 
- * extraction, H3 geospatial burst detection, and hybrid ML-based risk scoring.
+ * Sentinel Fraud Engine: Implements advanced fraud detection, including GPS spoofing checks, 
+ * parallel feature extraction, and H3 geospatial burst detection.
  *
  * For detailed fraud detection architecture and security matrices, refer to 
  * ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md and ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md.

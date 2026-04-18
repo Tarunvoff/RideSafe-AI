@@ -1,6 +1,6 @@
 /** 
- * Regulatory Gatekeeper: Ensures all platform operations comply with IRDAI, SS Code 2020, 
- * and DPDP Act 2023 standards.
+ * Regulatory Gatekeeper: Enforces IRDAI guidelines (fairness, zero-touch claims) and 
+ * ensures all platform operations comply with SS Code 2020 and DPDP Act 2023.
  *
  * For the regulatory and compliance framework, refer to ARCHITECTURE/REGULATORY_COMPLIANCE_ARCHITECTURE.md.
  */
