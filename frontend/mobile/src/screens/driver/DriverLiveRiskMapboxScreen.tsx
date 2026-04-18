@@ -27,11 +27,12 @@ import {
   useWindowDimensions,
   ImageBackground
 } from 'react-native';
-import { cellToBoundary } from 'h3-js';
-import MapView, { Polygon } from 'react-native-maps';
+import { cellToBoundary, latLngToCell, gridDisk } from 'h3-js';
+import MapView, { Polygon, Marker } from 'react-native-maps';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
+import ScooterMarker from '../../components/driver/ScooterMarker';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
@@ -73,33 +74,33 @@ const BRAND_BG = Theme.colors.brandOrange;
 function riskPalette(level: RiskLevel) {
   if (level === 'HALT') {
     return {
-      stroke: '#B91C1C',
-      fill: 'rgba(239, 68, 68, 0.28)',
+      stroke: '#ef4444',
+      fill: 'rgba(239, 68, 68, 0.22)',
       chipBg: '#FEE2E2',
       chipText: '#7F1D1D',
     };
   }
   if (level === 'HIGH') {
     return {
-      stroke: '#C2410C',
-      fill: 'rgba(249, 115, 22, 0.24)',
+      stroke: '#f97316',
+      fill: 'rgba(249, 115, 22, 0.2)',
       chipBg: '#FFEDD5',
       chipText: '#9A3412',
     };
   }
   if (level === 'MEDIUM') {
     return {
-      stroke: '#A16207',
-      fill: 'rgba(250, 204, 21, 0.22)',
+      stroke: '#facc15',
+      fill: 'rgba(250, 204, 21, 0.18)',
       chipBg: '#FEF9C3',
       chipText: '#854D0E',
     };
   }
   return {
-    stroke: '#0F766E',
-    fill: 'rgba(45, 212, 191, 0.2)',
-    chipBg: '#CCFBF1',
-    chipText: '#115E59',
+    stroke: '#eab308', // Slightly darker yellow stroke for definition
+    fill: 'rgba(254, 252, 232, 0.6)', // Pale light yellow fill
+    chipBg: '#FEF9C3',
+    chipText: '#854D0E',
   };
 }
 
@@ -183,7 +184,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
           ? 'Slow Traffic'
           : 'Stable Flow';
 
-    const h3Id = String(raw?.h3_cell ?? '—');
+    let h3Id = String(raw?.h3_cell ?? '');
+    if (!h3Id || h3Id === '—') {
+      try {
+        h3Id = latLngToCell(baseLat, baseLng, 11); // High resolution for 'three small grid' look
+      } catch {
+        h3Id = '—';
+      }
+    }
     const riskLevel: RiskLevel = resolveRiskLevel(raw?.riskLevel, riskScore, trafficStatus);
 
     return {
@@ -219,20 +227,32 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         platform: 'mobile-app',
       });
       const res = await fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1);
-      const center = toCellRisk(res?.center ?? {}, 'c0');
-      const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors.slice(0, 6) : [];
-      const neighbors = neighborsRaw.map((entry: any, idx: number) => toCellRisk(entry, `n${idx + 1}`));
-      while (neighbors.length < 6) {
-        neighbors.push({ ...center, id: `n${neighbors.length + 1}` });
-      }
-      setCellData({ current: center, neighbors });
-      setSelectedCellId((prev) => {
-        const ids = new Set(['c0', ...neighbors.map((n) => n.id)]);
-        return ids.has(prev) ? prev : 'c0';
+      
+      // Local Grid Generation for 'Admin Map' feel with precise cell size
+      const centralH3 = latLngToCell(coords.lat, coords.lng, 11);
+      const gridIds = gridDisk(centralH3, 2); // 2 rings = 19 multi-cluster cells
+      
+      const center = toCellRisk(res?.center ?? { h3_cell: centralH3 }, 'c0');
+      const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors : [];
+      
+      const gridCells: CellRisk[] = gridIds.map((hid, idx) => {
+        if (hid === centralH3) return center;
+        const existing = neighborsRaw.find((n: any) => n.h3_cell === hid);
+        return toCellRisk(existing ?? { h3_cell: hid }, `g${idx}`);
       });
+
+      setCellData({ current: center, neighbors: gridCells.filter(c => c.h3Id !== centralH3) });
+      setSelectedCellId('c0');
     } catch {
-      const fallback = toCellRisk({}, 'c0');
-      setCellData({ current: fallback, neighbors: Array.from({ length: 6 }, (_, i) => ({ ...fallback, id: `n${i + 1}` })) });
+      if (!coords) return;
+      const centralH3 = latLngToCell(coords.lat, coords.lng, 11);
+      const gridIds = gridDisk(centralH3, 2);
+      const gridCells = gridIds.map((hid, idx) => toCellRisk({ h3_cell: hid }, `f${idx}`));
+      
+      setCellData({ 
+        current: gridCells[0], 
+        neighbors: gridCells.slice(1) 
+      });
       setSelectedCellId('c0');
     } finally {
       setLoading(false);
@@ -336,10 +356,21 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                       onPress={() => setSelectedCellId(cell.id)}
                       strokeColor={tone.stroke}
                       fillColor={tone.fill}
-                      strokeWidth={active ? 3 : 1.6}
+                      strokeWidth={active ? 2.5 : 1.2}
                     />
                   );
                 })}
+
+                {coords && (
+                  <Marker
+                    coordinate={{ latitude: coords.lat, longitude: coords.lng }}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                  >
+                    <View style={styles.scooterMarkerContainer}>
+                      <ScooterMarker size={54} />
+                    </View>
+                  </Marker>
+                )}
               </MapView>
             ) : (
               <View style={styles.mapFallback}>
@@ -353,15 +384,6 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
             )}
 
             {/* Overlays */}
-            <View style={styles.liveFeedBadge}>
-              <Ionicons name="radio-outline" size={14} color="#fff" />
-              <Text style={styles.liveFeedText}>Live H3 Feed</Text>
-            </View>
-
-            <View style={styles.h3CenterBadgeBox}>
-              <Text style={styles.h3CenterText}>H3</Text>
-            </View>
-
             <View style={styles.secureGridBadge}>
               <Text style={styles.secureGridText}>{selectedCell.h3Id}</Text>
             </View>
@@ -536,39 +558,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
 
-  liveFeedBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#16A34A',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  liveFeedText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-
-  h3CenterBadgeBox: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -24 }, { translateY: -24 }],
-    width: 48,
-    height: 48,
-    backgroundColor: '#A7F3D0',
-    borderWidth: 2,
-    borderColor: '#000',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  h3CenterText: { color: '#000', fontSize: 14, fontWeight: '900' },
-
   secureGridBadge: {
     position: 'absolute',
-    bottom: 12,
+    top: 12,
     left: 12,
     backgroundColor: 'rgba(255,255,255,0.94)',
     borderWidth: 1.5,
@@ -678,5 +670,15 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 12,
     fontWeight: '600',
+  },
+  scooterMarkerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Shadow for better visibility on white map
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
   },
 });
