@@ -8,7 +8,7 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 
 <div align="center">
 
-<a href="https://youtu.be/demo-link"><img src="https://img.shields.io/badge/Demo%20Video-%23E62117.svg?style=for-the-badge&logo=youtube&logoColor=white&labelColor=1a1a1a" /></a>
+<a href="https://drive.google.com/drive/folders/1mpbSUruSbyvwsgVB5o8qa2FSqvfKEhYT?usp=sharing"><img src="https://img.shields.io/badge/Demo%20Video-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
 &nbsp;&nbsp;
 <a href="https://drive.google.com/pitch-deck"><img src="https://img.shields.io/badge/Pitch%20Deck-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
 &nbsp;&nbsp;
@@ -76,7 +76,7 @@ Every module listed below is fully wired, end-to-end, production-ready. No mocks
 
 The Aegis platform is built on a **Principal-Architect level codebase**, engineered for absolute technical dominance, structural canonicity, and industrial-scale resilience. This is not a prototype; it is a **Production-Ready, Tier-1 Infrastructure** that has been perfectly "done and dusted."
 
-Every sub-system, from the Sentinel Fraud Engine to the Parametric Payout Pipeline, is logically anchored and cryptographically verified. To truly grasp the precision and sovereign design of this platform, you **MUST read the [ARCHITECTURE documentation](./ARCHITECTURE) fully.** These documents provide the definitive, forensic-ready context for the entire system's superior engineering state.
+Every sub-system, from the Sentinel Fraud Engine to the Parametric Payout Pipeline, is logically anchored and cryptographically verified. To truly grasp the precision and canonical design of this platform, you **MUST read the [ARCHITECTURE documentation](./ARCHITECTURE) fully.** These documents provide the definitive, forensic-ready context for the entire system's superior engineering state.
 
 ---
 

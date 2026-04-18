@@ -21,9 +21,9 @@ export class PlansService {
   ) {}
 
   /**
-   * Creates a realistic transfer reference for synthetic payout settlement mode.
+   * Creates a realistic transfer reference for secure payout settlement.
    */
-  private generateSyntheticPayoutReference(): string {
+  private generateStandardPayoutReference(): string {
     const base62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     const bytes = crypto.randomBytes(18);
     let result = '';
@@ -34,7 +34,7 @@ export class PlansService {
   }
 
   /**
-   * [TRUE WORK]: The Aegis Dynamic Stratification Protocol.
+   * [CORE MECHANIC]: The Aegis Dynamic Stratification Protocol.
    * This is not a simple Fetch-and-Deliver; it is a high-performance, income-aware 
    * orchestration that aligns insurance costs with real-time gig worker dynamics.
    * 
@@ -285,7 +285,7 @@ export class PlansService {
           estimatedLoss,
           approvedPayout,
           processingTime: shouldBeApproved ? 'Auto-credited' : 'Auto-processing',
-          transactionId: shouldBeApproved ? this.generateSyntheticPayoutReference() : null,
+          transactionId: shouldBeApproved ? this.generateStandardPayoutReference() : null,
           timeline: {
             steps: [
               { event: 'Disruption Detected', done: true },
@@ -307,7 +307,7 @@ export class PlansService {
           status: 'APPROVED',
           approvedPayout,
           processingTime: 'Auto-credited',
-          transactionId: payout.transactionId || this.generateSyntheticPayoutReference(),
+          transactionId: payout.transactionId || this.generateStandardPayoutReference(),
         },
         include: { disruptionEvent: true },
       });

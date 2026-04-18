@@ -44,7 +44,7 @@ export class InternalStateController {
       source: 'h3-feature-service',
     });
 
-    // ── Phase 3: Forensic Persistence Layer ──────────────────────────────────
+    // ── Forensic Persistence Layer ──────────────────────────────────────────
     // We persist the telemetry snapshot into ZoneTelemetryLog (TimescaleDB) 
     // to enable historical cross-referencing for claim audits.
     await this.prisma.zoneTelemetryLog.create({
