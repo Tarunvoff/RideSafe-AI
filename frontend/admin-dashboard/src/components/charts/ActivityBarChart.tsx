@@ -11,9 +11,9 @@ interface ActivityBarChartProps {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#FCFBE3] border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <div className="bg-[#FCFBE3] border-4 border-black p-2 sm:p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-[220px] sm:max-w-none">
         <p className="font-heading font-black uppercase text-[10px] tracking-widest mb-1">{payload[0].payload.label}</p>
-        <p className="font-heading text-coral font-black text-2xl">{payload[0].value.toLocaleString()}</p>
+        <p className="font-heading text-coral font-black text-xl sm:text-2xl">{payload[0].value.toLocaleString()}</p>
         <p className="text-black/50 font-bold text-[9px] uppercase font-heading tracking-tighter">Validated Transaction Nodes</p>
       </div>
     );
@@ -37,7 +37,7 @@ const ActivityBarChart: React.FC<ActivityBarChartProps> = ({ data, color = "#ff6
   }
 
   return (
-    <div className="h-[240px] w-full mt-4">
+    <div className="h-[220px] sm:h-[240px] w-full mt-4">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
@@ -54,8 +54,8 @@ const ActivityBarChart: React.FC<ActivityBarChartProps> = ({ data, color = "#ff6
                 dataKey="label" 
                 axisLine={{ stroke: '#000', strokeWidth: 4 }}
                 tickLine={false}
-                tick={{ fontSize: 9, fontWeight: 900, fill: '#000', fontFamily: 'Space Grotesk' }}
-                width={80}
+                tick={{ fontSize: 8, fontWeight: 900, fill: '#000', fontFamily: 'Space Grotesk' }}
+                width={72}
               />
             </>
           ) : (
@@ -64,7 +64,7 @@ const ActivityBarChart: React.FC<ActivityBarChartProps> = ({ data, color = "#ff6
                 dataKey="label" 
                 axisLine={{ stroke: '#000', strokeWidth: 4 }}
                 tickLine={false}
-                tick={{ fontSize: 9, fontWeight: 900, fill: '#000', fontFamily: 'Space Grotesk' }}
+                tick={{ fontSize: 8, fontWeight: 900, fill: '#000', fontFamily: 'Space Grotesk' }}
                 dy={10}
               />
               <YAxis 

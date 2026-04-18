@@ -270,17 +270,17 @@ function AnalyticsPage({ data, loading }: any) {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <header className="sticky top-0 z-30 bg-[#FCFBE3] border-b-4 border-[#1B1D0E] shadow-[0px_4px_0px_0px_rgba(27,29,14,1)] -mx-10 px-10 h-24 flex items-center justify-between mb-10">
-        <div className="flex items-center gap-6">
+      <header className="sticky top-0 z-30 bg-[#FCFBE3] border-b-4 border-[#1B1D0E] shadow-[0px_4px_0px_0px_rgba(27,29,14,1)] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 min-h-20 sm:h-24 py-4 sm:py-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 sm:mb-10">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
           <button 
             onClick={() => navigate(-1)}
-            className="w-12 h-12 flex items-center justify-center border-4 border-[#1B1D0E] shadow-[4px_4px_0px_0px_rgba(27,29,14,1)] bg-white hover:bg-coral transition-colors"
+            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border-4 border-[#1B1D0E] shadow-[4px_4px_0px_0px_rgba(27,29,14,1)] bg-white hover:bg-coral transition-colors shrink-0"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={20} />
           </button>
-          <div>
-            <h1 className="text-4xl font-heading font-black italic uppercase tracking-tighter leading-none">ANALYTICS</h1>
-            <p className="text-sm font-heading font-bold uppercase opacity-70 tracking-widest">Tamil Nadu Operations</p>
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-4xl font-heading font-black italic uppercase tracking-tighter leading-none">ANALYTICS</h1>
+            <p className="text-[10px] sm:text-sm font-heading font-bold uppercase opacity-70 tracking-widest truncate">Tamil Nadu Operations</p>
           </div>
         </div>
       </header>
@@ -297,23 +297,23 @@ function AnalyticsPage({ data, loading }: any) {
           {/* SECTION: RISK POOL STATUS */}
           <section>
             <div className="border-b-4 border-[#1B1D0E] mb-8 pb-3">
-              <h2 className="text-3xl font-heading font-black italic uppercase tracking-tight">Executive Risk Overview</h2>
+              <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Executive Risk Overview</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <AnalyticsCard title="Loss Ratio" metric="Metric-A" icon="trending_up" iconColor="text-[#AE311F]">
-                <h4 className="text-6xl font-heading font-black italic">{formatPercent(dashboardData.lossRatioPercent)}</h4>
+                <h4 className="text-4xl sm:text-6xl font-heading font-black italic break-all">{formatPercent(dashboardData.lossRatioPercent)}</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase text-[#AE311F] tracking-widest">Actuarial Threshold Breached</p>
                 </div>
               </AnalyticsCard>
               <AnalyticsCard title="Premium Pool" metric="Metric-B" icon="account_balance_wallet" iconColor="text-[#006D37]">
-                <h4 className="text-6xl font-heading font-black italic">₹{Math.round(dashboardData.totalPremiumCollected/1000)}k</h4>
+                <h4 className="text-4xl sm:text-6xl font-heading font-black italic break-all">₹{Math.round(dashboardData.totalPremiumCollected/1000)}k</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase text-[#006D37] tracking-widest">+12.4% vs Last Cycle</p>
                 </div>
               </AnalyticsCard>
               <AnalyticsCard title="Approved Payout" metric="Metric-C" icon="verified" iconColor="text-coral">
-                <h4 className="text-6xl font-heading font-black italic">{formatINR(dashboardData.totalApprovedPayout)}</h4>
+                <h4 className="text-3xl sm:text-6xl font-heading font-black italic break-all">{formatINR(dashboardData.totalApprovedPayout)}</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase opacity-40 italic tracking-widest">Pending Verification: 4</p>
                 </div>
@@ -325,9 +325,9 @@ function AnalyticsPage({ data, loading }: any) {
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             <div className="lg:col-span-7 space-y-8">
               <div className="border-b-4 border-[#1B1D0E] pb-3 text-left">
-                <h2 className="text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Analytics: Risk Trend</h2>
+                <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Analytics: Risk Trend</h2>
               </div>
-              <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[420px] relative">
+              <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-4 sm:p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[360px] sm:min-h-[420px] relative">
                 <div className="flex items-center gap-3 absolute top-8 left-8 z-10">
                   <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
                   <span className="text-[10px] font-black uppercase tracking-widest italic opacity-70">Critical Variance Detected</span>
@@ -339,9 +339,9 @@ function AnalyticsPage({ data, loading }: any) {
             </div>
             <div className="lg:col-span-5 space-y-8">
               <div className="border-b-4 border-[#1B1D0E] pb-3 text-left">
-                <h2 className="text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Status Mix</h2>
+                <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Status Mix</h2>
               </div>
-              <div className="bg-white border-4 border-[#1B1D0E] p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[420px] flex items-center justify-center">
+              <div className="bg-white border-4 border-[#1B1D0E] p-4 sm:p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[360px] sm:min-h-[420px] flex items-center justify-center">
                 <MetricDonutChart data={dashboardData.fraudStatusSplit} />
               </div>
             </div>
@@ -350,16 +350,16 @@ function AnalyticsPage({ data, loading }: any) {
           {/* SECTION: OPERATIONAL DISTRIBUTION */}
           <section>
              <div className="border-b-4 border-[#1B1D0E] mb-8 pb-3">
-              <h2 className="text-3xl font-heading font-black italic uppercase tracking-tight">Platform Distribution</h2>
+              <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Platform Distribution</h2>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <div className="bg-white border-4 border-[#1B1D0E] p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
+              <div className="bg-white border-4 border-[#1B1D0E] p-4 sm:p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
                 <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Claims by Type</h4>
                 <div className="space-y-4">
                    <ActivityBarChart data={dashboardData.claimsByType} color="#ae311f" horizontal />
                 </div>
               </div>
-              <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
+              <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-4 sm:p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
                 <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Top Platforms</h4>
                 <div className="space-y-4">
                    <ActivityBarChart data={dashboardData.platformSplit} color="#ff6b53" horizontal />
@@ -417,14 +417,14 @@ function LiveOperationalDashboard({ data }: any) {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <header className="header-row mb-10">
+      <header className="header-row mb-10 gap-4">
         <div>
-          <h2 className="text-4xl">Command Overview</h2>
-          <p className="text-gray-500 font-bold uppercase text-sm tracking-widest mt-1">Real-time platform oversight & risk enforcement</p>
+          <h2 className="text-2xl sm:text-4xl">Command Overview</h2>
+          <p className="text-gray-500 font-bold uppercase text-[10px] sm:text-sm tracking-widest mt-1">Real-time platform oversight & risk enforcement</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3 sm:gap-4 w-full sm:w-auto justify-end">
           <button className="neo-btn secondary p-3"><Search size={20} /></button>
-          <button className="neo-btn flex items-center gap-2">
+          <button className="neo-btn flex items-center gap-2 justify-center sm:justify-start flex-1 sm:flex-none">
             <Zap size={18} />
             <span>Enforce Protocol</span>
           </button>
@@ -441,7 +441,7 @@ function LiveOperationalDashboard({ data }: any) {
 
       {/* FRAUD TABLE - CENTRAL PIECE OF PREVIOUS DASHBOARD */}
       <section style={{ marginTop: '3rem', marginBottom: '4rem' }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
           <button 
             onClick={() => setIsExpanded(!isExpanded)}
@@ -451,7 +451,7 @@ function LiveOperationalDashboard({ data }: any) {
           </button>
         </div>
 
-        <div className="table-container shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black min-h-[150px] relative">
+        <div className="table-container shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black min-h-[150px] relative overflow-x-auto">
           {loading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
               <div className="text-xs font-black uppercase tracking-widest animate-pulse">Syncing Database...</div>
@@ -505,7 +505,7 @@ function LiveOperationalDashboard({ data }: any) {
 
       {/* LIVE FEEDS - RESTORED SPLIT GRID */}
       <div 
-        className="grid grid-cols-1 lg:grid-cols-2 gap-12" 
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12" 
         style={{ marginTop: '4rem', paddingBottom: '3rem' }}
       >
         <div className="neo-card flex flex-col" style={{ marginBottom: '2rem' }}>
@@ -544,7 +544,7 @@ function LiveMapPage({ workerCount }: { workerCount: number }) {
     <div className="live-map-page animate-in fade-in duration-300">
       <header className="live-map-page-header">
         <div>
-          <h2 className="text-4xl">Live Risk Map</h2>
+          <h2 className="text-2xl sm:text-4xl">Live Risk Map</h2>
           <p className="text-gray-500 font-bold uppercase text-xs tracking-widest mt-1">
             Dedicated full-screen H3 risk and worker telemetry view
           </p>
@@ -605,7 +605,7 @@ function WorkersPage() {
   return (
     <div className="animate-in slide-in-from-right-4 duration-500">
       <header className="mb-8">
-        <h2 className="text-4xl font-black uppercase">Workers</h2>
+        <h2 className="text-2xl sm:text-4xl font-black uppercase">Workers</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1">Fleet Node Management</p>
       </header>
 
@@ -620,10 +620,10 @@ function WorkersPage() {
               className="neo-input pl-16 py-4 w-full text-lg" 
             />
          </div>
-         <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
                <span className="text-xs font-black uppercase text-gray-400">City:</span>
-               <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                   {cityOptions.slice(0, 4).map(c => (
                      <button 
                        key={c}
@@ -642,9 +642,9 @@ function WorkersPage() {
                   </select>
                </div>
             </div>
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 w-full lg:w-auto lg:ml-auto">
                <span className="text-xs font-black uppercase text-gray-400">Platform:</span>
-               <div className="flex gap-2">
+              <div className="flex gap-2 overflow-x-auto pb-1 w-full lg:w-auto">
                   {platformOptions.map(p => (
                      <button 
                        key={p.value}
@@ -659,7 +659,7 @@ function WorkersPage() {
          </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mt-8 mb-8">
          <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
             <p className="text-xs font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
             <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
@@ -765,22 +765,22 @@ function ClaimsPage() {
   return (
     <div className="animate-in slide-in-from-bottom-4 duration-500">
       <header className="mb-8">
-        <h2 className="text-4xl font-black uppercase">Payout Sentinel</h2>
+        <h2 className="text-2xl sm:text-4xl font-black uppercase">Payout Sentinel</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1 italic">Real-time Claims & Financial Oversight</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
          <div className="neo-card bg-white border-2 border-black p-6 hover:bg-parchment transition-colors">
             <p className="text-xs font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
-            <p className="text-6xl font-black">{claimsData?.total ?? 0}</p>
+            <p className="text-4xl sm:text-6xl font-black">{claimsData?.total ?? 0}</p>
          </div>
          <div className="neo-card bg-white border-2 border-black p-6 hover:bg-red-50 transition-colors">
             <p className="text-xs font-black uppercase text-gray-400 mb-2">Pending Review</p>
-            <p className="text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
+            <p className="text-4xl sm:text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
          </div>
          <div className="neo-card bg-night text-parchment p-6">
             <p className="text-xs font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
-            <p className="text-5xl font-black text-success">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
+            <p className="text-3xl sm:text-5xl font-black text-success break-all">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
          </div>
       </div>
 
@@ -896,9 +896,9 @@ function SetupPage() {
   ];
 
   return (
-    <div className="animate-in slide-in-from-right-4 duration-500" style={{ maxWidth: '800px' }}>
+    <div className="animate-in slide-in-from-right-4 duration-500 w-full" style={{ maxWidth: '800px' }}>
       <header className="mb-12">
-        <h2 className="text-5xl font-black uppercase tracking-tighter">Setup</h2>
+        <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Setup</h2>
       </header>
 
       {loading ? (
@@ -960,8 +960,8 @@ function SetupPage() {
       )}
 
       {selectedModule && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '90%', maxWidth: '500px', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}>
+            <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '100%', maxWidth: '500px', maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
                  <div>
                     <h3 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>{selectedModule.title}</h3>
@@ -1003,22 +1003,22 @@ function MetricCard({ label, value, marker }: any) {
          {marker && <div className={`w-1.5 h-1.5 rounded-full ${marker}`}></div>}
          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{label}</p>
       </div>
-      <p className="text-2xl font-black">{value}</p>
+      <p className="text-xl sm:text-2xl font-black break-words">{value}</p>
     </div>
   );
 }
 
 function AlertItem({ title, subtitle, time, active }: any) {
   return (
-    <div className="neo-card bg-white p-4 flex items-center justify-between group hover:border-coral transition-colors">
-       <div className="flex items-center gap-4">
+   <div className="neo-card bg-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group hover:border-coral transition-colors">
+     <div className="flex items-center gap-4 min-w-0">
           <div className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-gray-300'}`}></div>
-          <div>
-             <h4 className="text-base font-black uppercase tracking-tight">{title}</h4>
-             <p className="text-xs font-bold text-gray-400 uppercase mt-0.5">{subtitle}</p>
+       <div className="min-w-0">
+         <h4 className="text-sm sm:text-base font-black uppercase tracking-tight break-words">{title}</h4>
+         <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mt-0.5 break-words">{subtitle}</p>
           </div>
        </div>
-       <span className="text-xs font-black text-gray-400">{time}</span>
+     <span className="text-[10px] sm:text-xs font-black text-gray-400 shrink-0">{time}</span>
     </div>
   );
 }

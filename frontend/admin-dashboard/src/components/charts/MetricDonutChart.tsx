@@ -18,9 +18,9 @@ const COLORS = [
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#1B1D0E] border-4 border-white p-3 shadow-[8px_8px_0px_0px_rgba(255,107,83,1)]">
+      <div className="bg-[#1B1D0E] border-4 border-white p-2 sm:p-3 shadow-[8px_8px_0px_0px_rgba(255,107,83,1)] max-w-[220px] sm:max-w-none">
         <p className="text-white font-heading font-black uppercase text-[10px] tracking-widest mb-1">{payload[0].name}</p>
-        <p className="text-coral font-heading font-black text-3xl">{payload[0].value.toLocaleString()}</p>
+        <p className="text-coral font-heading font-black text-2xl sm:text-3xl">{payload[0].value.toLocaleString()}</p>
         <p className="text-white/40 font-bold text-[9px] uppercase font-heading tracking-widest">Active Pool Weight</p>
       </div>
     );
@@ -43,7 +43,7 @@ const MetricDonutChart: React.FC<MetricDonutChartProps> = ({ data }) => {
   }
 
   return (
-    <div className="h-[320px] w-full flex flex-col items-center">
+    <div className="h-[280px] sm:h-[320px] w-full flex flex-col items-center">
       <div className="relative w-full h-full flex items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -71,15 +71,15 @@ const MetricDonutChart: React.FC<MetricDonutChartProps> = ({ data }) => {
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-x-0 inset-y-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="font-heading font-black italic text-4xl text-black">84%</span>
+          <span className="font-heading font-black italic text-3xl sm:text-4xl text-black">84%</span>
           <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-40">Confidence</span>
         </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-2">
+      <div className="flex flex-wrap justify-center gap-x-3 sm:gap-x-6 gap-y-2 mt-2 px-2">
          {chartData.slice(0, 3).map((item, index) => (
            <div key={index} className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-black" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-              <span className="font-heading font-black text-[10px] uppercase">{item.label} ({Math.round(item.value / total * 100)}%)</span>
+              <span className="font-heading font-black text-[9px] sm:text-[10px] uppercase break-words">{item.label} ({Math.round(item.value / total * 100)}%)</span>
            </div>
          ))}
       </div>

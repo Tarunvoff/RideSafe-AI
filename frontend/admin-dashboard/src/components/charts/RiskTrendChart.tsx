@@ -10,11 +10,11 @@ interface RiskTrendChartProps {
 const CustomTooltip = ({ active, payload, variant }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className={`border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${variant === 'predictive' ? 'bg-[#FCFBE3] text-black' : 'bg-black text-white'}`}>
+      <div className={`border-4 border-black p-2 sm:p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-[230px] sm:max-w-none ${variant === 'predictive' ? 'bg-[#FCFBE3] text-black' : 'bg-black text-white'}`}>
         <p className="font-heading font-black uppercase text-[10px] tracking-widest mb-1">
           {variant === 'predictive' ? 'Temporal Node' : 'Anomaly Signal'}
         </p>
-        <p className="font-black text-2xl">{Math.round(payload[0].value)}%</p>
+        <p className="font-black text-xl sm:text-2xl">{Math.round(payload[0].value)}%</p>
         <div className="mt-2 space-y-1">
           <p className={`font-black text-[10px] uppercase ${variant === 'predictive' ? 'text-coral' : 'text-primary-container'}`}>
              {variant === 'predictive' ? 'Projected Loss' : 'Risk Velocity'}
@@ -42,7 +42,7 @@ const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ data, variant = 'trend'
 
   if (normalizedData.length === 0) {
     return (
-      <div className="h-[200px] w-full flex flex-col items-center justify-center border-4 border-dashed border-red-600 bg-red-50 p-6 text-center animate-in fade-in duration-500">
+      <div className="h-[180px] sm:h-[200px] w-full flex flex-col items-center justify-center border-4 border-dashed border-red-600 bg-red-50 p-6 text-center animate-in fade-in duration-500">
         <Shield className="text-red-600 mb-3 animate-pulse" size={40} />
         <h4 className="font-heading font-black uppercase text-red-600 tracking-tighter text-sm">INSUFFICIENT DATA: AWAITING TELEMETRY</h4>
         <p className="text-[10px] font-bold uppercase text-red-600/60 font-heading mt-2 italic max-w-[240px]">
@@ -54,7 +54,7 @@ const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ data, variant = 'trend'
 
   if (variant === 'predictive') {
     return (
-      <div className="h-[250px] w-full px-2">
+      <div className="h-[220px] sm:h-[250px] w-full px-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={normalizedData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="0 0" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -87,7 +87,7 @@ const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ data, variant = 'trend'
   }
 
   return (
-    <div className="h-[240px] w-full">
+    <div className="h-[210px] sm:h-[240px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={normalizedData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
           <CartesianGrid strokeDasharray="4 4" vertical={true} stroke="rgba(0,0,0,0.1)" />
