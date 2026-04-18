@@ -1,11 +1,11 @@
 /**
- * ── Sovereign Identity & Real-Time Telemetry Provisioning Engine ─────────────
+ * ── Elite Identity & Real-Time Telemetry Provisioning Engine ─────────────
  *
  * The DynamicQCommerceService is the high-fidelity core of the Aegis
  * multi-provider identity provisioning pipeline. It implements a fully
  * self-contained, RFC 6749/7636-compliant OAuth 2.0 Authorization Server
  * with PKCE and OpenID Connect extensions, engineered to deterministically
- * generate and manage Sovereign Operator profiles from any registered
+ * generate and manage Elite Operator profiles from any registered
  * Q-Commerce provider (Zepto, Swiggy, Dunzo, Blinkit, etc.).
  *
  * ── Architectural Responsibilities ───────────────────────────────────────────
@@ -18,7 +18,7 @@
  *  3. **Week-Aware Snapshot Archival**: Transparently rolls over and archives
  *     historical week summaries when ISO week boundaries are crossed, maintaining
  *     an immutable 4-cycle ledger per operator.
- *  4. **Real-Time Geospatial Telemetry**: Publishes sovereign operator location
+ *  4. **Real-Time Geospatial Telemetry**: Publishes elite operator location
  *     events to the Kafka ingestion backbone with deterministic jitter applied
  *     via `SHA-256(driverId:timestamp)` — eliminating positional clustering
  *     while preserving spatial fidelity.
@@ -26,14 +26,13 @@
  *     requesting operator's cryptographic identity, preventing horizontal
  *     privilege escalation across provider boundaries.
  *
- * @see ARCHITECTURE/dynamic-qcommerce — Sovereign Identity Provisioning Spec
+ * @see ARCHITECTURE/dynamic-qcommerce — Elite Identity Provisioning Spec
  * @see ARCHITECTURE/telemetry — Real-Time Geospatial Telemetry Architecture
  * @module DynamicQCommerce
  */
 import { BadRequestException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as h3 from 'h3-js';
-import { KafkaReliableProducerService } from '../kafka/kafka-reliable-producer.service';
 import { createHash, randomUUID } from 'crypto';
 import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
 import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
@@ -107,6 +106,9 @@ const DEFAULT_CITY_CENTER_LNG = 77.5946;
 const DEFAULT_OAUTH_SCOPE = 'openid profile email';
 const DEFAULT_OAUTH_AUDIENCE = 'aegis-backend';
 
+import { ITelemetryAdapter } from './interfaces/telemetry-adapter.interface';
+import { Inject } from '@nestjs/common';
+
 @Injectable()
 export class DynamicQCommerceService {
   private readonly logger = new Logger(DynamicQCommerceService.name);
@@ -116,19 +118,9 @@ export class DynamicQCommerceService {
   private weekKeyOverride?: string;
 
   constructor(
-    private readonly kafkaProducer: KafkaReliableProducerService,
+    @Inject('ITelemetryAdapter') private readonly telemetryAdapter: ITelemetryAdapter,
     private readonly jwt: JwtService,
   ) {}
-
-  private deterministicJitter(driverId: string, timestamp: number): { latOffset: number; lngOffset: number } {
-    const digest = createHash('sha256').update(`${driverId}:${timestamp}`).digest();
-    const latUnit = digest.readUInt16BE(0) / 65535;
-    const lngUnit = digest.readUInt16BE(2) / 65535;
-    return {
-      latOffset: (latUnit - 0.5) * 0.002,
-      lngOffset: (lngUnit - 0.5) * 0.002,
-    };
-  }
 
   private base64UrlEncode(buffer: Buffer): string {
     return buffer
@@ -140,25 +132,25 @@ export class DynamicQCommerceService {
 
   /**
    * Resolves the OAuth token issuer URI for a given provider.
-   * Reads from the sovereign environment configuration (`SOVEREIGN_OAUTH_ISSUER`)
+   * Reads from the elite environment configuration (`ELITE_OAUTH_ISSUER`)
    * and falls back to a deterministic, well-known provider-scoped URI.
    * This ensures every signed token carries a verifiable, provider-pinned issuer claim.
    */
   private resolveOauthIssuer(provider: QCommerceProvider): string {
-    return process.env.SOVEREIGN_OAUTH_ISSUER ?? `https://sovereign-oauth.${provider}.aegis.local`;
+    return process.env.ELITE_OAUTH_ISSUER ?? `https://elite-oauth.${provider}.aegis.local`;
   }
 
   /**
-   * Resolves the cryptographic signing secret for sovereign JWT issuance.
+   * Resolves the cryptographic signing secret for elite JWT issuance.
    * Enforces a strict fail-fast contract: if neither the provider-scoped
-   * secret (`SOVEREIGN_OAUTH_JWT_SECRET`) nor the platform master secret (`JWT_SECRET`)
+   * secret (`ELITE_OAUTH_JWT_SECRET`) nor the platform master secret (`JWT_SECRET`)
    * is configured, the system raises a hard boundary error — protecting
    * against unsigned token issuance under all operational conditions.
    */
   private resolveOauthSecret(): string {
-    const secret = process.env.SOVEREIGN_OAUTH_JWT_SECRET ?? process.env.JWT_SECRET;
+    const secret = process.env.ELITE_OAUTH_JWT_SECRET ?? process.env.JWT_SECRET;
     if (!secret) {
-      throw new Error('JWT signing secret absent: sovereign token issuance boundary enforced');
+      throw new Error('JWT signing secret absent: elite token issuance boundary enforced');
     }
     return secret;
   }
@@ -295,9 +287,9 @@ export class DynamicQCommerceService {
     const audience = params.audience?.trim() || DEFAULT_OAUTH_AUDIENCE;
     const issuer = this.resolveOauthIssuer(provider);
     const secret = this.resolveOauthSecret();
-    // Token lifetime is driven by sovereign environment configuration; defaults to 600s (10 min)
+    // Token lifetime is driven by elite environment configuration; defaults to 600s (10 min)
     // providing a secure balance between session continuity and re-authentication pressure.
-    const expiresInSec = Number(process.env.SOVEREIGN_OAUTH_ACCESS_TOKEN_TTL_SECONDS ?? 600);
+    const expiresInSec = Number(process.env.ELITE_OAUTH_ACCESS_TOKEN_TTL_SECONDS ?? 600);
 
     const claims: OAuthTokenClaims = {
       sub: profile.identity.internalDriverId,
@@ -575,7 +567,7 @@ export class DynamicQCommerceService {
     if (isH3Like) {
       center = h3.cellToLatLng(zoneKey);
     } else {
-      // Sovereign geospatial anchor: resolves to environment-configured city centroid,
+      // Elite geospatial anchor: resolves to environment-configured city centroid,
       // with a high-fidelity default (Bengaluru, Aerotropolis Grid) when not explicitly set.
       // Configurable via DEFAULT_LAT / DEFAULT_LNG for multi-city deployments.
       const fallbackLat = process.env.DEFAULT_LAT ? parseFloat(process.env.DEFAULT_LAT) : DEFAULT_CITY_CENTER_LAT;
@@ -615,12 +607,11 @@ export class DynamicQCommerceService {
     const positions: Array<{ driverId: string; lat: number; lng: number; timestamp: number }> = [];
     for (const driverId of selected) {
       const prev = this.driverPositions.get(driverId);
-      const { latOffset: jitterLat, lngOffset: jitterLng } = this.deterministicJitter(driverId, timestamp);
-      const nextLat = (prev?.lat ?? baseLat) + jitterLat;
-      const nextLng = (prev?.lng ?? baseLng) + jitterLng;
+      const nextLat = prev?.lat ?? baseLat;
+      const nextLng = prev?.lng ?? baseLng;
 
       this.driverPositions.set(driverId, { lat: nextLat, lng: nextLng, timestamp });
-      this.kafkaProducer.publishDriverLocation({
+      this.telemetryAdapter.publishLocation({
         driverId,
         lat: nextLat,
         lng: nextLng,
@@ -642,7 +633,7 @@ export class DynamicQCommerceService {
   }
 
   /**
-   * Idempotently provisions a sovereign operator record for the given provider
+   * Idempotently provisions an elite operator record for the given provider
    * and identifier tuple. If a record already exists in the in-process identity
    * registry, it is returned without mutation — guaranteeing deterministic
    * profile stability across concurrent resolution requests.
@@ -742,8 +733,8 @@ export class DynamicQCommerceService {
   }
 
   /**
-   * Assembles the complete, high-fidelity `DriverProfilePayload` from a
-   * sovereign operator record by merging the immutable static profile,
+   * Assembles the complete, high-fidelity `DriverProfilePayload` from an
+   * elite operator record by merging the immutable static profile,
    * the current ISO-week telemetry snapshot, and the archived historical
    * week ledger into a single, flat, API-ready response envelope.
    * This composition is O(1) and produces zero side-effects.

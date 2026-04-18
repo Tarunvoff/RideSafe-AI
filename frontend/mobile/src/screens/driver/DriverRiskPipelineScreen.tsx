@@ -57,7 +57,7 @@ function toHexCell(raw: any, id: string): HexRiskCell {
   return {
     id,
     h3Id: String(raw?.h3_cell ?? '—'),
-    rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
+    rainPct: Number(raw?.rainfall ?? raw?.rainfall_mm ?? raw?.rain_pct ?? 0),
     aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
     floodChance: raw?.floodChance === 'High' ? 'High' : raw?.floodChance === 'Medium' ? 'Medium' : 'Low',
     disruptionScore: Number((raw?.disruptionScore ?? 0).toFixed?.(2) ?? 0),

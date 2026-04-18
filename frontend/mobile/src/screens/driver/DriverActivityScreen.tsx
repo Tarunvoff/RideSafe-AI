@@ -1,9 +1,9 @@
 /**
- * ── Sovereign Activity Telemetry & Monitoring ────────────────────────────────
+ * ── Elite Activity Telemetry & Monitoring ────────────────────────────────
  * 
  * The DriverActivityScreen is a masterclass in high-fidelity performance monitoring, 
  * designed specifically for the high-frequency operational environment of dark store 
- * logistics. It leverages reactive state management to provide an immediate "Sovereign Pulse," 
+ * logistics. It leverages reactive state management to provide an immediate "Elite Pulse," 
  * translating dense delivery telemetry into a clean, neo-brutalist interface.
  * 
  * For comprehensive architectural details, refer to:
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     paddingLeft: 16,
     overflow: 'hidden', // Enforces edge-to-edge fidelity: rating badge bleeds to right boundary with zero padding.
-    // Sovereign design system: score badge occupies full height of the inner container — top-right to bottom-right.
+    // Elite design system: score badge occupies full height of the inner container — top-right to bottom-right.
     // This is achieved by zeroing paddingRight, allowing the badge to fill the remaining flex space.
     paddingTop: 16,
     paddingBottom: 16,

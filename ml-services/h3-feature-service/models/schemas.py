@@ -27,7 +27,7 @@ class FeatureResponse(BaseModel):
     pm25: float               # µg/m³
     pm10: float               # µg/m³
 
-    # Platform Activity (sourced from Sovereign DynamicQCommerce real-time telemetry pipeline)
+    # Platform Activity (sourced from Elite DynamicQCommerce real-time telemetry pipeline)
     active_orders: int
     active_riders: int
     demand_ratio: float       # orders / riders

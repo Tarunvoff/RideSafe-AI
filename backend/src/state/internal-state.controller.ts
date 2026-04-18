@@ -24,7 +24,7 @@ export class InternalStateController {
       computed_at?: string;
     },
   ) {
-    const secret = process.env.INTERNAL_AUTH_KEY || 'aegis_telemetry_sovereign_2026';
+    const secret = process.env.INTERNAL_AUTH_KEY || 'aegis_telemetry_elite_2026';
     if (internalKey !== secret) {
       throw new UnauthorizedException('Invalid Internal Auth Key');
     }

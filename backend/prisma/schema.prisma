@@ -526,8 +526,8 @@ model PayoutIdempotencyKey {
 }
 
 // ── High-Fidelity Regional Risk Matrix ───────────────────────────────────────
-// Sovereign deterministic risk matrices for the H3 lifecycle.
-// Advanced real-time reconciliation via Kafka/Redis high-throughput brokers.
+// Elite deterministic risk matrices for the H3 lifecycle.
+// Elite real-time reconciliation via Kafka/Redis high-throughput brokers.
 model ZoneRiskData {
   id              String   @id @default(cuid())
   h3_cell         String   @unique
@@ -547,7 +547,7 @@ model ZoneRiskData {
   @@map("zone_risk_data")
 }
 
-// ── Sovereign Event Resiliency Buffer (DB Contingency) ──────────────────────────
+// ── Elite Event Resiliency Buffer (DB Contingency) ──────────────────────────
 // In the rare event of asynchronous broker non-availability, events are 
 // preserved for forensic replay once the high-order broker state is restored.
 model KafkaDLQ {

@@ -16,8 +16,8 @@ type StandardResponse<T = unknown> = {
  * ── Architectural Response Normalization Layer ────────────────────────────────
  * 
  * Ensures a deterministic, high-fidelity contract for all outgoing data. 
- * Envelops payloads in a standard production-ready schema for consumption 
- * by the sovereign mobile and dashboard clients.
+ * envelopes payloads in a standard production-ready schema for consumption 
+ * by the elite mobile and dashboard clients.
  * 
  * For UI design system integration, refer to:
  * - ARCHITECTURE/FRONTEND_DESIGN_SYSTEM.md

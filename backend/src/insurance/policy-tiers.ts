@@ -1,7 +1,7 @@
 export const PLAN_CT = {
   BASIC: 0.4,
   STANDARD: 0.6,
-  PREMIUM: 0.8,
+  ELITE: 0.8,
 } as const;
 
 export type PlanTier = keyof typeof PLAN_CT;

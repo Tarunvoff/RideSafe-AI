@@ -31,6 +31,8 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
             state,
             lf_score: Number.isFinite(lfScore) ? lfScore : 0,
             active_riders: Number(payload?.active_riders ?? 0),
+            rainfall_mm: Number(payload?.rainfall_mm ?? 0),
+            aqi: Number(payload?.aqi ?? 0),
             timestamp: payload?.timestamp ?? payload?.updated_at ?? new Date().toISOString(),
             source: payload?.source ?? 'unknown',
         };

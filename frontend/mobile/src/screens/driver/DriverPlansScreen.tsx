@@ -29,7 +29,7 @@ import { Theme } from '../../theme';
 
 const BRAND_BG = Theme.colors.brandOrange;
 const CARD_BG = '#f0ecce';
-/** ── Sovereign Design System Primary Green ────────────────────────────────── */
+/** ── Elite Design System Primary Green ────────────────────────────────── */
 const GREEN_ACCENT = '#1b8b48'; 
 const BORDER_DARK = '#000000';
 

@@ -15,6 +15,7 @@ H3_RESOLUTION = 8
 # ── Open-Meteo (weather, no API key required) ─────────────────────────────────
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 WEATHER_TIMEOUT_SEC = 8.0
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 
 # ── OpenAQ v3 (AQI — with API key, from existing ml_microservice) ─────────────
 OPENAQ_API_KEY     = os.getenv("OPENAQ_API_KEY", "")
@@ -37,7 +38,7 @@ PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:3001/api/plat
 PLATFORM_TIMEOUT_SEC = float(os.getenv("PLATFORM_TIMEOUT_SECONDS", "6.0"))
 BACKEND_INTERNAL_URL = os.getenv("BACKEND_INTERNAL_URL", "http://127.0.0.1:3001/internal/zone-state")
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://127.0.0.1:8000")
-INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "aegis_telemetry_sovereign_2026")
+INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "aegis_telemetry_elite_2026")
 
 # ── Strict realtime mode (no fallbacks) ──────────────────────────────────────
 STRICT_REALTIME = os.getenv("STRICT_REALTIME", "false").lower() == "true"

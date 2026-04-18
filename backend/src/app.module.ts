@@ -20,6 +20,7 @@ import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CanonicalModule } from './canonical/canonical.module';
 import { StateModule } from './state/state.module';
+import { RiskMonitorModule } from './risk-monitor/risk-monitor.module';
 import { TokenRevocationMiddleware } from './auth/token-revocation.middleware';
 import { BullModule } from '@nestjs/bullmq';
 
@@ -46,6 +47,7 @@ import { BullModule } from '@nestjs/bullmq';
     NotificationsModule,
     CanonicalModule,
     StateModule,
+    RiskMonitorModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',

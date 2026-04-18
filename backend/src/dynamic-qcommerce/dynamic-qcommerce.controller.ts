@@ -10,15 +10,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/jwt-auth.guard';
 
 /**
- * ── Sovereign Identity Provisioning — REST Gateway ──────────────────────
+ * ── Elite Identity Provisioning — REST Gateway ──────────────────────
  *
  * The DynamicQCommerceController exposes the production-grade, RFC 6749-compliant
- * OAuth 2.0 authorization endpoints and the Sovereign Operator profile retrieval
+ * OAuth 2.0 authorization endpoints and the Elite Operator profile retrieval
  * pipeline. Every route is cryptographically guarded by JWT bearer authentication
  * and role-scoped access policies, ensuring zero-trust enforcement at the API
  * perimeter for both driver-facing and administrator operations.
  *
- * @see ARCHITECTURE/dynamic-qcommerce — Sovereign Identity Provisioning Spec
+ * @see ARCHITECTURE/dynamic-qcommerce — Elite Identity Provisioning Spec
  */
 @Controller('dynamic-qcommerce')
 export class DynamicQCommerceController {
@@ -38,7 +38,7 @@ export class DynamicQCommerceController {
     // embedded in the request path is bound to the authenticating principal's
     // verified email claim. This enforces strict operator-to-identity binding,
     // deterministically preventing horizontal privilege escalation across the
-    // sovereign operator registry.
+    // elite operator registry.
     if (driverId.startsWith('drv_')) {
       const decoded = decodeInternalDriverId(driverId);
       if (decoded && req.user?.email && decoded.identifier === req.user.email) {

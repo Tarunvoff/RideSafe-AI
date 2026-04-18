@@ -9,7 +9,7 @@ Every gig worker in the Aegis ecosystem has a unique, deterministic financial pr
 - **Realistic Banding**: Income values are derived from actual market benchmarks (NITI Aayog & Fairwork India Ratings 2023), ensuring they are neither zero nor unrealistically high. Typical bands range from ₹3,500 to ₹15,000 per week.
 
 ## 2. Income-Aware Plan Stratification
-The **Plans Service** analyzes the active earnings profile to suggest a triplet of coverage options (Basic, Standard, Advanced).
+The **Plans Service** analyzes the active earnings profile to suggest a triplet of coverage options (Basic, Standard, Elite).
 - **Affordability Guardians**: The system applies three distinct pricing "floors" based on the worker's earnings band:
     - **Low Earnings ($< ₹5,000$)**: Plans are throttled down (e.g., ₹23.XX) to minimize economic strain.
     - **High Earnings ($> ₹10,000$)**: Plans scale up (e.g., ₹29.XX - ₹49.XX) to offer higher coverage tiers as per the worker's increased capacity.

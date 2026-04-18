@@ -80,7 +80,7 @@ export class PlansService {
         // Range: [27.00 - 39.00]
         const floor = earningsValue > 10000 ? 38.01 : (earningsValue < 5000 ? 27.00 : 32.00);
         dynamicPrice = floor + decimalPart;
-      } else if (plan.key === 'ADVANCED' || plan.key === 'PREMIUM') {
+      } else if (plan.key === 'ELITE') {
         // Range: [38.00 - 49.00]
         const floor = earningsValue > 10000 ? 48.01 : (earningsValue < 5000 ? 38.00 : 43.00);
         dynamicPrice = floor + decimalPart;

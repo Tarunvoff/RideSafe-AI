@@ -33,7 +33,7 @@ const PAYOUT_RETRY_BATCH_SIZE = Number(process.env.PAYOUT_RETRY_BATCH_SIZE ?? 25
  */
 @Injectable()
 export class PayoutService {
-  private readonly logger = new Logger('SovereignSettlement');
+  private readonly logger = new Logger('EliteSettlement');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -188,7 +188,7 @@ export class PayoutService {
     // event within a 1-hour window to maintain strict event-scoped idempotency.
     let disruption = await this.prisma.disruptionEvent.findFirst({
       where: {
-        type: params.disruptionType ?? 'SOVEREIGN_PARAMETRIC_TRIGGER',
+        type: params.disruptionType ?? 'ELITE_PARAMETRIC_TRIGGER',
         occurredAt: { gte: new Date(Date.now() - 3600 * 1000) },
       },
       orderBy: { occurredAt: 'desc' },
@@ -197,8 +197,8 @@ export class PayoutService {
     if (!disruption) {
       disruption = await this.prisma.disruptionEvent.create({
         data: {
-          type: params.disruptionType ?? 'SOVEREIGN_PARAMETRIC_TRIGGER',
-          title: 'Sovereign Parametric Settlement Event',
+          type: params.disruptionType ?? 'ELITE_PARAMETRIC_TRIGGER',
+          title: 'Elite Parametric Settlement Event',
           expectedLoss: params.payoutAmount ?? 0,
           expectedPayout: params.payoutAmount ?? 0,
           occurredAt: now,

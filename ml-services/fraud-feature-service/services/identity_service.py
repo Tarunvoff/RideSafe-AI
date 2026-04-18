@@ -1,5 +1,5 @@
 """
-services/identity_service.py — Sovereign Identity Feature Computation.
+services/identity_service.py — Elite Identity Feature Computation.
 
 Computes:
   • account_age_days        — days since first recorded principal event

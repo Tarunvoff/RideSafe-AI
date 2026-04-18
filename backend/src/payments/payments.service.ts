@@ -240,14 +240,14 @@ export class PaymentsService {
    */
   private createRazorpayTestPayout(referenceId: string) {
     const token = this.generateSyntheticPayoutReference().replace('pout_', '');
-    // Sovereign Mock enhancement: realistic UPI-specific mock headers or better simulation
+    // Elite Mock enhancement: realistic UPI-specific mock headers or better simulation
     return {
       id: `pout_test_${token}`,
       status: 'processed',
       reference_id: `rpy_test_ref_${referenceId}`,
       mode: 'UPI',
       purpose: 'payout',
-      narration: 'Aegis Sovereign Settlement',
+      narration: 'Aegis Elite Settlement',
     };
   }
   /**

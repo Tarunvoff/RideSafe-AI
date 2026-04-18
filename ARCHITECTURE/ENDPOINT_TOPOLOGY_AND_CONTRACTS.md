@@ -67,7 +67,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 11. **POST** `/auth/admin/login`
 - **Service Domain**: NestJS Core / Auth / Admin
 - **Production Purpose**: Grants access to the privileged administrative dashboard.
-- **Enterprise Rationale**: Gated by advanced MFA to protect high-privilege system controls.
+- **Enterprise Rationale**: Gated by elite MFA to protect high-privilege system controls.
 
 12. **POST** `/auth/admin/verify-otp`
 - **Service Domain**: NestJS Core / Auth / Admin

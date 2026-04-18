@@ -135,7 +135,7 @@ export class PremiumService {
     const { invoice, amountRupees, correlationId, attemptNumber } = params;
     const gatewayUrl = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_URL;
     const gatewayToken = process.env.RECURRING_BILLING_DEBIT_WEBHOOK_TOKEN;
-    const allowStagedProvisioning = (process.env.SOVEREIGN_RECURRING_BILLING_ALLOW_STAGED ?? 'true').toLowerCase() === 'true';
+    const allowStagedProvisioning = (process.env.ELITE_RECURRING_BILLING_ALLOW_STAGED ?? 'true').toLowerCase() === 'true';
 
     if (gatewayUrl) {
       if (!invoice.mandate?.providerMandateId) {

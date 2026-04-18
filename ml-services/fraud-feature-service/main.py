@@ -30,19 +30,19 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Orchestrating Sovereign Behavioral State Initialization on startup."""
+    """Orchestrating Elite Behavioral State Initialization on startup."""
     logger.info("Adversarial Feature Provisioner initialized - Provisioning behavior state")
     init_baseline_behavior_store()
     yield
-    logger.info("Adversarial Feature Provisioner - Sovereign shutdown initiated.")
+    logger.info("Adversarial Feature Provisioner - Elite shutdown initiated.")
 
 
 app = FastAPI(
     title="Aegis Adversarial Feature Provisioner",
     description=(
         "Computes structured high-fidelity identity, location, and behavioral "
-        "telemetry vectors for every incoming sovereign insurance event. "
-        "Output is passed directly to the Sovereign Risk Core for high-order "
+        "telemetry vectors for every incoming elite insurance event. "
+        "Output is passed directly to the Elite Risk Core for high-order "
         "resolution. Sits at the telemetry ingress boundary of the pipeline."
     ),
     version="1.1.0",

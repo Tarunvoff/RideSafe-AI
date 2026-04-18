@@ -14,11 +14,13 @@ Falls back to IMD defaults on failure (same as original).
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 import httpx
 from config import (
     OPEN_METEO_URL,
     WEATHER_TIMEOUT_SEC,
+    OPEN_WEATHER_API_KEY,
     DEFAULT_RAINFALL,
     DEFAULT_TEMPERATURE,
     DEFAULT_HUMIDITY,
@@ -26,18 +28,45 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
+OPEN_WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 
-async def fetch_weather(lat: float, lng: float) -> dict:
-    """
-    Returns {
-        "rainfall": float,     # mm — last full hour or current interval
-        "temperature": float,  # °C
-        "humidity": float,     # %
-        "is_fallback": bool,
-        "source": str,
+async def fetch_weather_from_openweather(lat: float, lng: float) -> dict | None:
+    if not OPEN_WEATHER_API_KEY:
+        return None
+        
+    params = {
+        "lat": lat,
+        "lon": lng,
+        "appid": OPEN_WEATHER_API_KEY,
+        "units": "metric"
     }
-    Falls back to safe defaults on any error and marks fallback explicitly.
-    """
+    
+    try:
+        async with httpx.AsyncClient(timeout=WEATHER_TIMEOUT_SEC) as client:
+            resp = await client.get(OPEN_WEATHER_URL, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            
+            # OpenWeatherMap current weather mapping
+            temperature = data.get("main", {}).get("temp", DEFAULT_TEMPERATURE)
+            humidity = data.get("main", {}).get("humidity", DEFAULT_HUMIDITY)
+            
+            # Rainfall is optional in OWM response (rain.1h or rain.3h)
+            rainfall = data.get("rain", {}).get("1h", 0.0)
+            
+            logger.info(f"OpenWeatherMap → temp={temperature}°C humidity={humidity}% rainfall={rainfall}mm")
+            return {
+                "rainfall": round(float(rainfall), 2),
+                "temperature": round(float(temperature), 2),
+                "humidity": round(float(humidity), 2),
+                "is_fallback": False,
+                "source": "open-weather-map",
+            }
+    except Exception as exc:
+        logger.warning(f"OpenWeatherMap failed for ({lat},{lng}): {exc}")
+        return None
+
+async def fetch_weather_from_openmeteo(lat: float, lng: float) -> dict | None:
     params = {
         "latitude": lat,
         "longitude": lng,
@@ -85,13 +114,33 @@ async def fetch_weather(lat: float, lng: float) -> dict:
             "is_fallback": False,
             "source": "open-meteo",
         }
-
     except Exception as exc:
-        logger.warning(f"Open-Meteo failed for ({lat},{lng}): {exc}. Using IMD fallback.")
-        return {
-            "rainfall": DEFAULT_RAINFALL,
-            "temperature": DEFAULT_TEMPERATURE,
-            "humidity": DEFAULT_HUMIDITY,
-            "is_fallback": True,
-            "source": "default",
-        }
+        logger.warning(f"Open-Meteo failed for ({lat},{lng}): {exc}")
+        return None
+
+async def fetch_weather(lat: float, lng: float) -> dict:
+    """
+    Returns weather data with a prioritized hierarchy:
+    1. OpenWeatherMap (requires API key)
+    2. Open-Meteo (Fallback source)
+    3. Safe Defaults (Absolute Fallback)
+    """
+    # 1. Try OpenWeatherMap
+    result = await fetch_weather_from_openweather(lat, lng)
+    if result:
+        return result
+        
+    # 2. Try Open-Meteo
+    result = await fetch_weather_from_openmeteo(lat, lng)
+    if result:
+        return result
+
+    # 3. Safe Defaults
+    logger.error(f"All weather providers failed for ({lat},{lng}). Using absolute defaults.")
+    return {
+        "rainfall": DEFAULT_RAINFALL,
+        "temperature": DEFAULT_TEMPERATURE,
+        "humidity": DEFAULT_HUMIDITY,
+        "is_fallback": True,
+        "source": "default-system-fallback",
+    }

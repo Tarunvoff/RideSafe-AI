@@ -8,8 +8,8 @@ import { RedisStateService } from '../state/redis-state.service';
  * 
  * This service orchestrates the high-fidelity integration between the Aegis 
  * relational core and the peripheral ML-driven adversarial risk models. 
- * It ensures that every driver interaction is audited for risk with 
- * microsecond precision, enabling real-time sovereign fraud mitigation.
+ * it ensures that every driver interaction is audited for risk with 
+ * microsecond precision, enabling real-time elite fraud mitigation.
  * 
  * For ML model architecture and feature engineering details, refer to:
  * - ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md

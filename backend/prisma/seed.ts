@@ -4,11 +4,11 @@ import * as h3 from 'h3-js';
 import 'dotenv/config';
 
 /**
- * ── Sovereign Grid Initialization & Synthetic State Provisioning ──────────────
+ * ── Elite Grid Initialization & Synthetic State Provisioning ──────────────
  * 
  * This module orchestrates the deterministic initialization of the Aegis 
  * persistence layer. It establishes the high-fidelity baseline for administrative 
- * sovereignty, actuarial plans, and regional disruption events.
+ * elite privileges, actuarial plans, and regional disruption events.
  * 
  * For comprehensive architectural details, refer to:
  * - ARCHITECTURE/DATA_SCHEMA_AND_STATE.md
@@ -110,8 +110,8 @@ async function main() {
       eligibleDisruptionTypes: ['RAIN', 'AQI'],
     },
     {
-      key: 'PREMIUM',
-      name: 'Premium Protection',
+      key: 'ELITE',
+      name: 'Elite Protection',
       price: 129,
       maxPayout: 6500,
       durationDays: 7,
@@ -205,7 +205,7 @@ async function main() {
     console.log(`✅ Disruption Event: ${created.title}`);
   }
 
-  // 3. Provision Sovereign Analytic Identity (Deterministic Validation Principal)
+  // 3. Provision Elite Analytic Identity (Deterministic Validation Principal)
   const testEmail = 'zepto@oauth.com';
   const testPassword = 'high-fidelity-validation-credential';
   const passwordHash = await bcrypt.hash(testPassword, 10);

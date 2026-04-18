@@ -9,7 +9,7 @@ import {
 import { Response } from 'express';
 
 /**
- * ── Sovereign Forensic Sanitization Perimeter ────────────────────────────────
+ * ── Elite Forensic Sanitization Perimeter ────────────────────────────────
  * 
  * This global exception filter acts as the platform's high-fidelity security 
  * boundary. It intercepts anomalies and transforms them into cryptographically 
@@ -20,7 +20,7 @@ import { Response } from 'express';
  */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger('SovereignPerimeter');
+  private readonly logger = new Logger('ElitePerimeter');
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();

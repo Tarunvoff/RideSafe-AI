@@ -19,7 +19,7 @@ const PREMIUM_MARGIN = 0.1;
 const PREMIUM_RATE = 0.015;
 
 /**
- * ── Sovereign Actuarial Resolution & Orchestration ────────────────────────────
+ * ── Elite Actuarial Resolution & Orchestration ────────────────────────────
  * 
  * The InsuranceService implements the high-fidelity P-012 parametric 
  * calculation engine. It orchestrates real-time risk stratification and 
@@ -31,7 +31,7 @@ const PREMIUM_RATE = 0.015;
  */
 @Injectable()
 export class InsuranceService {
-  private readonly logger = new Logger('SovereignActuarial');
+  private readonly logger = new Logger('EliteActuarial');
 
   constructor(
     private readonly prisma: PrismaService,

@@ -102,53 +102,68 @@ export class FraudController {
 
     const entries = await Promise.all(
       allCells.map(async (cell) => {
-        // Try to fetch from database (seeded data)
+        // 1. Try Live Zone Monitoring (Consolidated Redis/Kafka/API state)
+        try {
+          const liveData: any = await this.zoneMonitoringService.getZoneState(cell);
+          if (liveData && liveData.state !== 'UNKNOWN' && liveData.source !== 'unknown') {
+            // Apply slight time-based jitter to risk score for dynamic UI feel
+            const cellSeed = cell.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const jitter = ((cellSeed + timeHash) % 10) - 5; // ±5 jitter
+            const riskScore = Math.max(0, Math.min(100, (liveData.lf_score * 100) + jitter));
+
+            return {
+              h3_cell: cell,
+              riskScore,
+              riskLevel: liveData.state,
+              rainfall: liveData.rainfall_mm ?? 0,
+              temperature: 28, // Default if not in live payload
+              aqi: liveData.aqi ?? 50,
+              floodChance: riskScore > 70 ? 'High' : (riskScore > 40 ? 'Medium' : 'Low'),
+              disruptionScore: Number((liveData.lf_score * 0.8).toFixed(2)),
+              trafficStatus: liveData.state === 'HALTED' ? 'Halt' : 'Stable Flow',
+              activeRiders: liveData.active_riders ?? 0,
+              source: 'live',
+            };
+          }
+        } catch (e) {
+          // Fallback to DB
+        }
+
+        // 2. Try Database Persistence (Seeded/Historical Data)
         const dbData = await this.prisma.zoneRiskData.findUnique({
           where: { h3_cell: cell },
         });
 
         if (dbData) {
-          // Apply time-based variance: riskScore varies ±15% every minute
-          const cellSeed = cell
-            .split('')
-            .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-          const variance = ((cellSeed + timeHash) % 30) - 15; // ±15% variance
-          const variedRiskScore = Math.max(
-            0,
-            Math.min(100, dbData.riskScore + variance),
-          );
+          const cellSeed = cell.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const variance = ((cellSeed + timeHash) % 30) - 15;
+          const variedRiskScore = Math.max(0, Math.min(100, dbData.riskScore + variance));
           
-          // Recalculate riskLevel based on varied riskScore
           let variedRiskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
           if (variedRiskScore > 69) variedRiskLevel = 'HIGH';
           else if (variedRiskScore > 39) variedRiskLevel = 'MEDIUM';
           else variedRiskLevel = 'LOW';
 
-          // Vary other metrics slightly too
-          const rainfallVariance = ((cellSeed + timeHash + 10) % 20) - 10;
-          const variedRainfall = Math.max(0, dbData.rainfall + rainfallVariance * 0.1);
-          
-          const aqiVariance = ((cellSeed + timeHash + 20) % 40) - 20;
-          const variedAqi = Math.max(0, Math.min(500, dbData.aqi + aqiVariance));
-
           return {
             h3_cell: cell,
             riskScore: variedRiskScore,
             riskLevel: variedRiskLevel,
-            rainfall: variedRainfall,
+            rainfall: dbData.rainfall,
             temperature: dbData.temperature,
-            aqi: variedAqi,
+            aqi: dbData.aqi,
             floodChance: dbData.floodChance,
             disruptionScore: dbData.disruptionScore,
             trafficStatus: dbData.trafficStatus,
             activeRiders: dbData.activeRiders,
+            source: 'seeded',
           };
         }
 
-        // If DB has no data, return defaults (never crash)
+        // 3. Absolute Fallback
         return {
           h3_cell: cell,
           ...DEFAULT_RISK,
+          source: 'default',
         };
       }),
     );
@@ -158,8 +173,6 @@ export class FraudController {
       ...DEFAULT_RISK,
     };
     const neighbors = entries.filter((e) => e.h3_cell !== centerCell);
-
-    console.log(`[ZoneNeighbors] Returned ${entries.length} cells for (${lat}, ${lng})`);
 
     return { center, neighbors };
   }

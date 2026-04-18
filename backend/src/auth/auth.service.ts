@@ -39,10 +39,7 @@ function hashOTP(otp: string): string {
 function otpExpiresAt(): Date {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 min
 }
-
 /**
- * ── Cryptographically Verified Identity Pipeline ────────────────────────────────
- * 
  * The AuthService manages the high-fidelity identity lifecycle within the Aegis 
  * platform. It operates a "SaaS-Level Fidelity" token-rotation strategy, 
  * ensuring that driver and admin sessions are cryptographically bound and 
@@ -144,8 +141,9 @@ export class AuthService {
     });
 
     const tokens = await this.generateTokens(user);
+
     return {
-      message: 'Sovereign identity verified successfully.',
+      message: 'Elite identity verified successfully.',
       ...tokens,
       role: user.role,
       userId: user.id,
@@ -249,7 +247,7 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user) {
-      /** Implementing sovereign zero-information disclosure for principal shadows */
+      /** Implementing elite zero-information disclosure for principal shadows */
       return { message: 'If this principal is registered, an OTP sequence will be initialized.' };
     }
 
@@ -507,7 +505,7 @@ export class AuthService {
     };
   }
 
-  // ── PROVISION ADMINISTRATIVE SOVEREIGNTY ────────────────────────────────────
+  // ── PROVISION ADMINISTRATIVE ELITE PRIVILEGES ────────────────────────────────────
   async seedAdmin() {
     const adminCreds = this.getAdminEnvCreds();
     const adminUser = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);

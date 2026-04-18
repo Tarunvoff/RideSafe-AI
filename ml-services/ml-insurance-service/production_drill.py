@@ -67,11 +67,11 @@ def run_drill():
     # --- STAGE 3: The 'Compliance Hammer' Drill (Fraud) ---
     print("\nSTAGE 3: Compliance Hammer Drill...")
     with patch('psycopg2.connect') as PrincipalDataAccess, \
-         patch('services.enforcement_service.Client') as SovereignEnforcementGateway:
+         patch('services.enforcement_service.Client') as EliteEnforcementGateway:
         
         from services.enforcement_service import AegisEnforcementEngine
         
-        # Sovereign Identity Provisioning
+        # Elite Identity Provisioning
         PersistentConnection = MagicMock()
         PrincipalStatement = MagicMock()
         PrincipalDataAccess.return_value = PersistentConnection
@@ -92,10 +92,10 @@ def run_drill():
         db_updated = any("UPDATE users" in sql and "fraudWarningCount" in sql for sql in db_executes)
         
         # Verify Gateway construction
-        twilio_sent = SovereignEnforcementGateway.return_value.messages.create.called
+        twilio_sent = EliteEnforcementGateway.return_value.messages.create.called
         msg_correct = False
         if twilio_sent:
-            msg_body = SovereignEnforcementGateway.return_value.messages.create.call_args[1]['body']
+            msg_body = EliteEnforcementGateway.return_value.messages.create.call_args[1]['body']
             msg_correct = "Aegis Compliance" in msg_body
             
         if db_updated and msg_correct:
@@ -116,18 +116,18 @@ def run_drill():
     )
     
     with patch('utils.model_loader.model_loader.fraud_anomaly_model') as AdversarialAnomalyEngine, \
-         patch('utils.model_loader.model_loader.fraud_classifier_model') as SovereignClassifier:
+         patch('utils.model_loader.model_loader.fraud_classifier_model') as EliteClassifier:
         
-        # Sovereign Inference: IsolationForest returns float-style anomaly score
+        # Elite Inference: IsolationForest returns float-style anomaly score
         AdversarialAnomalyEngine.decision_function.return_value = [0.05]
         
-        # Sovereign Inference: GBDT predict_proba returns [P(safe), P(fraud)]
-        SovereignClassifier.predict_proba.return_value = [[0.9, 0.1]]
+        # Elite Inference: GBDT predict_proba returns [P(safe), P(fraud)]
+        EliteClassifier.predict_proba.return_value = [[0.9, 0.1]]
         
         calculate_fraud_score(req)
         
-        if SovereignClassifier.predict_proba.called:
-            features = SovereignClassifier.predict_proba.call_args[0][0]
+        if EliteClassifier.predict_proba.called:
+            features = EliteClassifier.predict_proba.call_args[0][0]
             count = features.shape[1]
             if count == 11:
                 print_status(4, True, f"Feature signature verified: (1, {count})")
