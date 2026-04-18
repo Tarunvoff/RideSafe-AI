@@ -10,14 +10,10 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 
 <a href="https://drive.google.com/file/d/11g399MUsoGhM2fZvXDPMr2SidsYlqvOK/view?usp=sharing"><img src="https://img.shields.io/badge/Demo%20Video-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
 &nbsp;&nbsp;
-<a href="https://drive.google.com/pitch-deck"><img src="https://img.shields.io/badge/Pitch%20Deck-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
+<a href="https://canva.link/buwp6vr4rcjdbo5"><img src="https://img.shields.io/badge/Pitch%20Deck-%2300C4CC.svg?style=for-the-badge&logo=canva&logoColor=white&labelColor=1a1a1a" /></a>
 &nbsp;&nbsp;
 <a href="https://aegis-alpha-ebon.vercel.app">
   <img src="https://img.shields.io/badge/Live%20Dashboard-%23000000.svg?style=for-the-badge&logo=vercel&logoColor=white&labelColor=111111" />
-</a>
-&nbsp;&nbsp;
-<a href="https://www.figma.com/board/LS4Gyn0BSu8m8GOSSmJQVv/Untitled?node-id=0-1&p=f&t=fY1uvzAt4x7J9VnT-0">
-  <img src="https://img.shields.io/badge/Figma%20File-%23F24E1E.svg?style=for-the-badge&logo=figma&logoColor=white&labelColor=1a1a1a" />
 </a>
 
 </div>
