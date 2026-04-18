@@ -97,10 +97,10 @@ function riskPalette(level: RiskLevel) {
     };
   }
   return {
-    stroke: '#eab308', // Slightly darker yellow stroke for definition
-    fill: 'rgba(254, 252, 232, 0.6)', // Pale light yellow fill
-    chipBg: '#FEF9C3',
-    chipText: '#854D0E',
+    stroke: '#22d3ee', // Cyan blue for LOW risk
+    fill: 'rgba(207, 250, 254, 0.35)', // Pale cyan fill
+    chipBg: '#CCFBF1',
+    chipText: '#115E59',
   };
 }
 
@@ -187,7 +187,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     let h3Id = String(raw?.h3_cell ?? '');
     if (!h3Id || h3Id === '—') {
       try {
-        h3Id = latLngToCell(baseLat, baseLng, 11); // High resolution for 'three small grid' look
+        h3Id = latLngToCell(baseLat, baseLng, 8); // Resolution 8 for ~500m cells
       } catch {
         h3Id = '—';
       }
@@ -228,9 +228,17 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       });
       const res = await fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1);
       
-      // Local Grid Generation for 'Admin Map' feel with precise cell size
-      const centralH3 = latLngToCell(coords.lat, coords.lng, 11);
-      const gridIds = gridDisk(centralH3, 2); // 2 rings = 19 multi-cluster cells
+      // Local Grid Generation for 'Admin Map' feel with 500m resolution cells
+      const centralH3 = latLngToCell(coords.lat, coords.lng, 8);
+      const fullDisk = gridDisk(centralH3, 4); // Larger radius for more 'island' variety
+      
+      // High-sparsity filter for 'separated regions' look
+      const gridIds = fullDisk.filter((hid) => {
+        if (hid === centralH3) return true;
+        // Use a more aggressive spacing filter
+        const hash = parseInt(hid.slice(-4), 16);
+        return (hash % 12 === 0); // Keep only ~8% of cells, creating clear separation
+      });
       
       const center = toCellRisk(res?.center ?? { h3_cell: centralH3 }, 'c0');
       const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors : [];
@@ -245,8 +253,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       setSelectedCellId('c0');
     } catch {
       if (!coords) return;
-      const centralH3 = latLngToCell(coords.lat, coords.lng, 11);
-      const gridIds = gridDisk(centralH3, 2);
+      const centralH3 = latLngToCell(coords.lat, coords.lng, 8);
+      const fullDisk = gridDisk(centralH3, 4);
+      const gridIds = fullDisk.filter((hid) => {
+        if (hid === centralH3) return true;
+        const hash = parseInt(hid.slice(-4), 16);
+        return (hash % 12 === 0);
+      });
+
       const gridCells = gridIds.map((hid, idx) => toCellRisk({ h3_cell: hid }, `f${idx}`));
       
       setCellData({ 
@@ -356,7 +370,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                       onPress={() => setSelectedCellId(cell.id)}
                       strokeColor={tone.stroke}
                       fillColor={tone.fill}
-                      strokeWidth={active ? 2.5 : 1.2}
+                      strokeWidth={active ? 2.8 : 1.4}
                     />
                   );
                 })}
