@@ -50,9 +50,7 @@ def compute_gps_speed(
     Returns 0 if:
       - fewer than 2 historical pings exist (no prior point to compare)
       - time delta is 0 (avoid div-by-zero)
-      - computed speed exceeds MAX_PLAUSIBLE_SPEED_KMH (GPS glitch guard)
     """
-    # Need at least 2 entries: [-2]=previous, [-1]=current (just appended)
     if len(gps_history) < 2:
         return DEFAULT_GPS_SPEED
 
@@ -71,9 +69,6 @@ def compute_gps_speed(
 
     distance_km = haversine_km(prev_lat, prev_lng, current_lat, current_lng)
     speed_kmh = (distance_km / dt_sec) * 3600.0
-
-    # Guard against GPS glitches / teleportation artefacts
-    speed_kmh = min(speed_kmh, MAX_PLAUSIBLE_SPEED_KMH)
 
     return round(speed_kmh, 2)
 
@@ -168,6 +163,7 @@ def compute_has_history_in_zone(
             
     return False
 
+
 def compute_h3_burst_detected(zone_record: dict | None) -> bool:
     """
     Rule: IF multiple users appear in same H3 at same timestamp -> mark as fraud cluster
@@ -178,6 +174,7 @@ def compute_h3_burst_detected(zone_record: dict | None) -> bool:
     # We rely on the burst tracking in the store. 
     # Store sets "burst_detected" flag based on concurrent pings.
     return zone_record.get("burst_detected", False)
+
 
 def compute_location_features(
     user_record: dict | None,
@@ -193,6 +190,12 @@ def compute_location_features(
 
     gps_speed = compute_gps_speed(gps_history, current_lat, current_lng, now_ts)
     gps_cell_distance = compute_gps_cell_distance(gps_history, current_lat, current_lng)
+    
+    # [TASK 1]: Telemetry Spoof Detection (Relative Velocity Check)
+    # Threshold based on audit recommendation (150 km/h is the upper limit for typical transit).
+    # Any speed exceeding this suggests digital teleportation or sensor injection.
+    telemetry_spoof_detected = gps_speed > MAX_PLAUSIBLE_SPEED_KMH
+
     h3_zone_consistency = compute_h3_zone_consistency(
         gps_history, current_lat, current_lng, now_ts
     )
@@ -202,8 +205,9 @@ def compute_location_features(
     h3_burst_detected = compute_h3_burst_detected(zone_record)
 
     logger.debug(
-        "Location features: speed=%.2f km/h, cell_dist=%.4f km, consistency=%.3f, history_in_zone=%s, burst=%s",
+        "Location features: speed=%.2f km/h, spoof=%s, cell_dist=%.4f km, consistency=%.3f, history_in_zone=%s, burst=%s",
         gps_speed,
+        telemetry_spoof_detected,
         gps_cell_distance,
         h3_zone_consistency,
         has_history_in_zone,
@@ -215,5 +219,6 @@ def compute_location_features(
         gps_cell_distance=gps_cell_distance,
         h3_zone_consistency=h3_zone_consistency,
         has_history_in_zone=has_history_in_zone,
-        h3_burst_detected=h3_burst_detected
+        h3_burst_detected=h3_burst_detected,
+        telemetry_spoof_detected=telemetry_spoof_detected
     )

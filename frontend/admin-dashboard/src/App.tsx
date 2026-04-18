@@ -254,61 +254,22 @@ export default function App() {
 function AnalyticsPage({ data, loading }: any) {
   const navigate = useNavigate();
 
-  const generateSimulationData = () => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({
-      hour: new Date(Date.now() - (23 - i) * 3600000).toISOString(),
-      avg_lf: 20 + Math.random() * 60
-    }));
-    const days = Array.from({ length: 14 }, (_, i) => ({
-      day: new Date(Date.now() - (13 - i) * 86400000).toLocaleDateString(),
-      avg_risk: 10 + Math.random() * 40
-    }));
-    return {
-      totalPremiumCollected: 639000,
-      totalApprovedPayout: 8300,
-      lossRatioPercent: 1298.90, // Match user's Image 3
-      riskTrend: days,
-      payoutTrend: days.map(d => ({ ...d, total_payout: Math.random() * 5000 })),
-      workersByCity: [
-        { label: 'Chennai', value: 452 },
-        { label: 'Madurai', value: 284 },
-        { label: 'Coimbatore', value: 165 },
-        { label: 'Salem', value: 98 }
-      ],
-      platformSplit: [
-        { label: 'Swiggy', value: 580 },
-        { label: 'Zomato', value: 420 },
-        { label: 'Uber', value: 310 },
-        { label: 'Porter', value: 150 }
-      ],
-      claimsByType: [
-        { label: 'Accident', value: 452 },
-        { label: 'Theft', value: 124 },
-        { label: 'Maintenance', value: 89 }
-      ],
-      alertsByType: [
-        { label: 'Speeding', value: 24 },
-        { label: 'Divergence', value: 12 },
-        { label: 'Device Switch', value: 8 }
-      ],
-      fraudStatusSplit: [
-        { label: 'Verified Safe', value: 72 },
-        { label: 'Pending Audit', value: 18 },
-        { label: 'Confirmed Fraud', value: 10 }
-      ],
-      predictiveLossForecast: hours
-    };
-  };
-
-  const hasRealData = data && (
-    (data.riskTrend && data.riskTrend.length > 0) || 
-    (data.predictiveLossForecast && data.predictiveLossForecast.length > 0) ||
-    (data.totalPremiumCollected > 0)
-  );
-  const safeData = hasRealData ? data : generateSimulationData();
-
-  const formatINR = (val: number) => `₹${Math.round(val).toLocaleString('en-IN')}`;
+  const formatINR = (val: number) => `₹${Math.round(val || 0).toLocaleString('en-IN')}`;
   const formatPercent = (val: number) => `${Number(val || 0).toFixed(2)}%`;
+
+  const dashboardData = data || {
+    totalPremiumCollected: 0,
+    totalApprovedPayout: 0,
+    lossRatioPercent: 0,
+    riskTrend: [],
+    payoutTrend: [],
+    workersByCity: [],
+    platformSplit: [],
+    claimsByType: [],
+    alertsByType: [],
+    fraudStatusSplit: [],
+    predictiveLossForecast: []
+  };
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -343,19 +304,19 @@ function AnalyticsPage({ data, loading }: any) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <AnalyticsCard title="Loss Ratio" metric="Metric-A" icon="trending_up" iconColor="text-[#AE311F]">
-                <h4 className="text-6xl font-heading font-black italic">{formatPercent(safeData.lossRatioPercent)}</h4>
+                <h4 className="text-6xl font-heading font-black italic">{formatPercent(dashboardData.lossRatioPercent)}</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase text-[#AE311F] tracking-widest">Actuarial Threshold Breached</p>
                 </div>
               </AnalyticsCard>
               <AnalyticsCard title="Premium Pool" metric="Metric-B" icon="account_balance_wallet" iconColor="text-[#006D37]">
-                <h4 className="text-6xl font-heading font-black italic">₹{Math.round(safeData.totalPremiumCollected/1000)}k</h4>
+                <h4 className="text-6xl font-heading font-black italic">₹{Math.round(dashboardData.totalPremiumCollected/1000)}k</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase text-[#006D37] tracking-widest">+12.4% vs Last Cycle</p>
                 </div>
               </AnalyticsCard>
               <AnalyticsCard title="Approved Payout" metric="Metric-C" icon="verified" iconColor="text-coral">
-                <h4 className="text-6xl font-heading font-black italic">{formatINR(safeData.totalApprovedPayout)}</h4>
+                <h4 className="text-6xl font-heading font-black italic">{formatINR(dashboardData.totalApprovedPayout)}</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase opacity-40 italic tracking-widest">Pending Verification: 4</p>
                 </div>
@@ -375,7 +336,7 @@ function AnalyticsPage({ data, loading }: any) {
                   <span className="text-[10px] font-black uppercase tracking-widest italic opacity-70">Critical Variance Detected</span>
                 </div>
                 <div className="mt-8">
-                  <RiskTrendChart data={safeData.riskTrend} variant="trend" />
+                  <RiskTrendChart data={dashboardData.riskTrend} variant="trend" />
                 </div>
               </div>
             </div>
@@ -384,7 +345,7 @@ function AnalyticsPage({ data, loading }: any) {
                 <h2 className="text-3xl font-heading font-black italic uppercase tracking-tight">Fraud Status Mix</h2>
               </div>
               <div className="bg-white border-4 border-[#1B1D0E] p-8 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)] min-h-[420px] flex items-center justify-center">
-                <MetricDonutChart data={safeData.fraudStatusSplit} />
+                <MetricDonutChart data={dashboardData.fraudStatusSplit} />
               </div>
             </div>
           </section>
@@ -398,13 +359,13 @@ function AnalyticsPage({ data, loading }: any) {
               <div className="bg-white border-4 border-[#1B1D0E] p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
                 <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Claims by Type</h4>
                 <div className="space-y-4">
-                   <ActivityBarChart data={safeData.claimsByType} color="#ae311f" horizontal />
+                   <ActivityBarChart data={dashboardData.claimsByType} color="#ae311f" horizontal />
                 </div>
               </div>
               <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
                 <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Top Platforms</h4>
                 <div className="space-y-4">
-                   <ActivityBarChart data={safeData.platformSplit} color="#ff6b53" horizontal />
+                   <ActivityBarChart data={dashboardData.platformSplit} color="#ff6b53" horizontal />
                 </div>
               </div>
             </div>
@@ -475,10 +436,10 @@ function LiveOperationalDashboard({ data }: any) {
 
       {/* STATS */}
       <div className="stat-grid mb-12">
-        <MetricCard label="Total Workers" value={totalWorkers} trend="+12%" up />
-        <MetricCard label="Active Plans" value={data?.plans?.active ?? 3} trend="+5%" up />
-        <MetricCard label="Active Alerts" value={data?.alerts?.active ?? 5} marker="bg-success" trend="Stable" up />
-        <MetricCard label="Claims Today" value={data?.claims?.today ?? 2} trend="-3" />
+        <MetricCard label="Total Workers" value={totalWorkers} trend="+0%" up />
+        <MetricCard label="Active Plans" value={data?.activePlans ?? 0} trend="+0%" up />
+        <MetricCard label="Active Alerts" value={data?.activeAlerts ?? 0} marker="bg-success" trend="N/A" up />
+        <MetricCard label="Claims Today" value={data?.claimsToday ?? 0} trend="0" />
       </div>
 
       {/* FRAUD TABLE - CENTRAL PIECE OF PREVIOUS DASHBOARD */}
@@ -556,8 +517,21 @@ function LiveOperationalDashboard({ data }: any) {
              <Bell className="text-coral animate-bounce" size={18} />
           </div>
           <div className="space-y-4">
-            <AlertItem title="Chennai Monsoon Surge" subtitle="RAIN • ₹820" time="9:12 pm" active />
-            <AlertItem title="Delta Flood Advisory" subtitle="FLOOD • ₹1,100" time="7:12 am" active />
+            {(data?.recentAlerts ?? []).length > 0 ? (
+              data.recentAlerts.map((alert: any) => (
+                <AlertItem 
+                  key={alert.id} 
+                  title={alert.title} 
+                  subtitle={`${alert.type} • ${alert.expectedPayout ? `₹${alert.expectedPayout}` : 'CALCULATING...'}`} 
+                  time={new Date(alert.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+                  active 
+                />
+              ))
+            ) : (
+              <div className="py-8 text-center border-2 border-dashed border-black/10 text-xs font-black uppercase opacity-30">
+                No active disruptions detected
+              </div>
+            )}
           </div>
           <button className="neo-btn w-full mt-auto secondary text-xs">Refresh Stream</button>
         </div>

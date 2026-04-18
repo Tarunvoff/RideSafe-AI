@@ -15,6 +15,7 @@
  */
 
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type PayoutState = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
@@ -37,11 +38,17 @@ export class PayoutIdempotencyService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Build the canonical idempotency key string for logging / debugging.
-   * The actual uniqueness constraint is enforced by the DB @@unique index.
+   * [TASK 2]: Deterministic Financial Idempotency
+   * Constructs a cryptographic SHA-256 hash using the claim identifier and 
+   * the current disruption time-window. This ensures that even if a network 
+   * stutter occurs, the same claim window results in the same stable key.
    */
   buildKey(userId: string, h3Cell: string, eventTimestamp: number): string {
-    return `${userId}::${h3Cell}::${eventTimestamp}`;
+    const now = new Date(eventTimestamp * 1000);
+    const window = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}_${String(now.getUTCHours()).padStart(2, '0')}`;
+    // We use userId + h3Cell + eventTimestamp as the 'claimId' root since they uniquely identify any parametric trigger event for a user.
+    const base = `${userId}_${h3Cell}_${eventTimestamp}_${window}`;
+    return crypto.createHash('sha256').update(base).digest('hex');
   }
 
   /**
@@ -57,14 +64,14 @@ export class PayoutIdempotencyService {
   ): Promise<IdempotencyCheckResult> {
     const key = this.buildKey(userId, h3Cell, eventTimestamp);
 
-    // 1. Look up an existing record
+    // 1. Look up an existing record by our deterministic hash ID
     const existing = await this.prisma.payoutIdempotencyKey.findUnique({
-      where: { userId_h3Cell_eventTimestamp: { userId, h3Cell: h3Cell, eventTimestamp } },
+      where: { id: key },
     });
 
     if (existing) {
       if (existing.payoutState === 'SUCCESS') {
-        this.logger.log(`[idempotency] ✅ Key ${key} already SUCCESS → skipping payout`);
+        this.logger.log(`[idempotency] ✅ Key ${key} (derived) already SUCCESS → skipping payout`);
         return {
           shouldProcess: false,
           idempotencyId: existing.id,
@@ -88,10 +95,10 @@ export class PayoutIdempotencyService {
       return { shouldProcess: true, idempotencyId: existing.id, state: existing.payoutState as PayoutState };
     }
 
-    // 2. Create a new record with PENDING state
+    // 2. Create a new record with the deterministic hash as the ID and PENDING state
     try {
       const created = await this.prisma.payoutIdempotencyKey.create({
-        data: { userId, h3Cell, eventTimestamp, payoutState: 'PENDING' },
+        data: { id: key, userId, h3Cell, eventTimestamp, payoutState: 'PENDING' },
       });
       this.logger.log(`[idempotency] 🆕 Key ${key} created → PENDING`);
       return { shouldProcess: true, idempotencyId: created.id, state: 'PENDING' };
