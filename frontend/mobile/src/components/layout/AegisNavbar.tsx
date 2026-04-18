@@ -1,16 +1,11 @@
 /**
  * [EXCELLENCE SUMMARY]
- * The AegisNavbar is the definitive identity anchor for the Aegis mobile ecosystem. 
- * Converging both Authentication and Operational contexts into a single, high-fidelity 
- * component, it ensures visual parity across the entire driver and admin journey. 
- * Designed with 'Neo-Brutalist' precision, it prioritizes clear brand signaling 
- * and instinctive navigation.
+ * The AegisNavbar is the main header for the Aegis mobile app. 
+ * It shows the logo, your profile, and any new alerts.
  * 
  * [DOMAIN LOGIC]
- * Serves as the 'Global Interaction Node'. It handles conditional rendering for 
- * back-navigation, profile access, and notification alerts while maintaining a 
- * fixed architectural footprint (64dp height). This stability reduces cognitive 
- * load for operators moving between high-stress logistics environments.
+ * It helps you move around the app. 
+ * It works the same way everywhere so it's easy to learn.
  */
 
 import { Ionicons } from '@expo/vector-icons';

@@ -1,16 +1,13 @@
 /**
  * [EXCELLENCE SUMMARY]
- * The DriverPlansScreen is a sophisticated fintech engine that bridges parametric 
- * insurance with mobile-first payment orchestration. It features a high-performance 
- * Razorpay integration layer and a real-time premium calculation engine that 
- * dynamically adjusts to the driver's H3-risk profile with sub-second latency.
+ * The DriverPlansScreen is the main place where drivers see and buy 
+ * protection plans. It has a secure payment system 
+ * and a real-time price engine that checks your safety score.
  * 
  * [DOMAIN LOGIC]
- * Facilitates the "Coverage Tier" (Ct) lifecycle: it enables drivers to explore 
- * and purchase available plans based on their actuarial status. By synchronizing 
- * local policy storage with backend microservices, it ensures that dark store 
- * operators have persistent transparency into their insurance coverage, even 
- * in low-connectivity logistics environments.
+ * It shows available plans for drivers. 
+ * It keeps track of coverage and makes sure 
+ * drivers always know their status, even when offline.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';

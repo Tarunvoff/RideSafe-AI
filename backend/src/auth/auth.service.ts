@@ -40,8 +40,8 @@ function otpExpiresAt(): Date {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 min
 }
 /**
- * The AuthService manages the high-fidelity identity lifecycle within the Aegis 
- * platform. It operates a "SaaS-Level Fidelity" token-rotation strategy, 
+ * The AuthService manages the best quality identity lifecycle within the Aegis 
+ * platform. It operates a professional-grade token-rotation strategy, 
  * ensuring that driver and admin sessions are cryptographically bound and 
  * verified across the zero-trust auth boundary.
  */
