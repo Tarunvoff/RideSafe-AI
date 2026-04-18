@@ -7,7 +7,8 @@ const POLICY_STATE_TTL = Number(process.env.POLICY_STATE_TTL_SECONDS ?? 900);
 const ZONE_DRIVER_TTL = Number(process.env.ZONE_DRIVER_TTL_SECONDS ?? 900);
 const ZONE_STATE_TTL = Number(process.env.ZONE_STATE_TTL_SECONDS ?? 900);
 
-import CircuitBreaker from 'opossum';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const CircuitBreaker = require('opossum');
 
 @Injectable()
 export class RedisStateService {

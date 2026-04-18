@@ -8,7 +8,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeFraudDto, ReviewFraudDto } from './dto/fraud.dto';
 import * as h3 from 'h3-js';
 import pino from 'pino';
-import CircuitBreaker from 'opossum';
+import type OpossumBreaker from 'opossum';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const CircuitBreaker = require('opossum');
 
 // Structured Logger for Tier-1 Auditing
 const structuredLogger = pino({
@@ -91,10 +93,10 @@ export class FraudService {
   private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
   // ── Circuit Breakers (Fail-Closed Pattern) ──────────────────────────────────
-  private readonly featureBreaker: CircuitBreaker<[string, AnalyzeFraudDto], FraudFeatureResponse> = 
+  private readonly featureBreaker: OpossumBreaker<[string, AnalyzeFraudDto], FraudFeatureResponse> = 
     new CircuitBreaker(this.fetchFraudFeatures.bind(this), breakerOptions);
 
-  private readonly mlBreaker: CircuitBreaker<[string, FraudFeatureResponse, AnalyzeFraudDto, string | undefined], FraudMlScoreResponse> = 
+  private readonly mlBreaker: OpossumBreaker<[string, FraudFeatureResponse, AnalyzeFraudDto, string | undefined], FraudMlScoreResponse> = 
     new CircuitBreaker(this.fetchHybridFraudScore.bind(this), breakerOptions);
 
   constructor(
