@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { IngestionModule } from './ingestion/ingestion.module';
@@ -19,6 +19,9 @@ import { AdminModule } from './admin/admin.module';
 import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CanonicalModule } from './canonical/canonical.module';
+import { StateModule } from './state/state.module';
+import { TokenRevocationMiddleware } from './auth/token-revocation.middleware';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -42,6 +45,19 @@ import { CanonicalModule } from './canonical/canonical.module';
     SupportModule,
     NotificationsModule,
     CanonicalModule,
+    StateModule,
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: Number(process.env.REDIS_PORT || 6379),
+      },
+    }),
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TokenRevocationMiddleware)
+      .forRoutes('*');
+  }
+}

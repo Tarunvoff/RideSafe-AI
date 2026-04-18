@@ -118,6 +118,7 @@ class FraudHybridScoreRequest(BaseModel):
     shared_driver_count_24h: int = Field(default=1, ge=1, le=100)
     driver_id: Optional[str] = None
     phone_number: Optional[str] = None
+    auth_token: Optional[str] = None
 
 
 class FraudHybridScoreResponse(BaseModel):

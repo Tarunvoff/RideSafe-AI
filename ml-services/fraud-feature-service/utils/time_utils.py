@@ -42,3 +42,15 @@ def filter_within_hours(
     """
     cutoff = now_ts - window_hours * 3600
     return [item for item in items if item.get(ts_key, 0) >= cutoff]
+
+
+def get_time_bucket(timestamp: float | None = None) -> int:
+    """
+    Generates a deterministic time bucket key (30-min window).
+    Formula: int(timestamp / 1800)
+    This ensures perfect alignment across distributed Clojure/Python/TS nodes.
+    """
+    import time
+    if timestamp is None:
+        timestamp = time.time()
+    return int(timestamp / 1800)

@@ -22,7 +22,9 @@ export class FraudController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async analyzeFraud(@Request() req: any, @Body() dto: AnalyzeFraudDto): Promise<any> {
-    const result = await this.fraudService.analyzeFraud(req.user.id, dto);
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const result = await this.fraudService.analyzeFraud(req.user.id, dto, token);
 
     this.kafkaProducerService
       .publishDriverLocation({
