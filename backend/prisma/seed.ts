@@ -110,6 +110,14 @@ async function main() {
       eligibleDisruptionTypes: ['RAIN', 'AQI'],
     },
     {
+      key: 'PREMIUM',
+      name: 'Premium Protection',
+      price: 109,
+      maxPayout: 6500,
+      durationDays: 7,
+      eligibleDisruptionTypes: ['RAIN', 'AQI', 'FLOOD', 'DISRUPTION'],
+    },
+    {
       key: 'ELITE',
       name: 'Elite Protection',
       price: 129,

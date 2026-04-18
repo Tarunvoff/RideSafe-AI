@@ -73,16 +73,20 @@ export class PlansService {
       const earningsValue = Number(earnings);
       
       if (plan.key === 'BASIC') {
-        // Range: [20.00 - 29.00]
-        const floor = earningsValue > 10000 ? 28.01 : (earningsValue < 5000 ? 20.00 : 24.00);
+        // Range: [19.00 - 27.00]
+        const floor = earningsValue > 10000 ? 25.01 : (earningsValue < 5000 ? 19.00 : 22.00);
         dynamicPrice = floor + decimalPart;
       } else if (plan.key === 'STANDARD') {
-        // Range: [27.00 - 39.00]
-        const floor = earningsValue > 10000 ? 38.01 : (earningsValue < 5000 ? 27.00 : 32.00);
+        // Range: [26.00 - 35.00]
+        const floor = earningsValue > 10000 ? 32.01 : (earningsValue < 5000 ? 26.00 : 29.00);
+        dynamicPrice = floor + decimalPart;
+      } else if (plan.key === 'PREMIUM') {
+        // Range: [33.00 - 42.00]
+        const floor = earningsValue > 10000 ? 39.01 : (earningsValue < 5000 ? 33.00 : 36.00);
         dynamicPrice = floor + decimalPart;
       } else if (plan.key === 'ELITE') {
-        // Range: [38.00 - 49.00]
-        const floor = earningsValue > 10000 ? 48.01 : (earningsValue < 5000 ? 38.00 : 43.00);
+        // Range: [40.00 - 49.00]
+        const floor = earningsValue > 10000 ? 46.01 : (earningsValue < 5000 ? 40.00 : 43.00);
         dynamicPrice = floor + decimalPart;
       } else {
         dynamicPrice = Math.min(49, Math.max(20, plan.price));

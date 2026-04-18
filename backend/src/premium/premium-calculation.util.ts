@@ -26,12 +26,13 @@ export const MINIMUM_WEEKLY_PREMIUM_INR = 19;
 export function resolveTierFloor(Ct: number): number {
   const roundedCt = Math.round(Ct * 10) / 10;
   // Non-overlapping floors to ensure distinct pricing per tier
-  if (roundedCt <= 0.45) return 19;
-  if (roundedCt <= 0.65) return 26;
-  if (roundedCt <= 0.85) return 38;
+  if (roundedCt <= 0.45) return 19; // BASIC
+  if (roundedCt <= 0.65) return 26; // STANDARD
+  if (roundedCt <= 0.75) return 33; // PREMIUM
+  if (roundedCt <= 0.85) return 38; // ELITE
 
   // Linear interpolation between the discrete tier baselines
-  return 19 + ((roundedCt - 0.4) / 0.4) * (38 - 19);
+  return 38 + ((roundedCt - 0.8) / 0.1) * (49 - 38);
 }
 
 /**
