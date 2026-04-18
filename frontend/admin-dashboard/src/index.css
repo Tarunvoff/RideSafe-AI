@@ -1,20 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
   --coral: #ff6b53;
-  --night: #111827;
-  --parchment: #f0ecce;
+  --night: #1B1D0E;
+  --parchment: #FCFBE3;
   --white: #ffffff;
   --gray-100: #f3f4f6;
   --gray-200: #e5e7eb;
-  --gray-800: #1f2937;
+  --gray-800: #1B1D0E;
 
-  --success: #16a34a;
+  --success: #006d37;
   --warning: #f59e0b;
-  --danger: #dc2626;
+  --danger: #ae311f;
 
-  --brutalist-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
-  --brutalist-border: 2px solid #000000;
+  --brutalist-shadow: 8px 8px 0px 0px rgba(27, 29, 14, 1);
+  --brutalist-shadow-sm: 4px 4px 0px 0px rgba(27, 29, 14, 1);
+  --brutalist-border: 4px solid #1B1D0E;
 }
 
 * {
@@ -24,7 +25,7 @@
 }
 
 body {
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Work Sans', sans-serif;
   background-color: var(--parchment);
   color: var(--night);
   line-height: 1.5;
@@ -35,7 +36,7 @@ h2,
 h3,
 h4,
 .font-heading {
-  font-family: 'Sora', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: -0.02em;
@@ -50,15 +51,15 @@ h4,
 }
 
 .neo-card:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
+  transform: translate(-3px, -3px);
+  box-shadow: 10px 10px 0px 0px rgba(27, 29, 14, 1);
 }
 
 .neo-btn {
   background: var(--coral);
   color: #000;
   border: var(--brutalist-border);
-  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1);
+  box-shadow: var(--brutalist-shadow-sm);
   padding: 0.75rem 1.5rem;
   font-family: 'Sora', sans-serif;
   font-weight: 700;
@@ -154,9 +155,10 @@ h4,
   padding: 1.25rem 1rem;
   background: var(--white);
   border: var(--brutalist-border);
-  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1);
-  font-family: 'Sora', sans-serif;
+  box-shadow: 4px 4px 0px 0px rgba(27, 29, 14, 1);
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;
+  font-style: italic;
   text-transform: uppercase;
   font-size: 0.875rem;
   letter-spacing: 0.05em;
