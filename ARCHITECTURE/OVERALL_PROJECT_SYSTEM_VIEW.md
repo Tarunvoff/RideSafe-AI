@@ -1,4 +1,4 @@
-## Inspiration
+# Aegis: Production-Ready Tier-1 Overall Project System View
 
 India has over 10 million gig delivery workers keeping its cities moving. Every monsoon flood, industrial smog event, or civic shutdown that renders a delivery zone unserviceable means zero income for riders who cannot afford a single lost day. Traditional insurance is structurally incompatible with this problem — it requires forms, human adjusters, and weeks to settle. By the time a claim resolves, the damage is already done.
 

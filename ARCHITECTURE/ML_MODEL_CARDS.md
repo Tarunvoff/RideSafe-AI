@@ -1,8 +1,8 @@
-# Aegis: Production-Grade ML Infrastructure & Actuarial Model Cards
+# Aegis: Production-Ready ML Infrastructure & Tier-1 Actuarial Model Cards
 
 # Executive Summary: The Quad-Model Architecture
 
-Aegis implements a **best-in-class, production-grade Quad-Model Architecture**, a uniquely deliberate engineering choice that departs from standard, single-model "black box" approaches. While most systems favor a monolithic model to reduce microservice complexity, Aegis utilizes four specialized, decoupled ML engines to achieve a **Defense-in-Depth** security posture and actuarial precision at scale.
+Aegis implements a **best-in-class, Production-Ready, Tier-1 Quad-Model Architecture**, a uniquely deliberate engineering choice that departs from standard, single-model "black box" approaches. While most systems favor a monolithic model to reduce microservice complexity, Aegis utilizes four specialized, decoupled ML engines to achieve a **Defense-in-Depth** security posture and actuarial precision at scale.
 
 ### Why Four Models?
 By modularizing the intelligence layer into four discrete micro-models, Aegis achieves specialized, **production-grade inference** that a single model cannot replicate:
