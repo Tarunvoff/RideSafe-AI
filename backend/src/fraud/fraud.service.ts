@@ -1,3 +1,10 @@
+/** 
+ * Sentinel Fraud Engine: The core security layer that performs real-time parallel feature 
+ * extraction, H3 geospatial burst detection, and hybrid ML-based risk scoring.
+ *
+ * For detailed fraud detection architecture and security matrices, refer to 
+ * ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md and ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md.
+ */
 import { getTimeBucket } from './time-utils';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';

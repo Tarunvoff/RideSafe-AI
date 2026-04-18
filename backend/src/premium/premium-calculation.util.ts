@@ -1,3 +1,10 @@
+/** 
+ * Actuarial Engine: Implements the core mathematical models for real-time risk-adjusted 
+ * premium calculations, incorporating loss factors, coverage tiers, and cohort fallbacks.
+ *
+ * For the mathematical foundation of these calculations, refer to 
+ * ARCHITECTURE/DYNAMIC_ACTUARIAL_PRICING_ENGINE.md.
+ */
 /**
  * Safety loading added to expected loss to keep premium pool solvent after operating costs.
  */

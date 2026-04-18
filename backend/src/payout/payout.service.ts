@@ -1,3 +1,9 @@
+/** 
+ * Parametric Payout Pipeline: Manages the platform's high-fidelity settlement pipeline, 
+ * ensuring idempotent, exactly-once disbursements by orchestrating cryptographic triggers.
+ *
+ * For detailed payout logic and architecture, refer to ARCHITECTURE/PAYOUT_PIPELINE_ARCHITECTURE.md.
+ */
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';

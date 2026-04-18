@@ -29,12 +29,14 @@ import {
 import { AdminGuard, JwtAuthGuard } from './jwt-auth.guard';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 
-/**
+/** 
  * ── Elite Identity & Security Perimeter ───────────────────────────────────
  * 
  * The AuthController serves as the high-fidelity gateway for the Aegis identity 
  * ecosystem. It orchestrates cryptographically verified session lifecycles, 
- * ensuring zero-trust persistence across multi-market geographic nodes.
+ * ensuring zero-trust persistence and rigorous KYC verification.
+ * 
+ * For the identity and KYC architecture, refer to ARCHITECTURE/ZERO_TRUST_IDENTITY_AND_KYC_MATRIX.md.
  * 
  * For comprehensive architectural governance, refer to:
  * - ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md

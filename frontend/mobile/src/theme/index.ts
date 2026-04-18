@@ -2,7 +2,9 @@
  * [EXCELLENCE SUMMARY]
  * The Aegis Design System Core. This file codifies the visual language of the platform, 
  * utilizing a precise token-based architecture to ensure stylistic consistency across 
- * all mobile interfaces. It is designed for rapid scalability and brand alignment.
+ * all mobile interfaces.
+ * 
+ * For the design tokens and visual guidelines, refer to ARCHITECTURE/FRONTEND_DESIGN_SYSTEM.md.
  * 
  * [DOMAIN LOGIC]
  * Implements a "Service-First" color palette, where semantic colors (success, warning, error) 

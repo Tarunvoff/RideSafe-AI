@@ -1,3 +1,9 @@
+/** 
+ * Regulatory Gatekeeper: Ensures all platform operations comply with IRDAI, SS Code 2020, 
+ * and DPDP Act 2023 standards.
+ *
+ * For the regulatory and compliance framework, refer to ARCHITECTURE/REGULATORY_COMPLIANCE_ARCHITECTURE.md.
+ */
 import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ReserveSustainabilityService } from './reserve-sustainability.service';
 import { PrismaService } from '../prisma/prisma.service';

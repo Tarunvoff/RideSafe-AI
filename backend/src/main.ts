@@ -1,3 +1,10 @@
+/** 
+ * Aegis Core Bootstrap: Initializes the central orchestration layer, establishes zero-trust 
+ * security perimeters, and prepares the high-throughput ingestion pipeline.
+ *
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ */
 // 🚨 LOG PERFECTION: Suppress warnings globally before any dependencies load.
 // This is critical for April 2026 system clock stability.
 process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
