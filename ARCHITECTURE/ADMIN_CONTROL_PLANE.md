@@ -1,5 +1,5 @@
 # Aegis Admin: Actuarial Control Plane & Visibility Layer
-## Absolute Transparency. Predictive Intelligence. Sovereign Oversight.
+## Absolute Transparency. Predictive Intelligence. Uncompromising Oversight.
 
 ### Executive Summary
 The Aegis Admin Control Plane is an **Elite Actuarial Visibility Layer** designed for Tier-1 insurance underwriters and platform administrators. It serves as the "Nervous System" of the ecosystem, providing high-fidelity metrics on pool solvency, fraud vectors, and environmental risk. Engineered with a **Fail-Honest Philosophy**, the dashboard rejects synthetic approximations, ensuring that every data point—from Loss Ratios to 7-Day Forecasts—is mathematically sound and forensic-ready for IRDAI compliance audits.
@@ -32,7 +32,7 @@ The dashboard provides a clinical view of the platform's **Solvency Health**, cr
 ---
 
 ### 4. Production Readiness & Compliance
-This Control Plane is engineered for **Sovereign Regulatory Oversight**.
+This Control Plane is engineered for **Strict Regulatory Oversight**.
 
 *   **IRDAI Transparency**: The architecture ensures that every insurance decision is backed by a cryptographically signed "Forensic Trace." Administrators can "drill down" from a single dashboard metric to the exact H3-trigger event and driver telemetry that generated it.
 *   **Zero-Trust Dashboard Security**: Role-Based Access Control (RBAC) and Audit Logging are enforced for every admin action. Any modification to a risk threshold or policy parameter is logged to an immutable audit table, ensuring forensic defensibility during external investigations.
@@ -42,7 +42,7 @@ This Control Plane is engineered for **Sovereign Regulatory Oversight**.
 ### Why This is Tier-1 Engineering
 *   **Mathematical Certainty**: By rejecting linear regression in favor of **XGBoost-backed feature fusion** for forecasts, Aegis provides a precision-grade decisioning tool.
 *   **Operational Resilience**: The dashboard is decoupled from the primary claim processing pipeline. Even during a "High-Alert" disruption state where claim volume spikes, the Admin layer remains performant, utilizing read-replicas and Redis caches to maintain visibility.
-*   **Sovereign Integrity**: Every visual component is bound to a hard data contract; there are no "placeholder" widgets. If the data isn't there, the system says so.
+*   **Absolute Integrity**: Every visual component is bound to a hard data contract; there are no "placeholder" widgets. If the data isn't there, the system says so.
 
 ---
 
@@ -56,4 +56,4 @@ This Control Plane is engineered for **Sovereign Regulatory Oversight**.
 | **BCR** | Actuarial Calculation | Social Security & Fair Pricing compliance. |
 
 ---
-**Control Plane Status**: *Transparent. Precise. Sovereign.*
+**Control Plane Status**: *Transparent. Precise. Authoritative.*

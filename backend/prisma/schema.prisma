@@ -90,6 +90,12 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // DPDP Act 2023 Explicit Consents
+  gpsConsentTimestamp          DateTime?
+  gpsConsentVersion            String?
+  platformDataConsentTimestamp DateTime?
+  platformDataPartner          String?
+
   kycProfile            KYCProfile?
   kycBasicIdentity      KYCBasicIdentity?
   kycPersonalDetails    KYCPersonalDetails?

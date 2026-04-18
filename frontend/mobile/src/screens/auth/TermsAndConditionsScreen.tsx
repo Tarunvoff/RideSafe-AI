@@ -171,10 +171,6 @@ export default function TermsAndConditionsScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
-            <Text style={styles.sectionTitle}>{t('auth.terms.sections.telemetry_title')}</Text>
-            <Text style={styles.bodyText}>
-              {t('auth.terms.sections.telemetry_body')}
-            </Text>
 
             <Text style={styles.sectionTitle}>{t('auth.terms.sections.hazard_title')}</Text>
             <Text style={styles.bodyText}>
