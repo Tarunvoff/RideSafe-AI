@@ -602,11 +602,11 @@ export default function DriverScooterMap({
   const [reconnectLabel, setReconnectLabel] = useState('connection: live');
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  const token = useMemo(() => import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined, []);
+  const token = useMemo(() => import.meta.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN as string | undefined, []);
 
   useEffect(() => {
     if (!token) {
-      setMapError('Set VITE_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to load the live map.');
+      setMapError('Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to load the live map.');
       return;
     }
 
@@ -985,7 +985,7 @@ export default function DriverScooterMap({
         <div className="driver-map-empty">
           <p className="driver-map-empty-title">Map token missing</p>
           <p className="driver-map-empty-copy">
-            Add VITE_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to enable live AMP marker tracking.
+            Add EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to enable live AMP marker tracking.
           </p>
         </div>
       ) : (

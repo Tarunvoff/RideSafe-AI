@@ -19,7 +19,7 @@ cp .env.example .env
 3. Set your Mapbox public token in `.env`:
 
 ```bash
-VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_public_token_here
+EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_public_token_here
 ```
 
 4. Start dev server:
@@ -35,7 +35,7 @@ npm run dev
 - Fallback behavior: If `image_1.png` is missing, the map now draws a generated AMP marker so live motion still works.
 - Rotation logic: Marker heading is computed per segment and applied through `icon-rotate` via geojson feature properties.
 
-If the map panel shows a token warning, verify that `VITE_MAPBOX_ACCESS_TOKEN` is present and valid for the selected Mapbox style.
+If the map panel shows a token warning, verify that `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` is present and valid for the selected Mapbox style.
 
 ## Build
 
