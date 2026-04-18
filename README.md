@@ -60,15 +60,15 @@ Every module listed below is fully wired, end-to-end, production-ready. No mocks
 
 | # | Capability | Status |
 |---|---|---|
-| 28 | Objective trigger thresholds | ✅ `TriggerService` returns explicit threshold evaluation (`zoneRequiredStates`, `lfMinApprove`, fraud hold/reject thresholds) on every approval path |
-| 29 | Fully automatic payout | ✅ Flow: trigger → GPS/H3 zone match → fraud check → RazorpayX transfer (UPI/BANK) with explicit rail metadata |
-| 30 | Sustainability metric | ✅ Admin analytics returns `lossRatio`, `lossRatioPercent`, and `benefitCostRatio` live |
-| 31 | Data-driven fraud | ✅ GPS, H3 consistency, velocity, burst, and device-graph signals active in every fraud score |
-| 32 | Frictionless premium collection | ✅ Recurring billing runs on schedule with mandate enforcement and invoices |
-| 33 | Dynamic pricing | ✅ Premium computed live via `Ew × α × Lf × Ct × (1 + M)` with ML service |
-| 34 | Adverse selection lockout | ✅ 24-hour cooling-off on new policies; payout rejects trigger lockout |
-| 35 | Straight-through operations | ✅ Payout retry queue and fraud review queue auto-resolve via scheduled STP processors with DLQ controls |
-| 36 | Hyper-local basis risk control | ✅ H3 cell and policy zone consistency enforced before every payout |
+| 1 | Objective trigger thresholds | ✓ `TriggerService` returns explicit threshold evaluation (`zoneRequiredStates`, `lfMinApprove`, fraud hold/reject thresholds) on every approval path |
+| 2 | Fully automatic payout | ✓ Flow: trigger → GPS/H3 zone match → fraud check → RazorpayX transfer (UPI/BANK) with explicit rail metadata |
+| 3 | Sustainability metric | ✓ Admin analytics returns `lossRatio`, `lossRatioPercent`, and `benefitCostRatio` live |
+| 4 | Data-driven fraud | ✓ GPS, H3 consistency, velocity, burst, and device-graph signals active in every fraud score |
+| 5 | Frictionless premium collection | ✓ Recurring billing runs on schedule with mandate enforcement and invoices |
+| 6 | Dynamic pricing | ✓ Premium computed live via `Ew × α × Lf × Ct × (1 + M)` with ML service |
+| 7 | Adverse selection lockout | ✓ 24-hour cooling-off on new policies; payout rejects trigger lockout |
+| 8 | Straight-through operations | ✓ Payout retry queue and fraud review queue auto-resolve via scheduled STP processors with DLQ controls |
+| 9 | Hyper-local basis risk control | ✓ H3 cell and policy zone consistency enforced before every payout |
 
 ---
 
@@ -204,7 +204,7 @@ $$SRV = E_w \times \alpha$$
 
 **Example:** ₹8,000/week rider · `Lf` = 0.4 · Standard tier (`Ct` = 0.6) · `M` = 0.1
 
-`SRV = 8,000 × 0.015 = ₹120` → `120 × 0.4 × 0.6 × 1.1 = ₹31.68/week` ✅ (within ₹150 cap)
+`SRV = 8,000 × 0.015 = ₹120` → `120 × 0.4 × 0.6 × 1.1 = ₹31.68/week` ✓ (within ₹150 cap)
 
 | Variable | Represents | Computed as |
 | --- | --- | --- |
@@ -247,14 +247,14 @@ Pricing adjusts dynamically by season and zone — monsoon periods carry higher 
 
 | Disruption | Category | Basic | Standard | Premium |
 | --- | --- | :---: | :------: | :-----: |
-| Heavy Rain (>60mm) | Environmental | ✅ | ✅ | ✅ |
-| Flood / Zone Inundation | Environmental | ✅ | ✅ | ✅ |
-| Extreme Heat / Heatwave | Environmental | ✅ | ✅ | ✅ |
-| Hazardous AQI (>300) | Environmental | ❌ | ✅ | ✅ |
-| Severe AQI (200–300) | Environmental | ❌ | ✅ | ✅ |
-| Civic Bandh / Strike | Social | ❌ | ❌ | ✅ |
-| Local Protest / Curfew | Social | ❌ | ❌ | ✅ |
-| Platform-Declared Zone Halt | Social | ❌ | ❌ | ✅ |
+| Heavy Rain (>60mm) | Environmental | ✓ | ✓ | ✓ |
+| Flood / Zone Inundation | Environmental | ✓ | ✓ | ✓ |
+| Extreme Heat / Heatwave | Environmental | ✓ | ✓ | ✓ |
+| Hazardous AQI (>300) | Environmental | ❌ | ✓ | ✓ |
+| Severe AQI (200–300) | Environmental | ❌ | ✓ | ✓ |
+| Civic Bandh / Strike | Social | ❌ | ❌ | ✓ |
+| Local Protest / Curfew | Social | ❌ | ❌ | ✓ |
+| Platform-Declared Zone Halt | Social | ❌ | ❌ | ✓ |
 
 > **Not covered:** Vehicle repair, fuel costs, device damage, platform-side cancellations, personal illness.
 
@@ -634,7 +634,7 @@ Last H3 ping in Koramangala 8 minutes ago, now filing from Andheri — physicall
 
 | Confidence | Evidence | Action |
 | --- | --- | --- |
-| Confirmed clean | H3 history ✅ + Device ✅ + Physics ✅ | Auto-approve immediately |
+| Confirmed clean | H3 history ✓ + Device ✓ + Physics ✓ | Auto-approve immediately |
 | Suspicious individual | 1–2 signals, no ring link | Hold 2h, fast-track manual review |
 | Ring-connected | Graph links to flagged cluster | Freeze, flag, admin alert |
 | Confirmed fraud | Clone + velocity + ring | Blocked, suspended, Aadhaar/PAN flagged |
@@ -957,24 +957,24 @@ Every system described in this document is fully operational end-to-end.
 
 | Capability | Status |
 | --- | --- |
-| Live IMD + CPCB ingestion via Airflow | ✅ Operational |
-| Kafka + TimescaleDB event pipeline | ✅ Operational |
-| XGBoost / LightGBM / IsolationForest / GBDT inference | ✅ Production `.pkl` artifacts deployed via BentoML |
-| UPI AutoPay mandate via RazorpayX | ✅ Operational |
-| HALTED trigger → automatic payout disbursement | ✅ End-to-end, under 2 minutes |
-| Mobile zone dashboard | ✅ Live |
-| Admin actuarial control plane | ✅ Live |
-| 5-stage Sentinel fraud pipeline | ✅ Enforcing |
-| Multi-language support (English, Tamil, Hindi) | ✅ Live across all screens |
-| DPDP Act 2023 consent architecture | ✅ Enforced |
-| Social Security Code 2020 eligibility gating | ✅ Enforced |
-| IRDAI parametric trigger compliance | ✅ Enforced |
-| 166 API endpoints | ✅ Verified and hardened |
-| Docker Compose orchestration + K8s-ready architecture | ✅ Deployed |
-| Weekly MLflow retraining pipeline | ✅ Operational |
-| WhatsApp zone alerts + Twilio SMS enforcement | ✅ Operational |
-| H3 zones across Bengaluru, Delhi NCR, Mumbai | ✅ Active |
-| Inter-platform portability | ✅ Live |
+| Live IMD + CPCB ingestion via Airflow | ✓ Operational |
+| Kafka + TimescaleDB event pipeline | ✓ Operational |
+| XGBoost / LightGBM / IsolationForest / GBDT inference | ✓ Production `.pkl` artifacts deployed via BentoML |
+| UPI AutoPay mandate via RazorpayX | ✓ Operational |
+| HALTED trigger → automatic payout disbursement | ✓ End-to-end, under 2 minutes |
+| Mobile zone dashboard | ✓ Live |
+| Admin actuarial control plane | ✓ Live |
+| 5-stage Sentinel fraud pipeline | ✓ Enforcing |
+| Multi-language support (English, Tamil, Hindi) | ✓ Live across all screens |
+| DPDP Act 2023 consent architecture | ✓ Enforced |
+| Social Security Code 2020 eligibility gating | ✓ Enforced |
+| IRDAI parametric trigger compliance | ✓ Enforced |
+| 166 API endpoints | ✓ Verified and hardened |
+| Docker Compose orchestration + K8s-ready architecture | ✓ Deployed |
+| Weekly MLflow retraining pipeline | ✓ Operational |
+| WhatsApp zone alerts + Twilio SMS enforcement | ✓ Operational |
+| H3 zones across Bengaluru, Delhi NCR, Mumbai | ✓ Active |
+| Inter-platform portability | ✓ Live |
 
 ---
 
