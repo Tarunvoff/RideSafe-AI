@@ -12,7 +12,7 @@ This architecture guarantees that non-compliant actions are not merely discourag
 Aegis operationalizes the SS Code's mandate for gig-worker protections by systematically enforcing engagement thresholds at the database layer.
 
 *   **The 90/120-Day Engagement Verification**: Eligibility is not an honor system. The `driver-eligibility.util.ts` service executes a strict `MIN_ENGAGEMENT_DAYS` temporal calculation against the driver's immutable origin timestamp. Queries failing to satisfy the 90-day (Standard) or 120-day (Premium) threshold are natively rejected via HTTP `ForbiddenException` structures, completely gating policy enrollment.
-*   **B2B Delivery Activity Synergies**: Aegis establishes verifiable data pipelines seamlessly. Through the `PlatformDataSharingScreen`, the UI bridges external B2B delivery logs (Swiggy, Zomato, Dunzo) directly into the Aegis verification pipeline, creating an unbroken chain of custody for gig-worker eligibility.
+*   **B2B Delivery Activity Synergies**: Aegis establishes verifiable data pipelines seamlessly. Through the `PlatformDataSharingScreen`, the UI bridges external B2B delivery logs (Blinkit, Zepto, Instamart, JioMart, BigBasket) directly into the Aegis verification pipeline, creating an unbroken chain of custody for gig-worker eligibility.
 *   **Multi-Zone Journey Telemetry & City Pool Quantification**: Addressing regulatory auditor demands, our administrative control plane executes a multi-zone journey framework. It precisely quantifies the aggregate volume of workers who fall below the SS Code legal threshold within any given geographic city pool, allowing for macroeconomic visibility into state-backed social security drift.
 
 ---
@@ -21,6 +21,7 @@ Aegis operationalizes the SS Code's mandate for gig-worker protections by system
 Aegis respects the strict privacy of driver data. Generalized "Terms and Conditions" checkboxes are fundamentally rejected in favor of explicit, context-driven cryptography.
 
 *   **Physical UI Blockades (GPS Telemetry)**: Location tracking approvals are surgically extracted from generic EULAs. The system deploys an isolated, non-dismissible `GPSConsentModal` that physically blocks application state transitions until explicit telemetry authorization is captured. 
+*   **Segmented Relational Ledgering**: Every consent vector—from financial mandates to platform data sharing—is logged discretely within the PostgreSQL `users` matrix. The presence of `gpsConsentTimestamp` and `platformDataConsentTimestamp` provides Tier-1 forensic audit trails for DPDP regulators, preventing implicit consent loopholes.
 *   **Segmented Relational Ledgering**: Every consent vector—from financial mandates to platform data sharing—is logged discretely within the PostgreSQL `users` matrix. The presence of `gpsConsentTimestamp` and `platformDataConsentTimestamp` provides Tier-1 forensic audit trails for DPDP regulators, preventing implicit consent loopholes.
 *   **Financial Data Isolation**: Capture of UPI and Bank methodologies is locked behind strict `financialDataConsent` Boolean gates, ensuring zero ingestion of banking data without explicit authorization.
 
@@ -41,7 +42,7 @@ Aegis transcends traditional insurance bottlenecks by aligning with IRDAI provis
 Aegis abandons antiquated postal codes in favor of **Uber H3 Hexagonal Binning (Resolution 8)**. This generates an $O(1)$ spatial index, correlating a driver's exact sub-kilometer location with micro-weather anomalies almost instantaneously. Accuracy is mathematically guaranteed.
 
 #### 2. The Sentinel Fraud Framework
-Protecting the ecosystem from adversarial exploits, Aegis routes all operations through a **5-Stage Defense-in-Depth Pipeline**. The heuristics engine crushes location spoofing (`isMocked`), VPNs, Rooted devices, and utilizes physical velocity algorithms to obliterate synthetic device clustering. 
+Protecting the ecosystem from adversarial exploits, Aegis routes all operations through a **5-Stage Defense-in-Depth Pipeline**. The heuristics engine crushes location spoofing (`isHardenedCheck`), VPNs, Rooted devices, and utilizes physical velocity algorithms to obliterate coordinated device clustering. 
 
 #### 3. Deterministic Idempotency
 To prevent "double-spend" payouts during extreme weather events and server latency, Aegis issues `PayoutIdempotencyKeys` hashed via SHA-256 against the H3 cell and the epoch timestamp. The payout pipeline executes with "Exactly-Once" ledgering semantics, rendering database deadlocks impossible.

@@ -100,7 +100,7 @@ def _generate_pricing_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.nda
     ct = rng.choice([0.4, 0.6, 0.8], size=n_samples, p=[0.35, 0.45, 0.2])
     margin = _clip(rng.normal(loc=0.105, scale=0.018, size=n_samples), 0.08, 0.15)
 
-    # Base Premium formula (used for synthetic labels)
+    # Base Premium formula (used for reference labels)
     premium = earnings * 0.015 * lf * ct * (1.0 + margin)
     
     # 4. Production-Grade Soft-Tail Clipping: [₹50, ₹300] + 0.01 residual

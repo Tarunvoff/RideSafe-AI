@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ForecastService } from './forecast.service';
+import { LiquidityPoolService } from '../compliance/liquidity-pool.service';
 
 /**
  * ── Global Platform Governance & Oversight ────────────────────────────────────
@@ -15,7 +17,11 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly forecastService: ForecastService,
+    private readonly liquidityPool: LiquidityPoolService,
+  ) {}
 
   private defaultSettings() {
     return {
@@ -28,6 +34,7 @@ export class AdminService {
         gpsSpeedMax: 300,
         h3ZoneConsistencyMin: 0.3,
         claimsLast30dMax: 10,
+        fallbackLf: 0.15,
       },
       planConfig: {
         autoRenewDefault: true,
@@ -136,6 +143,7 @@ export class AdminService {
       premiumAgg,
       recentAlerts,
       recentClaimsRaw,
+      liquidityStatus,
     ] = await Promise.all([
       prisma.user.count({ where: { role: 'DRIVER' } }),
       prisma.policy.count({ where: { status: 'ACTIVE', endDate: { gt: now } } }),
@@ -169,6 +177,7 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         take: 5,
       }),
+      this.liquidityPool.getLiquidityStatus(),
     ]);
 
     const recentClaims = (recentClaimsRaw ?? []).map((p: any) => ({
@@ -289,9 +298,12 @@ export class AdminService {
       const now = new Date();
       const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       
-      // Structural Mock of OpenWeather One Call 3.0 API response parameters
-      // In a live Tier-1 deployment, this would be fetched from the OpenWeather Gateway.
-      const forecastInputs = [
+      // [TASK 3]: 7-Day Dynamic Weather Integration
+      // We attempt to pull a live 7-day forecast from Open-Meteo. 
+      // If unavailable, we fall back to a "Cold-Start" operational baseline.
+      const liveForecast = await this.forecastService.get7DayForecast(13.0827, 80.2707); // Admin Node: Chennai
+      
+      const forecastInputs = liveForecast ?? [
         { rain: 2.1, aqi: 82, temp: 31 },  // +1 day
         { rain: 22.5, aqi: 145, temp: 27 }, // +2 days (Triggering elevated risk)
         { rain: 5.2, aqi: 95, temp: 29 },   // +3 days
@@ -401,6 +413,7 @@ export class AdminService {
       alertsByType,
       fraudStatusSplit,
       predictiveLossForecast,
+      liquidityStatus,
     };
   }
 

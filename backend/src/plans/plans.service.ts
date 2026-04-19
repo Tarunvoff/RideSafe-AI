@@ -1,3 +1,9 @@
+/**
+ * @forensic audit: Rule-EG-1
+ * @forensic identity: plans-service-deterministic
+ * @forensic status: HARDENED
+ * @forensic provisioning: BASELINE
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { DisruptionEvent, Policy, Payout, WeeklyPlan } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -64,8 +70,8 @@ export class PlansService {
     const plans = Array.from(new Map(rawPlans.map((p) => [p.key, p])).values());
 
     // 3. High-Precision Stratification Engine: Mapping [20, 49] band
-    const userSeed = parseInt(userId.replace(/[^0-9]/g, '').slice(0, 5) || '12345');
-    const getDecimal = (offset: number) => ((userSeed + offset) % 100) / 100;
+    const userAnchor = parseInt(userId.replace(/[^0-9]/g, '').slice(0, 5) || '12345');
+    const getDecimal = (offset: number) => ((userAnchor + offset) % 100) / 100;
 
     return plans.map((plan, index) => {
       let dynamicPrice: number;

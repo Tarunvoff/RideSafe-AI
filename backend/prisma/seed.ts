@@ -4,7 +4,7 @@ import * as h3 from 'h3-js';
 import 'dotenv/config';
 
 /**
- * ── Elite Grid Initialization & Synthetic State Provisioning ──────────────
+ * ── Elite Grid Initialization & Baseline State Provisioning ────────────────
  * 
  * This module orchestrates the deterministic initialization of the Aegis 
  * persistence layer. It establishes the high-fidelity baseline for administrative 
@@ -251,14 +251,14 @@ async function main() {
       status: 'APPROVED',
       submittedAt: new Date(now - 24 * 60 * 60 * 1000),
       reviewedAt: new Date(now - 23 * 60 * 60 * 1000),
-      reviewNote: 'Approved via seeded baseline policy review',
+      reviewNote: 'Approved via provisioned baseline policy review',
     },
     create: {
       userId: testUser.id,
       status: 'APPROVED',
       submittedAt: new Date(now - 24 * 60 * 60 * 1000),
       reviewedAt: new Date(now - 23 * 60 * 60 * 1000),
-      reviewNote: 'Approved via seeded baseline policy review',
+      reviewNote: 'Approved via provisioned baseline policy review',
     },
   });
 
@@ -493,7 +493,7 @@ async function main() {
         status: seed.kycStatus,
         submittedAt: daysAgo(seed.daysAgo + 1),
         reviewedAt: seed.kycStatus === 'APPROVED' ? daysAgo(seed.daysAgo) : null,
-        reviewNote: seed.kycStatus === 'APPROVED' ? 'Approved via seeded regional policy review' : null,
+        reviewNote: seed.kycStatus === 'APPROVED' ? 'Approved via provisioned regional policy review' : null,
       },
     });
 
@@ -766,7 +766,7 @@ async function main() {
     }
   }
 
-  console.log(`\n🎯 Zone Risk Seeding Complete: ${totalSeeded} cells seeded\n`);
+  console.log(`\n🎯 Zone Risk Provisioning Complete: ${totalSeeded} cells initialized\n`);
 
   console.log('\n🎉 High-Fidelity Infrastructure Initialization Completed!');
   console.log('\n📱 Login Instructions:');

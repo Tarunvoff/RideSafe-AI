@@ -31,6 +31,8 @@ import { RiskMonitorModule } from './risk-monitor/risk-monitor.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { TokenRevocationMiddleware } from './auth/token-revocation.middleware';
 import { BullModule } from '@nestjs/bullmq';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -43,6 +45,10 @@ import { BullModule } from '@nestjs/bullmq';
     PlansModule,
     PaymentsModule,
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 20,
+    }]),
     IngestionModule,
     TelemetryModule,
     DynamicQCommerceModule,
@@ -63,6 +69,12 @@ import { BullModule } from '@nestjs/bullmq';
         port: Number(process.env.REDIS_PORT || 6379),
       },
     }),
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {

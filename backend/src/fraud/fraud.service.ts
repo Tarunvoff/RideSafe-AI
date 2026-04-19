@@ -377,8 +377,8 @@ export class FraudService {
       shared_driver_count_24h: Number(features.meta.device_user_count ?? 1),
       phone_number: user?.phone ?? null,
       altitude_accuracy: Number(dto.altitudeAccuracy ?? 0),
-      is_mocked: Number(dto.isMocked ?? 0),
-      mock_provider: dto.mockProvider ?? null,
+      is_spoofed: dto.isSpoofed ?? 0,
+      spoof_provider: dto.spoof_provider ?? null,
       developer_mode: Number(dto.developerMode ?? 0),
       auth_token: token ?? null,
     };
@@ -433,7 +433,7 @@ export class FraudService {
     if (dto.velocityCheck === 'Suspicious')          score += 20;
 
     // ── Layer 8: GPS Spoof Intelligence ───────────────────────────────────────
-    if (dto.isMocked)                                score += 60; // critical spoof signal
+    if (dto.isSpoofed)                                score += 60; // critical spoof signal
     if (dto.developerMode)                           score += 30; // dev mode active
     if (dto.altitudeAccuracy != null && dto.altitudeAccuracy > 10) score += 10; 
 
@@ -611,7 +611,7 @@ export class FraudService {
     if (matchedDisruption) signalScore += 10;
 
     try {
-      await this.prisma.claimFingerprint.create({
+      await (this.prisma as any).claimFingerprint.create({
         data: {
           userId,
           h3Cell,

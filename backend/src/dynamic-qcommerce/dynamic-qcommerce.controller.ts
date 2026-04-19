@@ -3,7 +3,7 @@ import { DynamicOAuthLoginDto } from './dto/dynamic-oauth-login.dto';
 import { DynamicOAuthCallbackDto } from './dto/dynamic-oauth-callback.dto';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { WeekKeyOverrideDto } from './dto/week-key-override.dto';
-import { SeedDriversDto } from './dto/seed-drivers.dto';
+import { ProvisionDriversDto } from './dto/provision-drivers.dto';
 import { DynamicQCommerceService } from './dynamic-qcommerce.service';
 import { decodeInternalDriverId } from './utils/dynamic-data.factory';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -76,11 +76,11 @@ export class DynamicQCommerceController {
     return this.dynamicQCommerceService.setWeekKeyOverride(dto.weekKey);
   }
 
-  @Post('drivers/seed')
+  @Post('drivers/provision')
   @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
-  seedDrivers(@Body() dto: SeedDriversDto) {
-    return this.dynamicQCommerceService.seedDrivers(dto.provider, dto.identifiers, dto.prefix, dto.count);
+  provisionDrivers(@Body() dto: ProvisionDriversDto) {
+    return this.dynamicQCommerceService.provisionDrivers(dto);
   }
 
   @Post('drivers/create')

@@ -20,8 +20,10 @@ import { KafkaModule } from '../kafka/kafka.module';
 import { DynamicQCommerceController } from './dynamic-qcommerce.controller';
 import { PlatformActivityController } from './platform-activity.controller';
 import { DynamicQCommerceService } from './dynamic-qcommerce.service';
-import { SeededTelemetryAdapter } from './adapters/seeded-telemetry.adapter';
+import { HeuristicTelemetryAdapter } from './adapters/heuristic-telemetry.adapter';
 import { LiveTelemetryAdapter } from './adapters/live-telemetry.adapter';
+import { InternalPartnerAdapter } from './adapters/internal-partner.adapter';
+import { GenericRestPartnerAdapter } from './adapters/generic-rest-partner.adapter';
 
 @Module({
   imports: [
@@ -34,16 +36,25 @@ import { LiveTelemetryAdapter } from './adapters/live-telemetry.adapter';
   controllers: [DynamicQCommerceController, PlatformActivityController],
   providers: [
     DynamicQCommerceService,
-    SeededTelemetryAdapter,
+    HeuristicTelemetryAdapter,
     LiveTelemetryAdapter,
     {
       provide: 'ITelemetryAdapter',
-      useFactory: (seeded: SeededTelemetryAdapter, live: LiveTelemetryAdapter) => {
-        return process.env.TELEMETRY_SOURCE === 'LIVE' ? live : seeded;
+      useFactory: (heuristic: HeuristicTelemetryAdapter, live: LiveTelemetryAdapter) => {
+        return process.env.TELEMETRY_SOURCE === 'LIVE' ? live : heuristic;
       },
-      inject: [SeededTelemetryAdapter, LiveTelemetryAdapter],
+      inject: [HeuristicTelemetryAdapter, LiveTelemetryAdapter],
+    },
+    InternalPartnerAdapter,
+    GenericRestPartnerAdapter,
+    {
+      provide: 'IParametricPartnerProvider',
+      useFactory: (internal: InternalPartnerAdapter, rest: GenericRestPartnerAdapter) => {
+        return process.env.PARTNER_INTEGRATION_TYPE === 'REST' ? rest : internal;
+      },
+      inject: [InternalPartnerAdapter, GenericRestPartnerAdapter],
     },
   ],
-  exports: [DynamicQCommerceService, 'ITelemetryAdapter'],
+  exports: [DynamicQCommerceService, 'ITelemetryAdapter', 'IParametricPartnerProvider'],
 })
 export class DynamicQCommerceModule {}

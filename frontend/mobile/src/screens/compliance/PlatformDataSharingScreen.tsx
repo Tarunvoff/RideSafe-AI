@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Button from '../../components/ui/Button';
 
 export default function PlatformDataSharingScreen({ navigation }: any) {
-  const [partner, setPartner] = useState<'ZOMATO' | 'SWIGGY' | 'DUNZO'>('ZOMATO');
+  const [partner, setPartner] = useState<'BLINKIT' | 'ZEPTO' | 'INSTAMART' | 'JIOMART' | 'BIGBASKET'>('BLINKIT');
 
   const handleAgree = async () => {
     // API call to /compliance/consent/dpdp with type: 'PLATFORM', partner
@@ -31,7 +31,7 @@ export default function PlatformDataSharingScreen({ navigation }: any) {
        </Text>
 
        <View style={styles.partnerRow}>
-         {['ZOMATO', 'SWIGGY', 'DUNZO'].map(p => (
+         {['BLINKIT', 'ZEPTO', 'INSTAMART', 'JIOMART', 'BIGBASKET'].map(p => (
            <TouchableOpacity 
              key={p} 
              style={[styles.chip, partner === p && styles.chipActive]}

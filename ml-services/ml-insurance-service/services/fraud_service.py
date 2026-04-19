@@ -143,6 +143,21 @@ def calculate_hybrid_fraud_score(request: FraudHybridScoreRequest) -> FraudHybri
         logger.warning(f"Revoked token detected in ML pipeline for driver {request.driver_id}")
         final_score = 1.0  # HARD BLOCK: Max fraud score
         signals.append("REVOKED_OAUTH_TOKEN")
+    
+    # ── FIX: Adaptive Recalibration Drift ─────────────────────────────────────
+    # Apply the drift coefficient from the feedback loop.
+    # ADAPTIVE_DRIFT_KEY = "aegis:ml:adaptive_drift"
+    if redis_client.client:
+        try:
+            drift = redis_client.client.get("aegis:ml:adaptive_drift")
+            if drift:
+                drift_val = float(drift)
+                prev_score = final_score
+                final_score = max(0.0, min(1.0, final_score + drift_val))
+                if abs(drift_val) > 0.05:
+                    logger.info(f"Applying adaptive drift to fraud score: {prev_score:.4f} -> {final_score:.4f} (drift={drift_val:.4f})")
+        except Exception as e:
+            logger.error(f"Failed to apply adaptive drift: {e}")
     # ──────────────────────────────────────────────────────────────────────────
 
     final_score = max(0.0, min(1.0, final_score))

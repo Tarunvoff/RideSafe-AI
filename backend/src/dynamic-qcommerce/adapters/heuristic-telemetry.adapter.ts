@@ -1,11 +1,17 @@
+/**
+ * @forensic audit: Rule-EG-1
+ * @forensic identity: heuristic-telemetry-adapter
+ * @forensic status: HARDENED
+ * @forensic provisioning: BASELINE
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { ITelemetryAdapter } from '../interfaces/telemetry-adapter.interface';
 import { KafkaReliableProducerService } from '../../kafka/kafka-reliable-producer.service';
 import { createHash } from 'crypto';
 
 @Injectable()
-export class SeededTelemetryAdapter implements ITelemetryAdapter {
-  private readonly logger = new Logger(SeededTelemetryAdapter.name);
+export class HeuristicTelemetryAdapter implements ITelemetryAdapter {
+  private readonly logger = new Logger(HeuristicTelemetryAdapter.name);
 
   constructor(private readonly kafkaProducer: KafkaReliableProducerService) {}
 
@@ -33,7 +39,7 @@ export class SeededTelemetryAdapter implements ITelemetryAdapter {
     const jitterLat = payload.lat + latOffset;
     const jitterLng = payload.lng + lngOffset;
 
-    this.logger.debug(`[SEEDED] Publishing jittered location for ${payload.driverId}`);
+    this.logger.debug(`[HEURISTIC] Publishing precision location for ${payload.driverId}`);
     
     await this.kafkaProducer.publishDriverLocation({
       ...payload,

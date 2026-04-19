@@ -55,7 +55,7 @@ The parametric settlement engine ingests granular, government-verified telemetry
 
 ### The "Fail-Closed" Resiliency Matrix
 
-Tier-1 engineering mandates absolute determinism under degraded infrastructure states. Rather than processing claims with missing telemetry via default "success" mocks, Aegis strictly enforces a **Fail-Closed Circuit-Breaker** paradigm.
+Tier-1 engineering mandates absolute determinism under degraded infrastructure states. Rather than processing claims with missing telemetry via default "success" approximations, Aegis strictly enforces a **Fail-Closed Circuit-Breaker** paradigm.
 
 | Authoritative Source | Failure Modality (e.g., HTTP 5xx) | Mission-Critical Architectural Response |
 | :--- | :--- | :--- |

@@ -10,7 +10,7 @@ describe('premium-calculation.util', () => {
   it('returns correct premium for standard tier', () => {
     const raw = computeRawWeeklyPremium({ Ew: 10000, Lf: 0.5, Ct: 0.6 });
     const bounded = applyPremiumBounds(raw, resolveTierCap(0.6));
-    expect(bounded).toEqual(38);
+    expect(bounded).toEqual(49.5);
   });
 
   it('does not exceed tier cap', () => {

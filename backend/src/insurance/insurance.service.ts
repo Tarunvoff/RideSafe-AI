@@ -7,6 +7,7 @@ import { FraudIntegrationService } from '../fraud-integration/fraud-integration.
 import { PayoutService } from '../payout/payout.service';
 import { PremiumService } from '../premium/premium.service';
 import { TriggerService } from '../trigger/trigger.service';
+import { LiquidityPoolService } from '../compliance/liquidity-pool.service';
 import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
 import { ctForPlan, normalizePlanTier } from './policy-tiers';
 import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
@@ -41,6 +42,7 @@ export class InsuranceService {
     private readonly payoutService: PayoutService,
     private readonly premiumService: PremiumService,
     private readonly triggerService: TriggerService,
+    private readonly liquidityPool: LiquidityPoolService,
   ) {}
 
   private resolveCtOrThrow(planKey?: string | null) {
@@ -146,6 +148,19 @@ export class InsuranceService {
 
     await assertDriverPolicyEligibility(this.prisma, dto.driverId, plan);
 
+    // DevTrails Rule: Loss Ratio > 85%: suspend new enrolments
+    const payoutAgg = await this.prisma.payout.aggregate({ _sum: { approvedPayout: true } });
+    const premiumAgg = await this.prisma.policy.aggregate({ _sum: { premium: true } });
+    const totalApprovedPayout = payoutAgg?._sum?.approvedPayout ?? 0;
+    const totalPremiumCollected = premiumAgg?._sum?.premium ?? 0;
+    const currentLossRatio = totalPremiumCollected > 0 ? totalApprovedPayout / totalPremiumCollected : 0;
+
+    if (currentLossRatio > 0.85) {
+      this.logger.error(`Enrolment blocked. Current Loss Ratio is ${currentLossRatio.toFixed(2)} (> 85%)`);
+      // Use ForbiddenException or BadRequestException to halt the request
+      throw new BadRequestException('Enrolment paused due to portfolio capacity load. BCR exceeds 85%.');
+    }
+
     const profile = (await this.dynamicQCommerce.getDriverProfile(dto.driverId)).driverProfile;
     const Ew = this.resolveWeeklyEarnings(profile);
     const platform = profile?.identity?.provider ?? null;
@@ -201,6 +216,11 @@ export class InsuranceService {
         endDate: validTo,
       },
     });
+
+    // Capture premium in the stratified pool for manual enrollments
+    if (premium > 0) {
+      await this.liquidityPool.injectPremium(premium, `manual_enroll_${policy.id}`);
+    }
 
     await this.redisState.setPolicyState(policy.id, {
       plan,
@@ -505,6 +525,11 @@ export class InsuranceService {
           weeklyPlanId: weeklyPlan.id,
         },
       });
+
+      // Capture premium in the stratified pool for manual renewals
+      if (renewedPremium > 0) {
+        await this.liquidityPool.injectPremium(renewedPremium, `manual_renew_${renewedPolicy.id}`);
+      }
 
       return {
         success: true,

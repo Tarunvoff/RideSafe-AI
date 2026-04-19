@@ -17,7 +17,7 @@ import {
   DriverWeekSummary,
   DriverWeekSummaryTotals,
 } from '../interfaces/driver-profile.interface';
-import { SeededRandom, createSeedFromString } from './seeded-random.util';
+import { DeterministicRandom, createAnchorFromString } from './deterministic-random.util';
 
 export interface DriverCityContext {
   city: string;
@@ -116,7 +116,7 @@ const PENALTY_SKIP_THRESHOLD = 4;
 const PENALTY_CAP_INR = 90;
 const BASE_EARNINGS_UPPER_BOUND = 2500;
 
-// Source: Swiggy Q3 2023 earnings call notes weekend demand surges near 1.3x-1.4x.
+// Source: Q-Commerce platform earnings call notes weekend demand surges near 1.3x-1.4x.
 const WEEKEND_SURGE_MULTIPLIER = 1.3;
 // Source: Platform rain incentives reported at +INR 15-25/order during heavy rain.
 const RAIN_INCENTIVE_MULTIPLIER = 1.2;
@@ -132,7 +132,7 @@ const maskValue = (value: string, visible = 4, maskChar = 'X') => {
 const toISODate = (date: Date) => date.toISOString();
 const toISODateOnly = (date: Date) => date.toISOString().split('T')[0];
 
-const createVehicleNumber = (stateCode: string, random: SeededRandom) => {
+const createVehicleNumber = (stateCode: string, random: DeterministicRandom) => {
   const district = random.nextInt(10, 68);
   const alpha = String.fromCharCode(65 + random.nextInt(0, 25)) + String.fromCharCode(65 + random.nextInt(0, 25));
   const serial = random.nextInt(1000, 9999);
@@ -174,23 +174,23 @@ const deriveWeekStartFromKey = (weekKey: string): Date => {
 
 const ensurePositive = (value: number) => (value < 0 ? 0 : value);
 
-const sampleLogNormal = (random: SeededRandom, median: number, sigma: number): number => {
-  // Box-Muller transform from deterministic seeded RNG for reproducible synthetic distributions.
+const sampleLogNormal = (random: DeterministicRandom, median: number, sigma: number): number => {
+  // Box-Muller transform from stable deterministic RNG for reproducible baseline distributions.
   const u1 = Math.max(random.nextFloat(), 1e-9);
   const u2 = Math.max(random.nextFloat(), 1e-9);
   const standardNormal = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   return Math.exp(Math.log(median) + sigma * standardNormal);
 };
 
-const hasRainIncentiveDay = (random: SeededRandom): boolean => random.nextFloat() < 0.22;
+const hasRainIncentiveDay = (random: DeterministicRandom): boolean => random.nextFloat() < 0.22;
 
-const resolveEmploymentType = (random: SeededRandom): EmploymentType => {
+const resolveEmploymentType = (random: DeterministicRandom): EmploymentType => {
   if (random.nextFloat() < FULL_TIME_DRIVER_PROBABILITY) return EmploymentType.FULL_TIME;
   return random.pick([EmploymentType.GIG, EmploymentType.PART_TIME]);
 };
 
 const generateDailyBreakdown = (
-  random: SeededRandom,
+  random: DeterministicRandom,
   darkStores: string[],
   weekStart: Date,
 ): { dailyBreakdown: DriverDailyBreakdown[]; totals: DriverWeekSummaryTotals } => {
@@ -328,7 +328,7 @@ const generateDailyBreakdown = (
 };
 
 const generateOrderHistory = (
-  random: SeededRandom,
+  random: DeterministicRandom,
   provider: QCommerceProvider,
   storePool: string[],
   zonePool: string[],
@@ -473,7 +473,7 @@ const generateIdentity = (
   provider: QCommerceProvider,
   identifier: string,
   internalDriverId: string,
-  random: SeededRandom,
+  random: DeterministicRandom,
 ) => {
   const city = random.pick(CITY_BLUEPRINTS);
   const fullName = random.pick(NAME_SETS[provider]);
@@ -517,7 +517,7 @@ const generateIdentity = (
 const generateKycDetails = (
   provider: QCommerceProvider,
   identifier: string,
-  random: SeededRandom,
+  random: DeterministicRandom,
   joiningDate: string,
 ) => {
   const now = new Date(joiningDate);
@@ -551,7 +551,7 @@ const generateKycDetails = (
 };
 
 const generateWorkSummary = (
-  random: SeededRandom,
+  random: DeterministicRandom,
   totals: DriverWeekSummaryTotals,
   primaryCluster: string,
 ) => {
@@ -612,8 +612,8 @@ export const buildStaticProfileParts = (
   identifier: string,
   internalDriverId?: string,
 ): DriverStaticProfileComputation => {
-  const seed = createSeedFromString(`${provider}:${identifier}`);
-  const random = new SeededRandom(seed);
+  const anchor = createAnchorFromString(`${provider}:${identifier}`);
+  const random = new DeterministicRandom(anchor);
   const driverId = internalDriverId ?? createInternalDriverId(provider, identifier);
   const identityPayload = generateIdentity(provider, identifier, driverId, random);
   const kycPayload = generateKycDetails(provider, identifier, random, identityPayload.identity.joiningDate);
@@ -633,8 +633,8 @@ export const buildWeeklySnapshot = (
   weekKey: string,
   cityContext: DriverCityContext,
 ): DriverWeeklySnapshotPayload => {
-  const weeklySeed = createSeedFromString(`${provider}:${identifier}:${weekKey}`);
-  const random = new SeededRandom(weeklySeed);
+  const weeklyAnchor = createAnchorFromString(`${provider}:${identifier}:${weekKey}`);
+  const random = new DeterministicRandom(weeklyAnchor);
   const weekStart = deriveWeekStartFromKey(weekKey);
   const { dailyBreakdown, totals } = generateDailyBreakdown(random, cityContext.darkStores, weekStart);
   const orderHistory = generateOrderHistory(

@@ -492,6 +492,13 @@ model AdminSettings {
   @@map("admin_settings")
 }
 
+model SystemSetting {
+  key   String @id
+  value String
+
+  @@map("system_settings")
+}
+
 model ZoneTelemetryLog {
   id        String   @id @default(uuid())
   h3Cell    String   @map("h3_cell")

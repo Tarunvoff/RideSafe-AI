@@ -10,7 +10,7 @@ Traditional insurance architectures operate on static, flat-rate tables. This cr
 Every billing cycle, the `PremiumService` calculates the driver’s specific rate based on three heavily guarded algorithmic pillars:
 
 #### Pilar A: The Earnings Base ($E_w$)
-*   **Data Sourcing:** Extracts the `aggregate weekly earnings` directly from the `DynamicQCommerceService` (via integrations with Swiggy/Blinkit).
+*   **Data Sourcing:** Extracts the `aggregate weekly earnings` directly from the `DynamicQCommerceService` (via integrations with Blinkit/Zepto/Instamart/JioMart/BigBasket).
 *   **New Driver Fallbacks:** If a driver lacks historical telemetry, the engine defaults to a `cohortCandidate` metric—calculating the `activeDays` ratio to synthesize a mathematically fair earnings baseline ($E_w$) without overcharging.
 
 #### Pilar B: The Location Risk Factor ($L_f$)

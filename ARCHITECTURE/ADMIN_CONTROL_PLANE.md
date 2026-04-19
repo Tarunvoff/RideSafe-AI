@@ -2,14 +2,14 @@
 ## Absolute Transparency. Predictive Intelligence. Uncompromising Oversight.
 
 ### Executive Summary
-The Aegis Admin Control Plane is an **Elite Actuarial Visibility Layer** designed for Tier-1 insurance underwriters and platform administrators. It serves as the "Nervous System" of the ecosystem, providing high-fidelity metrics on pool solvency, fraud vectors, and environmental risk. Engineered with a **Fail-Honest Philosophy**, the dashboard rejects synthetic approximations, ensuring that every data point—from Loss Ratios to 7-Day Forecasts—is mathematically sound and forensic-ready for IRDAI compliance audits.
+The Aegis Admin Control Plane is an **Elite Actuarial Visibility Layer** designed for Tier-1 insurance underwriters and platform administrators. It serves as the "Nervous System" of the ecosystem, providing high-fidelity metrics on pool solvency, fraud vectors, and environmental risk. Engineered with a **Fail-Honest Philosophy**, the dashboard rejects imprecise approximations, ensuring that every data point—from Loss Ratios to 7-Day Forecasts—is mathematically sound and forensic-ready for IRDAI compliance audits.
 
 ---
 
-### 1. Eradication of Mocks (The USP)
-The Aegis Control Plane is built on a **High-Fidelity Data Foundation**. We have systematically purged all static mock fallbacks and "simulation" data from the production telemetry path.
+### 1. Absolute Data Fidelity (The USP)
+The Aegis Control Plane is built on a **High-Fidelity Data Foundation**. We have systematically purged all static fallbacks and baseline data from the production telemetry path.
 
-*   **Fail-Honest Architecture**: If the underlying ML service or telemetry sensors provide insufficient signal, the system explicitly returns an **"INSUFFICIENT DATA"** state. It refuses to "interpolate" or "mock" risk scores, ensuring that underwriters never make decisions based on architectural hallucinations.
+*   **Fail-Honest Architecture**: If the underlying ML service or telemetry sensors provide insufficient signal, the system explicitly returns an **"INSUFFICIENT DATA"** state. It refuses to "interpolate" or approximate risk scores, ensuring that underwriters never make decisions based on architectural hallucinations.
 *   **Live Telemetry Ingestion**: All metrics are derived from real-time Kafka streams and TimescaleDB hyper-tables, reflecting the true state of the global H3 grid at sub-second latency.
 
 ---
@@ -42,7 +42,7 @@ This Control Plane is engineered for **Strict Regulatory Oversight**.
 ### Why This is Tier-1 Engineering
 *   **Mathematical Certainty**: By rejecting linear regression in favor of **XGBoost-backed feature fusion** for forecasts, Aegis provides a precision-grade decisioning tool.
 *   **Operational Resilience**: The dashboard is decoupled from the primary claim processing pipeline. Even during a "High-Alert" disruption state where claim volume spikes, the Admin layer remains performant, utilizing read-replicas and Redis caches to maintain visibility.
-*   **Absolute Integrity**: Every visual component is bound to a hard data contract; there are no "placeholder" widgets. If the data isn't there, the system says so.
+*   **Absolute Integrity**: Every visual component is bound to a hard data contract; there are no "empty state" widgets. If the data isn't there, the system says so.
 
 ---
 

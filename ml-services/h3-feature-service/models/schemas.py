@@ -69,7 +69,7 @@ class PipelineRequest(BaseModel):
     Ew:       float           = Field(..., description="Weekly earnings in ₹", example=8000.0)
     Ct:       Optional[float] = Field(None,  description="Coverage tier (0.4/0.6/0.8) — auto-resolved from platform if omitted")
     M:        float           = Field(0.1,   description="Margin hint (0.08–0.15)")
-    platform: Optional[str]   = Field(None,  description="Platform name for Ct auto-resolution: zepto/blinkit/swiggy/zomato/ola/uber")
+    platform: Optional[str]   = Field(None,  description="Platform name for Ct auto-resolution: zepto/blinkit/instamart/jiomart/bigbasket")
 
 
 class PipelineResponse(BaseModel):

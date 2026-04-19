@@ -1,9 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import logging
+from utils.redis_client import redis_client
 
 router = APIRouter(prefix="/feedback")
 logger = logging.getLogger(__name__)
+
+# Key for storing adaptive drift in Redis
+ADAPTIVE_DRIFT_KEY = "aegis:ml:adaptive_drift"
+LEARNING_RATE = 0.05
 
 class PayoutFeedback(BaseModel):
     payout_id: str
@@ -19,24 +24,41 @@ async def process_payout_audit(feedback: PayoutFeedback):
     Compares the original ML prediction against the real-world outcome
     to refine model weights or retrain triggers.
     """
-    error = abs(feedback.predicted_risk - feedback.actual_outcome)
+    error = feedback.actual_outcome - feedback.predicted_risk
+    abs_error = abs(error)
     
-    # In a real adaptive system, this might trigger a weight update in Redis 
-    # or add a record to a "Training Buffer" for the next retraining cycle.
     logger.info(
         f"Feedback Audit Received for Payout {feedback.payout_id}: "
         f"Predicted={feedback.predicted_risk}, Actual={feedback.actual_outcome}, Error={error:.4f}"
     )
     
-    if error > 0.4:
-        logger.warning(
-            f"High Prediction error detected in zone {feedback.h3_cell}. "
-            f"Flagging for weight recalibration."
-        )
-        # TODO: Implement dynamic weight adjustment logic here
-        
+    # ── High-Fidelity Recalibration Logic ────────────────────────────────────
+    # If the model consistently under-predicts (actual > prediction), 
+    # we increment the adaptive drift state.
+    
+    current_drift = 0.0
+    if redis_client.client:
+        try:
+            stored_drift = redis_client.client.get(ADAPTIVE_DRIFT_KEY)
+            if stored_drift:
+                current_drift = float(stored_drift)
+            
+            # Apply adjustment based on the direction of error
+            # This implements a running average 'bias' filter
+            new_drift = current_drift + (error * LEARNING_RATE)
+            
+            # Cap the drift to prevent runaway oscillation
+            new_drift = max(-0.5, min(0.5, new_drift))
+            
+            redis_client.client.set(ADAPTIVE_DRIFT_KEY, str(new_drift))
+            logger.info(f"Adaptive Drift updated: {current_drift:.4f} -> {new_drift:.4f}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update adaptive drift in Redis: {e}")
+
     return {
-        "status": "acknowledged", 
+        "status": "recalibrated" if abs_error > 0.1 else "nominal", 
         "error_delta": error,
-        "action": "flagged_for_recalibration" if error > 0.4 else "stored_for_training"
+        "new_global_drift": current_drift + (error * LEARNING_RATE) if redis_client.client else 0,
+        "action": "weight_bias_adjusted" if abs_error > 0.1 else "stored_for_training"
     }

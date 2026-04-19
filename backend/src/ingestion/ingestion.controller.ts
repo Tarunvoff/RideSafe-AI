@@ -11,7 +11,7 @@ export class IngestionController {
   @HttpCode(HttpStatus.OK)
   async forceTestIngestion() {
     // Manually force the AI Cron Job to trigger immediately instead of waiting 10 minutes
-    await this.ingestionService.ingestFromNewsData();
+    await this.ingestionService.executeDisruptionIngestionDAG();
     return {
       message: 'Manual NewsData & Gemini pipeline sweep explicitly finished. Check NestJS Server Console for live JSON logs.',
     };

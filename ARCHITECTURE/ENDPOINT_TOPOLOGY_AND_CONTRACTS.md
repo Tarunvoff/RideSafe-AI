@@ -331,14 +331,14 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 - **Production Purpose**: A long-term archive of all triggered parametric events.
 - **Enterprise Rationale**: Essential for actuarial model training and historical loss analysis.
 
-64. **POST** `/triggers/simulate`
+6334. **POST** `/triggers/adversarial-stress`
 - **Service Domain**: NestJS Core / Triggers
-- **Production Purpose**: Red-teams the trigger engine with synthetic disaster inputs.
+- **Production Purpose**: Red-teams the trigger engine with adversarial disaster inputs.
 - **Enterprise Rationale**: Ensures system resilience by stress-testing the payout pipeline.
 
 65. **POST** `/dynamic-qcommerce/oauth/login`
 - **Service Domain**: NestJS Core / QCommerce
-- **Production Purpose**: Entry point for third-party platform drivers (Blinkit, Swiggy) to authenticate.
+- **Production Purpose**: Entry point for third-party platform drivers (Blinkit, Zepto, Instamart, JioMart, BigBasket) to authenticate.
 - **Enterprise Rationale**: Implements a secure OAuth2 handshake with external gig-platforms.
 
 66. **POST** `/dynamic-qcommerce/oauth/callback`
@@ -356,9 +356,9 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 - **Production Purpose**: Administrative adjustment of historical driver performance data.
 - **Enterprise Rationale**: Audit-logged to prevent untraceable actuarial tampering.
 
-69. **POST** `/dynamic-qcommerce/drivers/seed`
+6359. **POST** `/dynamic-qcommerce/drivers/provision`
 - **Service Domain**: NestJS Core / QCommerce
-- **Production Purpose**: Developer utility for populating the adversarial test layer.
+- **Production Purpose**: Technical utility for populating the performance layer.
 - **Enterprise Rationale**: Disabled in production environments to maintain data integrity.
 
 70. **POST** `/dynamic-qcommerce/drivers/create`
@@ -537,7 +537,7 @@ This matrix serves as the authoritative contract for the Aegis grid, ensuring ab
 
 104. **POST** `/internal/adversarial/stress`
 - **Service Domain**: ML / Stress Testing
-- **Production Purpose**: Injects high-risk synthetic anomalies to test model classification robustness.
+- **Production Purpose**: Injects high-risk adversarial anomalies to test model classification robustness.
 - **Enterprise Rationale**: Proactively identifies model blind spots in a production-grade environment.
 
 105. **GET** `/internal/config`

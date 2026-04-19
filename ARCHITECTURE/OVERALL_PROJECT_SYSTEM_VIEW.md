@@ -8,7 +8,7 @@ Aegis was built to eliminate that gap entirely. The premise: parametric insuranc
 
 ## What Aegis does
 
-Aegis is a fully operational, end-to-end parametric insurance platform. A rider registers in under 5 seconds via simulated OAuth with their platform (Zepto, Blinkit, Swiggy Instamart), receives a live personalized premium quote driven by their actual H3 zone risk, enrolls in a policy, and — when their zone goes unserviceable — receives an automatic UPI payout with a push notification. The rider does nothing. The system does everything.
+Aegis is a fully operational, end-to-end parametric insurance platform. A rider registers in under 5 seconds via simulated OAuth with their platform (Blinkit, Zepto, Instamart, JioMart, BigBasket), receives a live personalized premium quote driven by their actual H3 zone risk, enrolls in a policy, and — when their zone goes unserviceable — receives an automatic UPI payout with a push notification. The rider does nothing. The system does everything.
 
 A rider on the Standard tier with a ₹7,000 weekly earnings baseline receives between ₹800 and ₹1,200 on a disrupted day. From zone trigger to money transferred: under 2 minutes.
 
@@ -42,7 +42,7 @@ Pr = (Ew × α) × Lf × Ct × (1 + M)
 
 Pricing adjusts dynamically by season and zone — monsoon periods carry higher risk scores than dry winter weeks, and the premium reflects that difference automatically. The trigger itself is objective and independently verifiable: AQI readings above threshold from the CPCB API, rainfall measurements from IMD feeds, and delivery zone deactivation signals from platform APIs. These are public, quantifiable sources — not internal assessments. Coverage is explicitly scoped to income loss from weather and AQI disruptions, and excludes health, life, and vehicle claims, keeping Aegis within the parametric income-protection category rather than regulated health or motor lines.
 
-The sustainability margin `M` is stress-tested against a 14-day consecutive monsoon scenario, with a liquidity reserve maintained so the pool does not exhaust even under worst-case sequential payouts. The modeled loss ratio sits at BCR 0.65. Historical frequency of zone-halting events is quantified per H3 cell from synthetic operational data and real weather archives, giving the pricing model actuarial backing rather than assumption — the pool can demonstrate, cell by cell, how often a payout-triggering event occurred in prior periods.
+The sustainability margin `M` is stress-tested against a 14-day consecutive monsoon scenario, with a liquidity reserve maintained so the pool does not exhaust even under worst-case sequential payouts. The modeled loss ratio sits at BCR 0.65. Historical frequency of zone-halting events is quantified per H3 cell from baseline operational data and real weather archives, giving the pricing model actuarial backing rather than assumption — the pool can demonstrate, cell by cell, how often a payout-triggering event occurred in prior periods.
 
 Premium collection runs via UPI auto-pay with weekly micro-deductions — no manual card entries, no deduction batching into large sums that riders might not plan for. The deduction happens automatically from the enrolled UPI handle, keeping the operational friction at zero on both the rider and the platform side.
 
@@ -58,7 +58,7 @@ When a zone tips into `HALTED`, the trigger engine verifies H3 zone presence his
 
 Four specialized Python inference services handle all intelligence workloads independently:
 
-**Risk model (XGBoost)** computes the Loss Fraction `Lf` per H3 cell. Input features include `rainfall_mm`, `aqi_index`, `demand_factor`, `zone_historical_risk`, and `driver_tenure_days`. Monotonic constraints enforce actuarial logic — increasing rainfall can only increase, never decrease, risk scores. This was non-negotiable: without direction-constrained gradients, the model could learn spurious inverse correlations from noisy synthetic training data, producing lower risk scores during heavier rain whenever a batch happened to carry that co-occurrence. The constraints guarantee actuarially logical premium behaviour from day one, before a single real claim has been recorded. AUC consistently above 0.85.
+**Risk model (XGBoost)** computes the Loss Fraction `Lf` per H3 cell. Input features include `rainfall_mm`, `aqi_index`, `demand_factor`, `zone_historical_risk`, and `driver_tenure_days`. Monotonic constraints enforce actuarial logic — increasing rainfall can only increase, never decrease, risk scores. This was non-negotiable: without direction-constrained gradients, the model could learn spurious inverse correlations from noisy baseline training data, producing lower risk scores during heavier rain whenever a batch happened to carry that co-occurrence. The constraints guarantee actuarially logical premium behaviour from day one, before a single real claim has been recorded. AUC consistently above 0.85.
 
 **Pricing model (LightGBM)** regresses the final premium using a log-target transformation and Huber Loss objective, making it robust against the long-tailed distribution of gig earnings. Trained on a heavy-tail augmented dataset so the premium ceiling holds under extreme earnings outliers.
 
@@ -131,7 +131,7 @@ The complete Aegis parametric insurance policy document — covering coverage te
 
 ## Challenges
 
-**Actuarial correctness without historical data.** Monotonic constraints in XGBoost were non-negotiable. Without them, the model could learn spurious inverse correlations from noisy synthetic data — lower risk during heavier rain simply because a training batch happened to have those co-occurrences. Enforcing direction-constrained gradients guaranteed actuarially logical premium behavior from day one, before a single real claim existed.
+**Actuarial correctness without historical data.** Monotonic constraints in XGBoost were non-negotiable. Without them, the model could learn spurious inverse correlations from noisy baseline data — lower risk during heavier rain simply because a training batch happened to have those co-occurrences. Enforcing direction-constrained gradients guaranteed actuarially logical premium behavior from day one, before a single real claim existed.
 
 **Exactly-once payouts in a distributed system.** With Kafka delivering zone trigger events to multiple consumers, the same event can arrive at the payout service more than once. Application-level locks are fragile. The final solution — a `PayoutIdempotencyKey` table with a database-level unique constraint — physically rejects duplicate writes at the persistence layer, making double-payment structurally impossible.
 

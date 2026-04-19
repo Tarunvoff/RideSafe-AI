@@ -80,81 +80,89 @@ export class IngestionService {
   }
 
   /**
-   * Automatically executes every 10 minutes to ingest live APIs (Newsdata.io) 
-   * exactly matching the parameters: domestic, tamil, english!
+   * ── Elite "DAG-lite" Ingestion Orchestrator ─────────────────────────────────
+   * 
+   * This orchestrator mimics the transactional reliability of Apache Airflow 
+   * by treating the ingestion sweep as a multi-stage directed graph.
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
-  async ingestFromNewsData() {
-    this.logger.log('Executing NewsData.io Civil Disruption Sweep...');
-
-    const apiKey = process.env.NEWSDATA_API_KEY;
-    if (!apiKey) {
-      this.logger.warn('Skipping Ingestion: NEWSDATA_API_KEY is missing from .env');
-      return;
-    }
+  async executeDisruptionIngestionDAG() {
+    const correlationId = `dag_${Date.now()}`;
+    this.logger.log(`[DAG_START] correlationId=${correlationId}: Initiating Civil Disruption Sweep`);
 
     try {
-      // 1. Fetch live raw Tamil + English domestic news specifically querying disruption keywords.
-      const url = `https://newsdata.io/api/1/latest?apikey=${apiKey}&category=domestic&language=en,ta&q=strike OR protest OR flood OR curfew OR bandh OR heavy rain OR cyclone`;
-      const res = await this.fetchWithTimeout(
-        url,
-        { method: 'GET' },
-        IngestionService.NEWSDATA_TIMEOUT_MS,
-        'NewsData.io',
-      );
-      const data = await this.safeParseJsonResponse(res, 'NewsData.io');
-      if (!data) return;
+      // Stage 1: Extraction Operator
+      const rawArticles = await this.operatorExtractArticles();
+      if (!rawArticles || rawArticles.length === 0) return;
 
-      if (data.status && data.status !== 'success') {
-        this.logger.warn(`NewsData.io returned status=${data.status}. message=${data.message || 'n/a'}`);
-        return;
-      }
+      // Stage 2: Transform/Filter Operator (Agentic Gemini AI)
+      const verifiedEvents = await this.operatorTransformAndFilter(rawArticles);
+      if (!verifiedEvents || verifiedEvents.length === 0) return;
 
-      if (!data.results || data.results.length === 0) {
-        this.logger.log('No civil disruptions detected in the 10-minute sweep.');
-        return;
-      }
+      // Stage 3: Sink/Load Operator (Transactional Ingestion)
+      await this.operatorLoadEvents(verifiedEvents, correlationId);
 
-      // 2. Routing to Gemini AI for deterministic verification...
-      const articles = data.results.map((r: any) => ({
-        title: r.title,
-        desc: r.description,
-        link: r.link,
-        city: r.country && r.country.length > 0 ? r.country[0] : "India"
-      }));
-
-      this.logger.log(`Found ${articles.length} potential disruption articles. Routing to Agentic Gemini AI...`);
-      const geminiResult = await this.analyzeWithGemini(articles);
-
-      // 3. Drop extracted verified strikes/floods right into Postgres
-      if (geminiResult && geminiResult.disruptions) {
-        for (const event of geminiResult.disruptions) {
-          try {
-            const duplicate = await (this.prisma as any).disruptionEvent.findFirst({
-              where: { title: event.title }
-            });
-
-            if (!duplicate) {
-              await (this.prisma as any).disruptionEvent.create({
-                data: {
-                  type: event.type,
-                  title: event.title,
-                  expectedLoss: Math.round(event.severityScore * 800),
-                  expectedPayout: Math.round(event.severityScore * 400),
-                  verified: true,
-                  occurredAt: new Date(),
-                }
-              });
-              this.logger.log(`🚨 [AUTO-TRIGGER] Inserted Verified Disruption: [${event.type}] ${event.title}`);
-            }
-          } catch (dbErr) {
-            this.logger.error(`DATABASE_INSERT_FAILURE for event "${event.title}":`, dbErr);
-          }
-        }
-      }
-
+      this.logger.log(`[DAG_SUCCESS] correlationId=${correlationId}: Ingestion complete.`);
     } catch (e) {
-      this.logger.error('Fatal pipeline error during NewsData.io ingestion.', e as Error);
+      this.logger.error(`[DAG_FAILURE] correlationId=${correlationId}: Pipeline failed.`, e);
+    }
+  }
+
+  private async operatorExtractArticles(): Promise<any[]> {
+    const apiKey = process.env.NEWSDATA_API_KEY;
+    if (!apiKey) {
+      this.logger.warn('Skipping Extraction: NEWSDATA_API_KEY is missing');
+      return [];
+    }
+
+    const url = `https://newsdata.io/api/1/latest?apikey=${apiKey}&category=domestic&language=en,ta&q=strike OR protest OR flood OR curfew OR bandh OR heavy rain OR cyclone`;
+    const res = await this.fetchWithTimeout(url, { method: 'GET' }, IngestionService.NEWSDATA_TIMEOUT_MS, 'NewsData.io');
+    const data = await this.safeParseJsonResponse(res, 'NewsData.io');
+
+    if (!data?.results || data.results.length === 0) {
+      this.logger.log('No raw signals detected in extraction stage.');
+      return [];
+    }
+
+    return data.results.map((r: any) => ({
+      title: r.title,
+      desc: r.description,
+      link: r.link,
+      city: r.country?.[0] ?? "India"
+    }));
+  }
+
+  private async operatorTransformAndFilter(articles: any[]): Promise<any[]> {
+    this.logger.log(`Transform Stage: Routing ${articles.length} signals to Gemini AI...`);
+    const geminiResult = await this.analyzeWithGemini(articles);
+    return geminiResult?.disruptions ?? [];
+  }
+
+  private async operatorLoadEvents(events: any[], cid: string) {
+    for (const event of events) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          const duplicate = await (tx as any).disruptionEvent.findFirst({
+            where: { title: event.title }
+          });
+
+          if (!duplicate) {
+            await (tx as any).disruptionEvent.create({
+              data: {
+                type: event.type,
+                title: event.title,
+                expectedLoss: Math.round(event.severityScore * 800),
+                expectedPayout: Math.round(event.severityScore * 400),
+                verified: true,
+                occurredAt: new Date(),
+              }
+            });
+            this.logger.log(`[SINK] 🚨 Verified: [${event.type}] ${event.title}`);
+          }
+        });
+      } catch (dbErr) {
+        this.logger.error(`[SINK_ERROR] event="${event.title}":`, dbErr);
+      }
     }
   }
 
@@ -212,7 +220,7 @@ export class IngestionService {
       Output: { "disruptions": [ { "type": "Civic Bandh / Strike", "title": "Bharat Bandh: Highway Blockade", "severityScore": 0.95 } ] }
       
       Example 4 (False Positive - Policy/News):
-      Input: "Government announces new insurance policy for Zomato and Swiggy workers."
+      Input: "Government announces new insurance policy for Blinkit and Zepto workers."
       Output: { "disruptions": [] }
       
       CRITICAL: Use the verify_h3_location tool for any city mentioned in high-severity articles to ensure we possess active driver coverage there.

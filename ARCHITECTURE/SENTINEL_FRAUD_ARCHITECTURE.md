@@ -4,7 +4,7 @@
 ### Executive Overview
 Unlike "one-shot" fraud detection systems that rely on fragile, binary rules, the **Production-Ready Aegis Sentinel Fraud Service** utilizes a high-fidelity, **5-Stage Sequential Pipeline**. This architecture represents a paradigm shift in fintech risk management, balancing aggressive fraud mitigation with a frictionless user experience-integrated with **Tier-1 Production Standards** in a real-time, event-driven orchestration.
 
-By separating **Enrichment** from **Decisioning**, Aegis identifies complex, adversarial fraud patterns—such as synthetic identity rings, H3-coordinate bursts, and cross-account hardware sharing—that standard legacy engines systematically fail to capture.
+By separating **Enrichment** from **Decisioning**, Aegis identifies complex, adversarial fraud patterns—such as coordinated identity rings, H3-coordinate bursts, and cross-account hardware sharing—that standard legacy engines systematically fail to capture.
 
 ---
 
@@ -19,7 +19,7 @@ Our "Multi-Stage Line" operates as a sophisticated forensic sieve, increasing th
 
 #### Stage 2: Heuristic Decisioning (The Reflex)
 Aegis evaluates the "Digital Hygiene" of every request through a rigorous multi-factor rule engine.
-*   **Hardware Heuristics**: Immediate detection of Rooted/Jailbroken devices and GPS Spoofing (isMocked) attempts.
+*   **Hardware Heuristics**: Immediate detection of Rooted/Jailbroken devices and GPS Spoofing (isHardenedCheck) attempts.
 *   **Network Intelligence**: Identification of Premium VPNs, Proxies, and Tor exit nodes with sub-5ms latency.
 *   **Identity Integrity**: Verification of account age and device-switching frequency to flag volatile user profiles before they enter the ML hot-path.
 
@@ -44,7 +44,7 @@ Aegis evaluates the "Digital Hygiene" of every request through a rigorous multi-
 Traditional systems look at transactions in isolation. **Sentinel looks at the Topology.** By integrating H3-hexagonal binning with cross-user hardware metrics, Aegis identifies "Fraud Farms" where multiple accounts appearing legitimate are physically co-located on a single device or within a single meter of each other.
 
 #### 2. Explainable Forensic Intelligence
-We reject the "Black Box" approach. Aegis provides **Explainable Fraud Detection**. Administrators and analysts can view the specific **Signal Inventory** (e.g., `DUPLICATE_CLAIM_BURST`, `MOCK_GPS_DETECTED`) that contributed to the final score, ensuring regulatory compliance and forensic defensibility.
+We reject the "Black Box" approach. Aegis provides **Explainable Fraud Detection**. Administrators and analysts can view the specific **Signal Inventory** (e.g., `DUPLICATE_CLAIM_BURST`, `GEOLOCATION_SPOOF_DETECTED`) that contributed to the final score, ensuring regulatory compliance and forensic defensibility.
 
 #### 3. Zero-Trust Revocation
 Through our **Real-time Revocation Pipeline**, stolen or compromised OAuth tokens are invalidated instantly across the entire ecosystem. The ML layer performs a mirror check against Redis before every inference, ensuring that decisions are never made based on stale or revoked credentials.

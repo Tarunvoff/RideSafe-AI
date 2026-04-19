@@ -75,7 +75,7 @@ export default function App() {
     try {
       setLoading(true);
       setAuthError('');
-      
+
       if (!mfaRequired) {
         // Step 1: Password Authentication
         const res = await adminApi.login({ email, password });
@@ -138,27 +138,27 @@ export default function App() {
           <p className="font-bold mb-6 text-gray-500 uppercase tracking-tighter">
             {mfaRequired ? 'Multi-Factor Verification' : 'Operational Command Entrance'}
           </p>
-          
+
           {authError && (
-             <div className="p-3 bg-red-100 border-2 border-red-600 text-red-600 font-bold text-xs uppercase mb-4">
-                {authError}
-             </div>
+            <div className="p-3 bg-red-100 border-2 border-red-600 text-red-600 font-bold text-xs uppercase mb-4">
+              {authError}
+            </div>
           )}
 
           <div className="flex flex-col gap-4">
             {!mfaRequired ? (
               <>
-                <input 
-                  type="email" 
-                  placeholder="ADMIN@AEGIS.COM" 
-                  className="neo-input" 
+                <input
+                  type="email"
+                  placeholder="ADMIN@AEGIS.COM"
+                  className="neo-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="neo-input" 
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  className="neo-input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -166,25 +166,25 @@ export default function App() {
             ) : (
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-black uppercase text-gray-400 mb-1">Enter Security Code sent to email</p>
-                <input 
-                  type="text" 
-                  placeholder="6-DIGIT OTP" 
-                  className="neo-input text-center text-2xl tracking-[0.5em] font-black" 
+                <input
+                  type="text"
+                  placeholder="6-DIGIT OTP"
+                  className="neo-input text-center text-2xl tracking-[0.5em] font-black"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   maxLength={6}
                 />
-                <button 
-                  className="text-sm font-bold text-coral underline text-left mt-1" 
+                <button
+                  className="text-sm font-bold text-coral underline text-left mt-1"
                   onClick={() => setMfaRequired(false)}
                 >
                   Return to email/password
                 </button>
               </div>
             )}
-            
-            <button 
-              className={`neo-btn w-full mt-4 ${loading ? 'opacity-50 cursor-wait' : ''}`} 
+
+            <button
+              className={`neo-btn w-full mt-4 ${loading ? 'opacity-50 cursor-wait' : ''}`}
               onClick={handleLogin}
               disabled={loading}
             >
@@ -237,9 +237,9 @@ export default function App() {
           </NavLink>
         </nav>
         <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-          <button 
-             onClick={handleLogout}
-             className="nav-item border-danger !bg-[#DC2626] !text-white"
+          <button
+            onClick={handleLogout}
+            className="nav-item border-danger !bg-[#DC2626] !text-white"
           >
             <LogOut size={18} />
             <span className="italic uppercase">Terminate</span>
@@ -287,7 +287,7 @@ function AnalyticsPage({ data, loading }: any) {
     <div className="animate-in fade-in duration-500">
       <header className="sticky top-0 z-30 bg-[#FCFBE3] border-b-4 border-[#1B1D0E] shadow-[0px_4px_0px_0px_rgba(27,29,14,1)] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 min-h-20 sm:h-24 py-4 sm:py-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 sm:mb-10">
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border-4 border-[#1B1D0E] shadow-[4px_4px_0px_0px_rgba(27,29,14,1)] bg-white hover:bg-coral transition-colors shrink-0"
           >
@@ -322,7 +322,7 @@ function AnalyticsPage({ data, loading }: any) {
                 </div>
               </AnalyticsCard>
               <AnalyticsCard title="Premium Pool" metric="Metric-B" icon="account_balance_wallet" iconColor="text-[#006D37]">
-                <h4 className="text-4xl sm:text-6xl font-heading font-black italic break-all">₹{Math.round(dashboardData.totalPremiumCollected/1000)}k</h4>
+                <h4 className="text-4xl sm:text-6xl font-heading font-black italic break-all">₹{Math.round(dashboardData.totalPremiumCollected / 1000)}k</h4>
                 <div className="mt-6 border-t-2 border-dashed border-black/10 pt-4">
                   <p className="text-[11px] font-black uppercase text-[#006D37] tracking-widest">+12.4% vs Last Cycle</p>
                 </div>
@@ -369,20 +369,20 @@ function AnalyticsPage({ data, loading }: any) {
 
           {/* SECTION: OPERATIONAL DISTRIBUTION */}
           <section>
-             <div className="border-b-4 border-[#1B1D0E] mb-8 pb-3">
+            <div className="border-b-4 border-[#1B1D0E] mb-8 pb-3">
               <h2 className="text-2xl sm:text-3xl font-heading font-black italic uppercase tracking-tight">Platform Distribution</h2>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               <div className="bg-white border-4 border-[#1B1D0E] p-4 sm:p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
                 <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Claims by Type</h4>
                 <div className="space-y-4">
-                   <ActivityBarChart data={dashboardData.claimsByType} color="#ae311f" horizontal />
+                  <ActivityBarChart data={dashboardData.claimsByType} color="#ae311f" horizontal />
                 </div>
               </div>
               <div className="bg-[#FCFBE3] border-4 border-[#1B1D0E] p-4 sm:p-10 shadow-[12px_12px_0px_0px_rgba(27,29,14,1)]">
                 <h4 className="font-heading font-black italic uppercase text-xl mb-10 border-b-2 border-black pb-2">Top Platforms</h4>
                 <div className="space-y-4">
-                   <ActivityBarChart data={dashboardData.platformSplit} color="#ff6b53" horizontal />
+                  <ActivityBarChart data={dashboardData.platformSplit} color="#ff6b53" horizontal />
                 </div>
               </div>
             </div>
@@ -429,7 +429,7 @@ function LiveOperationalDashboard({ data }: any) {
       }
     };
     fetchSubmissions();
-  }, []); 
+  }, []);
 
   const visibleSubmissions = isExpanded ? submissions : submissions.slice(0, 3);
 
@@ -468,7 +468,7 @@ function LiveOperationalDashboard({ data }: any) {
       <section style={{ marginTop: '3rem', marginBottom: '4rem' }}>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
-          <button 
+          <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-xs font-black uppercase text-coral underline"
           >
@@ -529,24 +529,24 @@ function LiveOperationalDashboard({ data }: any) {
       </section>
 
       {/* LIVE FEEDS - RESTORED SPLIT GRID */}
-      <div 
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12" 
+      <div
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12"
         style={{ marginTop: '4rem', paddingBottom: '3rem' }}
       >
         <div className="neo-card flex flex-col" style={{ marginBottom: '2rem' }}>
           <div className="flex items-center justify-between mb-6">
-             <h3 className="font-black italic uppercase tracking-tighter">Live Alert Feed</h3>
-             <Bell className="text-coral animate-bounce" size={18} />
+            <h3 className="font-black italic uppercase tracking-tighter">Live Alert Feed</h3>
+            <Bell className="text-coral animate-bounce" size={18} />
           </div>
           <div className="space-y-4">
             {(data?.recentAlerts ?? []).length > 0 ? (
               data.recentAlerts.map((alert: any) => (
-                <AlertItem 
-                  key={alert.id} 
-                  title={alert.title} 
-                  subtitle={`${alert.type} • ${alert.expectedPayout ? `₹${alert.expectedPayout}` : 'CALCULATING...'}`} 
-                  time={new Date(alert.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
-                  active 
+                <AlertItem
+                  key={alert.id}
+                  title={alert.title}
+                  subtitle={`${alert.type} • ${alert.expectedPayout ? `₹${alert.expectedPayout}` : 'CALCULATING...'}`}
+                  time={new Date(alert.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  active
                 />
               ))
             ) : (
@@ -558,7 +558,7 @@ function LiveOperationalDashboard({ data }: any) {
           <button className="neo-btn w-full mt-auto secondary text-xs">Refresh Stream</button>
         </div>
 
-          <DriverScooterMap workerCount={totalWorkers} />
+        <DriverScooterMap workerCount={totalWorkers} />
       </div>
     </div>
   );
@@ -617,8 +617,8 @@ function WorkersPage() {
     } catch (e: any) {
       console.error('Fleet Retrieval Error:', e);
       if (e.message?.includes('Unauthorized') || e.message?.includes('token')) {
-         // Session expired, handleLogout is in parent scope but we'll let parent handle it via fetchGlobalData
-         setWorkers([]);
+        // Session expired, handleLogout is in parent scope but we'll let parent handle it via fetchGlobalData
+        setWorkers([]);
       }
     } finally {
       setLoading(false);
@@ -635,132 +635,132 @@ function WorkersPage() {
       </header>
 
       <div className="neo-card bg-white p-6 mb-8">
-         <div className="relative mb-6">
-            <Search className="absolute left-6 top-4 text-gray-400" size={20} />
-            <input 
-              type="text" 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search workers by email or phone" 
-              className="neo-input pl-16 py-4 w-full text-lg" 
-            />
-         </div>
+        <div className="relative mb-6">
+          <Search className="absolute left-6 top-4 text-gray-400" size={20} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search workers by email or phone"
+            className="neo-input pl-16 py-4 w-full text-lg"
+          />
+        </div>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2 w-full lg:w-auto">
-               <span className="text-xs font-black uppercase text-gray-400">City:</span>
+            <span className="text-xs font-black uppercase text-gray-400">City:</span>
             <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                  {cityOptions.slice(0, 4).map(c => (
-                     <button 
-                       key={c}
-                       onClick={() => setCityFilter(c)}
-                       className={`neo-btn text-xs px-4 py-2 ${cityFilter === c ? 'active' : 'secondary'}`}
-                     >
-                       {c}
-                     </button>
-                  ))}
-                  <select 
-                    className="neo-input text-xs py-2 px-4 italic"
-                    onChange={(e) => setCityFilter(e.target.value)}
-                    value={cityOptions.includes(cityFilter) ? cityFilter : cityOptions[0]}
-                  >
-                     {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-               </div>
+              {cityOptions.slice(0, 4).map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCityFilter(c)}
+                  className={`neo-btn text-xs px-4 py-2 ${cityFilter === c ? 'active' : 'secondary'}`}
+                >
+                  {c}
+                </button>
+              ))}
+              <select
+                className="neo-input text-xs py-2 px-4 italic"
+                onChange={(e) => setCityFilter(e.target.value)}
+                value={cityOptions.includes(cityFilter) ? cityFilter : cityOptions[0]}
+              >
+                {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
-            <div className="flex items-center gap-2 w-full lg:w-auto lg:ml-auto">
-               <span className="text-xs font-black uppercase text-gray-400">Platform:</span>
-              <div className="flex gap-2 overflow-x-auto pb-1 w-full lg:w-auto">
-                  {platformOptions.map(p => (
-                     <button 
-                       key={p.value}
-                       onClick={() => setPlatformFilter(p.value)}
-                       className={`neo-btn text-xs px-3 py-1.5 ${platformFilter === p.value ? 'active' : 'secondary'}`}
-                     >
-                       {p.label}
-                     </button>
-                  ))}
-               </div>
+          </div>
+          <div className="flex items-center gap-2 w-full lg:w-auto lg:ml-auto">
+            <span className="text-xs font-black uppercase text-gray-400">Platform:</span>
+            <div className="flex gap-2 overflow-x-auto pb-1 w-full lg:w-auto">
+              {platformOptions.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setPlatformFilter(p.value)}
+                  className={`neo-btn text-xs px-3 py-1.5 ${platformFilter === p.value ? 'active' : 'secondary'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-         </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mt-8 mb-8">
-         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-xs font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
-            <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
-         </div>
-         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#F3E8FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-xs font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
-            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#6B21A8]">{cityFilter}</p>
-         </div>
-         <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#DBEAFE', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
-            <p className="text-xs font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
-            <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#1E40AF]">{platformFilter}</p>
-         </div>
+        <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#E0E7FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+          <p className="text-xs font-black uppercase tracking-widest text-[#3730A3] mb-2">Total Managed</p>
+          <p className="text-5xl font-black italic text-[#3730A3]">{workers.length}</p>
+        </div>
+        <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#F3E8FF', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+          <p className="text-xs font-black uppercase tracking-widest text-[#6B21A8] mb-2">Selected City</p>
+          <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#6B21A8]">{cityFilter}</p>
+        </div>
+        <div className="neo-card hover:-translate-y-1 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#DBEAFE', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', padding: '1.5rem' }}>
+          <p className="text-xs font-black uppercase tracking-widest text-[#1E40AF] mb-2">Active Platform</p>
+          <p className="text-4xl font-black uppercase tracking-tighter truncate text-[#1E40AF]">{platformFilter}</p>
+        </div>
       </div>
 
       {loading && (
         <div className="flex justify-center py-20">
-           <div className="w-12 h-12 border-4 border-black border-r-coral animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-black border-r-coral animate-spin"></div>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-         {!loading && workers.map((worker, i) => {
-           let badgeBg = '#f3f4f6';
-           let badgeColor = '#000';
-           const p = worker.platform?.toLowerCase();
-           if (p === 'zepto') { badgeBg = '#E0E7FF'; badgeColor = '#3730A3'; }
-           else if (p === 'blinkit') { badgeBg = '#FEF3C7'; badgeColor = '#92400E'; }
-           else if (p === 'instamart') { badgeBg = '#FFEDD5'; badgeColor = '#9A3412'; }
-           else if (p === 'bigbasket') { badgeBg = '#D1FAE5'; badgeColor = '#065F46'; }
+        {!loading && workers.map((worker, i) => {
+          let badgeBg = '#f3f4f6';
+          let badgeColor = '#000';
+          const p = worker.platform?.toLowerCase();
+          if (p === 'zepto') { badgeBg = '#E0E7FF'; badgeColor = '#3730A3'; }
+          else if (p === 'blinkit') { badgeBg = '#FEF3C7'; badgeColor = '#92400E'; }
+          else if (p === 'instamart') { badgeBg = '#FFEDD5'; badgeColor = '#9A3412'; }
+          else if (p === 'bigbasket') { badgeBg = '#D1FAE5'; badgeColor = '#065F46'; }
 
-           let rawStatus = worker.status ? worker.status.toUpperCase() : 'PENDING';
-           let displayStatus = rawStatus.replace('_', ' ');
-           
-           // Normalize statuses to match the design requested
-           if (displayStatus === 'SUBMITTED' || displayStatus === 'NOT STARTED') {
-               displayStatus = 'PENDING';
-           }
+          let rawStatus = worker.status ? worker.status.toUpperCase() : 'PENDING';
+          let displayStatus = rawStatus.replace('_', ' ');
 
-           let statusBg = '#F59E0B'; // Default Orange for Pending
-           let statusColor = '#000';
+          // Normalize statuses to match the design requested
+          if (displayStatus === 'SUBMITTED' || displayStatus === 'NOT STARTED') {
+            displayStatus = 'PENDING';
+          }
 
-           if (displayStatus === 'APPROVED') {
-             statusBg = '#16A34A'; // Green
-             statusColor = '#fff';
-           } else if (displayStatus === 'REJECTED') {
-             statusBg = '#DC2626'; // Red
-             statusColor = '#fff';
-           }
+          let statusBg = '#F59E0B'; // Default Orange for Pending
+          let statusColor = '#000';
 
-           return (
-             <div key={i} className="neo-card hover:-translate-y-2 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ffffff', padding: '1.5rem', display: 'flex', flexDirection: 'column', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
-                   <span style={{ border: '2px solid #000', backgroundColor: statusBg, color: statusColor, padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'normal' }}>
-                     {displayStatus}
-                   </span>
+          if (displayStatus === 'APPROVED') {
+            statusBg = '#16A34A'; // Green
+            statusColor = '#fff';
+          } else if (displayStatus === 'REJECTED') {
+            statusBg = '#DC2626'; // Red
+            statusColor = '#fff';
+          }
+
+          return (
+            <div key={i} className="neo-card hover:-translate-y-2 transition-transform" style={{ border: '2px solid #000', backgroundColor: '#ffffff', padding: '1.5rem', display: 'flex', flexDirection: 'column', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
+                <span style={{ border: '2px solid #000', backgroundColor: statusBg, color: statusColor, padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'normal' }}>
+                  {displayStatus}
+                </span>
+              </div>
+
+              <h4 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', wordBreak: 'break-all' }}>{worker.email || 'anonymous@node.io'}</h4>
+
+              <div style={{ borderTop: '2px solid rgba(0,0,0,0.1)', paddingTop: '1rem', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic' }}>
+                  {worker.city || 'TNP'}
                 </div>
-                
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', wordBreak: 'break-all' }}>{worker.email || 'anonymous@node.io'}</h4>
-                
-                <div style={{ borderTop: '2px solid rgba(0,0,0,0.1)', paddingTop: '1rem', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <div style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic' }}>
-                      {worker.city || 'TNP'}
-                   </div>
-                   <div style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.25rem 0.5rem', border: '2px solid #000', backgroundColor: badgeBg, color: badgeColor }}>
-                      {worker.platform || 'General'}
-                   </div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.25rem 0.5rem', border: '2px solid #000', backgroundColor: badgeBg, color: badgeColor }}>
+                  {worker.platform || 'General'}
                 </div>
-             </div>
-           );
-         })}
-         {!loading && workers.length === 0 && (
-            <div className="col-span-full py-20 text-center border-4 border-dashed border-black rounded-3xl">
-               <Users size={64} className="mx-auto text-black/20 mb-4" />
-               <h3 className="text-2xl font-black opacity-30 italic">NO WORKERS DETECTED IN THIS SECTOR</h3>
+              </div>
             </div>
-         )}
+          );
+        })}
+        {!loading && workers.length === 0 && (
+          <div className="col-span-full py-20 text-center border-4 border-dashed border-black rounded-3xl">
+            <Users size={64} className="mx-auto text-black/20 mb-4" />
+            <h3 className="text-2xl font-black opacity-30 italic">NO WORKERS DETECTED IN THIS SECTOR</h3>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -792,7 +792,7 @@ function ClaimsPage() {
       <header className="mb-8">
         <h2 className="text-2xl sm:text-4xl font-black uppercase">Payout Sentinel</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1 italic">Real-time Claims & Financial Oversight</p>
-        
+
         {/**
           * [IN-LINE PRIDE]: Financial Sustainability Ledger
           * High-fidelity visibility into the platform's solvency and payout integrity.
@@ -801,18 +801,18 @@ function ClaimsPage() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-         <div className="neo-card bg-white border-2 border-black p-6 hover:bg-parchment transition-colors">
-            <p className="text-xs font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
-            <p className="text-4xl sm:text-6xl font-black">{claimsData?.total ?? 0}</p>
-         </div>
-         <div className="neo-card bg-white border-2 border-black p-6 hover:bg-red-50 transition-colors">
-            <p className="text-xs font-black uppercase text-gray-400 mb-2">Pending Review</p>
-            <p className="text-4xl sm:text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
-         </div>
-         <div className="neo-card bg-night text-parchment p-6">
-            <p className="text-xs font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
-            <p className="text-3xl sm:text-5xl font-black text-success break-all">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
-         </div>
+        <div className="neo-card bg-white border-2 border-black p-6 hover:bg-parchment transition-colors">
+          <p className="text-xs font-black uppercase text-gray-400 mb-2">Total Claims Logged</p>
+          <p className="text-4xl sm:text-6xl font-black">{claimsData?.total ?? 0}</p>
+        </div>
+        <div className="neo-card bg-white border-2 border-black p-6 hover:bg-red-50 transition-colors">
+          <p className="text-xs font-black uppercase text-gray-400 mb-2">Pending Review</p>
+          <p className="text-4xl sm:text-5xl font-black text-coral">{claimsData?.pendingReview ?? 0}</p>
+        </div>
+        <div className="neo-card bg-night text-parchment p-6">
+          <p className="text-xs font-black uppercase opacity-40 mb-2 text-white">Total Approved Payout</p>
+          <p className="text-3xl sm:text-5xl font-black text-success break-all">₹{(claimsData?.totalPayout ?? 0).toLocaleString()}</p>
+        </div>
       </div>
 
       <div className="table-container border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
@@ -842,11 +842,10 @@ function ClaimsPage() {
                   <td className="font-mono">₹{claim.estimatedLoss?.toLocaleString()}</td>
                   <td className="font-mono font-black text-coral">₹{claim.approvedPayout?.toLocaleString()}</td>
                   <td>
-                    <span className={`badge border-2 border-black ${
-                      claim.status === 'APPROVED' ? 'badge-success' : 
-                      claim.status === 'PROCESSING' ? 'badge-warning' : 
-                      'badge-danger'
-                    }`}>
+                    <span className={`badge border-2 border-black ${claim.status === 'APPROVED' ? 'badge-success' :
+                        claim.status === 'PROCESSING' ? 'badge-warning' :
+                          'badge-danger'
+                      }`}>
                       {claim.status}
                     </span>
                   </td>
@@ -887,32 +886,32 @@ function SetupPage() {
   };
 
   const setupModules = [
-    { 
-      title: "Alert Thresholds", 
+    {
+      title: "Alert Thresholds",
       desc: "Configure sensitivity for automated alerts",
       details: [
         { label: "Fraud Block Threshold", value: `${(settings?.alertThresholds?.fraudBlockThreshold * 100)?.toFixed(0) || 0}%` },
         { label: "High Risk Trigger", value: `${settings?.alertThresholds?.highRiskScore || 0}` }
       ]
     },
-    { 
-      title: "Risk Configuration", 
+    {
+      title: "Risk Configuration",
       desc: "Manage risk assessment parameters",
       details: [
         { label: "Device Frequency", value: `${settings?.riskConfig?.deviceSwitchFrequency || 0}x / day` },
         { label: "Max Speed Alert", value: `${settings?.riskConfig?.gpsSpeedMax || 0} km/h` }
       ]
     },
-    { 
-      title: "Plan Configuration", 
+    {
+      title: "Plan Configuration",
       desc: "Subscription and tier settings",
       details: [
         { label: "Grace Period", value: `${settings?.planConfig?.gracePeriodDays || 0} Days` },
         { label: "Auto-Renew Default", value: settings?.planConfig?.autoRenewDefault ? "ENABLED" : "DISABLED" }
       ]
     },
-    { 
-      title: "Verification Settings", 
+    {
+      title: "Verification Settings",
       desc: "Identity and background check rules",
       details: [
         { label: "KYC SLA", value: `${settings?.verificationSettings?.kycReviewSlaHours || 0} Hours` },
@@ -939,86 +938,86 @@ function SetupPage() {
           <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-4">System Configuration</h3>
           <div style={{ display: 'flex', flexDirection: 'column', border: '2px solid #000', backgroundColor: '#fff', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', marginBottom: '3rem' }}>
             {setupModules.map((m, i) => (
-               <div 
-                  key={i} 
-                  onClick={() => setSelectedModule(m)}
-                  style={{ 
-                     display: 'flex', 
-                     justifyContent: 'space-between', 
-                     alignItems: 'center', 
-                     padding: '1.5rem', 
-                     borderBottom: i < setupModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
-                     cursor: 'pointer',
-                     backgroundColor: '#fff',
-                     transition: 'background-color 0.1s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
-               >
-                  <div>
-                     <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>{m.title}</h3>
-                     <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>{m.desc}</p>
-                  </div>
-                  <ChevronRight size={20} color="#9ca3af" />
-               </div>
+              <div
+                key={i}
+                onClick={() => setSelectedModule(m)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1.5rem',
+                  borderBottom: i < setupModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#fff',
+                  transition: 'background-color 0.1s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+              >
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>{m.title}</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>{m.desc}</p>
+                </div>
+                <ChevronRight size={20} color="#9ca3af" />
+              </div>
             ))}
           </div>
 
           <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-4">System</h3>
           <div style={{ display: 'flex', flexDirection: 'column', border: '2px solid #000', backgroundColor: '#fff', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}>
             {systemModules.map((m, i) => (
-               <div 
-                  key={i} 
-                  style={{ 
-                     display: 'flex', 
-                     justifyContent: 'space-between', 
-                     alignItems: 'center', 
-                     padding: '1.5rem', 
-                     borderBottom: i < systemModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
-                     cursor: 'pointer',
-                     backgroundColor: '#fff',
-                     transition: 'background-color 0.1s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
-               >
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{m.title}</h3>
-                  <ChevronRight size={20} color="#9ca3af" />
-               </div>
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1.5rem',
+                  borderBottom: i < systemModules.length - 1 ? '2px solid rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#fff',
+                  transition: 'background-color 0.1s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+              >
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{m.title}</h3>
+                <ChevronRight size={20} color="#9ca3af" />
+              </div>
             ))}
           </div>
         </>
       )}
 
       {selectedModule && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}>
-            <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '100%', maxWidth: '500px', maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-                 <div>
-                    <h3 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>{selectedModule.title}</h3>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#6b7280', marginTop: '0.5rem' }}>{selectedModule.desc}</p>
-                 </div>
-                 <button onClick={() => setSelectedModule(null)} style={{ background: 'none', border: '2px solid #000', padding: '0.25rem', cursor: 'pointer', color: '#000' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                 </button>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }}>
+          <div className="animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '4px solid #000', padding: '2rem', width: '100%', maxWidth: '500px', maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>{selectedModule.title}</h3>
+                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#6b7280', marginTop: '0.5rem' }}>{selectedModule.desc}</p>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
-                 {selectedModule.details?.map((d: any, j: number) => (
-                    <div key={j} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px dashed rgba(0,0,0,0.2)', paddingBottom: '0.75rem' }}>
-                       <span style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#4b5563' }}>{d.label}</span>
-                       <span style={{ fontSize: '1.125rem', fontWeight: 900 }}>{d.value}</span>
-                    </div>
-                 ))}
-                 {(!selectedModule.details || selectedModule.details.length === 0) && (
-                    <p style={{ fontStyle: 'italic', opacity: 0.5, fontWeight: 900 }}>Module requires system administrator unlock.</p>
-                 )}
-              </div>
-
-              <button onClick={() => setSelectedModule(null)} style={{ width: '100%', padding: '1rem', backgroundColor: '#000', color: '#fff', fontWeight: 900, textTransform: 'uppercase', border: 'none', marginTop: '2.5rem', cursor: 'pointer', fontSize: '1rem' }}>
-                 Acknowledge
+              <button onClick={() => setSelectedModule(null)} style={{ background: 'none', border: '2px solid #000', padding: '0.25rem', cursor: 'pointer', color: '#000' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
-           </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+              {selectedModule.details?.map((d: any, j: number) => (
+                <div key={j} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px dashed rgba(0,0,0,0.2)', paddingBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#4b5563' }}>{d.label}</span>
+                  <span style={{ fontSize: '1.125rem', fontWeight: 900 }}>{d.value}</span>
+                </div>
+              ))}
+              {(!selectedModule.details || selectedModule.details.length === 0) && (
+                <p style={{ fontStyle: 'italic', opacity: 0.5, fontWeight: 900 }}>Module requires system administrator unlock.</p>
+              )}
+            </div>
+
+            <button onClick={() => setSelectedModule(null)} style={{ width: '100%', padding: '1rem', backgroundColor: '#000', color: '#fff', fontWeight: 900, textTransform: 'uppercase', border: 'none', marginTop: '2.5rem', cursor: 'pointer', fontSize: '1rem' }}>
+              Acknowledge
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1031,8 +1030,8 @@ function MetricCard({ label, value, marker }: any) {
   return (
     <div className="neo-card bg-white p-4 group hover:translate-x-1 hover:-translate-y-1 transition-transform">
       <div className="flex items-center gap-2 mb-1">
-         {marker && <div className={`w-1.5 h-1.5 rounded-full ${marker}`}></div>}
-         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{label}</p>
+        {marker && <div className={`w-1.5 h-1.5 rounded-full ${marker}`}></div>}
+        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{label}</p>
       </div>
       <p className="text-xl sm:text-2xl font-black break-words">{value}</p>
     </div>
@@ -1041,15 +1040,15 @@ function MetricCard({ label, value, marker }: any) {
 
 function AlertItem({ title, subtitle, time, active }: any) {
   return (
-   <div className="neo-card bg-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group hover:border-coral transition-colors">
-     <div className="flex items-center gap-4 min-w-0">
-          <div className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-gray-300'}`}></div>
-       <div className="min-w-0">
-         <h4 className="text-sm sm:text-base font-black uppercase tracking-tight break-words">{title}</h4>
-         <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mt-0.5 break-words">{subtitle}</p>
-          </div>
-       </div>
-     <span className="text-[10px] sm:text-xs font-black text-gray-400 shrink-0">{time}</span>
+    <div className="neo-card bg-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group hover:border-coral transition-colors">
+      <div className="flex items-center gap-4 min-w-0">
+        <div className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-gray-300'}`}></div>
+        <div className="min-w-0">
+          <h4 className="text-sm sm:text-base font-black uppercase tracking-tight break-words">{title}</h4>
+          <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mt-0.5 break-words">{subtitle}</p>
+        </div>
+      </div>
+      <span className="text-[10px] sm:text-xs font-black text-gray-400 shrink-0">{time}</span>
     </div>
   );
 }

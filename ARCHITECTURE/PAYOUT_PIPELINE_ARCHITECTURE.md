@@ -50,7 +50,7 @@ Gateway failures (HTTP 429 Rate Limiting or 503 Maintenance) are handled through
 
 ### 5. Why This is Tier-1 Engineering
 *   **Gateway-Agnostic Core**: While optimized for RazorpayX, the orchestration layer is decoupled, allowing for horizontal expansion to multiple banking rails (IMPS, UPI, NEFT) without logic refactoring.
-*   **Zero-Mock Architecture**: The system is built for **Immediate Live-Key Injection**. Every response parser and error handler is mapped to real-world RazorpayX edge cases (e.g., `BAD_REQUEST_ACCOUNT_BLOCKED`, `INSUFFICIENT_BALANCE_IN_SOURCE`).
+*   **Hardened Architecture**: The system is built for **Immediate Live-Key Injection**. Every response parser and error handler is mapped to real-world RazorpayX edge cases (e.g., `BAD_REQUEST_ACCOUNT_BLOCKED`, `INSUFFICIENT_BALANCE_IN_SOURCE`).
 *   **Forensic Traceability**: Every payout record stores the original `idempotencyKey`, `gatewayReferenceID`, and `transferReference`, ensuring that every ruble in the system can be traced from premium collection to driver disbursement.
 
 ---

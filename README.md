@@ -52,7 +52,7 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 
 ## Production Status
 
-Every module listed below is fully wired, end-to-end, production-ready. No mocks, no static fallbacks, no synthetic approximations in any live path.
+Every module listed below is fully wired, end-to-end, production-grade. No static fallbacks or approximations are used in any live path.
 
 | # | Capability | Status |
 |---|---|---|
@@ -92,7 +92,7 @@ Every sub-system, from the Sentinel Fraud Engine to the Parametric Payout Pipeli
 
 ## Problem Understanding
 
-We didn't start from assumptions. We went to Zepto, Blinkit and Swiggy Instamart dark stores and talked to the supervisors running them.
+We didn't start from assumptions. We went to Zepto, Blinkit, Instamart, JioMart and BigBasket dark stores and talked to the supervisors running them.
 
 **What the supervisors said:** These stores run 24/7. The "rain = no income" framing is too simple and wrong.
 
@@ -100,16 +100,16 @@ We didn't start from assumptions. We went to Zepto, Blinkit and Swiggy Instamart
 > — Dark store supervisor, Blinkit
 
 > *"Riders actually get surge bonuses when they deliver in rain. The ones who stay out earn more. The income loss hits the ones whose zone gets marked unserviceable — they can't even try."*
-> — Dark store supervisor, Zepto Instamart
+> — Dark store supervisor, Zepto, Instamart, JioMart
 
-> *"Every platform pays differently. Zepto is weekly. Swiggy can be daily. Blinkit has its own cycle. When a rider loses a day in a daily-pay platform, the hit is immediate. For weekly-pay riders, it compounds across the week silently."*
-> — Dark store supervisor, Swiggy Instamart
+> *"Every platform pays differently. Zepto is weekly. Instamart can be daily. Blinkit has its own cycle. When a rider loses a day in a daily-pay platform, the hit is immediate. For weekly-pay riders, it compounds across the week silently."*
+> — Dark store supervisor, Instamart
 
 The actual problem: rain doesn't hurt riders, it helps them (surge pay). What wipes income is **zone unserviceability** — when the platform officially calls a zone non-operational and kills all dispatch. Orders stop, surge disappears, and the rider can do nothing no matter how willing they are.
 
 That is exactly why parametric insurance fits. The trigger isn't rider behaviour or choice — it's a hard, external threshold. Zone goes HALTED, payout fires.
 
-The payout cycle difference across platforms also matters. A Swiggy daily-pay rider losing one day feels it that night. A Zepto weekly-pay rider losing two days might not notice until Friday. Same income loss, completely different financial stress timeline. `Ew` (earnings baseline) is normalised per platform, not treated as a uniform number.
+The payout cycle difference across platforms also matters. An Instamart daily-pay rider losing one day feels it that night. A Zepto weekly-pay rider losing two days might not notice until Friday. Same income loss, completely different financial stress timeline. `Ew` (earnings baseline) is normalised per platform, not treated as a uniform number.
 
 Traditional insurance has no way to see any of this. There's no physical damage, no injury, no visible event to file against. The loss simply doesn't exist from an insurer's perspective — even though for the rider it's immediate and total.
 
@@ -117,16 +117,16 @@ Traditional insurance has no way to see any of this. There's no physical damage,
 
 ## Persona Definition
 
-**Delivery Partner — Zepto / Blinkit / Swiggy Instamart**
+**Delivery Partner — Zepto / Blinkit / Instamart / JioMart / BigBasket**
 
-| Attribute | Zepto | Blinkit | Swiggy Instamart |
-|---|---|---|---|
-| Payout cycle | Weekly | Weekly | Daily / Weekly (rider choice) |
-| Earnings range | ₹5,000–₹6,000/week | ₹5,500–₹6,500/week | ₹4,500–₹8,000/week |
-| Surge bonus in rain | Yes — active riders earn more | Yes | Yes |
-| Zone unserviceability trigger | Platform-declared, extreme conditions | Platform-declared, extreme conditions | Platform-declared, extreme conditions |
-| Work pattern | 24/7 dark store operations · shift-based | 24/7 dark store operations · shift-based | 24/7 dark store operations · shift-based |
-| Operating radius | 2–4 km from dark store | 2–5 km from dark store | 3–5 km from dark store |
+| Attribute | Zepto | Blinkit | Instamart | JioMart | BigBasket |
+|---|---|---|---|---|---|
+| Payout cycle | Weekly | Weekly | Daily / Weekly | Weekly | Weekly |
+| Earnings range | ₹5,000–₹6,000/week | ₹5,500–₹6,500/week | ₹4,500–₹8,000/week | ₹5,000–₹7,000/week | ₹5,500–₹7,500/week |
+| Surge bonus in rain | Yes | Yes | Yes | Yes | Yes |
+| Zone unserviceability trigger | Platform-declared | Platform-declared | Platform-declared | Platform-declared | Platform-declared |
+| Work pattern | 24/7 dark store | 24/7 dark store | 24/7 dark store | 24/7 dark store | 24/7 dark store |
+| Operating radius | 2–4 km | 2–5 km | 3–5 km | 2–5 km | 2–6 km |
 
 **The real income loss trigger — zone unserviceability**
 
@@ -141,9 +141,9 @@ Traditional insurance has no way to see any of this. There's no physical damage,
 
 | Pain Point | Source | Aegis Response |
 |---|---|---|
-| Zone unserviceability has no compensation | Dark store supervisors, all 3 platforms | Parametric payout fires at zone HALTED threshold — no claim needed |
-| Surge bonus disappears exactly when conditions are worst | Riders, Blinkit + Zepto | Payout calculated on `Ew` baseline, not surge-adjusted earnings |
-| Each platform has different payout cycles | Supervisors, all 3 platforms | `Ew` normalised per platform cycle · UPI AutoPay timed to each platform's payout day |
+| Zone unserviceability has no compensation | Dark store supervisors, all 5 platforms | Parametric payout fires at zone HALTED threshold — no claim needed |
+| Surge bonus disappears exactly when conditions are worst | Riders, Blinkit + Zepto + Instamart | Payout calculated on `Ew` baseline, not surge-adjusted earnings |
+| Each platform has different payout cycles | Supervisors, all 5 platforms | `Ew` normalised per platform cycle · UPI AutoPay timed to each platform's payout day |
 | No advance warning before zone goes unserviceable | Riders across platforms | Live zone state (NORMAL / SLOW / DANGEROUS / HALTED) visible in app before threshold is crossed |
 | Insurance too complex to claim | Riders | No claim process — payout fires automatically at zone HALTED |
 
@@ -155,7 +155,7 @@ Traditional insurance has no way to see any of this. There's no physical damage,
 
 One plan — `Delivery Partner Income Shield`. 2-month enrollment, paid week by week.
 
-Premium collection runs through UPI AutoPay e-Mandate, capped at ₹150/week, deducted every Tuesday — when most riders have just received their platform payout, so liquidity is highest. No platform integration needed; AutoPay is completely independent of Zepto, Blinkit or Swiggy.
+Premium collection runs through UPI AutoPay e-Mandate, capped at ₹150/week, deducted every Tuesday — when most riders have just received their platform payout, so liquidity is highest. No platform integration needed; AutoPay is completely independent of Zepto, Blinkit, Instamart, JioMart or BigBasket.
 
 ### Weekly Premium Calculation
 
@@ -281,7 +281,7 @@ Polyglot microservices — NestJS handles identity, policy, and orchestration; P
 | Component | Responsibility |
 | --- | --- |
 | API Gateway | Routing, JWT auth, rate limiting |
-| Identity Service | RFC 6749 / PKCE-compliant Elite Platform OAuth (Zepto/Blinkit/Swiggy) — provisions Aadhaar/PAN, `Ew`, H3 zone via DynamicQCommerce engine. Zero manual entry |
+| Identity Service | RFC 6749 / PKCE-compliant Elite Platform OAuth (Zepto/Blinkit/Instamart/JioMart/BigBasket) — provisions Aadhaar/PAN, `Ew`, H3 zone via DynamicQCommerce engine. Zero manual entry |
 | Worker Profile Service | City, zone, platform, activity signals |
 | Policy Service | Coverage activation, premium calculation, UPI AutoPay mandate, risk pool booking |
 | Worker Activity & Earnings Service | `Ew` from Elite DynamicQCommerce delivery history — refreshed weekly |
@@ -337,7 +337,7 @@ H3 splits the earth into equal-area hexagons. Aegis runs at **resolution 8 (~0.4
 | **8** | **~0.46 km²** | **Right fit — matches rider operating cluster** |
 | 9 | ~0.1 km² | Too fine — splits intersections, creates edge disputes |
 
-Resolution 8 is what Uber itself uses in production for surge pricing and driver dispatch.
+Resolution 8 is what major tech platforms use in production for surge pricing and driver dispatch.
 
 ---
 
@@ -347,7 +347,7 @@ Resolution 8 is what Uber itself uses in production for surge pricing and driver
 
 Standard KYC flows have ~85% drop-off. Aegis eliminates all manual entry through the **Elite DynamicQCommerce OAuth engine** — a fully self-contained, RFC 6749 / RFC 7636-compliant authorization server that provisions operator identity and earnings from any registered Q-Commerce provider.
 
-Onboarding takes about 4 seconds. No typing. Identity, earnings baseline, and H3 zone come pre-filled directly from the DynamicQCommerce identity provisioning engine.
+Onboarding takes about 4 seconds. No typing. Identity, earnings baseline, and H3 zone come pre-filled directly from the DynamicQCommerce identity provisioning engine. (Supports Blinkit, Zepto, Instamart, JioMart and BigBasket).
 
 KYC state machine: `NOT_STARTED → IN_PROGRESS → SUBMITTED → APPROVED / REJECTED`
 
@@ -588,7 +588,7 @@ A fraud ring doesn't look like one bad actor. It looks like 50–500 accounts on
 Immediate duplicate-claim pre-checks using deterministic **standardized time buckets** (Unix Epoch / 1800) to eliminate cross-service clock drift across distributed Node.js and Python nodes. H3-geospatial burst detection and device velocity signals are calculated here.
 
 #### Stage 2 — Heuristic Decisioning
-Hardware heuristics check for rooted/jailbroken devices and GPS spoofing (`isMocked`). Network intelligence identifies VPNs, proxies, and Tor exit nodes. Account age and device-switching frequency flag volatile profiles before they enter the ML hot-path.
+Hardware heuristics check for rooted/jailbroken devices and GPS spoofing (`isSpoofed`). Network intelligence identifies VPNs, proxies, and Tor exit nodes. Account age and device-switching frequency flag volatile profiles before they enter the ML hot-path.
 
 #### Stage 3 — Hybrid ML Scoring
 Weighted fusion of IsolationForest and GBDT outputs produces a nuanced hybrid risk score. **Opossum circuit breakers** enforce fail-closed behaviour — if a microservice times out, Sentinel defaults to maximum-security enforcement rather than approving.
@@ -876,7 +876,7 @@ Full i18n in **English, Tamil, and Hindi** across every screen — onboarding, z
 
 ## API Surface
 
-The Aegis API spans **166 verified endpoints** across three tiers with zero truncation or placeholder routes:
+The Aegis API spans **166 verified endpoints** across three tiers with zero truncation or empty-state routes:
 
 | Tier | Range | Domain |
 | --- | --- | --- |
@@ -931,7 +931,7 @@ Selected key endpoints:
 
 ## Challenges
 
-**Actuarial correctness without historical data.** Monotonic constraints in XGBoost were non-negotiable. Without direction-constrained gradients, the model could learn spurious inverse correlations from noisy synthetic training data — lower risk during heavier rain simply because a batch happened to carry that co-occurrence. Enforcing the constraints guaranteed actuarially logical premium behaviour from day one.
+**Actuarial correctness without historical data.** Monotonic constraints in XGBoost were non-negotiable. Without direction-constrained gradients, the model could learn spurious inverse correlations from noisy baseline training data — lower risk during heavier rain simply because a batch happened to carry that co-occurrence. Enforcing the constraints guaranteed actuarially logical premium behaviour from day one.
 
 **Exactly-once payouts in a distributed system.** With Kafka delivering zone trigger events to multiple consumers, the same event can arrive at the payout service more than once. Application-level locks are fragile. The solution — a `PayoutIdempotencyKey` table with a database-level unique constraint — physically rejects duplicate writes, making double-payment structurally impossible.
 

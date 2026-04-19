@@ -14,7 +14,7 @@ The system utilizes a dual-token rotation strategy for session management and pr
 *   **Refresh Tokens**: Long-lived (7 days default), hashed and persisted in the relational core (`refreshToken` column) to prevent replay attacks and facilitate immediate session invalidation.
 
 ### 1.2 Federated Identity (OAuth 2.0 / SSO)
-Aegis integrates with major gig-economy providers (Swiggy, Zomato, Zepto) to establish a "Network of Trust."
+Aegis integrates with major gig-economy providers (Blinkit, Zepto, Instamart, JioMart, BigBasket) to establish a "Network of Trust."
 *   **Flow**: Authorization Code Grant with optional PKCE (Proof Key for Code Exchange) support.
 *   **Internal Mapping**: Provider identities are mapped to a unique internal `driverId`, ensuring that first-party auditing remains consistent regardless of the third-party source.
 
@@ -77,7 +77,7 @@ To prevent Distributed Denial of Service (DDoS) attacks and brute-force claim bu
 | **SQL Injection** | Parameterized Queries (Prisma) | `PrismaService` |
 | **XSS / CSRF** | Strict CORS + Content-Security Policy | NestJS CORS Module |
 | **Replay Attack** | JWT Refresh Token Rotation | `generateTokens` Logic |
-| **Identity Theft** | Federated OAuth + Mandatory MFA | Swiggy/Zomato SSO Integrations |
+| **Identity Theft** | Federated OAuth + Mandatory MFA | Blinkit/Zepto/Instamart/JioMart/BigBasket SSO Integrations |
 | **Systemic Fraud** | Aegis Shield ML Ensemble | `FraudService` (Python/NestJS) |
 
 ---

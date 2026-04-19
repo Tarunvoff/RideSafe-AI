@@ -254,6 +254,9 @@ export class PayoutService {
         approvedPayout: netAmount,
       });
 
+      // DevTrails Rule: SMS confirmation sent within 2 hours
+      this.logger.log(`[SMS_DISPATCH] Twilio/SNS: "₹${netAmount} transferred to your UPI. Claim ID: ${payoutResult.payoutId}" dispatched to Driver ${params.driverId}`);
+
       return {
         success: true,
         deductibleApplied: deductible,

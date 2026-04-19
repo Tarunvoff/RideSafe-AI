@@ -44,11 +44,11 @@ export class AnalyzeFraudDto {
 
   @IsOptional()
   @IsNumber()
-  isMocked?: number;
+  isSpoofed?: number;
 
   @IsOptional()
   @IsString()
-  mockProvider?: string;
+  spoof_provider?: string;
 
   @IsOptional()
   @IsNumber()

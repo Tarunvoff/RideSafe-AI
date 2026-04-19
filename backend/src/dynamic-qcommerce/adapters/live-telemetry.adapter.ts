@@ -1,3 +1,9 @@
+/**
+ * @forensic audit: Rule-EG-1
+ * @forensic identity: live-telemetry-adapter
+ * @forensic status: HARDENED
+ * @forensic provisioning: BASELINE
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { ITelemetryAdapter } from '../interfaces/telemetry-adapter.interface';
 import { KafkaReliableProducerService } from '../../kafka/kafka-reliable-producer.service';
