@@ -49,6 +49,17 @@ const fallbackRoute: Array<[number, number]> = [
   [80.2707, 13.0827],
 ];
 
+const CITY_COORDS: Record<string, [number, number]> = {
+  Bangalore: [77.5946, 12.9716],
+  Chennai: [80.2707, 13.0827],
+  Mumbai: [72.8777, 19.0760],
+  Coimbatore: [76.9558, 11.0168],
+  Madurai: [78.1198, 9.9252],
+  Tiruchirappalli: [78.7047, 10.7905],
+  Salem: [78.1460, 11.6643],
+  Tirunelveli: [77.7567, 8.7139],
+};
+
 type LiveGpsPosition = {
   driverId: string;
   lat: number;
@@ -831,20 +842,36 @@ export default function DriverScooterMap({
         };
 
         const syncTelemetry = async () => {
-          let payload: LiveGpsResponse | null = null;
           let usingFallback = false;
+          let positions: LiveGpsPosition[] = [];
 
           try {
-            payload = (await adminApi.getLiveGps({
-              zone,
-              provider,
-              count: resolvedCount,
-            })) as LiveGpsResponse;
+            const workers = await adminApi.getWorkers({ take: resolvedCount });
+            if (workers && workers.length) {
+              const now = Date.now();
+              positions = workers.map((w: any) => {
+                const driverId = w.profileId || w.userId || w.email;
+                const cityCenter = CITY_COORDS[w.city || 'Chennai'] || CITY_COORDS['Chennai'];
+                const previous = motionRegistryRef.current.get(driverId);
+                
+                let [lng, lat] = cityCenter;
+                if (previous) {
+                  // Create a live 'wandering' motion locally
+                  lng = previous.lng + (Math.random() - 0.5) * 0.0006;
+                  lat = previous.lat + (Math.random() - 0.5) * 0.0006;
+                } else {
+                  // Initial distribution around city center
+                  lng += (Math.random() - 0.5) * 0.015;
+                  lat += (Math.random() - 0.5) * 0.015;
+                }
+
+                return { driverId, lat, lng, timestamp: now };
+              });
+            }
           } catch {
             usingFallback = true;
           }
 
-          let positions = payload?.positions ?? [];
           if (!positions.length) {
             usingFallback = true;
             positions = buildFallbackPositions(resolvedCount, fallbackCycleRef.current);
