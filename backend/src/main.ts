@@ -20,6 +20,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
+import * as express from 'express';
 import { AppModule } from './app.module';
 import { ApiResponseInterceptor } from './shared/api-response.interceptor';
 import { GlobalExceptionFilter } from './shared/global-exception.filter';
@@ -70,6 +71,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn'], // Perfection: Hide debug/verbose spam
   });
+
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   // ── Strict-Schema Enforcement Layer ─────────────────────────────────────────
   // Utilizing standard ValidationPipe with whitelisting to physically reject

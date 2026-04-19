@@ -29,6 +29,7 @@ import { CanonicalModule } from './canonical/canonical.module';
 import { StateModule } from './state/state.module';
 import { RiskMonitorModule } from './risk-monitor/risk-monitor.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { TokenRevocationMiddleware } from './auth/token-revocation.middleware';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -63,6 +64,7 @@ import { APP_GUARD } from '@nestjs/core';
     StateModule,
     RiskMonitorModule,
     ComplianceModule,
+    WhatsappModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
