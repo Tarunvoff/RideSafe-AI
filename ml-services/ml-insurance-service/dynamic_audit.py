@@ -1,3 +1,11 @@
+"""
+Aegis Dynamic Audit: Performs forensic-level validation of ML artifacts.
+Ensures that risk, pricing, and fraud models meet production-grade monotonic 
+constraints and sensitivity scores.
+
+For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+"""
 import joblib
 import os
 import pandas as pd

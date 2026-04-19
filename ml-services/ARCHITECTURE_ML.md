@@ -17,5 +17,5 @@ We have converted "Black-Box" AI into a **Transparent, Audit-Ready Engine**.
 ---
 
 **STATUS**: MISSION READY 🚀
-**RATING**: PRODUCTION-GRADE / FAANG-LEVEL
+**RATING**: PRODUCTION-GRADE
 **CORE STACK**: XGBoost (Risk), LightGBM (Pricing), Isolation Forest (Anomaly), GBDT (Classifier)

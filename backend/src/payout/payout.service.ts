@@ -2,6 +2,9 @@
  * Instant Payout System: Manages the platform's high-fidelity settlement pipeline, 
  * ensuring idempotent, exactly-once disbursements for workers.
  *
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ * 
  * For detailed payout logic and architecture, refer to ARCHITECTURE/PAYOUT_PIPELINE_ARCHITECTURE.md.
  */
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';

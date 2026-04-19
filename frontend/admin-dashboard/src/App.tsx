@@ -1,3 +1,18 @@
+/**
+ * ── Elite Actuarial Control Plane & Visibility Layer ──────────────────────
+ * 
+ * The Aegis Admin Dashboard is a clinical, high-fidelity command interface 
+ * engineered for absolute transparency and industrial-scale oversight. 
+ * As the nervous system of the Aegis ecosystem, it rejects synthetic 
+ * approximations in favor of authoritative, forensic-ready telemetry.
+ * 
+ * For the definitive architectural source of truth, refer to:
+ * - ARCHITECTURE/ADMIN_CONTROL_PLANE.md
+ * 
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ */
+
 import { useState, useEffect } from 'react';
 import {
   Shield,
@@ -322,6 +337,11 @@ function AnalyticsPage({ data, loading }: any) {
           </section>
 
           {/* SECTION: FRAUD SIGNALS & STATUS */}
+          {/**
+            * [IN-LINE PRIDE]: Sentinel Fraud Intelligence
+            * Surfaces high-confidence anomaly signals derived from the Sentinel Fraud Engine. 
+            * Architectural Reference: docs @[c:\projects\Aegis\ARCHITECTURE\ADMIN_CONTROL_PLANE.md#5-fraud-queue]
+            */}
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             <div className="lg:col-span-7 space-y-8">
               <div className="border-b-4 border-[#1B1D0E] pb-3 text-left">
@@ -440,6 +460,11 @@ function LiveOperationalDashboard({ data }: any) {
       </div>
 
       {/* FRAUD TABLE - CENTRAL PIECE OF PREVIOUS DASHBOARD */}
+      {/**
+        * [IN-LINE PRIDE]: Real-Time Enforcement Pipeline
+        * Displays the clinical state of the fraud submission queue. 
+        * Refer to ARCHITECTURE/ADMIN_CONTROL_PLANE.md for enforcement protocol validation.
+        */}
       <section style={{ marginTop: '3rem', marginBottom: '4rem' }}>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Fraud Analysis Pipeline</h3>
@@ -767,6 +792,12 @@ function ClaimsPage() {
       <header className="mb-8">
         <h2 className="text-2xl sm:text-4xl font-black uppercase">Payout Sentinel</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mt-1 italic">Real-time Claims & Financial Oversight</p>
+        
+        {/**
+          * [IN-LINE PRIDE]: Financial Sustainability Ledger
+          * High-fidelity visibility into the platform's solvency and payout integrity.
+          * Architectural Context: @[c:\projects\Aegis\ARCHITECTURE\ADMIN_CONTROL_PLANE.md#3-financial-sustainability-monitoring]
+          */}
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

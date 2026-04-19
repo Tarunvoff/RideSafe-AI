@@ -2,7 +2,8 @@
  * Modular Registry: The root application module that wires together identity, fraud detection, 
  * actuarial pricing, and the payout pipeline into a cohesive ecosystem.
  *
- * For modular composition details, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md.
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
  */
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';

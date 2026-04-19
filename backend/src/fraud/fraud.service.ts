@@ -2,6 +2,9 @@
  * Sentinel Fraud Engine: Implements advanced fraud detection, including GPS spoofing checks, 
  * parallel feature extraction, and H3 geospatial burst detection.
  *
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ * 
  * For detailed fraud detection architecture and security matrices, refer to 
  * ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md and ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md.
  */

@@ -1,3 +1,10 @@
+/**
+ * Elite Geospatial Telemetry Component: Visualizes high-frequency GPS data on a Mapbox canvas.
+ * Implements H3 hexagonal binning for real-time risk stratification.
+ * 
+ * For a deep dive into the system design, refer to ARCHITECTURE/SYSTEM_ARCHITECTURE.md 
+ * and ARCHITECTURE/OVERALL_PROJECT_SYSTEM_VIEW.md.
+ */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -884,7 +891,7 @@ export default function DriverScooterMap({
           hasUserInteractedRef.current = true;
         });
         map.on('click', H3_SURFACE_LAYER_ID, (event) => {
-          const clicked = event.features?.[0] as Feature<Polygon, HexProps> | undefined;
+          const clicked = event.features?.[0] as unknown as Feature<Polygon, HexProps> | undefined;
           if (!clicked?.properties?.cellId) {
             return;
           }
