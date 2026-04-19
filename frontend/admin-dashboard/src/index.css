@@ -605,6 +605,14 @@ tr:hover td {
   align-items: center;
 }
 
+.driver-map-footer span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .driver-map-error {
   border: 2px solid #7f1d1d;
   background: rgba(239, 68, 68, 0.24);

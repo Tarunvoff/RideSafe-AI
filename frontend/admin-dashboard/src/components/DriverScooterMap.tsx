@@ -16,6 +16,38 @@ const DRIVER_SVG_MARKER_PATH = '/assets/scooter-topdown.svg';
 
 const initialCoordinate: [number, number] = [80.2707, 13.0827];
 const initialZoom = 14.5;
+const fallbackRoute: Array<[number, number]> = [
+  [80.2707, 13.0827],
+  [80.2718, 13.0831],
+  [80.2731, 13.0836],
+  [80.2745, 13.0842],
+  [80.2758, 13.0849],
+  [80.2769, 13.0855],
+  [80.2782, 13.0861],
+  [80.2793, 13.0867],
+  [80.2801, 13.0871],
+  [80.2812, 13.0876],
+  [80.2824, 13.0882],
+  [80.2835, 13.0888],
+  [80.2844, 13.0892],
+  [80.2855, 13.0897],
+  [80.2864, 13.0902],
+  [80.2873, 13.0906],
+  [80.2861, 13.0901],
+  [80.2849, 13.0896],
+  [80.2837, 13.0891],
+  [80.2825, 13.0886],
+  [80.2813, 13.0880],
+  [80.2802, 13.0875],
+  [80.2790, 13.0869],
+  [80.2779, 13.0864],
+  [80.2768, 13.0858],
+  [80.2757, 13.0852],
+  [80.2745, 13.0846],
+  [80.2733, 13.0840],
+  [80.2720, 13.0834],
+  [80.2707, 13.0827],
+];
 
 type LiveGpsPosition = {
   driverId: string;
@@ -584,6 +616,23 @@ function updateMarkerVisualScale(map: mapboxgl.Map, visual: HTMLDivElement) {
   visual.style.transform = `scale(${markerScale.toFixed(3)})`;
 }
 
+function buildFallbackPositions(count: number, cycle: number): LiveGpsPosition[] {
+  const now = Date.now();
+  const normalizedCount = Math.max(1, Math.min(24, count));
+
+  return Array.from({ length: normalizedCount }, (_, index) => {
+    const routeIndex = (cycle * 2 + index * 3) % fallbackRoute.length;
+    const [lng, lat] = fallbackRoute[routeIndex];
+
+    return {
+      driverId: `fallback-${index + 1}`,
+      lat,
+      lng,
+      timestamp: now - index * 250,
+    };
+  });
+}
+
 type DriverScooterMapProps = {
   workerCount?: number;
   variant?: 'card' | 'full';
@@ -602,6 +651,7 @@ export default function DriverScooterMap({
   const autoFollowCyclesRef = useRef(0);
   const selectedHexIdRef = useRef<string | null>(null);
   const focusPulseMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const fallbackCycleRef = useRef(0);
 
   const [mapError, setMapError] = useState('');
   const [markerSourceLabel, setMarkerSourceLabel] = useState('marker: waiting for SVG');
@@ -609,11 +659,11 @@ export default function DriverScooterMap({
   const [reconnectLabel, setReconnectLabel] = useState('connection: live');
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  const token = useMemo(() => import.meta.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN as string | undefined, []);
+  const token = useMemo(() => import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined, []);
 
   useEffect(() => {
     if (!token) {
-      setMapError('Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to load the live map.');
+      setMapError('Set VITE_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to load the live map.');
       return;
     }
 
@@ -781,13 +831,26 @@ export default function DriverScooterMap({
         };
 
         const syncTelemetry = async () => {
-          const payload = (await adminApi.getLiveGps({
-            zone,
-            provider,
-            count: resolvedCount,
-          })) as LiveGpsResponse;
+          let payload: LiveGpsResponse | null = null;
+          let usingFallback = false;
 
-          const positions = payload.positions ?? [];
+          try {
+            payload = (await adminApi.getLiveGps({
+              zone,
+              provider,
+              count: resolvedCount,
+            })) as LiveGpsResponse;
+          } catch {
+            usingFallback = true;
+          }
+
+          let positions = payload?.positions ?? [];
+          if (!positions.length) {
+            usingFallback = true;
+            positions = buildFallbackPositions(resolvedCount, fallbackCycleRef.current);
+            fallbackCycleRef.current += 1;
+          }
+
           const stationaryDrivers = new Set<string>();
 
           for (const item of positions) {
@@ -868,13 +931,15 @@ export default function DriverScooterMap({
 
           const clusterCount = renderItems.filter((item) => item.kind === 'cluster').length;
           const modeLabel = clusterCount > 0 ? `clustered (${clusterCount})` : 'individual';
-          setMarkerSourceLabel(`workers live: ${positions.length}/${resolvedCount} | mode: ${modeLabel}`);
+          setMarkerSourceLabel(
+            `${usingFallback ? 'workers fallback-route' : 'workers live'}: ${positions.length}/${resolvedCount} | mode: ${modeLabel}`,
+          );
           setZoneStatusLabel(
             `H3 Zones • HALT ${summary.halt} • HIGH ${summary.high} • MED ${summary.medium} • LOW ${summary.low}`,
           );
           retryAttemptsRef.current = 0;
           setIsReconnecting(false);
-          setReconnectLabel('connection: live');
+          setReconnectLabel(usingFallback ? 'connection: fallback route' : 'connection: live');
           setMapError('');
         };
 
@@ -992,7 +1057,7 @@ export default function DriverScooterMap({
         <div className="driver-map-empty">
           <p className="driver-map-empty-title">Map token missing</p>
           <p className="driver-map-empty-copy">
-            Add EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to enable live AMP marker tracking.
+            Add VITE_MAPBOX_ACCESS_TOKEN in frontend/admin-dashboard/.env to enable live AMP marker tracking.
           </p>
         </div>
       ) : (
