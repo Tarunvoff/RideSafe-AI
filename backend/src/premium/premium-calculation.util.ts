@@ -20,12 +20,12 @@ export const PREMIUM_RATE = 0.015;
 /**
  * Absolute portfolio ceiling for weekly premium before any reinsurance layer applies.
  */
-export const MAXIMUM_WEEKLY_PREMIUM_INR = 49;
+export const MAXIMUM_WEEKLY_PREMIUM_INR = 150;
 
 /**
  * Minimum active-policy weekly premium floor to ensure non-zero risk contribution for entry tier.
  */
-export const MINIMUM_WEEKLY_PREMIUM_INR = 19;
+export const MINIMUM_WEEKLY_PREMIUM_INR = 15;
 
 /**
  * Resolves tier-specific minimum floor proportional to coverage.
@@ -33,13 +33,13 @@ export const MINIMUM_WEEKLY_PREMIUM_INR = 19;
 export function resolveTierFloor(Ct: number): number {
   const roundedCt = Math.round(Ct * 10) / 10;
   // Non-overlapping floors to ensure distinct pricing per tier
-  if (roundedCt <= 0.45) return 19; // BASIC
-  if (roundedCt <= 0.65) return 26; // STANDARD
-  if (roundedCt <= 0.75) return 33; // PREMIUM
-  if (roundedCt <= 0.85) return 38; // ELITE
+  if (roundedCt <= 0.45) return 15; // BASIC
+  if (roundedCt <= 0.65) return 20; // STANDARD
+  if (roundedCt <= 0.75) return 25; // PREMIUM
+  if (roundedCt <= 0.85) return 30; // ELITE
 
   // Linear interpolation between the discrete tier baselines
-  return 38 + ((roundedCt - 0.8) / 0.1) * (49 - 38);
+  return 30 + ((roundedCt - 0.8) / 0.1) * (150 - 30);
 }
 
 /**
@@ -55,17 +55,17 @@ export const MIN_HISTORY_DAYS_FOR_PERSONAL_EW = 7;
 /**
  * Tier cap for BASIC coverage (Ct=0.4) to keep entry-tier pricing affordable.
  */
-export const BASIC_TIER_CAP_INR = 25;
+export const BASIC_TIER_CAP_INR = 100;
 
 /**
  * Tier cap for STANDARD coverage (Ct=0.6) balancing coverage depth and affordability.
  */
-export const STANDARD_TIER_CAP_INR = 37;
+export const STANDARD_TIER_CAP_INR = 125;
 
 /**
  * Tier cap for PREMIUM coverage (Ct=0.8), equal to the absolute weekly premium ceiling.
  */
-export const PREMIUM_TIER_CAP_INR = 49;
+export const PREMIUM_TIER_CAP_INR = 150;
 
 /**
  * Resolves earnings baseline for low-history drivers.

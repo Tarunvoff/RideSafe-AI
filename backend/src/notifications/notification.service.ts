@@ -47,6 +47,48 @@ export class NotificationService {
     return 'Your weekly policy is now active and protected.';
   }
 
+  private async sendSmsViaTwilio(to: string, message: string): Promise<boolean> {
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!sid || !token || !from) {
+      this.logger.warn(`[TWILIO] Credentials missing; skipping SMS to ${to}. (Message: ${message})`);
+      return false;
+    }
+
+    try {
+      const auth = Buffer.from(`${sid}:${token}`).toString('base64');
+      const response = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${auth}`,
+          },
+          body: new URLSearchParams({
+            To: to,
+            From: from,
+            Body: message,
+          }).toString(),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        this.logger.error(`[TWILIO] SMS delivery failed: ${error}`);
+        return false;
+      }
+
+      this.logger.log(`[TWILIO] SMS successfully dispatched to ${to}`);
+      return true;
+    } catch (err) {
+      this.logger.error(`[TWILIO] Execution error: ${err}`);
+      return false;
+    }
+  }
+
   async send(params: {
     channel: NotificationChannel;
     type: NotificationType;
@@ -62,14 +104,22 @@ export class NotificationService {
     };
 
     try {
+      let dispatched = false;
+      const message = this.template(params.type, params.payload);
+
       if (params.channel === 'EMAIL' && params.type === 'CLAIM_APPROVED') {
         await this.email.sendClaimApprovedEmail(params.recipient, params.payload as ClaimApprovedPayload);
-      } else {
+        dispatched = true;
+      } else if (params.channel === 'SMS') {
+        dispatched = await this.sendSmsViaTwilio(params.recipient, message);
+      } 
+      
+      if (!dispatched) {
         this.logger.log(
           JSON.stringify({
-            event: 'notification_dispatched',
+            event: 'notification_logged_only',
             ...structuredContext,
-            message: this.template(params.type, params.payload),
+            message,
           }),
         );
       }

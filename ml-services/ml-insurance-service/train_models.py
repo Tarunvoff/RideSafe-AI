@@ -105,8 +105,8 @@ def _generate_pricing_dataset(n_samples: int = 6000) -> tuple[np.ndarray, np.nda
     
     # 4. Production-Grade Soft-Tail Clipping: [₹50, ₹300] + 0.01 residual
     # Softens the ceiling to maintain data variance/gradients in the high-value tail.
-    premium_hard = _clip(premium, 50.0, 300.0)
-    premium = premium_hard + 0.01 * np.maximum(0, premium - 300.0)
+    premium_hard = _clip(premium, 50.0, 150.0)
+    premium = premium_hard + 0.01 * np.maximum(0, premium - 150.0)
     
     return np.column_stack([earnings, lf, ct, margin]), premium
 

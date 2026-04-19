@@ -8,7 +8,7 @@ import { ctForPlan } from '../insurance/policy-tiers';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 
-const MAX_WEEKLY_PREMIUM_INR = 50;
+const MAX_WEEKLY_PREMIUM_INR = 150;
 
 @Injectable()
 /**
@@ -91,7 +91,7 @@ export class PaymentsService {
   private resolveTierCapForPlanKey(planKey?: string | null): number {
     const Ct = ctForPlan(planKey ?? null);
     if (Ct == null) return MAX_WEEKLY_PREMIUM_INR;
-    const cap = 30 + Ct * 25;
+    const cap = 50 + Ct * 125;
     return Math.min(MAX_WEEKLY_PREMIUM_INR, Math.round(cap * 100) / 100);
   }
 
