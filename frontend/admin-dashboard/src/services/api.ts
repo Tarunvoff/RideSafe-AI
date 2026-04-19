@@ -13,6 +13,14 @@
  */
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const AUTH_EXPIRED_EVENT = 'aegis-auth-expired';
+
+function emitAuthExpired(reason: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT, { detail: { reason } }));
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('adminToken');
@@ -34,6 +42,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const error = await response.json().catch(() => ({ message: 'API Error' }));
     console.error(`[API ERROR] Path: ${path} | Status: ${response.status}`, error);
     const errMsg = error?.error || error?.message || 'Something went wrong';
+
+    if (response.status === 401) {
+      localStorage.removeItem('adminToken');
+      emitAuthExpired(errMsg);
+    }
+
     throw new Error(errMsg);
   }
 
@@ -89,3 +103,5 @@ export const adminApi = {
     body: JSON.stringify(data),
   }),
 };
+
+export { AUTH_EXPIRED_EVENT };

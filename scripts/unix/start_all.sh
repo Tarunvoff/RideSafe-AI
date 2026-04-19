@@ -533,19 +533,28 @@ REDIS_PORT="6379"
 KAFKA_HOST="localhost"
 KAFKA_PORT="9092"
 
+# -----------------------------
+# CHECK PORT LISTENING
+# -----------------------------
 is_port_listening() {
   local port="$1"
+
   if command -v ss >/dev/null 2>&1; then
     ss -ltn 2>/dev/null | awk -v p=":$port" '$4 ~ p {found=1} END {exit found ? 0 : 1}'
     return $?
   fi
+
   if command -v lsof >/dev/null 2>&1; then
     lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
     return $?
   fi
+
   return 1
 }
 
+# -----------------------------
+# REDIS PORT RESOLUTION
+# -----------------------------
 resolve_redis_host_port() {
   local candidate="${REDIS_PORT}"
   local upper_bound=6390
@@ -553,6 +562,7 @@ resolve_redis_host_port() {
   if is_port_listening "$candidate"; then
     echo "⚠️ Host port $candidate is already in use. Searching alternate Redis host port..."
     candidate=6380
+
     while [ "$candidate" -le "$upper_bound" ]; do
       if ! is_port_listening "$candidate"; then
         REDIS_PORT="$candidate"
@@ -561,6 +571,7 @@ resolve_redis_host_port() {
       fi
       candidate=$((candidate + 1))
     done
+
     echo "❌ No free Redis host port found in range 6380-$upper_bound"
     exit 1
   fi
@@ -569,7 +580,7 @@ resolve_redis_host_port() {
 }
 
 # -----------------------------
-# FUNCTION: WAIT FOR PORT
+# WAIT FOR TCP PORT
 # -----------------------------
 wait_for_tcp_port() {
   local host=$1
@@ -585,6 +596,9 @@ wait_for_tcp_port() {
   echo "✅ $name is ready"
 }
 
+# -----------------------------
+# KILL PORT PROCESSES
+# -----------------------------
 kill_port_processes() {
   local port="$1"
   local pids=""
@@ -603,14 +617,14 @@ kill_port_processes() {
   fi
 }
 
+# -----------------------------
+# CLEAR SERVICE PORTS
+# -----------------------------
 clear_configured_ports() {
   local ports_to_clear=("$BACKEND_PORT" "$EXPO_PORT")
-  local service_info=""
-  local service_name=""
-  local service_port=""
 
   for service_info in "${SERVICES[@]}"; do
-    IFS=':' read -r service_name service_port <<< "$service_info"
+    IFS=':' read -r _ service_port <<< "$service_info"
     ports_to_clear+=("$service_port")
   done
 
@@ -619,15 +633,15 @@ clear_configured_ports() {
   done
 }
 
+# -----------------------------
+# CLEAR INFRA PORTS
+# -----------------------------
 clear_infra_ports() {
   local ports_to_clear=("$DB_PORT" "$REDIS_PORT" "$KAFKA_PORT")
-  local port=""
 
-  # If a host redis-server daemon owns 6379, plain kill from this user often fails.
-  # Try a graceful shutdown via redis-cli first so Docker can bind the port.
   if command -v redis-cli >/dev/null 2>&1; then
     if redis-cli -h 127.0.0.1 -p "$REDIS_PORT" ping >/dev/null 2>&1; then
-      echo "   - Detected host Redis on port $REDIS_PORT; attempting graceful shutdown"
+      echo "   - Detected host Redis on port $REDIS_PORT; attempting shutdown"
       redis-cli -h 127.0.0.1 -p "$REDIS_PORT" shutdown nosave >/dev/null 2>&1 || true
       sleep 0.5
     fi
@@ -649,26 +663,26 @@ fi
 # -----------------------------
 # START DOCKER
 # -----------------------------
-echo "[1/7] Starting Docker containers..."
+echo "[1/6] Starting Docker containers..."
 cd "$PROJECT_ROOT"
 
-# Release infra host ports before docker tries to bind them.
 clear_infra_ports
 resolve_redis_host_port
 export REDIS_HOST_PORT="$REDIS_PORT"
+
 docker compose up -d --force-recreate
 
 # -----------------------------
 # WAIT FOR CORE SERVICES
 # -----------------------------
-echo "[2/7] Waiting for dependencies..."
+echo "[2/6] Waiting for dependencies..."
 
 wait_for_tcp_port "$DB_HOST" "$DB_PORT" "TimescaleDB"
 wait_for_tcp_port "$REDIS_HOST" "$REDIS_PORT" "Redis"
 wait_for_tcp_port "$KAFKA_HOST" "$KAFKA_PORT" "Kafka"
 
 # -----------------------------
-# KAFKA READINESS (SCRIPT 2 STYLE)
+# KAFKA READY CHECK
 # -----------------------------
 echo "⏳ Checking Kafka readiness..."
 
@@ -681,15 +695,15 @@ done
 echo "✅ Kafka is READY"
 
 # -----------------------------
-# RELEASE PREVIOUS LISTENERS
+# RELEASE PORTS
 # -----------------------------
-echo "[2.5/7] Releasing conflicting ports..."
+echo "[3/6] Releasing conflicting ports..."
 clear_configured_ports
 
 # -----------------------------
 # DETECT IP
 # -----------------------------
-echo "[3/7] Detecting IP..."
+echo "[4/6] Detecting IP..."
 
 LOCAL_IP=$(ip -o -4 addr show up scope global \
   | awk '$2 !~ /^(docker0|br-|veth|lo)$/ {print $4}' \
@@ -702,18 +716,9 @@ LOCAL_IP=$(ip -o -4 addr show up scope global \
 echo "✅ IP: $LOCAL_IP"
 
 # -----------------------------
-# UPDATE FRONTEND ENV
+# START ML SERVICES
 # -----------------------------
-echo "[4/7] Updating frontend .env..."
-
-ENV_FILE="$PROJECT_ROOT/frontend/mobile/.env"
-sed -i '/EXPO_PUBLIC_API_URL/d' "$ENV_FILE" 2>/dev/null || true
-echo "EXPO_PUBLIC_API_URL=http://$LOCAL_IP:$BACKEND_PORT/api" >> "$ENV_FILE"
-
-# -----------------------------
-# START ML SERVICES (GUI)
-# -----------------------------
-echo "[5/7] Starting ML services..."
+echo "[5/6] Starting ML services..."
 
 for SERVICE_INFO in "${SERVICES[@]}"; do
   IFS=':' read -r SERVICE PORT <<< "$SERVICE_INFO"
@@ -730,9 +735,9 @@ for SERVICE_INFO in "${SERVICES[@]}"; do
 done
 
 # -----------------------------
-# START BACKEND (GUI)
+# START BACKEND
 # -----------------------------
-echo "[6/7] Starting backend..."
+echo "[6/6] Starting backend..."
 
 gnome-terminal -- bash -c "
 cd '$PROJECT_ROOT/backend' &&
@@ -741,9 +746,9 @@ REDIS_URL=redis://127.0.0.1:$REDIS_PORT npm run start:dev;
 exec bash"
 
 # -----------------------------
-# START FRONTEND (GUI)
+# START FRONTEND
 # -----------------------------
-echo "[7/7] Starting mobile app..."
+echo "🚀 Starting mobile app..."
 
 gnome-terminal -- bash -c "
 cd '$PROJECT_ROOT/frontend/mobile' &&
@@ -753,5 +758,5 @@ exec bash"
 
 echo ""
 echo "========================================================"
-echo "✅ ALL SERVICES RUNNING (SMART + GUI) 🚀"
+echo "✅ ALL SERVICES RUNNING 🚀"
 echo "========================================================"

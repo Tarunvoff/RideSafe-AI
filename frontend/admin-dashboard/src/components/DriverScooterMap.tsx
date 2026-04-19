@@ -67,15 +67,6 @@ type LiveGpsPosition = {
   timestamp: number;
 };
 
-type LiveGpsResponse = {
-  zone: string;
-  provider: string;
-  published: number;
-  driverIds: string[];
-  base?: { lat: number; lng: number };
-  positions?: LiveGpsPosition[];
-};
-
 type MarkerRecord = {
   marker: mapboxgl.Marker;
   visual: HTMLDivElement;
@@ -121,6 +112,32 @@ const H3_CRITICAL_LAYER_ID = 'h3-risk-zones-critical';
 const H3_LABEL_LAYER_ID = 'h3-risk-zones-label';
 const BASE_POLL_INTERVAL_MS = 2200;
 const MAX_POLL_INTERVAL_MS = 22000;
+const DEFAULT_MAPBOX_STYLE_URL = 'mapbox://styles/mapbox/standard';
+const INCIDENT_PRONE_STYLE_PATTERNS = [
+  /^mapbox:\/\/styles\/mapbox\/navigation-/i,
+  /^mapbox:\/\/styles\/mapbox\/dark-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/light-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/streets-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/outdoors-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/satellite-streets-v11$/i,
+];
+
+function resolveSafeMapStyleUrl(rawStyleUrl: string | undefined) {
+  const styleUrl = rawStyleUrl?.trim();
+  if (!styleUrl) {
+    return DEFAULT_MAPBOX_STYLE_URL;
+  }
+
+  const isIncidentProne = INCIDENT_PRONE_STYLE_PATTERNS.some((pattern) => pattern.test(styleUrl));
+  if (isIncidentProne) {
+    console.warn(
+      `[DriverScooterMap] Ignoring incidents-backed style "${styleUrl}" and falling back to ${DEFAULT_MAPBOX_STYLE_URL}.`,
+    );
+    return DEFAULT_MAPBOX_STYLE_URL;
+  }
+
+  return styleUrl;
+}
 
 type HexZoneSummary = {
   halt: number;
@@ -572,31 +589,35 @@ function createScooterMarkerElement() {
 }
 
 async function hydrateInlineSvg(target: HTMLDivElement, path: string) {
-  let text = scooterSvgMarkupCache;
-  if (!text) {
-    const response = await fetch(path, { cache: 'no-store' });
-    if (!response.ok) {
+  try {
+    let text = scooterSvgMarkupCache;
+    if (!text) {
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) {
+        return false;
+      }
+      text = await response.text();
+      scooterSvgMarkupCache = text;
+    }
+
+    if (!text.includes('<svg')) {
       return false;
     }
-    text = await response.text();
-    scooterSvgMarkupCache = text;
-  }
 
-  if (!text.includes('<svg')) {
+    target.innerHTML = text;
+    const svg = target.querySelector('svg');
+    if (!svg) {
+      return false;
+    }
+
+    svg.classList.add('driver-dom-marker-svg');
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    return true;
+  } catch {
     return false;
   }
-
-  target.innerHTML = text;
-  const svg = target.querySelector('svg');
-  if (!svg) {
-    return false;
-  }
-
-  svg.classList.add('driver-dom-marker-svg');
-  svg.removeAttribute('width');
-  svg.removeAttribute('height');
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  return true;
 }
 
 function createClusterMarkerElement(count: number) {
@@ -671,6 +692,10 @@ export default function DriverScooterMap({
   const [isReconnecting, setIsReconnecting] = useState(false);
 
   const token = useMemo(() => import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined, []);
+  const mapStyleUrl = useMemo(
+    () => resolveSafeMapStyleUrl(import.meta.env.VITE_MAPBOX_STYLE_URL as string | undefined),
+    [],
+  );
 
   useEffect(() => {
     if (!token) {
@@ -686,7 +711,7 @@ export default function DriverScooterMap({
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/navigation-night-v1',
+      style: mapStyleUrl,
       center: initialCoordinate,
       zoom: initialZoom,
       pitch: 50,
@@ -698,14 +723,12 @@ export default function DriverScooterMap({
     window.addEventListener('resize', handleResize);
 
     map.on('error', () => {
-      setMapError('Map rendering error detected. Check Mapbox token scope and style permissions.');
+      setMapError('Map rendering error detected. Check Mapbox token scope and configured style URL.');
     });
 
     map.on('load', async () => {
       try {
         const resolvedCount = Math.max(1, Math.min(60, Number.isFinite(workerCount) ? workerCount : 1));
-        const zone = 'chennai';
-        const provider = 'zepto';
 
         ensureH3Layers(map);
         syncRiskLayerVisibility(map);
@@ -841,35 +864,37 @@ export default function DriverScooterMap({
           existing.previousCoord = item.coordinate;
         };
 
-        const syncTelemetry = async () => {
+        const syncTelemetry = async (forceFallback = false) => {
           let usingFallback = false;
           let positions: LiveGpsPosition[] = [];
 
-          try {
-            const workers = await adminApi.getWorkers({ take: resolvedCount });
-            if (workers && workers.length) {
-              const now = Date.now();
-              positions = workers.map((w: any) => {
-                const driverId = w.profileId || w.userId || w.email;
-                const cityCenter = CITY_COORDS[w.city || 'Chennai'] || CITY_COORDS['Chennai'];
-                const previous = motionRegistryRef.current.get(driverId);
-                
-                let [lng, lat] = cityCenter;
-                if (previous) {
-                  // Create a live 'wandering' motion locally
-                  lng = previous.lng + (Math.random() - 0.5) * 0.0006;
-                  lat = previous.lat + (Math.random() - 0.5) * 0.0006;
-                } else {
-                  // Initial distribution around city center
-                  lng += (Math.random() - 0.5) * 0.015;
-                  lat += (Math.random() - 0.5) * 0.015;
-                }
+          if (!forceFallback) {
+            try {
+              const workers = await adminApi.getWorkers({ take: resolvedCount });
+              if (workers && workers.length) {
+                const now = Date.now();
+                positions = workers.map((w: any) => {
+                  const driverId = w.profileId || w.userId || w.email;
+                  const cityCenter = CITY_COORDS[w.city || 'Chennai'] || CITY_COORDS['Chennai'];
+                  const previous = motionRegistryRef.current.get(driverId);
 
-                return { driverId, lat, lng, timestamp: now };
-              });
+                  let [lng, lat] = cityCenter;
+                  if (previous) {
+                    // Create a live 'wandering' motion locally
+                    lng = previous.lng + (Math.random() - 0.5) * 0.0006;
+                    lat = previous.lat + (Math.random() - 0.5) * 0.0006;
+                  } else {
+                    // Initial distribution around city center
+                    lng += (Math.random() - 0.5) * 0.015;
+                    lat += (Math.random() - 0.5) * 0.015;
+                  }
+
+                  return { driverId, lat, lng, timestamp: now };
+                });
+              }
+            } catch {
+              usingFallback = true;
             }
-          } catch {
-            usingFallback = true;
           }
 
           if (!positions.length) {
@@ -877,6 +902,10 @@ export default function DriverScooterMap({
             positions = buildFallbackPositions(resolvedCount, fallbackCycleRef.current);
             fallbackCycleRef.current += 1;
           }
+
+          // Recover if the map style was reloaded and custom layers were dropped.
+          ensureH3Layers(map);
+          syncRiskLayerVisibility(map);
 
           const stationaryDrivers = new Set<string>();
 
@@ -931,7 +960,11 @@ export default function DriverScooterMap({
           const activeIds = new Set(renderItems.map((item) => item.id));
 
           for (const item of renderItems) {
-            await upsertRenderItem(item);
+            try {
+              await upsertRenderItem(item);
+            } catch (error) {
+              console.error('[DriverScooterMap] Marker render failed for item', item.id, error);
+            }
           }
 
           markerRegistryRef.current.forEach((record, id) => {
@@ -1007,6 +1040,11 @@ export default function DriverScooterMap({
             try {
               await syncTelemetry();
             } catch {
+              try {
+                await syncTelemetry(true);
+              } catch {
+                // Ignore emergency fallback failure and continue retry backoff.
+              }
               retryAttemptsRef.current += 1;
               nextDelayMs = Math.min(
                 MAX_POLL_INTERVAL_MS,
@@ -1064,7 +1102,7 @@ export default function DriverScooterMap({
       window.removeEventListener('resize', handleResize);
       map.remove();
     };
-  }, [token, workerCount]);
+  }, [token, workerCount, mapStyleUrl]);
 
   return (
     <div className={`driver-map-card ${variant === 'full' ? 'driver-map-card-full' : ''}`}>

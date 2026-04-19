@@ -19,7 +19,11 @@ cp .env.example .env
 3. Set your Mapbox public token in `.env`:
 
 ```bash
-EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_public_token_here
+VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_public_token_here
+# Optional but recommended for production clarity
+VITE_MAPBOX_STYLE_URL=mapbox://styles/mapbox/dark-v11
+# Backend base URL (optional in local dev due Vite proxy)
+VITE_API_URL=http://127.0.0.1:3001/api
 ```
 
 4. Start dev server:
@@ -36,6 +40,13 @@ npm run dev
 - Rotation logic: Marker heading is computed per segment and applied through `icon-rotate` via geojson feature properties.
 
 If the map panel shows a token warning, verify that `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` is present and valid for the selected Mapbox style.
+
+## Vercel Notes
+
+- `VITE_*` variables are injected at build time. Changing them in Vercel requires a new deployment.
+- Local `server.proxy` for `/api` only works in `npm run dev`. In production, set `VITE_API_URL` to your backend base URL.
+- If `VITE_API_URL` is not set on Vercel, the app calls `/api` on the Vercel domain, which usually fails unless you configured rewrites/serverless endpoints.
+- Avoid Mapbox `navigation-*` styles in production unless your token has incidents tiles access.
 
 ## Build
 

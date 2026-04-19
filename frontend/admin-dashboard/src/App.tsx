@@ -31,7 +31,7 @@ import {
   MapPinned
 } from 'lucide-react';
 import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
-import { adminApi } from './services/api';
+import { AUTH_EXPIRED_EVENT, adminApi } from './services/api';
 import DriverScooterMap from './components/DriverScooterMap';
 import logo from './assets/logo.png';
 import MetricDonutChart from './components/charts/MetricDonutChart';
@@ -55,6 +55,18 @@ export default function App() {
       fetchGlobalData();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const onAuthExpired = (event: Event) => {
+      const customEvent = event as CustomEvent<{ reason?: string }>;
+      const reason = customEvent.detail?.reason;
+      setAuthError(reason ? `Session expired: ${reason}` : 'Session expired. Please sign in again.');
+      handleLogout();
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, onAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onAuthExpired);
+  }, []);
 
   const fetchGlobalData = async () => {
     try {
@@ -123,6 +135,7 @@ export default function App() {
     setIsAuthenticated(false);
     setData(null);
     setMfaRequired(false);
+    setOtp('');
   };
 
   if (!isAuthenticated) {
