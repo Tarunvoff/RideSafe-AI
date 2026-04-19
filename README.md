@@ -10,7 +10,7 @@ If a rider's zone goes unserviceable, money hits their account automatically. No
 
 <a href="https://drive.google.com/file/d/11g399MUsoGhM2fZvXDPMr2SidsYlqvOK/view?usp=sharing"><img src="https://img.shields.io/badge/Demo%20Video-%234285F4.svg?style=for-the-badge&logo=google-drive&logoColor=white&labelColor=1a1a1a" /></a>
 &nbsp;&nbsp;
-<a href="https://canva.link/buwp6vr4rcjdbo5"><img src="https://img.shields.io/badge/Pitch%20Deck-%2300C4CC.svg?style=for-the-badge&logo=canva&logoColor=white&labelColor=1a1a1a" /></a>
+<a href="https://drive.google.com/file/d/1WzoQ-MBRVYZLU1qjgAiCXC8z2j8iX8TT/view?usp=sharing"><img src="https://img.shields.io/badge/Pitch%20Deck-%2300C4CC.svg?style=for-the-badge&logo=canva&logoColor=white&labelColor=1a1a1a" /></a>
 &nbsp;&nbsp;
 <a href="https://aegis-alpha-ebon.vercel.app">
   <img src="https://img.shields.io/badge/Live%20Dashboard-%23000000.svg?style=for-the-badge&logo=vercel&logoColor=white&labelColor=111111" />
