@@ -112,8 +112,15 @@ const H3_CRITICAL_LAYER_ID = 'h3-risk-zones-critical';
 const H3_LABEL_LAYER_ID = 'h3-risk-zones-label';
 const BASE_POLL_INTERVAL_MS = 2200;
 const MAX_POLL_INTERVAL_MS = 22000;
-const DEFAULT_MAPBOX_STYLE_URL = 'mapbox://styles/mapbox/dark-v11';
-const INCIDENT_PRONE_STYLE_PATTERNS = [/^mapbox:\/\/styles\/mapbox\/navigation-/i];
+const DEFAULT_MAPBOX_STYLE_URL = 'mapbox://styles/mapbox/standard';
+const INCIDENT_PRONE_STYLE_PATTERNS = [
+  /^mapbox:\/\/styles\/mapbox\/navigation-/i,
+  /^mapbox:\/\/styles\/mapbox\/dark-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/light-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/streets-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/outdoors-v11$/i,
+  /^mapbox:\/\/styles\/mapbox\/satellite-streets-v11$/i,
+];
 
 function resolveSafeMapStyleUrl(rawStyleUrl: string | undefined) {
   const styleUrl = rawStyleUrl?.trim();
