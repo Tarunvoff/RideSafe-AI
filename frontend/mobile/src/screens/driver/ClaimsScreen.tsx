@@ -1,13 +1,19 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
   Alert,
+  Image,
+  LayoutAnimation,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
@@ -15,55 +21,26 @@ import AegisNavbar from '../../components/layout/AegisNavbar';
 import { Theme } from '../../theme';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import { useAuth } from '../../context/AuthContext';
-import { paymentsApi, plansApi, type ClaimRecord } from '../../services/api';
-
-type DemoScenario = 'RAIN' | 'CIVIC_MOVEMENT' | 'AQI';
-
-type DemoStep = {
-  title: string;
-  detail: string;
-  state: 'PENDING' | 'DONE' | 'PASSED' | 'COMPLETED' | 'FAILED';
-};
-
-const DEMO_LABELS: Record<DemoScenario, string> = {
-  RAIN: 'RAIN',
-  CIVIC_MOVEMENT: 'CIVIC MOVEMENT',
-  AQI: 'AQI',
-};
-
-const DEMO_H3_BY_SCENARIO: Record<DemoScenario, string> = {
-  RAIN: '8860145b6fffffff',
-  CIVIC_MOVEMENT: '8860145b1fffffff',
-  AQI: '8860145b3fffffff',
-};
-
-function baseFlowSteps(label: string): DemoStep[] {
-  return [
-    { title: 'Trigger Received', detail: `${label} scenario activated`, state: 'PENDING' },
-    { title: 'Zone Validation', detail: 'Validating disruption zone...', state: 'PENDING' },
-    { title: 'Fraud Gate', detail: 'Evaluating trust and fraud score...', state: 'PENDING' },
-    { title: 'Razorpay Payout', detail: 'Initiating transfer rail...', state: 'PENDING' },
-  ];
-}
+import { insuranceApi, plansApi, type ClaimRecord } from '../../services/api';
 
 export default function ClaimsScreen() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const [claims, setClaims] = useState<ClaimRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [hasProcessing, setHasProcessing] = useState(false);
-  const [demoScenario, setDemoScenario] = useState<DemoScenario>('RAIN');
-  const [demoSteps, setDemoSteps] = useState<DemoStep[]>(baseFlowSteps('RAIN'));
-  const [demoSummary, setDemoSummary] = useState<null | {
-    zone: string;
-    lf: number;
-    fraud: number;
-    payout: number;
-    reference: string;
-  }>(null);
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [demoScenario, setDemoScenario] = useState<'RAIN' | 'TRAFFIC' | 'FLOOD'>('RAIN');
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoFlow, setDemoFlow] = useState<any>(null);
+  const [displayedTimeline, setDisplayedTimeline] = useState<any[]>([]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -150,57 +127,34 @@ export default function ClaimsScreen() {
     return [styles.statusProc, styles.statusTextProc] as const;
   };
 
-  const runClaimDemo = async () => {
-    if (!driverId) {
-      Alert.alert(t('common.error'), 'Driver session not found. Please login again.');
-      return;
+  const getFlowStatusStyles = (status: string) => {
+    if (status === 'PASSED' || status === 'COMPLETED' || status === 'DONE') {
+      return [styles.flowStatusSuccessBg, styles.flowStatusSuccessText] as const;
     }
+    if (status === 'BLOCKED' || status === 'FAILED') {
+      return [styles.flowStatusDangerBg, styles.flowStatusDangerText] as const;
+    }
+    return [styles.flowStatusWarnBg, styles.flowStatusWarnText] as const;
+  };
 
-    const scenarioLabel = DEMO_LABELS[demoScenario];
-    const h3Cell = DEMO_H3_BY_SCENARIO[demoScenario];
-
-    setDemoLoading(true);
-    setDemoSummary(null);
-    setDemoSteps(baseFlowSteps(scenarioLabel));
-
-    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const updateStep = (index: number, state: DemoStep['state'], detail: string) => {
-      setDemoSteps((prev) =>
-        prev.map((step, idx) => (idx === index ? { ...step, state, detail } : step)),
-      );
-    };
-
+  const runDemoFlow = async () => {
     try {
-      updateStep(0, 'DONE', `${scenarioLabel} scenario activated`);
-      await wait(180);
+      setDemoLoading(true);
+      setDemoFlow(null);
+      setDisplayedTimeline([]);
+      const result = await insuranceApi.triggerDemoFlow({ scenario: demoScenario });
+      setDemoFlow(result);
 
-      updateStep(1, 'PASSED', `Zone HALTED at ${h3Cell}`);
-      await wait(180);
-
-      const fraudScore = demoScenario === 'CIVIC_MOVEMENT' ? 0.27 : demoScenario === 'AQI' ? 0.19 : 0.22;
-      updateStep(2, 'PASSED', `Fraud score ${fraudScore.toFixed(2)} (PASS)`);
-      await wait(180);
-
-      const demoRes = await paymentsApi.demoClaim(demoScenario);
-      const transferRef =
-        String(demoRes?.payout?.transferReference || '') ||
-        String(demoRes?.payout?.transactionId || '') ||
-        'processing';
-
-      updateStep(3, 'COMPLETED', `Transfer ${transferRef}`);
-
-      setDemoSummary({
-        zone: 'HALTED',
-        lf: demoScenario === 'CIVIC_MOVEMENT' ? 0.88 : demoScenario === 'AQI' ? 0.76 : 0.82,
-        fraud: fraudScore,
-        payout: Number(demoRes?.expectedPayout ?? 0),
-        reference: transferRef,
-      });
+      const timeline = Array.isArray(result?.timeline) ? result.timeline : [];
+      for (const step of timeline) {
+        await new Promise((resolve) => setTimeout(resolve, 550));
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setDisplayedTimeline((prev) => [...prev, step]);
+      }
 
       await loadClaims(false);
     } catch (e: any) {
-      updateStep(3, 'FAILED', e?.message ?? 'Payout failed');
-      Alert.alert('Claim demo failed', e?.message ?? 'Unable to run claim demo right now.');
+      Alert.alert(t('common.error'), e?.message ?? 'Failed to run demo trigger flow');
     } finally {
       setDemoLoading(false);
     }
@@ -229,71 +183,71 @@ export default function ClaimsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <Text style={styles.mainTitle}>{t('claims.title')}</Text>
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.refreshBtn} onPress={() => void loadClaims()} activeOpacity={0.8}>
-              <Text style={styles.refreshBtnText}>{loading ? t('common.loading') : t('common.refresh')}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.refreshBtn} onPress={() => void loadClaims()} activeOpacity={0.8}>
+            <Text style={styles.refreshBtnText}>{loading ? t('common.loading') : t('common.refresh')}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.demoCard}>
+          <Text style={styles.demoTitle}>Demo Trigger Flow</Text>
+          <Text style={styles.demoSubtitle}>Trigger - Zone Check - Fraud Check - Razorpay Payout</Text>
+
           <View style={styles.scenarioRow}>
-            {(Object.keys(DEMO_LABELS) as DemoScenario[]).map((scenario) => {
-              const selected = demoScenario === scenario;
-              return (
-                <TouchableOpacity
-                  key={scenario}
-                  style={[styles.scenarioChip, selected ? styles.scenarioChipActive : null]}
-                  activeOpacity={0.85}
-                  disabled={demoLoading}
-                  onPress={() => {
-                    setDemoScenario(scenario);
-                    setDemoSteps(baseFlowSteps(DEMO_LABELS[scenario]));
-                    setDemoSummary(null);
-                  }}
-                >
-                  <Text style={[styles.scenarioChipText, selected ? styles.scenarioChipTextActive : null]}>
-                    {DEMO_LABELS[scenario]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {(['RAIN', 'TRAFFIC', 'FLOOD'] as const).map((scenario) => (
+              <TouchableOpacity
+                key={scenario}
+                style={[styles.scenarioBtn, demoScenario === scenario && styles.scenarioBtnActive]}
+                onPress={() => setDemoScenario(scenario)}
+                activeOpacity={0.9}
+              >
+                <Text style={[styles.scenarioBtnText, demoScenario === scenario && styles.scenarioBtnTextActive]}>
+                  {scenario === 'TRAFFIC' ? 'CIVIC SENSE' : scenario}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           <TouchableOpacity
-            style={[styles.demoRunBtn, demoLoading ? styles.btnDisabled : null]}
-            activeOpacity={0.85}
-            onPress={() => void runClaimDemo()}
-            disabled={demoLoading || loading}
+            style={[styles.runDemoBtn, demoLoading && styles.runDemoBtnDisabled]}
+            onPress={() => void runDemoFlow()}
+            disabled={demoLoading}
+            activeOpacity={0.9}
           >
-            <Text style={styles.demoRunBtnText}>{demoLoading ? 'RUNNING DEMO...' : 'RUN FULL FLOW DEMO'}</Text>
+            <Text style={styles.runDemoBtnText}>{demoLoading ? 'RUNNING FLOW...' : 'RUN FULL FLOW DEMO'}</Text>
           </TouchableOpacity>
 
-          <View style={styles.flowStepsWrap}>
-            {demoSteps.map((step, idx) => {
-              const isDone = step.state !== 'PENDING';
-              const badgeStyle = step.state === 'FAILED' ? styles.flowBadgeFail : styles.flowBadge;
-              const badgeText = step.state === 'PENDING' ? 'PENDING' : step.state;
-              return (
-                <View key={`${step.title}-${idx}`} style={styles.flowStepCard}>
-                  <View style={styles.flowHeaderRow}>
-                    <Text style={styles.flowTitle}>{step.title}</Text>
-                    <View style={[badgeStyle, !isDone ? styles.flowBadgePending : null]}>
-                      <Text style={styles.flowBadgeText}>{badgeText}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.flowDetail}>{step.detail}</Text>
-                </View>
-              );
-            })}
-          </View>
+          {demoLoading ? (
+            <View style={styles.demoProgressRow}>
+              <ActivityIndicator size="small" color="#000" />
+              <Text style={styles.demoProgressText}>Simulating real-time orchestration...</Text>
+            </View>
+          ) : null}
 
-          {demoSummary ? (
-            <View style={styles.demoSummaryCard}>
-              <Text style={styles.demoSummaryLine}>Zone: {demoSummary.zone} | Lf: {demoSummary.lf.toFixed(2)}</Text>
-              <Text style={styles.demoSummaryLine}>Fraud: {demoSummary.fraud.toFixed(2)} (PASS)</Text>
-              <Text style={styles.demoSummaryLine}>Payout: ₹{demoSummary.payout.toLocaleString('en-IN')}</Text>
-              <Text style={styles.demoSummaryLine} numberOfLines={1}>Ref: {demoSummary.reference}</Text>
+          {demoFlow?.timeline?.length ? (
+            <View style={styles.flowTimelineWrap}>
+              {displayedTimeline.map((step: any) => {
+                const [statusBg, statusText] = getFlowStatusStyles(step.status);
+                return (
+                  <View key={step.id} style={styles.flowStepCard}>
+                    <View style={styles.flowStepTopRow}>
+                      <Text style={styles.flowStepLabel}>{step.label}</Text>
+                      <View style={[styles.flowStatusBadge, statusBg]}>
+                        <Text style={[styles.flowStatusText, statusText]}>{step.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.flowStepDetail}>{step.detail}</Text>
+                  </View>
+                );
+              })}
+
+              {displayedTimeline.length === (demoFlow?.timeline?.length ?? 0) ? (
+                <View style={styles.flowMetaCard}>
+                  <Text style={styles.flowMetaText}>Zone: {demoFlow?.stages?.zone?.state} | Lf: {Number(demoFlow?.stages?.zone?.lfScore ?? 0).toFixed(2)}</Text>
+                  <Text style={styles.flowMetaText}>Fraud: {Number(demoFlow?.stages?.fraud?.score ?? 0).toFixed(2)} ({demoFlow?.stages?.fraud?.gate})</Text>
+                  <Text style={styles.flowMetaText}>Payout: ₹{Number(demoFlow?.stages?.payout?.amount ?? 0).toLocaleString('en-IN')}</Text>
+                  <Text style={styles.flowMetaText} numberOfLines={1}>Ref: {demoFlow?.stages?.payout?.transferReference || demoFlow?.stages?.payout?.transactionId || 'N/A'}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
         </View>
@@ -412,124 +366,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 4,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  demoCard: {
-    backgroundColor: '#F7F1DF',
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: '#000',
-    padding: 14,
-    marginBottom: 18,
-  },
-  scenarioRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  scenarioChip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#000',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-  },
-  scenarioChipActive: {
-    backgroundColor: '#000',
-  },
-  scenarioChipText: {
-    fontWeight: '900',
-    fontSize: 15,
-    color: '#000',
-  },
-  scenarioChipTextActive: {
-    color: '#fff',
-  },
-  demoRunBtn: {
-    marginTop: 12,
-    backgroundColor: '#000',
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: '#000',
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  demoRunBtnText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  flowStepsWrap: {
-    marginTop: 12,
-    gap: 10,
-  },
-  flowStepCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#000',
-    padding: 12,
-  },
-  flowHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-    gap: 8,
-  },
-  flowTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#000',
-    flex: 1,
-  },
-  flowDetail: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#222',
-  },
-  flowBadge: {
-    backgroundColor: '#0a9f4b',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderWidth: 2,
-    borderColor: '#000',
-  },
-  flowBadgeFail: {
-    backgroundColor: '#dc2626',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderWidth: 2,
-    borderColor: '#000',
-  },
-  flowBadgePending: {
-    backgroundColor: '#9ca3af',
-  },
-  flowBadgeText: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 12,
-  },
-  demoSummaryCard: {
-    marginTop: 12,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#000',
-    padding: 12,
-    gap: 4,
-  },
-  demoSummaryLine: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#000',
-  },
   mainTitle: {
     fontSize: 28,
     fontWeight: '900',
@@ -544,17 +380,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 2,
     borderColor: '#000',
-  },
-  demoBtn: {
-    backgroundColor: '#111827',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#000',
-  },
-  btnDisabled: {
-    opacity: 0.6,
   },
   refreshBtnText: {
     color: '#FFF',
@@ -581,6 +406,150 @@ const styles = StyleSheet.create({
     color: '#000',
     opacity: 0.6,
     textAlign: 'center',
+  },
+  demoCard: {
+    backgroundColor: '#F7F1DF',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#000',
+    padding: 14,
+    marginBottom: 18,
+  },
+  demoTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#000',
+    marginBottom: 3,
+  },
+  demoSubtitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#000',
+    opacity: 0.65,
+    marginBottom: 12,
+  },
+  scenarioRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  scenarioBtn: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  scenarioBtnActive: {
+    backgroundColor: '#000',
+  },
+  scenarioBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#000',
+  },
+  scenarioBtnTextActive: {
+    color: '#fff',
+  },
+  runDemoBtn: {
+    backgroundColor: '#000',
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  runDemoBtnDisabled: {
+    opacity: 0.6,
+  },
+  runDemoBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  demoProgressRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  demoProgressText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#000',
+    opacity: 0.7,
+  },
+  flowTimelineWrap: {
+    marginTop: 12,
+    gap: 8,
+  },
+  flowStepCard: {
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    padding: 10,
+  },
+  flowStepTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  flowStepLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#000',
+  },
+  flowStatusBadge: {
+    borderWidth: 1.5,
+    borderColor: '#000',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  flowStatusText: {
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  flowStatusSuccessBg: {
+    backgroundColor: '#008A45',
+  },
+  flowStatusSuccessText: {
+    color: '#fff',
+  },
+  flowStatusWarnBg: {
+    backgroundColor: '#FFD700',
+  },
+  flowStatusWarnText: {
+    color: '#000',
+  },
+  flowStatusDangerBg: {
+    backgroundColor: '#ef4444',
+  },
+  flowStatusDangerText: {
+    color: '#fff',
+  },
+  flowStepDetail: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#000',
+    opacity: 0.8,
+  },
+  flowMetaCard: {
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    padding: 10,
+    gap: 3,
+  },
+  flowMetaText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000',
   },
   claimCard: {
     backgroundColor: '#F7F1DF',
