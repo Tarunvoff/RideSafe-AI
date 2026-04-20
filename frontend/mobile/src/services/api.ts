@@ -282,6 +282,23 @@ export const authApi = {
       body: JSON.stringify({ email, otp }),
     }),
 
+  verifyMobileOtp: (phone: string, otp: string) =>
+    request<{
+      message: string;
+      verificationToken?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      role?: string;
+      userId?: string;
+      driverId?: string;
+      email?: string;
+      phone?: string;
+      kycStatus?: string;
+    }>('/auth/verify-mobile-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone, otp }),
+    }),
+
   adminVerifyOtp: (email: string, otp: string) =>
     request<{ accessToken: string; refreshToken: string; role: string; userId: string; message: string }>('/auth/admin/verify-otp', {
       method: 'POST',
@@ -293,6 +310,142 @@ export const authApi = {
       method: 'PATCH',
       body: JSON.stringify({ driverName }),
     }, true),
+};
+
+// ── MANUAL DRIVER ONBOARDING ───────────────────────────────────────────────
+
+type OnboardingAuthOptions = {
+  onboardingToken?: string;
+};
+
+type ManualDocumentType =
+  | 'pan'
+  | 'aadhaar_front'
+  | 'aadhaar_back'
+  | 'dl'
+  | 'bank_passbook';
+
+async function onboardingRequest<T>(
+  path: string,
+  body: Record<string, any>,
+  options: OnboardingAuthOptions = {},
+): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.onboardingToken) {
+    headers['X-Onboarding-Token'] = options.onboardingToken;
+  }
+
+  return request<T>(path, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+export const manualAuthApi = {
+  sendOtp: (email: string) =>
+    request<{ message: string; retryAfterSec?: number; debugOtp?: string }>('/auth/driver/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  verifyOtp: (email: string, otp: string) =>
+    authApi.verifyOtp(email, otp),
+
+  signupManual: (
+    data: {
+      name: string;
+      email?: string;
+      phone?: string;
+      city: string;
+      vehicleType: string;
+      platformId?: string;
+    },
+    options: OnboardingAuthOptions = {},
+  ) => onboardingRequest<{ message: string; userId: string }>(
+    '/signup/manual',
+    data,
+    options,
+  ),
+};
+
+export const manualKycApi = {
+  uploadDocument: async (
+    fileUri: string,
+    type: ManualDocumentType,
+    options: OnboardingAuthOptions = {},
+  ) => {
+    const headers: Record<string, string> = {};
+    if (options.onboardingToken) {
+      headers['X-Onboarding-Token'] = options.onboardingToken;
+    }
+
+    const extension = fileUri.split('.').pop()?.toLowerCase() || 'jpg';
+    const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+
+    const formData = new FormData();
+    formData.append('type', type);
+    formData.append('file', {
+      uri: fileUri,
+      name: `${type}-${Date.now()}.${extension}`,
+      type: mimeType,
+    } as any);
+
+    const response = await fetch(`${getBaseUrl()}/kyc/upload/document`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || payload?.error || 'Document upload failed');
+    }
+
+    const normalized = (payload?.success && payload?.data ? payload.data : payload) ?? {};
+    if (!normalized?.fileUrl) {
+      throw new Error('Upload succeeded but file URL was not returned by server');
+    }
+
+    return normalized as {
+      fileUrl: string;
+      filename: string;
+      contentType: string;
+      size: number;
+    };
+  },
+
+  uploadPan: (data: { userId: string; panImageUrl: string }, options: OnboardingAuthOptions = {}) =>
+    onboardingRequest<{ message: string }>('/kyc/manual/upload/pan', data, options),
+
+  uploadAadhaar: (
+    data: { userId: string; aadhaarFrontUrl: string; aadhaarBackUrl: string },
+    options: OnboardingAuthOptions = {},
+  ) => onboardingRequest<{ message: string }>('/kyc/manual/upload/aadhaar', data, options),
+
+  uploadDl: (data: { userId: string; dlImageUrl: string }, options: OnboardingAuthOptions = {}) =>
+    onboardingRequest<{ message: string }>('/kyc/manual/upload/dl', data, options),
+
+  uploadBank: (
+    data: {
+      userId: string;
+      bankDetails: {
+        accountNumber?: string;
+        ifscCode?: string;
+        passbookOrChequeImageUrl?: string;
+      };
+    },
+    options: OnboardingAuthOptions = {},
+  ) => onboardingRequest<{ message: string }>('/kyc/manual/upload/bank', data, options),
+
+  submit: (data: { userId: string; platformId?: string }, options: OnboardingAuthOptions = {}) =>
+    onboardingRequest<{ message: string; status: string }>('/kyc/manual/submit', data, options),
+
+  getStatus: (userId: string) =>
+    request<{ status: 'pending' | 'verified' | 'rejected'; verificationNotes?: string }>(`/kyc/manual/status/${encodeURIComponent(userId)}`),
 };
 
 // ── KYC ──────────────────────────────────────────────────────────────────────
@@ -684,6 +837,36 @@ export const insuranceApi = {
       method: 'POST',
       body: JSON.stringify(data ?? {}),
     }, true),
+
+  triggerDemoFlow: (data: {
+    scenario?: 'RAIN' | 'TRAFFIC' | 'FLOOD';
+    h3Cell?: string;
+    fraudScore?: number;
+  }) =>
+    request<{
+      success: boolean;
+      scenario: { code: string; label: string; disruptionType: string };
+      driver: { id: string; email: string; policyId: string };
+      h3Cell: string;
+      eventTimestamp: number;
+      stages: {
+        zone: { status: string; state: string; lfScore: number; reason: string };
+        fraud: { status: string; score: number; gate: string };
+        payout: {
+          status: string;
+          reason: string;
+          amount: number;
+          payoutId: string | null;
+          transactionId: string | null;
+          transferRail: string | null;
+          transferReference: string | null;
+        };
+      };
+      timeline: Array<{ id: string; label: string; status: string; detail: string }>;
+    }>('/insurance/demo-trigger-flow', {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    }, true),
 };
 
 export const policyApi = {
@@ -767,6 +950,24 @@ export const paymentsApi = {
       {
         method: 'POST',
         body: JSON.stringify(data),
+      },
+      true,
+    ),
+
+  demoClaim: (data?: { type?: 'RAIN' | 'TRAFFIC' | 'FLOOD' | string }) =>
+    request<{
+      success: boolean;
+      cached?: boolean;
+      state?: string;
+      payoutId?: string;
+      transactionId?: string | null;
+      transferRail?: string | null;
+      transferReference?: string | null;
+    }>(
+      '/payments/demo-claim',
+      {
+        method: 'POST',
+        body: JSON.stringify({ type: data?.type ?? 'RAIN' }),
       },
       true,
     ),

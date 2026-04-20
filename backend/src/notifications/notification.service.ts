@@ -1,15 +1,22 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
 type NotificationChannel = 'SMS' | 'EMAIL' | 'PUSH';
-type NotificationType = 'CLAIM_APPROVED' | 'PAYOUT_FAILED' | 'POLICY_ACTIVATED';
+type NotificationType = 'CLAIM_APPROVED' | 'PAYOUT_FAILED' | 'POLICY_ACTIVATED' | 'OTP_AUTH';
 
 interface ClaimApprovedPayload {
   driverName: string;
   amount: number;
   transactionId: string;
   disruptionType: string;
+}
+
+interface OtpAuthPayload {
+  otp: string;
+  purpose?: 'LOGIN' | 'VERIFY' | 'RESET';
 }
 
 type KafkaEventMeta = {
@@ -44,13 +51,72 @@ export class NotificationService {
     if (type === 'PAYOUT_FAILED') {
       return 'We are retrying your payout because of a transient process error. No action required.';
     }
+    if (type === 'OTP_AUTH') {
+      const p = payload as OtpAuthPayload;
+      const purpose = p?.purpose || 'LOGIN';
+      return `Your Aegis ${purpose} OTP is ${p.otp}. It expires in 10 minutes. Do not share this code.`;
+    }
     return 'Your weekly policy is now active and protected.';
   }
 
+  private parseEnvFile(filePath: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    const raw = readFileSync(filePath, 'utf8');
+
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      const body = trimmed.startsWith('export ') ? trimmed.slice(7).trim() : trimmed;
+      const idx = body.indexOf('=');
+      if (idx <= 0) continue;
+
+      const key = body.slice(0, idx).trim();
+      const value = body.slice(idx + 1).trim().replace(/^"|"$/g, '');
+      if (key) out[key] = value;
+    }
+
+    return out;
+  }
+
+  private resolveTwilioCredentials(): { sid?: string; token?: string; from?: string } {
+    let sid = process.env.TWILIO_ACCOUNT_SID;
+    let token = process.env.TWILIO_AUTH_TOKEN;
+    let from = process.env.TWILIO_PHONE_NUMBER;
+
+    if (sid && token && from) {
+      return { sid, token, from };
+    }
+
+    const envCandidates = [
+      join(process.cwd(), '.env'),
+      join(process.cwd(), 'backend', '.env'),
+      join(__dirname, '..', '..', '.env'),
+      join(__dirname, '..', '..', '..', '.env'),
+    ];
+
+    for (const envPath of envCandidates) {
+      try {
+        if (!existsSync(envPath)) continue;
+        const parsed = this.parseEnvFile(envPath);
+
+        sid = sid || parsed.TWILIO_ACCOUNT_SID;
+        token = token || parsed.TWILIO_AUTH_TOKEN;
+        from = from || parsed.TWILIO_PHONE_NUMBER;
+
+        if (sid && token && from) {
+          break;
+        }
+      } catch (e) {
+        this.logger.warn(`[TWILIO] Failed reading env file '${envPath}': ${String(e)}`);
+      }
+    }
+
+    return { sid, token, from };
+  }
+
   private async sendSmsViaTwilio(to: string, message: string): Promise<boolean> {
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_PHONE_NUMBER;
+    const { sid, token, from } = this.resolveTwilioCredentials();
 
     if (!sid || !token || !from) {
       this.logger.warn(`[TWILIO] Credentials missing; skipping SMS to ${to}. (Message: ${message})`);
@@ -172,6 +238,16 @@ export class NotificationService {
       recipient: email,
       payload,
       context: { transactionId: payload.transactionId },
+    });
+  }
+
+  async sendOtpSms(phone: string, otp: string, purpose: 'LOGIN' | 'VERIFY' | 'RESET' = 'LOGIN') {
+    return this.send({
+      channel: 'SMS',
+      type: 'OTP_AUTH',
+      recipient: phone,
+      payload: { otp, purpose } as OtpAuthPayload,
+      context: { purpose },
     });
   }
 

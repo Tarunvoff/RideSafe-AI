@@ -1,6 +1,7 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { KYCStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export const MIN_ENGAGEMENT_DAYS_STANDARD = 90;
@@ -36,7 +37,7 @@ export async function assertDriverPolicyEligibility(
   const [user, kycProfile] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, isVerified: true, createdAt: true },
+      select: { id: true, isVerified: true, createdAt: true, platform: true },
     }),
     prisma.kYCProfile.findUnique({
       where: { userId },
@@ -54,12 +55,22 @@ export async function assertDriverPolicyEligibility(
 
   const engagementDays = resolveEngagementDaysSince(user.createdAt);
   const requiredDays = resolveRequiredEngagementDays(planKey);
+  const oauthProviders = new Set<string>(Object.values(QCommerceProvider));
+  const isOAuthUser = !!user.platform && oauthProviders.has(String(user.platform).toLowerCase());
 
   if (!isEligibilityEnforced()) {
     return {
       engagementDays,
       requiredDays,
       kycStatus: kycProfile?.status ?? KYCStatus.NOT_STARTED,
+    };
+  }
+
+  if (isOAuthUser) {
+    return {
+      engagementDays,
+      requiredDays,
+      kycStatus: KYCStatus.APPROVED,
     };
   }
 

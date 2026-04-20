@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.lg,
     padding: Theme.spacing.xl,
     width: '100%',
-    shadowColor: '#000',
+    shadowColor: Theme.colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,

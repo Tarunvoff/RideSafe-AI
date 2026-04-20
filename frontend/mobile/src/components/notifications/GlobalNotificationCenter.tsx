@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationsApi } from '../../services/api';
+import { Theme } from '../../theme';
 
 type NotificationItem = {
   id: string;
@@ -193,7 +194,7 @@ export default function NotificationCenterProvider({ children }: { children: Rea
         onPress={openCenter}
         style={[styles.bellButton, { top: 12 }]}
       >
-        <Ionicons name="notifications-outline" size={20} color="#ffffff" />
+        <Ionicons name="notifications-outline" size={20} color={Theme.colors.background} />
         {unreadCount > 0 ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
@@ -242,10 +243,10 @@ export default function NotificationCenterProvider({ children }: { children: Rea
 
               <View style={styles.headerActions}>
                 <TouchableOpacity style={styles.iconAction} onPress={() => void syncNotifications(true)}>
-                  <Ionicons name="refresh" size={18} color="#334155" />
+                  <Ionicons name="refresh" size={18} color={Theme.colors.text} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.iconAction} onPress={closeCenter}>
-                  <Ionicons name="close" size={20} color="#334155" />
+                  <Ionicons name="close" size={20} color={Theme.colors.text} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -264,11 +265,11 @@ export default function NotificationCenterProvider({ children }: { children: Rea
 
             {loading ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color="#0f766e" />
+                <ActivityIndicator size="small" color={Theme.colors.primary} />
               </View>
             ) : items.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="notifications-off-outline" size={22} color="#94a3b8" />
+                <Ionicons name="notifications-off-outline" size={22} color={Theme.colors.textSecondary} />
                 <Text style={styles.emptyText}>No notifications yet.</Text>
               </View>
             ) : (
@@ -325,16 +326,16 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#111111',
+    backgroundColor: Theme.colors.text,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0f172a',
+    shadowColor: Theme.colors.text,
     shadowOpacity: 0.28,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: Theme.colors.border,
   },
   badge: {
     position: 'absolute',
@@ -344,32 +345,32 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: Theme.colors.error,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderColor: Theme.colors.background,
   },
   badgeText: {
-    color: '#ffffff',
+    color: Theme.colors.background,
     fontSize: 10,
     fontWeight: '800',
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.24)',
+    backgroundColor: Theme.colors.overlayMedium,
     alignItems: 'flex-end',
   },
   panel: {
     width: '86%',
     maxWidth: 420,
     maxHeight: '70%',
-    backgroundColor: '#fefefe',
+    backgroundColor: Theme.colors.background,
     borderRadius: 24,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#dbe4ef',
-    shadowColor: '#0f172a',
+    borderColor: Theme.colors.border,
+    shadowColor: Theme.colors.text,
     shadowOpacity: 0.18,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 10 },
@@ -384,12 +385,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0f172a',
+    color: Theme.colors.text,
   },
   subtitle: {
     marginTop: 2,
     fontSize: 12,
-    color: '#475569',
+    color: Theme.colors.textSecondary,
   },
   headerActions: {
     flexDirection: 'row',
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#edf2f7',
+    backgroundColor: Theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -409,21 +410,21 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   markAllButton: {
-    backgroundColor: '#d8faf2',
+    backgroundColor: `${Theme.colors.primary}20`,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   markAllButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: Theme.colors.surface,
   },
   markAllText: {
-    color: '#0f766e',
+    color: Theme.colors.primary,
     fontWeight: '700',
     fontSize: 12,
   },
   markAllTextDisabled: {
-    color: '#94a3b8',
+    color: Theme.colors.textSecondary,
   },
   loadingBox: {
     paddingVertical: 28,
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    color: '#64748b',
+    color: Theme.colors.textSecondary,
     fontSize: 14,
   },
   listContent: {
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    color: '#475569',
+    color: Theme.colors.textSecondary,
     fontWeight: '700',
   },
   unreadCard: {
@@ -458,22 +459,22 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 13,
     borderRadius: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: Theme.colors.background,
     borderWidth: 1,
-    borderColor: '#bcefe5',
+    borderColor: `${Theme.colors.primary}55`,
   },
   readCard: {
     padding: 13,
     borderRadius: 14,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: Theme.colors.border,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#14b8a6',
+    backgroundColor: Theme.colors.primary,
     marginTop: 7,
   },
   cardTextWrap: {
@@ -481,28 +482,28 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   cardTitle: {
-    color: '#0f172a',
+    color: Theme.colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   cardTitleRead: {
-    color: '#334155',
+    color: Theme.colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   cardMessage: {
-    color: '#334155',
+    color: Theme.colors.text,
     fontSize: 13,
     lineHeight: 18,
   },
   cardMessageRead: {
-    color: '#64748b',
+    color: Theme.colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   cardMeta: {
     marginTop: 2,
-    color: '#94a3b8',
+    color: Theme.colors.textSecondary,
     fontSize: 11,
     fontWeight: '500',
   },

@@ -19,7 +19,9 @@ process.on('warning', (warning) => {
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import * as express from 'express';
 import { NextFunction, Request, Response } from 'express';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import { ApiResponseInterceptor } from './shared/api-response.interceptor';
 import { GlobalExceptionFilter } from './shared/global-exception.filter';
@@ -107,6 +109,9 @@ async function bootstrap() {
 
   // Global prefix
   app.setGlobalPrefix('api');
+
+  // Publicly serve uploaded KYC files.
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   const basePort = Number(process.env.PORT ?? 3001);
   let boundPort = basePort;

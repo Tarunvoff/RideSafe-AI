@@ -44,20 +44,26 @@ from config import (
     STRICT_REALTIME,
     BACKEND_INTERNAL_URL,
     ML_SERVICE_URL,
+    INTERNAL_AUTH_KEY,
 )
 
 logger = logging.getLogger(__name__)
 
 
 async def _publish_zone_state(feature_dict: dict) -> None:
+    demand_ratio = max(0.0, min(5.0, float(feature_dict.get("demand_ratio", 0.0) or 0.0)))
+    historical_risk = max(0.0, min(1.0, float(feature_dict.get("historical_risk", 0.0) or 0.0)))
+    hour_of_day = max(0, min(23, int(feature_dict.get("hour_of_day", 0) or 0)))
+    day_of_week = max(0, min(6, int(feature_dict.get("day_of_week", 0) or 0)))
+
     payload = {
         "h3_cell": feature_dict["h3_cell"],
         "rainfall_mm": float(feature_dict.get("rainfall", 0.0) or 0.0),
         "aqi": float(feature_dict.get("aqi", 0.0) or 0.0),
-        "demand_ratio": float(feature_dict.get("demand_ratio", 0.0) or 0.0),
-        "hour_of_day": int(feature_dict.get("hour_of_day", 0) or 0),
-        "day_of_week": int(feature_dict.get("day_of_week", 0) or 0),
-        "historical_risk": float(feature_dict.get("historical_risk", 0.0) or 0.0),
+        "demand_ratio": demand_ratio,
+        "hour_of_day": hour_of_day,
+        "day_of_week": day_of_week,
+        "historical_risk": historical_risk,
     }
 
     async with httpx.AsyncClient(timeout=5.0) as client:
@@ -74,7 +80,11 @@ async def _publish_zone_state(feature_dict: dict) -> None:
             "demand_ratio": payload["demand_ratio"],
             "computed_at": datetime.utcnow().isoformat(),
         }
-        write_res = await client.post(BACKEND_INTERNAL_URL, json=backend_payload)
+        write_res = await client.post(
+            BACKEND_INTERNAL_URL,
+            headers={"x-aegis-internal-key": INTERNAL_AUTH_KEY},
+            json=backend_payload,
+        )
         write_res.raise_for_status()
 
 

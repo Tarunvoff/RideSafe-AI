@@ -615,32 +615,38 @@ export class PaymentsService {
     try {
       // 2. EXTERNAL HANDSHAKE (Outside Transaction)
       const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-      const payoutSetup = await this.prisma.kYCPayoutSetup.findUniqueOrThrow({ where: { userId } });
 
       const payoutReference = `aegis_payout_${preTx.payoutId}`;
       const hasSourceAccount = Boolean(process.env.RAZORPAYX_SOURCE_ACCOUNT);
       const testMode = this.isRazorpayTestMode();
+      // Demo/test settlements should not fail hard on missing payout setup.
+      // Real RazorpayX rails still require an explicit payout setup.
+      const payoutSetup = await this.prisma.kYCPayoutSetup.findUnique({ where: { userId } });
 
-      const razorpayPayout = hasSourceAccount
-        ? await (async () => {
-            const contact = await this.createRazorpayContact(user);
-            const fundAccount = await this.createRazorpayFundAccount(contact.id, payoutSetup as any);
-            return this.createRazorpayPayout({
-              fundAccountId: fundAccount.id,
-              amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
-              referenceId: payoutReference,
-              userId,
-              policyId,
-              disruptionEventId,
-            });
-          })()
-        : testMode
-          ? await this.executeHardenedSettlementPipeline({
-              referenceId: payoutReference,
-              amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
-              userId,
-            })
-          : (() => { throw new BadRequestException('RAZORPAYX_SOURCE_ACCOUNT_MISSING'); })();
+      let razorpayPayout: { id: string; status?: string; reference_id?: string };
+
+      if (hasSourceAccount && payoutSetup) {
+        const contact = await this.createRazorpayContact(user);
+        const fundAccount = await this.createRazorpayFundAccount(contact.id, payoutSetup as any);
+        razorpayPayout = await this.createRazorpayPayout({
+          fundAccountId: fundAccount.id,
+          amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
+          referenceId: payoutReference,
+          userId,
+          policyId,
+          disruptionEventId,
+        });
+      } else if (testMode) {
+        razorpayPayout = await this.executeHardenedSettlementPipeline({
+          referenceId: payoutReference,
+          amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
+          userId,
+        });
+      } else if (hasSourceAccount && !payoutSetup) {
+        throw new BadRequestException('No KYCPayoutSetup found');
+      } else {
+        throw new BadRequestException('RAZORPAYX_SOURCE_ACCOUNT_MISSING');
+      }
 
       // 3. PHASE 2: RESOLUTION TRANSACTION
       const bankReference = razorpayPayout.reference_id ?? payoutReference;
@@ -702,5 +708,38 @@ export class PaymentsService {
 
       throw new BadRequestException(`Payout settlement failed: ${err.message}`);
     }
+  }
+
+  async runDemoClaim(userId: string, type?: string) {
+    const activePolicy = await this.prisma.policy.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      include: { weeklyPlan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!activePolicy) {
+      throw new BadRequestException('No active policy found for demo claim');
+    }
+
+    const disruptionType = String(type || 'RAIN').toUpperCase();
+    const disruption = await this.prisma.disruptionEvent.create({
+      data: {
+        type: disruptionType,
+        title: `Demo claim ${disruptionType}`,
+        expectedLoss: Number(activePolicy.weeklyPlan?.maxPayout ?? activePolicy.premium ?? 0),
+        expectedPayout: Number(activePolicy.weeklyPlan?.maxPayout ?? activePolicy.premium ?? 0),
+        verified: true,
+      },
+    });
+
+    const approvedPayout = Number(activePolicy.weeklyPlan?.maxPayout ?? activePolicy.premium ?? 0);
+    return this.processParametricPayout({
+      userId,
+      policyId: activePolicy.id,
+      disruptionEventId: disruption.id,
+      eventTimestamp: Math.floor(Date.now() / 1000),
+      h3Cell: 'demo_h3_cell',
+      approvedPayout,
+    });
   }
 }

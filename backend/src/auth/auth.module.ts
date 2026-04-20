@@ -2,14 +2,17 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationModule } from '../notifications/notification.module';
 import { DynamicQCommerceModule } from '../dynamic-qcommerce/dynamic-qcommerce.module';
 import { AuthController } from './auth.controller';
+import { ManualSignupController } from './manual-signup.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
     PrismaModule,
+    NotificationModule,
     DynamicQCommerceModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
@@ -18,7 +21,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   providers: [AuthService, JwtStrategy],
-  controllers: [AuthController],
+  controllers: [AuthController, ManualSignupController],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

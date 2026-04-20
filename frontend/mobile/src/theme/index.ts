@@ -30,6 +30,9 @@ export const Theme = {
     warning: '#f59e0b',
     error: '#FF3B30',
     info: '#3b82f6',
+    overlayLight: 'rgba(17,17,17,0.1)',
+    overlayMedium: 'rgba(17,17,17,0.24)',
+    overlayStrong: 'rgba(17,17,17,0.38)',
   },
   /**
    * [IN-LINE PRIDE]: Hierarchical Typography system

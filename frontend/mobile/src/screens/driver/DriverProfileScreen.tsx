@@ -49,6 +49,13 @@ type KYCDetails = {
   personalDetails: { address: string; city: string; state: string; pincode: string } | null;
   identityVerification: { aadhaarNumber: string; panNumber: string } | null;
   payoutSetup: { method: string; upiId?: string; accountHolder?: string; bankName?: string } | null;
+  manualDocuments?: {
+    pan?: { url: string; status: 'pending' | 'verified' | 'rejected' } | null;
+    aadhaarFront?: { url: string; status: 'pending' | 'verified' | 'rejected' } | null;
+    aadhaarBack?: { url: string; status: 'pending' | 'verified' | 'rejected' } | null;
+    drivingLicense?: { url: string; status: 'pending' | 'verified' | 'rejected' } | null;
+    bankProof?: { url: string; status: 'pending' | 'verified' | 'rejected' } | null;
+  };
 };
 
 type ProviderKycReport = {
@@ -706,7 +713,7 @@ function KYCRow({ label, value }: { label: string; value: string | undefined | n
 
 export default function DriverProfileScreen({ navigation }: any) {
   const { t, i18n } = useTranslation();
-  const { logout, user, updateDriverName } = useAuth();
+  const { logout, user, updateDriverName, kycStatus } = useAuth();
   const notificationCenter = useNotificationCenter();
   const unreadCount = notificationCenter?.unreadCount ?? 0;
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
@@ -769,6 +776,15 @@ export default function DriverProfileScreen({ navigation }: any) {
     console.log('[KYC] Opening report modal for user:', user?.id);
     
     try {
+      const oauthProvider = await AsyncStorage.getItem('oauthProvider');
+      if (!oauthProvider) {
+        // Manual/mobile users should never show provider-verified report state.
+        setProviderKyc(null);
+        setProviderIdentity(null);
+        setKycModal(true);
+        return;
+      }
+
       const [profileResult] = await Promise.allSettled([
         user?.id ? driverApi.getProfile(user.id) : Promise.reject('No authenticated driver ID found'),
       ]);
@@ -823,6 +839,15 @@ export default function DriverProfileScreen({ navigation }: any) {
   const driverId = user?.id
     ? `GS-${user.id.slice(0, 5).toUpperCase()}`
     : 'GS-—';
+
+  const isKycVerified = (kycStatus || kycData?.status) === 'APPROVED';
+  const docVisibilityRows = [
+    { label: 'PAN Card', doc: kycData?.manualDocuments?.pan },
+    { label: 'Aadhaar Front', doc: kycData?.manualDocuments?.aadhaarFront },
+    { label: 'Aadhaar Back', doc: kycData?.manualDocuments?.aadhaarBack },
+    { label: 'Driving License', doc: kycData?.manualDocuments?.drivingLicense },
+    { label: 'Bank Proof', doc: kycData?.manualDocuments?.bankProof },
+  ].filter((row) => !!row.doc?.url);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -892,8 +917,10 @@ export default function DriverProfileScreen({ navigation }: any) {
             ) : (
               <View style={styles.driverNameRow}>
                 <Text style={styles.driverName}>{displayName}</Text>
-                <View style={styles.driverVerifiedPill}>
-                  <Text style={styles.driverVerifiedText}>{t('common.verified')}</Text>
+                <View style={[styles.driverVerifiedPill, !isKycVerified ? styles.driverPendingPill : null]}>
+                  <Text style={[styles.driverVerifiedText, !isKycVerified ? styles.driverPendingText : null]}>
+                    {isKycVerified ? t('common.verified') : t('common.pending')}
+                  </Text>
                 </View>
               </View>
             )}
@@ -996,6 +1023,44 @@ export default function DriverProfileScreen({ navigation }: any) {
             <Text style={styles.kycButtonText}>{t('profile.view_kyc')}</Text>
           </TouchableOpacity>
 
+          {!isKycVerified ? (
+            <TouchableOpacity
+              style={styles.manualKycButton}
+              activeOpacity={0.9}
+              onPress={() =>
+                navigation.navigate('ManualDriverSignupKyc', {
+                  phone: user?.phone || '',
+                })
+              }
+            >
+              <Ionicons name="id-card-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.manualKycButtonText}>Complete Manual KYC</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {docVisibilityRows.length > 0 ? (
+            <View style={styles.manualDocsCard}>
+              <Text style={styles.manualDocsTitle}>Manual KYC Documents</Text>
+              {docVisibilityRows.map((row) => (
+                <View key={row.label} style={styles.manualDocRow}>
+                  <Text style={styles.manualDocLabel}>{row.label}</Text>
+                  <View
+                    style={[
+                      styles.manualDocStatusBadge,
+                      row.doc?.status === 'verified'
+                        ? styles.manualDocVerified
+                        : row.doc?.status === 'rejected'
+                          ? styles.manualDocRejected
+                          : styles.manualDocPending,
+                    ]}
+                  >
+                    <Text style={styles.manualDocStatusText}>{row.doc?.status || 'pending'}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           <TouchableOpacity
             style={styles.logoutButton}
             activeOpacity={0.9}
@@ -1095,6 +1160,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#dcfce7',
   },
   driverVerifiedText: { fontSize: 11, fontWeight: '800', color: '#166534', letterSpacing: 0.8 },
+  driverPendingPill: {
+    backgroundColor: '#fef3c7',
+  },
+  driverPendingText: {
+    color: '#b45309',
+  },
   driverId: { fontSize: 15, color: '#6b7280', fontWeight: '500' },
   driverEmail: { marginTop: 4, fontSize: 13, color: '#9ca3af' },
   editBtn: { padding: 12, borderRadius: 12, backgroundColor: '#f3f4f6' },
@@ -1204,6 +1275,62 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   kycButtonText: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  manualKycButton: {
+    marginTop: 12,
+    backgroundColor: '#111827',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  manualKycButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  manualDocsCard: {
+    marginTop: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 12,
+    gap: 8,
+  },
+  manualDocsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  manualDocRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  manualDocLabel: {
+    fontSize: 13,
+    color: '#374151',
+  },
+  manualDocStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  manualDocStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  manualDocVerified: {
+    backgroundColor: '#dcfce7',
+  },
+  manualDocRejected: {
+    backgroundColor: '#fee2e2',
+  },
+  manualDocPending: {
+    backgroundColor: '#fef3c7',
+  },
   logoutButton: {
     width: '100%',
     paddingVertical: 18,

@@ -123,7 +123,7 @@ export default function LoadingOverlay({ visible, message = 'Loading live data..
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.38)', // Sophisticated translucent backdrop
+    backgroundColor: Theme.colors.overlayStrong,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,
@@ -136,9 +136,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 20,
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: Theme.colors.background,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Theme.colors.border,
   },
   spinnerWrap: {
     width: 72,
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 4,
-    borderColor: '#dcfce7',
+    borderColor: `${Theme.colors.primary}33`,
     borderTopColor: Theme.colors.primary, // Brand primary accent
   },
   innerRing: {
@@ -161,8 +161,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 3,
-    borderColor: '#bbf7d0',
-    borderBottomColor: '#15803d',
+    borderColor: `${Theme.colors.primary}4D`,
+    borderBottomColor: Theme.colors.primary,
   },
   core: {
     width: 12,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
+    color: Theme.colors.text,
     textAlign: 'center',
   },
 });

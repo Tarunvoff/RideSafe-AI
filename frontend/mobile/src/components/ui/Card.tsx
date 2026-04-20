@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     padding: Theme.spacing.md,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    shadowColor: "#000",
+    shadowColor: Theme.colors.text,
     shadowOffset: {
       width: 0,
       height: 1,

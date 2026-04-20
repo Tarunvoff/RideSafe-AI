@@ -49,6 +49,7 @@
     "redis": "^5.11.0",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
+    "twilio": "^5.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -62,6 +63,7 @@
     "@types/nodemailer": "^6.4.14",
     "@types/opossum": "^8.1.5",
     "@types/passport-jwt": "^4.0.1",
+    "@types/twilio": "^0.0.10",
     "cross-env": "^10.1.0",
     "jest": "^30.3.0",
     "prisma": "^5.10.2",

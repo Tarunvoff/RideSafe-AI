@@ -38,12 +38,20 @@ TOMTOM_BASE_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/abs
 TOMTOM_TIMEOUT = 5.0  # seconds
 
 
+def _has_valid_tomtom_key() -> bool:
+    key = (TOMTOM_API_KEY or "").strip()
+    if not key:
+        return False
+    lowered = key.lower()
+    return "your_" not in lowered and "_here" not in lowered
+
+
 async def _fetch_tomtom(lat: float, lng: float) -> dict:
     """
     Call TomTom Traffic Flow Segment Data API.
     Returns the raw flowSegmentData dict or raises on failure.
     """
-    if not TOMTOM_API_KEY:
+    if not _has_valid_tomtom_key():
         raise ValueError("TOMTOM_API_KEY is not configured")
 
     params = {

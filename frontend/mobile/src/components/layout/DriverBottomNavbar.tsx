@@ -74,7 +74,7 @@ export default function DriverBottomNavbar({ navigation, activeKey }: DriverBott
             activeOpacity={0.8}
             onPress={() => onPress(item.key)}
           >
-            <Ionicons name={item.icon} size={19} color={isActive ? '#111827' : '#6b7280'} />
+            <Ionicons name={item.icon} size={19} color={isActive ? Theme.colors.text : Theme.colors.textSecondary} />
             <Text style={[styles.bottomBarLabel, isActive && styles.bottomBarLabelActive]}>
               {item.label}
             </Text>
@@ -91,16 +91,16 @@ const styles = StyleSheet.create({
     left: Theme.spacing.lg,
     right: Theme.spacing.lg,
     height: 72,
-    backgroundColor: '#ffffff',
+    backgroundColor: Theme.colors.background,
     borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Theme.colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Theme.spacing.md,
     // High-fidelity shadow for 'Floating Island' elevation
-    shadowColor: '#000',
+    shadowColor: Theme.colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -115,10 +115,10 @@ const styles = StyleSheet.create({
   bottomBarLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
+    color: Theme.colors.textSecondary,
   },
   bottomBarLabelActive: {
-    color: '#111827',
+    color: Theme.colors.text,
     fontWeight: '800',
   },
 });

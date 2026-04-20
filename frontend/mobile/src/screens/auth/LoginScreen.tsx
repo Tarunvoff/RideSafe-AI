@@ -279,6 +279,18 @@ export default function LoginScreen({ navigation }: any) {
             <Text style={styles.modalTitle}>{t('auth.login.modal.title')}</Text>
             <Text style={styles.modalSubtitle}>{t('auth.login.modal.subtitle')}</Text>
 
+            <TouchableOpacity
+              style={styles.manualFlowCta}
+              activeOpacity={0.85}
+              onPress={() => {
+                setModalVisible(false);
+                navigation.navigate('NewDriverSignUp');
+              }}
+            >
+              <Ionicons name="mail-outline" size={18} color="#000" />
+              <Text style={styles.manualFlowCtaText}>New Driver Sign Up (Email OTP)</Text>
+            </TouchableOpacity>
+
             <TextInput
               style={styles.input}
               placeholder={t('auth.login.modal.placeholder')}
@@ -325,6 +337,7 @@ export default function LoginScreen({ navigation }: any) {
                 onPress={() => handleOAuthLogin('JioMart')}
               />
             </View>
+            <Text style={styles.oauthHintText}>Or continue with partner platforms</Text>
           </View>
         </View>
       </Modal>
@@ -524,7 +537,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
+  },
+  manualFlowCta: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  manualFlowCtaText: {
+    fontSize: 15,
+    color: '#000',
+    fontWeight: '700',
   },
   input: {
     width: '100%',
@@ -539,7 +568,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 16,
-    marginTop: 10,
+    marginTop: 8,
+  },
+  oauthHintText: {
+    marginTop: 14,
+    fontSize: 13,
+    color: '#555',
   },
   oauthBtn: {
     width: 50,

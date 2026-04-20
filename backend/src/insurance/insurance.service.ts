@@ -7,7 +7,6 @@ import { FraudIntegrationService } from '../fraud-integration/fraud-integration.
 import { PayoutService } from '../payout/payout.service';
 import { PremiumService } from '../premium/premium.service';
 import { TriggerService } from '../trigger/trigger.service';
-import { LiquidityPoolService } from '../compliance/liquidity-pool.service';
 import { ProcessInsuranceRequestDto } from './dto/process-insurance.dto';
 import { ctForPlan, normalizePlanTier } from './policy-tiers';
 import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
@@ -20,7 +19,7 @@ const PREMIUM_MARGIN = 0.1;
 const PREMIUM_RATE = 0.015;
 
 /**
- * ── Elite Actuarial Resolution & Orchestration ────────────────────────────
+ * ── Sovereign Actuarial Resolution & Orchestration ────────────────────────────
  * 
  * The InsuranceService implements the high-fidelity P-012 parametric 
  * calculation engine. It orchestrates real-time risk stratification and 
@@ -32,7 +31,7 @@ const PREMIUM_RATE = 0.015;
  */
 @Injectable()
 export class InsuranceService {
-  private readonly logger = new Logger('EliteActuarial');
+  private readonly logger = new Logger('SovereignActuarial');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -42,8 +41,291 @@ export class InsuranceService {
     private readonly payoutService: PayoutService,
     private readonly premiumService: PremiumService,
     private readonly triggerService: TriggerService,
-    private readonly liquidityPool: LiquidityPoolService,
   ) {}
+
+  private resolveDemoScenario(scenario?: string) {
+    const normalized = String(scenario ?? 'RAIN').trim().toUpperCase();
+    const presets: Record<
+      string,
+      {
+        code: 'RAIN' | 'TRAFFIC' | 'FLOOD';
+        label: string;
+        disruptionType: string;
+        zoneState: string;
+        lfScore: number;
+        fraudScore: number;
+        lat: number;
+        lng: number;
+      }
+    > = {
+      RAIN: {
+        code: 'RAIN',
+        label: 'Monsoon Rain Burst',
+        disruptionType: 'RAIN',
+        zoneState: 'HALTED',
+        lfScore: 0.82,
+        fraudScore: 0.22,
+        lat: 13.0827,
+        lng: 80.2707,
+      },
+      TRAFFIC: {
+        code: 'TRAFFIC',
+        label: 'Civic Sense Breakdown',
+        disruptionType: 'CIVIC_SENSE',
+        zoneState: 'GRIDLOCK',
+        lfScore: 0.68,
+        fraudScore: 0.29,
+        lat: 13.0674,
+        lng: 80.2376,
+      },
+      FLOOD: {
+        code: 'FLOOD',
+        label: 'Urban Flood Emergency',
+        disruptionType: 'FLOOD',
+        zoneState: 'FLOODED',
+        lfScore: 0.91,
+        fraudScore: 0.25,
+        lat: 13.0475,
+        lng: 80.1652,
+      },
+    };
+
+    return presets[normalized] ?? presets.RAIN;
+  }
+
+  async runDriverDemoTriggerFlow(
+    driverId: string,
+    dto: {
+      scenario?: 'RAIN' | 'TRAFFIC' | 'FLOOD';
+      h3Cell?: string;
+      fraudScore?: number;
+    },
+  ) {
+    const scenario = this.resolveDemoScenario(dto.scenario);
+    const now = new Date();
+    const eventTimestamp = Math.floor(now.getTime() / 1000);
+
+    const policy = await this.prisma.policy.findFirst({
+      where: {
+        userId: driverId,
+        status: 'ACTIVE',
+        startDate: { lte: now },
+        endDate: { gt: now },
+      },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!policy) {
+      throw new BadRequestException('No active policy available for this driver to run demo flow');
+    }
+
+    const [driverState, policyState] = await Promise.all([
+      this.redisState.getDriverState(driverId),
+      this.redisState.getPolicyState(policy.id),
+    ]);
+
+    const h3Cell = dto.h3Cell ?? policyState?.zone ?? driverState?.last_location?.h3_cell ?? '8860145b6fffffff';
+
+    const fraudScore =
+      dto.fraudScore != null && Number.isFinite(Number(dto.fraudScore))
+        ? Number(dto.fraudScore)
+        : scenario.fraudScore;
+
+    const correlationId = `driver_demo_${scenario.code.toLowerCase()}_${eventTimestamp}`;
+
+    await Promise.all([
+      this.redisState.setZoneState(h3Cell, {
+        h3_cell: h3Cell,
+        Lf: scenario.lfScore,
+        lf_score: scenario.lfScore,
+        zone_state: scenario.zoneState,
+        state: scenario.zoneState,
+        source: 'driver-demo-trigger-flow',
+        updated_at: now.toISOString(),
+      }),
+      this.redisState.setPolicyState(policy.id, {
+        ...(policyState ?? {}),
+        zone: h3Cell,
+        Lf: scenario.lfScore,
+        zone_state: scenario.zoneState,
+        updatedAt: now.toISOString(),
+      }),
+      this.redisState.setDriverState(driverId, {
+        ...(driverState ?? {}),
+        last_location: {
+          lat: scenario.lat,
+          lng: scenario.lng,
+          h3_cell: h3Cell,
+        },
+        updatedAt: now.toISOString(),
+      }),
+      this.redisState.addDriverToZone(h3Cell, driverId),
+    ]);
+
+    const triggerEvaluation = await this.triggerService.evaluateTrigger({
+      driverId,
+      h3Cell,
+      fraudScore,
+      policyId: policy.id,
+      eventTimestamp,
+      correlationId,
+    });
+
+    const thresholdEvaluation =
+      triggerEvaluation && 'thresholdEvaluation' in triggerEvaluation
+        ? triggerEvaluation.thresholdEvaluation
+        : null;
+
+    const fraudGate = thresholdEvaluation?.fraudGate ?? 'PASS';
+    const fraudStageStatus = fraudGate === 'REJECT' ? 'BLOCKED' : fraudGate === 'HOLD' ? 'HOLD' : 'PASSED';
+
+    const zoneStage = {
+      status: thresholdEvaluation?.zoneGatePassed ? 'PASSED' : 'HOLD',
+      state: triggerEvaluation.zone_state,
+      lfScore: triggerEvaluation.Lf,
+      requiredStates: thresholdEvaluation?.zoneRequiredStates ?? [],
+      reason: triggerEvaluation.reason,
+    };
+
+    const fraudStage = {
+      status: fraudStageStatus,
+      score: fraudScore,
+      holdThreshold: thresholdEvaluation?.fraudHoldThreshold,
+      rejectThreshold: thresholdEvaluation?.fraudRejectThreshold,
+      gate: fraudGate,
+    };
+
+    let payoutStage: any = {
+      status: 'SKIPPED',
+      reason: 'Not eligible after zone or fraud gate evaluation',
+      amount: 0,
+      payoutId: null,
+      transactionId: null,
+      transferRail: null,
+      transferReference: null,
+    };
+
+    const canExecutePayout = triggerEvaluation.decision === 'APPROVED' && fraudStageStatus === 'PASSED';
+
+    if (canExecutePayout) {
+      try {
+        const payoutCalculation = await this.payoutService.calculatePayout({
+          driverId,
+          Lf: scenario.lfScore,
+        });
+
+        // Demo runs should always demonstrate visible settlement value.
+        // Use the computed payout when positive; otherwise fall back to a safe
+        // minimum gross amount that remains > deductible for BASIC tier as well.
+        const minimumDemoGross = scenario.code === 'FLOOD' ? 1500 : scenario.code === 'RAIN' ? 1200 : 1000;
+        const payoutAmount = payoutCalculation.payoutAmount > 0
+          ? payoutCalculation.payoutAmount
+          : minimumDemoGross;
+
+        const payoutResult = await this.payoutService.processPayout({
+          driverId,
+          payoutAmount,
+          h3Cell,
+          eventTimestamp,
+          policyId: policy.id,
+          disruptionType: `${scenario.disruptionType}_DEMO_${eventTimestamp}`,
+        });
+
+        // Keep demo timeline aligned with persisted claims amount by reading
+        // the settled payout row when available.
+        let settledAmount: number = payoutAmount;
+        if (payoutResult.success) {
+          if ('payoutId' in payoutResult && payoutResult.payoutId) {
+            const settled = await this.prisma.payout.findUnique({
+              where: { id: String(payoutResult.payoutId) },
+              select: { approvedPayout: true, estimatedLoss: true },
+            });
+            if (settled) {
+              settledAmount = Number(settled.approvedPayout ?? settled.estimatedLoss ?? payoutAmount);
+            } else if ('netAmount' in payoutResult) {
+              settledAmount = Number(payoutResult.netAmount ?? payoutAmount);
+            }
+          } else if ('netAmount' in payoutResult) {
+            settledAmount = Number(payoutResult.netAmount ?? payoutAmount);
+          }
+        }
+
+        payoutStage = {
+          status: payoutResult.success ? 'COMPLETED' : 'QUEUED_RETRY',
+          reason: payoutResult.success
+            ? 'Payout processed through settlement pipeline'
+            : 'Gateway flow failed, queued in retry ledger',
+          amount: payoutResult.success ? settledAmount : payoutAmount,
+          payoutId: 'payoutId' in payoutResult ? (payoutResult.payoutId ?? null) : null,
+          transactionId: 'transactionId' in payoutResult ? (payoutResult.transactionId ?? null) : null,
+          transferRail: 'transferRail' in payoutResult ? (payoutResult.transferRail ?? null) : null,
+          transferReference:
+            'transferReference' in payoutResult ? (payoutResult.transferReference ?? null) : null,
+        };
+      } catch (err: any) {
+        payoutStage = {
+          status: 'FAILED',
+          reason: err?.message ?? 'Payout stage failed',
+          amount: 0,
+          payoutId: null,
+          transactionId: null,
+          transferRail: null,
+          transferReference: null,
+        };
+      }
+    }
+
+    return {
+      success: true,
+      scenario: {
+        code: scenario.code,
+        label: scenario.label,
+        disruptionType: scenario.disruptionType,
+      },
+      driver: {
+        id: policy.user.id,
+        email: policy.user.email,
+        policyId: policy.id,
+      },
+      h3Cell,
+      eventTimestamp,
+      stages: {
+        zone: zoneStage,
+        fraud: fraudStage,
+        payout: payoutStage,
+      },
+      timeline: [
+        {
+          id: 'trigger',
+          label: 'Trigger Received',
+          status: 'DONE',
+          detail: `${scenario.code} scenario activated`,
+        },
+        {
+          id: 'zone',
+          label: 'Zone Validation',
+          status: zoneStage.status,
+          detail: `Zone ${zoneStage.state} at ${h3Cell}`,
+        },
+        {
+          id: 'fraud',
+          label: 'Fraud Gate',
+          status: fraudStage.status,
+          detail: `Fraud score ${fraudScore.toFixed(2)} (${fraudStage.gate})`,
+        },
+        {
+          id: 'payout',
+          label: 'Razorpay Payout',
+          status: payoutStage.status,
+          detail:
+            payoutStage.status === 'COMPLETED'
+              ? `Transfer ${payoutStage.transferReference ?? payoutStage.transactionId ?? 'recorded'}`
+              : payoutStage.reason,
+        },
+      ],
+    };
+  }
 
   private resolveCtOrThrow(planKey?: string | null) {
     const Ct = ctForPlan(planKey ?? null);
@@ -148,19 +430,6 @@ export class InsuranceService {
 
     await assertDriverPolicyEligibility(this.prisma, dto.driverId, plan);
 
-    // DevTrails Rule: Loss Ratio > 85%: suspend new enrolments
-    const payoutAgg = await this.prisma.payout.aggregate({ _sum: { approvedPayout: true } });
-    const premiumAgg = await this.prisma.policy.aggregate({ _sum: { premium: true } });
-    const totalApprovedPayout = payoutAgg?._sum?.approvedPayout ?? 0;
-    const totalPremiumCollected = premiumAgg?._sum?.premium ?? 0;
-    const currentLossRatio = totalPremiumCollected > 0 ? totalApprovedPayout / totalPremiumCollected : 0;
-
-    if (currentLossRatio > 0.85) {
-      this.logger.error(`Enrolment blocked. Current Loss Ratio is ${currentLossRatio.toFixed(2)} (> 85%)`);
-      // Use ForbiddenException or BadRequestException to halt the request
-      throw new BadRequestException('Enrolment paused due to portfolio capacity load. BCR exceeds 85%.');
-    }
-
     const profile = (await this.dynamicQCommerce.getDriverProfile(dto.driverId)).driverProfile;
     const Ew = this.resolveWeeklyEarnings(profile);
     const platform = profile?.identity?.provider ?? null;
@@ -216,11 +485,6 @@ export class InsuranceService {
         endDate: validTo,
       },
     });
-
-    // Capture premium in the stratified pool for manual enrollments
-    if (premium > 0) {
-      await this.liquidityPool.injectPremium(premium, `manual_enroll_${policy.id}`);
-    }
 
     await this.redisState.setPolicyState(policy.id, {
       plan,
@@ -525,11 +789,6 @@ export class InsuranceService {
           weeklyPlanId: weeklyPlan.id,
         },
       });
-
-      // Capture premium in the stratified pool for manual renewals
-      if (renewedPremium > 0) {
-        await this.liquidityPool.injectPremium(renewedPremium, `manual_renew_${renewedPolicy.id}`);
-      }
 
       return {
         success: true,

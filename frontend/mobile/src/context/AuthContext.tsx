@@ -20,6 +20,7 @@ import { useLocation } from './LocationContext';
 interface AuthUser {
   id?: string;
   email: string;
+  phone?: string;
   role: 'DRIVER' | 'ADMIN';
   driverName?: string;
   isTermsAccepted?: boolean;
@@ -40,6 +41,7 @@ interface AuthContextType {
   adminVerifyOtp: (email: string, otp: string) => Promise<void>;
   sendDriverOtp: (email: string) => Promise<void>;
   verifyDriverOtp: (email: string, otp: string) => Promise<void>;
+  loginManualOtp: (email: string, otp: string) => Promise<{ verificationToken?: string }>; 
   checkKycStatus: () => Promise<string | null>;
   refreshKycStatus: () => Promise<void>;
   updateDriverName: (name: string) => Promise<void>;
@@ -90,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userId = await AsyncStorage.getItem('userId');
         const driverId = await AsyncStorage.getItem('driverId');
         const role = await AsyncStorage.getItem('userRole') as 'DRIVER' | 'ADMIN' | null;
+        const savedPhone = await AsyncStorage.getItem('userPhone');
         
         if (token && email && role) {
           const savedName = await AsyncStorage.getItem('driverName');
@@ -118,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser({ 
             id: resolvedId ?? undefined, 
             email, 
+            phone: savedPhone || undefined,
             role, 
             driverName: savedName || undefined,
             isTermsAccepted: role === 'DRIVER' ? isTermsAccepted : true 
@@ -180,6 +184,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyDriverOtp = async (email: string, otp: string) => {
     await authApi.verifyDriverOtp(email, otp);
+  };
+
+  const loginManualOtp = async (email: string, otp: string) => {
+    const res = await authApi.verifyOtp(email, otp) as any;
+    const token = res?.accessToken || res?.access_token;
+    if (!token) {
+      throw new Error(i18n.t('auth.errors.reauthenticate'));
+    }
+
+    const userEmail = String(res?.email || email || '');
+    const userId = String(res?.userId || res?.id || '');
+    const driverId = String(res?.driverId || userId || '');
+
+    await AsyncStorage.multiSet([
+      ['accessToken', token],
+      ['refreshToken', res?.refreshToken || ''],
+      ['userEmail', userEmail],
+      ['userRole', 'DRIVER'],
+      ['userId', userId],
+      ['driverId', driverId],
+    ]);
+
+    const savedName = await AsyncStorage.getItem('driverName');
+    await refreshLocation();
+    setUser({
+      id: driverId || undefined,
+      email: userEmail,
+      role: 'DRIVER',
+      driverName: savedName || undefined,
+      isTermsAccepted: true,
+    });
+
+    setIsNewRegistration(false);
+    setKycStatus(String(res?.kycStatus || 'NOT_STARTED'));
+
+    return { verificationToken: res?.verificationToken };
   };
 
   /**
@@ -287,6 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'userEmail',
       'userRole',
       'userId',
+      'userPhone',
       'driverName',
       'driverId',
       'oauthProvider',
@@ -380,6 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminVerifyOtp,
         sendDriverOtp,
         verifyDriverOtp,
+        loginManualOtp,
         checkKycStatus,
         refreshKycStatus,
         updateDriverName,

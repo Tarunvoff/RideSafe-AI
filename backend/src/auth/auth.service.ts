@@ -12,6 +12,7 @@ import * as crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notification.service';
 import { DynamicQCommerceService } from '../dynamic-qcommerce/dynamic-qcommerce.service';
 import { QCommerceProvider } from '../dynamic-qcommerce/enums/qcommerce.enums';
 import {
@@ -19,6 +20,8 @@ import {
   AdminVerifyOtpDto,
   ForgotPasswordDto,
   LoginDto,
+  ManualSendOtpDto,
+  ManualVerifyOtpDto,
   RegisterDto,
   ResetPasswordDto,
   VerifyOtpDto,
@@ -53,8 +56,17 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private email: EmailService,
+    private notifications: NotificationService,
     private dynamicQCommerce: DynamicQCommerceService,
   ) {}
+
+  private formatPhoneForSms(phone: string): string {
+    const digits = String(phone ?? '').replace(/\D/g, '');
+    if (digits.length === 10) {
+      return `+91${digits}`;
+    }
+    return `+${digits}`;
+  }
 
   private getAdminEnvCreds(): { email: string; password: string } {
     const email = (process.env.ADMIN_EMAIL ?? '').trim();
@@ -63,6 +75,14 @@ export class AuthService {
       throw new Error('Missing required env vars: ADMIN_EMAIL and/or ADMIN_PASSWORD');
     }
     return { email, password };
+  }
+
+  private normalizePhone(phone: string): string {
+    const digits = String(phone ?? '').replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 15) {
+      throw new BadRequestException('Invalid mobile number');
+    }
+    return digits;
   }
 
   private async ensureAdminUserExists(email: string, password: string) {
@@ -123,6 +143,215 @@ export class AuthService {
     await this.email.sendOTPEmail(dto.email, otp, 'VERIFY');
 
     return { message: 'Registered successfully. Please verify your email with the OTP sent to continue.' };
+  }
+
+  async startManualPhoneOtp(phone: string) {
+    const normalizedPhone = this.normalizePhone(phone);
+
+    let user = await this.prisma.user.findUnique({ where: { phone: normalizedPhone } });
+    if (!user) {
+      const bootstrapPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12);
+      const syntheticEmail = `manual_${normalizedPhone}@aegis.local`;
+
+      user = await this.prisma.user.create({
+        data: {
+          email: syntheticEmail,
+          phone: normalizedPhone,
+          passwordHash: bootstrapPassword,
+          role: 'DRIVER',
+          isVerified: false,
+        },
+      });
+
+      await this.prisma.kYCProfile.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id, status: 'NOT_STARTED' },
+        update: {},
+      });
+    }
+
+    const otp = generateOTP();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode: hashOTP(otp),
+        otpExpiresAt: otpExpiresAt(),
+      },
+    });
+
+    const smsTo = this.formatPhoneForSms(normalizedPhone);
+    const smsResult = await this.notifications.sendOtpSms(smsTo, otp, 'LOGIN');
+    if (!smsResult.ok && process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('Unable to deliver OTP SMS at the moment. Please retry.');
+    }
+
+    this.logger.log(`Manual mobile OTP generated for phone=${normalizedPhone}`);
+
+    return {
+      message: 'OTP sent successfully',
+      retryAfterSec: 30,
+      ...(process.env.NODE_ENV !== 'production' ? { debugOtp: otp } : {}),
+    };
+  }
+
+  async verifyManualPhoneOtp(phone: string, otp: string) {
+    const normalizedPhone = this.normalizePhone(phone);
+    const user = await this.prisma.user.findUnique({ where: { phone: normalizedPhone } });
+
+    if (!user || !user.otpCode || !user.otpExpiresAt) {
+      throw new BadRequestException('No OTP requested');
+    }
+    if (new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('OTP has expired');
+    }
+    if (hashOTP(String(otp)) !== user.otpCode) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const verificationToken = await this.jwt.signAsync(
+      {
+        sub: user.id,
+        phone: normalizedPhone,
+        purpose: 'manual_onboarding',
+      },
+      {
+        secret: process.env.JWT_SECRET,
+        expiresIn: '30m',
+      },
+    );
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode: null,
+        otpExpiresAt: null,
+        isVerified: true,
+      },
+    });
+
+    const tokens = await this.generateTokens(user);
+    const rtHash = hashOTP(tokens.refreshToken);
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
+
+    const kycProfile = await this.prisma.kYCProfile.findUnique({ where: { userId: user.id } });
+
+    // Manual OTP should not auto-elevate KYC to verified unless there is an actual
+    // submission/review trail. This prevents accidental APPROVED state leaks.
+    let effectiveKycStatus = kycProfile?.status ?? 'NOT_STARTED';
+    if (effectiveKycStatus === 'APPROVED' && !kycProfile?.submittedAt) {
+      effectiveKycStatus = 'IN_PROGRESS';
+      await this.prisma.kYCProfile.update({
+        where: { userId: user.id },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
+
+    return {
+      message: 'Mobile OTP verified',
+      verificationToken,
+      userId: user.id,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      role: user.role,
+      driverId: user.id,
+      email: user.email,
+      phone: user.phone,
+      kycStatus: effectiveKycStatus,
+    };
+  }
+
+  async signupManual(
+    dto: {
+      name: string;
+      email?: string;
+      phone?: string;
+      city: string;
+      vehicleType: string;
+      platformId?: string;
+    },
+    onboardingToken?: string,
+  ) {
+    const normalizedPhone = dto.phone ? this.normalizePhone(dto.phone) : null;
+    let userIdFromToken: string | null = null;
+
+    if (onboardingToken) {
+      try {
+        const payload = await this.jwt.verifyAsync(onboardingToken, { secret: process.env.JWT_SECRET });
+        if (payload?.purpose === 'manual_onboarding' && payload?.sub) {
+          userIdFromToken = String(payload.sub);
+        }
+      } catch {
+        // Fall back to phone lookup.
+      }
+    }
+
+    const normalizedEmail = dto.email?.trim().toLowerCase();
+    const user = userIdFromToken
+      ? await this.prisma.user.findUnique({ where: { id: userIdFromToken } })
+      : normalizedPhone
+        ? await this.prisma.user.findUnique({ where: { phone: normalizedPhone } })
+        : normalizedEmail
+          ? await this.prisma.user.findUnique({ where: { email: normalizedEmail } })
+          : null;
+
+    if (!user) {
+      throw new NotFoundException('Manual onboarding user not found. Please verify OTP again.');
+    }
+
+    if (dto.email?.trim()) {
+      const existingEmail = await this.prisma.user.findUnique({ where: { email: dto.email.trim() } });
+      if (existingEmail && existingEmail.id !== user.id) {
+        throw new ConflictException('Email already linked to another account.');
+      }
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        driverName: dto.name.trim(),
+        phone: normalizedPhone ?? user.phone,
+        email: normalizedEmail || user.email,
+        platform: dto.platformId?.trim() || null,
+      },
+    });
+
+    await this.prisma.kYCProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, status: 'IN_PROGRESS' },
+      update: { status: 'IN_PROGRESS' },
+    });
+
+    await this.prisma.kYCBasicIdentity.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        fullName: dto.name.trim(),
+        dob: new Date('1990-01-01'),
+        gender: 'UNSPECIFIED',
+      },
+      update: {
+        fullName: dto.name.trim(),
+      },
+    });
+
+    await this.prisma.kYCPersonalDetails.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        address: 'To be provided',
+        city: dto.city.trim(),
+        state: 'To be provided',
+        pincode: '000000',
+      },
+      update: {
+        city: dto.city.trim(),
+      },
+    });
+
+    return {
+      message: 'Manual driver profile saved',
+      userId: updatedUser.id,
+    };
   }
 
   // ── VERIFY OTP ──────────────────────────────────────────────────────────
@@ -443,6 +672,7 @@ export class AuthService {
     });
 
     const driverProfile = oauthResult?.driverProfile;
+    const providerKycVerified = Boolean(driverProfile?.kyc?.kycVerified);
     const email = driverProfile?.identity?.email?.trim();
     if (!email) throw new BadRequestException('Provider did not return an email identity');
 
@@ -463,7 +693,12 @@ export class AuthService {
       });
 
       await this.prisma.kYCProfile.create({
-        data: { userId: user.id, status: 'NOT_STARTED' },
+        data: {
+          userId: user.id,
+          status: providerKycVerified ? 'APPROVED' : 'NOT_STARTED',
+          submittedAt: providerKycVerified ? new Date() : null,
+          reviewedAt: providerKycVerified ? new Date() : null,
+        },
       });
       this.logger.log(`Created first-party driver account from provider callback for ${email}`);
     } else if (!user.isVerified) {
@@ -472,6 +707,23 @@ export class AuthService {
     } else if (user.platform !== provider) {
       await this.prisma.user.update({ where: { id: user.id }, data: { platform: provider } });
       user = await this.prisma.user.findUnique({ where: { id: user.id } });
+    }
+
+    if (providerKycVerified) {
+      await this.prisma.kYCProfile.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          status: 'APPROVED',
+          submittedAt: new Date(),
+          reviewedAt: new Date(),
+        },
+        update: {
+          status: 'APPROVED',
+          submittedAt: new Date(),
+          reviewedAt: new Date(),
+        },
+      });
     }
 
     const tokens = await this.generateTokens(user);

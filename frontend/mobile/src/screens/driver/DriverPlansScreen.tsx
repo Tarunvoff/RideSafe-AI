@@ -182,7 +182,7 @@ function getRazorpayCheckoutHTML(opts: {
 
 export default function DriverPlansScreen({ navigation }: any) {
   const { t } = useTranslation();
-  const { logout, user } = useAuth();
+  const { logout, user, kycStatus } = useAuth();
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
   const [tab, setTab] = useState<PlansTabKey>('available');
@@ -204,6 +204,7 @@ export default function DriverPlansScreen({ navigation }: any) {
     plan: WeeklyPlan;
   }>(null);
   const checkoutRef = useRef(checkout);
+  const canPurchasePlans = kycStatus === 'APPROVED';
 
   const fetchPurchased = useCallback(async () => {
     let backendRes: { purchasedPolicies?: PurchasedPolicy[]; latestDisruption?: any } | null = null;
@@ -358,6 +359,11 @@ export default function DriverPlansScreen({ navigation }: any) {
    * the user enters the payment environment.
    */
   const startCheckout = async (plan: WeeklyPlan) => {
+    if (!canPurchasePlans) {
+      Alert.alert('KYC Required', 'Complete and get KYC approved before policy enrollment or payout processing.');
+      return;
+    }
+
     if (ownedPlanKeys.has(String(plan.key))) {
       Alert.alert(t('plans.already_owned_title'), t('plans.already_owned_desc'));
       return;
@@ -490,6 +496,14 @@ export default function DriverPlansScreen({ navigation }: any) {
 
         {isAvailableTab ? (
           <View style={{ gap: 16 }}>
+            {!canPurchasePlans ? (
+              <View style={[styles.neoCard, styles.kycGateCard]}>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#92400e" />
+                <Text style={styles.kycGateTitle}>Complete KYC to activate plans</Text>
+                <Text style={styles.kycGateSub}>You can browse plans, but purchase is enabled only after KYC approval.</Text>
+              </View>
+            ) : null}
+
             {filteredAvailablePlans.length === 0 && !loading ? (
               <View style={[styles.neoCard, styles.emptyState]}>
                 <Text style={styles.emptyTitle}>No plans available</Text>
@@ -521,11 +535,11 @@ export default function DriverPlansScreen({ navigation }: any) {
 
                     <TouchableOpacity
                       activeOpacity={0.9}
-                      style={styles.buyBtn}
+                      style={[styles.buyBtn, !canPurchasePlans ? styles.buyBtnDisabled : null]}
                       onPress={() => startCheckout(plan)}
                       disabled={loading || isPremiumLoading}
                     >
-                      <Text style={styles.buyBtnText}>{isPremiumLoading ? t('common.loading') : 'Buy Now'}</Text>
+                      <Text style={styles.buyBtnText}>{isPremiumLoading ? t('common.loading') : !canPurchasePlans ? 'Complete KYC' : 'Buy Now'}</Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -817,10 +831,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  buyBtnDisabled: {
+    opacity: 0.9,
+  },
   buyBtnText: {
     color: '#ffffff',
     fontWeight: '900',
     fontSize: 15,
+  },
+  kycGateCard: {
+    borderColor: '#f59e0b',
+    backgroundColor: '#fffbeb',
+    gap: 6,
+  },
+  kycGateTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#92400e',
+  },
+  kycGateSub: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#78350f',
+    lineHeight: 18,
   },
 
   emptyState: { alignItems: 'center', paddingVertical: 40 },

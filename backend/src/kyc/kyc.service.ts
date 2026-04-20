@@ -27,7 +27,7 @@ export class KycService {
   async getStatus(userId: string) {
     const [profile, user] = await Promise.all([
       this.prisma.kYCProfile.findUnique({ where: { userId } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true, email: true, platform: true } }),
     ]);
     if (!profile) throw new NotFoundException('KYC profile not found. Please register first.');
     if (!user) throw new NotFoundException('User not found. Please register first.');
@@ -49,8 +49,14 @@ export class KycService {
     const completedSteps = Object.values(steps).filter(Boolean).length;
     const engagementDays = resolveEngagementDaysSince(user.createdAt);
 
+    const isManualUser = !!user?.email?.endsWith('@aegis.local') || !user?.platform;
+
+    const normalizedStatus = isManualUser && profile.status === 'APPROVED' && !profile.submittedAt
+      ? 'IN_PROGRESS'
+      : profile.status;
+
     return {
-      status: profile.status,
+      status: normalizedStatus,
       submittedAt: profile.submittedAt,
       completedSteps,
       totalSteps: 4,
@@ -178,16 +184,39 @@ export class KycService {
 
   // ── DRIVER: GET OWN KYC DETAILS ─────────────────────────────────────────
   async getDriverDetails(userId: string) {
-    const [profile, basicIdentity, personalDetails, identityVerification, payoutSetup] = await Promise.all([
+    const [profile, basicIdentity, personalDetails, identityVerification, payoutSetup, user] = await Promise.all([
       this.prisma.kYCProfile.findUnique({ where: { userId } }),
       this.prisma.kYCBasicIdentity.findUnique({ where: { userId } }),
       this.prisma.kYCPersonalDetails.findUnique({ where: { userId } }),
       this.prisma.kYCIdentityVerification.findUnique({ where: { userId } }),
       this.prisma.kYCPayoutSetup.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, platform: true } }),
     ]);
 
+    let manualMeta: any = {};
+    try {
+      manualMeta = profile?.reviewNote ? JSON.parse(profile.reviewNote) : {};
+    } catch {
+      manualMeta = {};
+    }
+
+    const docs = manualMeta?.documents || {};
+    const isManualUser = !!user?.email?.endsWith('@aegis.local') || !user?.platform;
+
+    const normalizedProfileStatus = isManualUser && profile?.status === 'APPROVED' && !profile?.submittedAt
+      ? 'IN_PROGRESS'
+      : (profile?.status ?? 'NOT_STARTED');
+
+    const allVerified = normalizedProfileStatus === 'APPROVED';
+    const allRejected = normalizedProfileStatus === 'REJECTED';
+    const normalizeStatus = (value?: string) => {
+      if (allVerified) return 'verified';
+      if (allRejected) return 'rejected';
+      return value || 'pending';
+    };
+
     return {
-      status: profile?.status ?? 'NOT_STARTED',
+      status: normalizedProfileStatus,
       submittedAt: profile?.submittedAt ?? null,
       reviewedAt: profile?.reviewedAt ?? null,
       basicIdentity: basicIdentity ? {
@@ -214,6 +243,13 @@ export class KycService {
         financialDataConsentAt: payoutSetup.financialDataConsentAt,
         consentVersion: payoutSetup.consentVersion,
       } : null,
+      manualDocuments: {
+        pan: docs?.pan?.url ? { url: docs.pan.url, status: normalizeStatus(docs?.pan?.status) } : null,
+        aadhaarFront: docs?.aadhaarFront?.url ? { url: docs.aadhaarFront.url, status: normalizeStatus(docs?.aadhaarFront?.status) } : null,
+        aadhaarBack: docs?.aadhaarBack?.url ? { url: docs.aadhaarBack.url, status: normalizeStatus(docs?.aadhaarBack?.status) } : null,
+        drivingLicense: docs?.drivingLicense?.url ? { url: docs.drivingLicense.url, status: normalizeStatus(docs?.drivingLicense?.status) } : null,
+        bankProof: docs?.bankProof?.url ? { url: docs.bankProof.url, status: normalizeStatus(docs?.bankProof?.status) } : null,
+      },
     };
   }
 

@@ -30,8 +30,16 @@ logger = logging.getLogger(__name__)
 
 OPEN_WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 
+
+def _has_valid_openweather_key() -> bool:
+    key = (OPEN_WEATHER_API_KEY or "").strip()
+    if not key:
+        return False
+    lowered = key.lower()
+    return "your_" not in lowered and "_here" not in lowered
+
 async def fetch_weather_from_openweather(lat: float, lng: float) -> dict | None:
-    if not OPEN_WEATHER_API_KEY:
+    if not _has_valid_openweather_key():
         return None
         
     params = {
@@ -125,13 +133,13 @@ async def fetch_weather(lat: float, lng: float) -> dict:
     2. Open-Meteo (Fallback source)
     3. Safe Defaults (Absolute Fallback)
     """
-    # 1. Try OpenWeatherMap
-    result = await fetch_weather_from_openweather(lat, lng)
+    # 1. Try Open-Meteo first (no API key, most reliable baseline)
+    result = await fetch_weather_from_openmeteo(lat, lng)
     if result:
         return result
         
-    # 2. Try Open-Meteo
-    result = await fetch_weather_from_openmeteo(lat, lng)
+    # 2. Try OpenWeatherMap
+    result = await fetch_weather_from_openweather(lat, lng)
     if result:
         return result
 

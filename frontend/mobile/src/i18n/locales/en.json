@@ -56,7 +56,11 @@
     "login_cancelled": "Login Cancelled",
     "login_cancelled_msg": "You have cancelled the login process.",
     "dismissed_msg": "The authentication window was dismissed.",
-    "max": "Max"
+    "max": "Max",
+    "required_fields": "Please fill in all required fields.",
+    "saving": "Saving...",
+    "verifying": "Verifying...",
+    "finish_submit": "Finish & Submit"
   },
   "tabs": {
     "home": "Home",
@@ -183,6 +187,62 @@
     "fraud": {
       "location_required": "Location Required",
       "retry": "Retry"
+    },
+    "intro": {
+      "header": "KYC Verification",
+      "title": "Complete your KYC",
+      "subtitle": "Finish verification to activate plans, validate claims, and receive payouts without delays.",
+      "steps": {
+        "identity": "Basic identity"
+      },
+      "why_title": "Why we need KYC",
+      "policy_activation": {
+        "title": "Policy activation",
+        "desc": "Your weekly protection plans become active only after identity verification."
+      },
+      "claim_validation": {
+        "title": "Claim validation",
+        "desc": "Verified identity helps us process disruption claims securely and faster."
+      },
+      "payout_processing": {
+        "title": "Payout processing",
+        "desc": "Bank and identity checks are required to transfer payouts successfully."
+      },
+      "ready_title": "Keep these ready",
+      "ready_items": {
+        "id": "Government ID",
+        "selfie": "Live selfie",
+        "address": "Address proof",
+        "bank": "Bank details"
+      },
+      "estimated_time": "Estimated time: 4-6 minutes",
+      "start_button": "Start KYC",
+      "continue_later": "Continue later"
+    },
+    "common": {
+      "step": "Step {{current}} of {{total}}",
+      "next": "Next",
+      "steps": {
+        "identity": "Basic identity"
+      }
+    },
+    "basic": {
+      "title": "Basic identity details",
+      "subtitle": "Please enter your legal details exactly as on your government documents.",
+      "name_label": "Full name",
+      "name_placeholder": "Enter full name",
+      "dob_label": "Date of birth",
+      "dob_placeholder": "DD/MM/YYYY",
+      "gender_label": "Gender",
+      "gender_options": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other"
+      },
+      "invalid_date": "Invalid date of birth.",
+      "invalid_date_format": "Use DD/MM/YYYY format.",
+      "save_failed": "Could not save identity details.",
+      "saving": "Saving identity details..."
     },
     "basic_identity": {
       "full_name": "Full Name",

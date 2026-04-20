@@ -32,7 +32,7 @@ interface AegisNavbarProps {
   onNotifications?: () => void;
   /** Custom title. If provided, replaces the brand 'Aegis' text. */
   title?: string;
-  /** Override background color. Defaults to #fff. */
+  /** Override background color. Defaults to brand orange from Theme. */
   backgroundColor?: string;
   /** Use light text/icons for dark/brilliant backgrounds. */
   light?: boolean;
@@ -50,8 +50,8 @@ export default function AegisNavbar({
   showLogoWithBack = false
 }: AegisNavbarProps) {
   const { t } = useTranslation();
-  const textColor = '#000'; // Forced black for brand consistency
-  const iconColor = '#000'; // Forced black for brand consistency
+  const textColor = Theme.colors.text;
+  const iconColor = Theme.colors.text;
   const navBg = backgroundColor || Theme.colors.brandOrange;
 
   return (
@@ -71,7 +71,7 @@ export default function AegisNavbar({
         {(showLogoWithBack || !onBack) && (
           <Image
             source={require('../../../assets/images/productlogo.png')}
-            style={[styles.logo, { tintColor: '#000' }]} // Black logo
+            style={[styles.logo, { tintColor: Theme.colors.text }]}
             resizeMode="contain"
           />
         )}
@@ -89,14 +89,14 @@ export default function AegisNavbar({
             onPress={onNotifications}
             activeOpacity={0.8}
           >
-            <Ionicons name="notifications" size={24} color={light ? '#000' : '#fff'} style={{ marginTop: 4 }} />
+            <Ionicons name="notifications" size={24} color={light ? Theme.colors.text : Theme.colors.background} style={{ marginTop: 4 }} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
         )}
 
         {onProfile && (
           <TouchableOpacity 
-            style={[styles.profileBtn, light && { borderColor: 'rgba(255,255,255,0.4)' }]} 
+            style={[styles.profileBtn, light && styles.profileBtnLight]} 
             onPress={onProfile}
             activeOpacity={0.8}
           >
@@ -157,14 +157,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#000',
+    backgroundColor: Theme.colors.text,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
     marginTop: 3, // Align circle bottom with profile avatar circle bottom
   },
   notifBtnLight: {
-    backgroundColor: '#fff',
+    backgroundColor: Theme.colors.background,
   },
   notifDot: {
     position: 'absolute',
@@ -173,18 +173,21 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ff4b2b',
+    backgroundColor: Theme.colors.brandOrange,
     borderWidth: 1.5,
-    borderColor: '#000',
+    borderColor: Theme.colors.text,
   },
   profileBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#000',
+    borderColor: Theme.colors.text,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: Theme.colors.background,
+  },
+  profileBtnLight: {
+    borderColor: Theme.colors.border,
   },
   avatarImg: {
     width: '100%',

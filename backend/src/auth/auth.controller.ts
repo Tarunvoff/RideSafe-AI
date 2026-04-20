@@ -19,6 +19,8 @@ import {
     AdminLoginDto, AdminVerifyOtpDto,
     ForgotPasswordDto,
     LoginDto, RefreshTokenDto,
+  ManualSendOtpDto,
+  ManualVerifyOtpDto,
     RegisterDto,
     ResetPasswordDto,
     VerifyOtpDto,
@@ -71,6 +73,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
+  }
+
+  @Post('send-otp')
+  @HttpCode(HttpStatus.OK)
+  sendManualOtp(@Body() dto: ManualSendOtpDto) {
+    return this.authService.startManualPhoneOtp(dto.phone);
+  }
+
+  @Post('verify-mobile-otp')
+  @HttpCode(HttpStatus.OK)
+  verifyManualOtp(@Body() dto: ManualVerifyOtpDto) {
+    return this.authService.verifyManualPhoneOtp(dto.phone, dto.otp);
   }
 
   /**

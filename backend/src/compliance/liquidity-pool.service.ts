@@ -100,13 +100,15 @@ export class LiquidityPoolService {
         
         // Drain Core Pool first, then take the rest from Reserve
         const diff = amountRupees - poolBalance;
-        await tx.systemSetting.update({
+        await tx.systemSetting.upsert({
           where: { key: this.POOL_KEY },
-          data: { value: '0' }
+          create: { key: this.POOL_KEY, value: '0' },
+          update: { value: '0' }
         });
-        await tx.systemSetting.update({
+        await tx.systemSetting.upsert({
           where: { key: this.RESERVE_KEY },
-          data: { value: String(reserveBalance - diff) }
+          create: { key: this.RESERVE_KEY, value: String(reserveBalance - diff) },
+          update: { value: String(reserveBalance - diff) }
         });
 
         return { withdrawnFrom: 'MIXED', remainingPool: 0, remainingReserve: reserveBalance - diff };
@@ -114,9 +116,10 @@ export class LiquidityPoolService {
 
       // Standard withdrawal from Core Risk Pool
       const nextPoolVal = poolBalance - amountRupees;
-      await tx.systemSetting.update({
+      await tx.systemSetting.upsert({
         where: { key: this.POOL_KEY },
-        data: { value: String(nextPoolVal) },
+        create: { key: this.POOL_KEY, value: String(nextPoolVal) },
+        update: { value: String(nextPoolVal) },
       });
 
       return { withdrawnFrom: 'CORE', remainingPool: nextPoolVal };

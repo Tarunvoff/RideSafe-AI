@@ -1,4 +1,4 @@
-/** 
+﻿/** 
  * Modular Registry: The root application module that wires together identity, fraud detection, 
  * actuarial pricing, and the payout pipeline into a cohesive ecosystem.
  *

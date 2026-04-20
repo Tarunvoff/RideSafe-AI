@@ -34,6 +34,14 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
+def _has_valid_openaq_key() -> bool:
+    key = (OPENAQ_API_KEY or "").strip()
+    if not key:
+        return False
+    lowered = key.lower()
+    return "your_" not in lowered and "_here" not in lowered
+
+
 # ── AQI conversion helpers (from original aqi_service.py) ─────────────────────
 
 def _pm25_to_aqi(c: float) -> float:
@@ -168,6 +176,16 @@ async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
         if cached:
             logger.debug("AQI cache hit for H3 cell %s", h3_cell)
             return cached
+
+    if not _has_valid_openaq_key():
+        logger.info("OpenAQ API key missing/placeholder. Using CPCB fallback.")
+        return {
+            "aqi": DEFAULT_AQI,
+            "pm25": DEFAULT_PM25,
+            "pm10": DEFAULT_PM10,
+            "is_fallback": True,
+            "source": "default",
+        }
 
     try:
         async with httpx.AsyncClient(timeout=AQI_TIMEOUT_SEC) as client:

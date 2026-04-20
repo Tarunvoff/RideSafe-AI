@@ -81,7 +81,7 @@ export default function DriverLogoutMenu({
             <Ionicons
               name="log-out-outline"
               size={20}
-              color="#ef4444"
+              color={Theme.colors.error}
             />
             <Text style={styles.profileMenuTextLogout}>{t('profile.logout')}</Text>
           </TouchableOpacity>
@@ -94,18 +94,18 @@ export default function DriverLogoutMenu({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: Theme.colors.overlayLight,
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingRight: Theme.spacing.lg,
     paddingTop: 60,
   },
   profileMenuBox: {
-    backgroundColor: '#fff',
+    backgroundColor: Theme.colors.background,
     borderRadius: Theme.borderRadius.lg,
     padding: 8,
     width: 200,
-    shadowColor: '#000',
+    shadowColor: Theme.colors.text,
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   profileMenuEmail: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748b',
+    color: Theme.colors.textSecondary,
   },
   profileMenuItem: {
     flexDirection: 'row',
@@ -128,12 +128,12 @@ const styles = StyleSheet.create({
     padding: Theme.spacing.md,
     gap: 12,
     borderRadius: Theme.borderRadius.md,
-    backgroundColor: '#fef2f2',
+    backgroundColor: `${Theme.colors.error}1A`,
   },
   profileMenuTextLogout: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#ef4444',
+    color: Theme.colors.error,
   },
 });
 

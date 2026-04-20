@@ -47,24 +47,24 @@ export default function LocationErrorCard({
    * - 'general': Amber (System retry suggested)
    */
   let icon: keyof typeof Ionicons.glyphMap = 'alert-circle';
-  let backgroundColor = '#fef3c7';
-  let borderColor = '#fcd34d';
-  let textColor = '#92400e';
+  let backgroundColor = `${Theme.colors.warning}22`;
+  let borderColor = Theme.colors.warning;
+  let textColor = Theme.colors.warning;
   let title = 'Location Error';
   let hint = 'Please try again.';
 
   if (errorType === 'permission') {
     icon = 'lock-closed';
-    backgroundColor = '#fee2e2';
-    borderColor = '#fca5a5';
-    textColor = '#7f1d1d';
+    backgroundColor = `${Theme.colors.error}22`;
+    borderColor = Theme.colors.error;
+    textColor = Theme.colors.error;
     title = 'Location Permission Denied';
     hint = 'Go to Settings → Location to enable GPS access';
   } else if (errorType === 'gps') {
     icon = 'cellular-outline';
-    backgroundColor = '#dbeafe';
-    borderColor = '#93c5fd';
-    textColor = '#0c2340';
+    backgroundColor = `${Theme.colors.info}22`;
+    borderColor = Theme.colors.info;
+    textColor = Theme.colors.info;
     title = 'GPS Unavailable';
     hint = 'Make sure GPS is enabled and you have a clear view of the sky';
   }
@@ -90,7 +90,7 @@ export default function LocationErrorCard({
           <Ionicons
             name={isLoading ? 'refresh' : 'reload'}
             size={18}
-            color="#ffffff"
+            color={Theme.colors.background}
             style={isLoading && styles.spinIcon}
           />
           <Text style={styles.retryText}>{isLoading ? 'Trying...' : 'Retry'}</Text>
@@ -106,10 +106,10 @@ export default function LocationErrorCard({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginVertical: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: Theme.spacing.md,
+    marginVertical: Theme.spacing.sm + Theme.spacing.xs,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
     borderLeftWidth: 4, // Visual accent for importance
   },
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     // Add CSS animation in a real app, but RN doesn't support it natively
   },
   retryText: {
-    color: '#ffffff',
+    color: Theme.colors.background,
     fontWeight: '500',
     fontSize: 14,
   },

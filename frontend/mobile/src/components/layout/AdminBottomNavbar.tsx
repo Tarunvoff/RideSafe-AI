@@ -28,8 +28,6 @@ type AdminBottomNavbarProps = {
   activeKey: AdminBottomNavKey;
 };
 
-const PRIMARY_GREEN = '#16a34a';
-
 export default function AdminBottomNavbar({ navigation, activeKey }: AdminBottomNavbarProps) {
   const rootNav = navigation?.getParent?.() ?? navigation;
   const insets = useSafeAreaInsets();
@@ -74,7 +72,7 @@ export default function AdminBottomNavbar({ navigation, activeKey }: AdminBottom
             activeOpacity={0.85}
             onPress={() => onPress(item.to)}
           >
-            <Ionicons name={item.icon} size={19} color={isActive ? PRIMARY_GREEN : '#6b7280'} />
+            <Ionicons name={item.icon} size={19} color={isActive ? Theme.colors.primary : Theme.colors.textSecondary} />
             <Text style={[styles.bottomBarLabel, isActive && styles.bottomBarLabelActive]}>
               {item.label}
             </Text>
@@ -91,16 +89,16 @@ const styles = StyleSheet.create({
     left: Theme.spacing.lg,
     right: Theme.spacing.lg,
     height: 72,
-    backgroundColor: '#ffffff',
+    backgroundColor: Theme.colors.background,
     borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Theme.colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Theme.spacing.md,
     // Add shadow for 'Floating Island' elevation
-    shadowColor: '#000',
+    shadowColor: Theme.colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -115,11 +113,11 @@ const styles = StyleSheet.create({
   bottomBarLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
+    color: Theme.colors.textSecondary,
     textAlign: 'center',
   },
   bottomBarLabelActive: {
-    color: '#111827',
+    color: Theme.colors.text,
     fontWeight: '800',
   },
 });

@@ -71,7 +71,7 @@ export default function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? '#fff' : Theme.colors.primary} />
+        <ActivityIndicator color={isPrimary ? Theme.colors.background : Theme.colors.primary} />
       ) : (
         <>
           <Text style={[
@@ -87,7 +87,7 @@ export default function Button({
             <Ionicons 
               name={icon} 
               size={20} 
-              color={isPrimary ? '#fff' : Theme.colors.primary} 
+              color={isPrimary ? Theme.colors.background : Theme.colors.primary} 
               style={{ marginLeft: Theme.spacing.sm }} 
             />
           )}
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   primaryText: {
-    color: '#ffffff',
+    color: Theme.colors.background,
   },
   outlineText: {
     color: Theme.colors.primary,

@@ -36,5 +36,12 @@ export class PaymentsController {
       approvedPayout: dto.approvedPayout,
     });
   }
+
+  @Post('demo-claim')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  demoClaim(@Request() req: any, @Body() dto: { type: string }) {
+    return this.paymentsService.runDemoClaim(req.user.id, dto?.type);
+  }
 }
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, Switch, StyleSheet } from 'react-native';
 import Button from '../ui/Button';
+import { Theme } from '../../theme';
 
 /**
  * [DPDP STRICT COMPLIANCE]: Isolates GPS tracking from global T&C.
@@ -21,7 +22,12 @@ export default function GPSConsentModal({ visible, onAccept }: { visible: boolea
 
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Enable Risk-Based Tracking</Text>
-          <Switch value={isGranted} onValueChange={setIsGranted} />
+          <Switch
+            value={isGranted}
+            onValueChange={setIsGranted}
+            thumbColor={Theme.colors.background}
+            trackColor={{ false: Theme.colors.border, true: Theme.colors.primary }}
+          />
         </View>
 
         <Button 
@@ -35,9 +41,17 @@ export default function GPSConsentModal({ visible, onAccept }: { visible: boolea
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
-  body: { fontSize: 14, color: '#64748b', marginBottom: 32, lineHeight: 22 },
-  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: 16, backgroundColor: '#f1f5f9', borderRadius: 8 },
-  toggleLabel: { fontSize: 16, fontWeight: '600' }
+  container: { flex: 1, padding: Theme.spacing.lg, justifyContent: 'center', backgroundColor: Theme.colors.background },
+  title: { ...Theme.typography.h2, color: Theme.colors.text, marginBottom: Theme.spacing.md },
+  body: { ...Theme.typography.caption, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.xl, lineHeight: 22 },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.lg,
+    padding: Theme.spacing.md,
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.md,
+  },
+  toggleLabel: { ...Theme.typography.body, fontWeight: '600' as const, color: Theme.colors.text }
 });

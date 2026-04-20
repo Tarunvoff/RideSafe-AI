@@ -29,6 +29,22 @@ export class VerifyOtpDto {
   otp: string;
 }
 
+export class ManualSendOtpDto {
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
+}
+
+export class ManualVerifyOtpDto {
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
+
+  @IsString()
+  @IsNotEmpty()
+  otp: string;
+}
+
 export class LoginDto {
   @IsEmail()
   email: string;

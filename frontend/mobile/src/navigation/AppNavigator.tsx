@@ -39,6 +39,8 @@ import KYCNavigator from './KYCNavigator';
 import MainTabNavigator from './MainTabNavigator';
 
 import DriverOTPScreen from '../screens/auth/DriverOTPScreen';
+import ManualDriverSignupKycScreen from '../screens/auth/ManualDriverSignupKycScreen';
+import ManualMobileAuthScreen from '../screens/auth/ManualMobileAuthScreen';
 import TermsAndConditionsScreen from '../screens/auth/TermsAndConditionsScreen';
 import NotificationCenterProvider from '../components/notifications/GlobalNotificationCenter';
 
@@ -80,6 +82,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="DriverOTP"
           component={DriverOTPScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="NewDriverSignUp"
+          component={ManualMobileAuthScreen}
           options={{ presentation: 'modal' }}
         />
         <Stack.Screen
@@ -171,6 +178,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="KYC"
             component={KYCNavigator}
+            options={{ presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="ManualDriverSignupKyc"
+            component={ManualDriverSignupKycScreen}
             options={{ presentation: 'modal' }}
           />
         </Stack.Navigator>
