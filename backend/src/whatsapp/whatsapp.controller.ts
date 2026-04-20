@@ -1,28 +1,40 @@
 import { Controller, Post, Body, Res, Header, Logger } from '@nestjs/common';
 import { Response } from 'express';
-import { WhatsappService } from './whatsapp.service';
+import { AssistantService } from '../assistant/assistant.service';
+import { TwilioService } from '../twilio-provider/twilio.service';
 
 @Controller('whatsapp')
 export class WhatsappController {
   private readonly logger = new Logger(WhatsappController.name);
 
-  constructor(private readonly whatsappService: WhatsappService) {}
+  constructor(
+    private readonly assistant: AssistantService,
+    private readonly twilio: TwilioService
+  ) {}
 
   @Post()
   @Header('Content-Type', 'text/xml')
   async handleWebhook(@Body() body: any, @Res() res: Response) {
-    this.logger.log(`📥 Incoming WhatsApp Webhook Request! Body keys: ${Object.keys(body).join(', ')}`);
+    const from = body.From || '';
+    const incomingText = body.Body || '';
+    
+    this.logger.log(`📥 Incoming WhatsApp: ${from} -> ${incomingText}`);
+    
     try {
-      const twiml = await this.whatsappService.processIncomingMessage(body);
-      res.status(200).send(twiml);
+      const reply = await this.assistant.processRequest(incomingText, from, 'whatsapp');
+      
+      const twiml = this.twilio.createMessagingResponse();
+      twiml.message(reply);
+      
+      res.status(200).send(twiml.toString());
     } catch (error) {
-      this.logger.error(`Error handling WhatsApp webhook: ${error.message}`);
-      res.status(500).send('<Response><Message>Internal Server Error</Message></Response>');
+      this.logger.error(`WhatsApp Error: ${error.message}`);
+      res.status(200).send('<Response><Message>Shield is temporarily offline. Please try again later.</Message></Response>');
     }
   }
 
-  @Post('test-send')
-  async testSend(@Body('to') to: string, @Body('message') message: string) {
-    return this.whatsappService.sendMessage(to || '9600422401', message || 'Hello from Aegis WhatsApp Bot! 🛡️');
+  @Post('send')
+  async send(@Body('to') to: string, @Body('message') message: string) {
+    return this.twilio.sendWhatsApp(to, message);
   }
 }
