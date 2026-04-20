@@ -2,7 +2,7 @@
 ## High-Precision AI Communication. Contextual Sovereignty. Tier-1 Production Resilience.
 
 ### Executive Overview
-The **Aegis Sentinel Intelligence** platform represents the pinnacle of zero-friction insurance communication. By leveraging an advanced, event-driven WhatsApp orchestration layer, Aegis provides gig workers with an ultra-responsive, AI-powered concierge that operates at the speed of risk. 
+The **Aegis Sentinel Intelligence** platform represents the pinnacle of zero-friction insurance communication. By leveraging an advanced, event-driven **Dual-Channel Orchestration Layer**, Aegis provides gig workers with an ultra-responsive, AI-powered concierge that operates across both **Voice (IVR)** and **Messaging (WhatsApp)** channels through a single unified brain.
 
 Unlike primitive keyword-based bots, Aegis Sentinel utilizes a **Multi-Model Resilience Chain** and **Deep-Context Ingestion** to deliver forensic-grade policy updates, real-time payout tracking, and personalized insurance intelligence through a single, premium communication channel.
 
@@ -52,7 +52,7 @@ For all unmapped queries, the system activates the **Aegis Sentinel LLM Layer**.
 ---
 
 ### 5. Architectural Alignment
-As defined in [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), the WhatsApp intelligence layer serves as the primary **Ingress Engagement Edge**, bridging the gap between high-speed parametric triggers and human-readable transparency.
+As defined in [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), the Sentinel intelligence layer serves as the primary **Ingress Engagement Edge**. For a technical deep-dive into how this logic is shared across Voice and Chat, refer to the [DUAL_CHANNEL_SENTINEL_INTEGRATION.md](DUAL_CHANNEL_SENTINEL_INTEGRATION.md) architectural specification.
 
 | Metric | Target Standard | Engineering Implementation |
 | :--- | :--- | :--- |
