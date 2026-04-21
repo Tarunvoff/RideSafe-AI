@@ -16,7 +16,6 @@ Falls back to IMD defaults on failure (same as original).
 import logging
 import os
 from datetime import datetime, timezone
-import httpx
 from config import (
     OPEN_METEO_URL,
     WEATHER_TIMEOUT_SEC,
@@ -25,6 +24,7 @@ from config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_HUMIDITY,
 )
+from services.apiris_http import AdaptiveAsyncClient
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ async def fetch_weather_from_openweather(lat: float, lng: float) -> dict | None:
     }
     
     try:
-        async with httpx.AsyncClient(timeout=WEATHER_TIMEOUT_SEC) as client:
+        async with AdaptiveAsyncClient(timeout=WEATHER_TIMEOUT_SEC, source="open-weather-map") as client:
             resp = await client.get(OPEN_WEATHER_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
@@ -85,7 +85,7 @@ async def fetch_weather_from_openmeteo(lat: float, lng: float) -> dict | None:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=WEATHER_TIMEOUT_SEC) as client:
+        async with AdaptiveAsyncClient(timeout=WEATHER_TIMEOUT_SEC, source="open-meteo") as client:
             resp = await client.get(OPEN_METEO_URL, params=params)
             resp.raise_for_status()
             body = resp.json()

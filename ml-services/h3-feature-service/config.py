@@ -36,7 +36,7 @@ NEWSDATA_URL = "https://newsdata.io/api/1/latest"
 USE_CALIBRATED_FALLBACK_PRIOR = False
 PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://127.0.0.1:3001/api/platform/activity")
 PLATFORM_TIMEOUT_SEC = float(os.getenv("PLATFORM_TIMEOUT_SECONDS", "6.0"))
-BACKEND_INTERNAL_URL = os.getenv("BACKEND_INTERNAL_URL", "http://127.0.0.1:3001/internal/zone-state")
+BACKEND_INTERNAL_URL = os.getenv("BACKEND_INTERNAL_URL", "http://127.0.0.1:3001/api/internal/zone-state")
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://127.0.0.1:8000")
 INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "aegis_telemetry_elite_2026")
 

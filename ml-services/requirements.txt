@@ -14,6 +14,7 @@ pydantic>=2.9.0
 pydantic-settings>=2.5.0
 redis>=5.0.4
 requests>=2.31.0
+apiris
 scikit-learn>=1.4.0
 sqlalchemy>=2.0.30
 uvicorn[standard]>=0.30.0

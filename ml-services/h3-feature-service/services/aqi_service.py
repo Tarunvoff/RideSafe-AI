@@ -18,7 +18,6 @@ Includes the exact EPA linear interpolation functions from the original.
 import asyncio
 import math
 import logging
-import httpx
 from config import (
     OPENAQ_API_KEY,
     OPENAQ_LOCATIONS,
@@ -30,6 +29,7 @@ from config import (
     DEFAULT_PM25,
     DEFAULT_PM10,
 )
+from services.apiris_http import AdaptiveAsyncClient
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ _HEADERS = {
 }
 
 
-async def _get_sensor_ids(client: httpx.AsyncClient, lat: float, lng: float, radius: int) -> dict:
+async def _get_sensor_ids(client, lat: float, lng: float, radius: int) -> dict:
     """
     Discover nearby sensor IDs for PM2.5 and PM10.
     Returns {'pm25': [sid, ...], 'pm10': [sid, ...]}.
@@ -118,7 +118,7 @@ async def _get_sensor_ids(client: httpx.AsyncClient, lat: float, lng: float, rad
     return {"pm25": pm25_ids, "pm10": pm10_ids}
 
 
-async def _get_latest_value(client: httpx.AsyncClient, sensor_id: int) -> float | None:
+async def _get_latest_value(client, sensor_id: int) -> float | None:
     """Fetch latest measurement from a single sensor."""
     try:
         url = OPENAQ_SENSORS_URL.format(sensor_id=sensor_id)
@@ -134,7 +134,7 @@ async def _get_latest_value(client: httpx.AsyncClient, sensor_id: int) -> float 
     return None
 
 
-async def _avg_sensor_type(client: httpx.AsyncClient, sensor_ids: list) -> float | None:
+async def _avg_sensor_type(client, sensor_ids: list) -> float | None:
     """Fetch latest values for up to N sensors IN PARALLEL using asyncio.gather."""
     limited = sensor_ids[:AQI_MAX_SENSORS_PER_TYPE]
     if not limited:
@@ -188,7 +188,7 @@ async def fetch_aqi(lat: float, lng: float, h3_cell: str | None = None) -> dict:
         }
 
     try:
-        async with httpx.AsyncClient(timeout=AQI_TIMEOUT_SEC) as client:
+        async with AdaptiveAsyncClient(timeout=AQI_TIMEOUT_SEC, source="openaq-v3") as client:
             for radius in AQI_SEARCH_RADII:
                 try:
                     ids = await _get_sensor_ids(client, lat, lng, radius)

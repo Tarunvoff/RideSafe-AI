@@ -10,8 +10,10 @@ Returns a boolean: True if civic disruption is ongoing.
 """
 
 import logging
+import asyncio
 import httpx
 from config import NEWSDATA_API_KEY, NEWSDATA_URL, USE_CALIBRATED_FALLBACK_PRIOR
+from services.apiris_http import AdaptiveAsyncClient
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ async def _reverse_geocode_city(lat: float, lng: float, h3_cell: str) -> str:
     if h3_cell in _city_cache:
         return _city_cache[h3_cell]
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with AdaptiveAsyncClient(timeout=5.0, source="nominatim-reverse-geocode") as client:
             resp = await client.get(
                 "https://nominatim.openstreetmap.org/reverse",
                 params={"lat": lat, "lon": lng, "format": "json"},
@@ -69,7 +71,7 @@ async def check_civic_alert(city: str = "Bangalore") -> dict:
             "language": "en,ta",
             "q": f"({city}) AND (strike OR protest OR flood OR curfew OR bandh OR cyclone)"
         }
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with AdaptiveAsyncClient(timeout=8.0, source="newsdata-civic-alert") as client:
             resp = await client.get(NEWSDATA_URL, params=params)
             
             # Explicitly log 5xx errors from the upstream provider
@@ -91,7 +93,7 @@ async def check_civic_alert(city: str = "Bangalore") -> dict:
             
             return {"civic_alert": False, "is_fallback": False, "source": "newsdata"}
 
-    except httpx.TimeoutException:
+    except (httpx.TimeoutException, asyncio.TimeoutError, TimeoutError):
         logger.error("NETWORK_TIMEOUT: NewsData.io timed out for %s. Fail-closed to False.", city)
         return {"civic_alert": False, "is_fallback": True, "source": "fail_closed_timeout"}
     except Exception as exc:

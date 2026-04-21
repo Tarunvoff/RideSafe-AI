@@ -170,20 +170,36 @@ export class ZoneMonitoringService implements OnModuleInit, OnModuleDestroy {
         const cached = this.zoneCache.get(h3Cell);
         if (cached) return cached;
 
-        try {
-            const GRID_EVENT_URL = process.env.GRID_EVENT_SERVICE_URL;
-            const response = await fetch(`${GRID_EVENT_URL}/zones/${h3Cell}`, {
-                method: 'GET',
-                signal: AbortSignal.timeout(2000),
-            });
-            if (response.ok) {
-                const data = this.normalizeZoneState(await response.json(), h3Cell);
-                this.zoneCache.set(h3Cell, data);
-                return data;
-            }
-        } catch (e) {
-            this.logger.warn(`Failed to fetch zone state via API for ${h3Cell}. Is Grid Event Service running?`);
+        const configuredBaseUrl = (process.env.GRID_EVENT_SERVICE_URL ?? 'http://127.0.0.1:8003').replace(/\/+$/, '');
+        const candidateBaseUrls = [configuredBaseUrl];
+        if (configuredBaseUrl.includes('localhost')) {
+            candidateBaseUrls.push(configuredBaseUrl.replace('localhost', '127.0.0.1'));
         }
+
+        let lastError: unknown;
+
+        for (const baseUrl of candidateBaseUrls) {
+            try {
+                const response = await fetch(`${baseUrl}/zones/${h3Cell}`, {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000),
+                });
+                if (response.ok) {
+                    const data = this.normalizeZoneState(await response.json(), h3Cell);
+                    this.zoneCache.set(h3Cell, data);
+                    return data;
+                }
+                lastError = new Error(`HTTP ${response.status}`);
+            } catch (e) {
+                lastError = e;
+            }
+        }
+
+        this.logger.warn(
+            `Failed to fetch zone state via API for ${h3Cell}. ` +
+            `Checked: ${candidateBaseUrls.join(', ')}. ` +
+            `Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+        );
 
         return {
             h3_cell: h3Cell,
