@@ -259,6 +259,7 @@ export class PaymentsService {
       narration: `Aegis Hardened Settlement [${settlement.withdrawnFrom}]`,
     };
   }
+
   /**
    * Generates a realistic payout reference for operational transfer mode.
    */
@@ -425,7 +426,7 @@ export class PaymentsService {
         });
 
         // Unique Implementation: Actuarial Pool Replenishment
-        // After successful policy issuance, we inject the premium into the 
+        // After successful policy issuance, we inject the premium into the
         // stratified liquidity pool to support future parametric payouts.
         await this.liquidityPool.injectPremium(paidPremium, `verify_${razorpay_order_id}`);
 
@@ -548,14 +549,14 @@ export class PaymentsService {
           cached: true, 
           payoutId: idemp.payoutId,
           transferRail: 'UPI', 
-          transferReference: idemp.id 
+          transferReference: idemp.id,
         };
       }
       if (idemp && idemp.payoutState === 'PROCESSING') {
         throw new Error('ACID_LOCK: Payout already in flight');
       }
 
-      // 1.3 Create or Lock Idempotency (Enforce deterministic ID)
+      // 1.3 Create or lock idempotency (enforce deterministic ID)
       const idempRecord = await tx.payoutIdempotencyKey.upsert({
         where: { id: deterministicId },
         create: { 
@@ -619,34 +620,32 @@ export class PaymentsService {
       const payoutReference = `aegis_payout_${preTx.payoutId}`;
       const hasSourceAccount = Boolean(process.env.RAZORPAYX_SOURCE_ACCOUNT);
       const testMode = this.isRazorpayTestMode();
-      // Demo/test settlements should not fail hard on missing payout setup.
-      // Real RazorpayX rails still require an explicit payout setup.
-      const payoutSetup = await this.prisma.kYCPayoutSetup.findUnique({ where: { userId } });
+      const payoutSetup = hasSourceAccount
+        ? await this.prisma.kYCPayoutSetup.findUnique({ where: { userId } })
+        : null;
 
-      let razorpayPayout: { id: string; status?: string; reference_id?: string };
-
-      if (hasSourceAccount && payoutSetup) {
-        const contact = await this.createRazorpayContact(user);
-        const fundAccount = await this.createRazorpayFundAccount(contact.id, payoutSetup as any);
-        razorpayPayout = await this.createRazorpayPayout({
-          fundAccountId: fundAccount.id,
-          amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
-          referenceId: payoutReference,
-          userId,
-          policyId,
-          disruptionEventId,
-        });
-      } else if (testMode) {
-        razorpayPayout = await this.executeHardenedSettlementPipeline({
-          referenceId: payoutReference,
-          amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
-          userId,
-        });
-      } else if (hasSourceAccount && !payoutSetup) {
-        throw new BadRequestException('No KYCPayoutSetup found');
-      } else {
-        throw new BadRequestException('RAZORPAYX_SOURCE_ACCOUNT_MISSING');
-      }
+      const razorpayPayout = hasSourceAccount && payoutSetup
+        ? await (async () => {
+            const contact = await this.createRazorpayContact(user);
+            const fundAccount = await this.createRazorpayFundAccount(contact.id, payoutSetup as any);
+            return this.createRazorpayPayout({
+              fundAccountId: fundAccount.id,
+              amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
+              referenceId: payoutReference,
+              userId,
+              policyId,
+              disruptionEventId,
+            });
+          })()
+        : hasSourceAccount && !payoutSetup
+          ? (() => { throw new BadRequestException('No KYCPayoutSetup found'); })()
+        : testMode
+          ? await this.executeHardenedSettlementPipeline({
+              referenceId: payoutReference,
+              amountPaise: Math.max(100, Math.round(approvedPayout * 100)),
+              userId,
+            })
+          : (() => { throw new BadRequestException('RAZORPAYX_SOURCE_ACCOUNT_MISSING'); })();
 
       // 3. PHASE 2: RESOLUTION TRANSACTION
       const bankReference = razorpayPayout.reference_id ?? payoutReference;

@@ -15,8 +15,8 @@ export default function GPSConsentModal({ visible, onAccept }: { visible: boolea
       <View style={styles.container}>
         <Text style={styles.title}>Location Data Consent</Text>
         <Text style={styles.body}>
-          Under the DPDP Act 2023, Aegis requires your explicit consent to track your live GPS location. 
-          This data is used STRICTLY to correlate your position with high-risk weather cells to process 
+          Under the DPDP Act 2023, Aegis requires your explicit consent to track your live GPS location.
+          This data is used STRICTLY to correlate your position with high-risk weather cells to process
           autonomous payouts. It is never sold to third parties.
         </Text>
 
@@ -30,10 +30,10 @@ export default function GPSConsentModal({ visible, onAccept }: { visible: boolea
           />
         </View>
 
-        <Button 
-          title="I Consent to GPS Tracking" 
-          disabled={!isGranted} 
-          onPress={() => onAccept()} 
+        <Button
+          title="I Consent to GPS Tracking"
+          disabled={!isGranted}
+          onPress={onAccept}
         />
       </View>
     </Modal>
@@ -53,5 +53,5 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.surface,
     borderRadius: Theme.borderRadius.md,
   },
-  toggleLabel: { ...Theme.typography.body, fontWeight: '600' as const, color: Theme.colors.text }
+  toggleLabel: { ...Theme.typography.body, fontWeight: '600' as const, color: Theme.colors.text },
 });

@@ -133,13 +133,13 @@ async def fetch_weather(lat: float, lng: float) -> dict:
     2. Open-Meteo (Fallback source)
     3. Safe Defaults (Absolute Fallback)
     """
-    # 1. Try Open-Meteo first (no API key, most reliable baseline)
-    result = await fetch_weather_from_openmeteo(lat, lng)
+    # 1. Try OpenWeatherMap
+    result = await fetch_weather_from_openweather(lat, lng)
     if result:
         return result
         
-    # 2. Try OpenWeatherMap
-    result = await fetch_weather_from_openweather(lat, lng)
+    # 2. Try Open-Meteo
+    result = await fetch_weather_from_openmeteo(lat, lng)
     if result:
         return result
 

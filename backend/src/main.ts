@@ -73,6 +73,9 @@ async function bootstrap() {
     logger: ['log', 'error', 'warn'], // Perfection: Hide debug/verbose spam
   });
 
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
   // ── Strict-Schema Enforcement Layer ─────────────────────────────────────────
   // Utilizing standard ValidationPipe with whitelisting to physically reject
   // any non-compliant data structures at the network edge. This ensures
