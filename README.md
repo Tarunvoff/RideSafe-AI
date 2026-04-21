@@ -114,7 +114,7 @@ For a deep-dive into the mathematical and architectural specifications of these 
 | Document | Domain | Forensic Insight |
 | :--- | :--- | :--- |
 | **[Sentinel Fraud Architecture](./ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md)** | **Pipeline** | The 8-layer "Defense-in-Depth" forensic sieve. |
-| **[Sentinel Kinematic Sentinel](./ARCHITECTURE/SENTINEL_KINEMATIC_ENGINE.md)** | **Hardware** | IMU Fingerprinting & Variance analysis to defeat GPS spoofs. |
+| **[Sentinel Kinematic Sentinel](./ARCHITECTURE/SENTINEL_KINEMATIC_SENTINEL.md)** | **Hardware** | IMU Fingerprinting & Variance analysis to defeat GPS spoofs. |
 | **[Sentinel Atmos Sentinel](./ARCHITECTURE/SENTINEL_ATMOS_SENTINEL.md)** | **Hardware** | Barometric & Acoustic oracles for environmental authenticity. |
 | **[Security & Fraud Matrix](./ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md)** | **Defense** | Detailed mapping of threat vectors and defense layers. |
 | **[Zero-Trust Identity](./ARCHITECTURE/ZERO_TRUST_IDENTITY_AND_KYC_MATRIX.md)** | **Auth** | Path-level identity enforcement and cryptographic KYC. |
