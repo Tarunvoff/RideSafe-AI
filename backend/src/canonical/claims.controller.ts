@@ -39,6 +39,9 @@ export class CanonicalClaimsController {
       lng: dto.lng,
       eventType: dto.eventType ?? 'MANUAL_CLAIM_TRIGGER',
       eventTimestamp: Math.floor(Date.now() / 1000),
+      accelerometerVariance: dto.accelerometerVariance,
+      barometricPressureHpa: dto.barometricPressureHpa,
+      acousticMatchConfidence: dto.acousticMatchConfidence,
     });
   }
 

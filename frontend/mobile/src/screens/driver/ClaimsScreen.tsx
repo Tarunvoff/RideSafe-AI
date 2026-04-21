@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   UIManager,
   View,
+  Switch,
 } from 'react-native';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
@@ -34,6 +35,7 @@ export default function ClaimsScreen() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoFlow, setDemoFlow] = useState<any>(null);
   const [displayedTimeline, setDisplayedTimeline] = useState<any[]>([]);
+  const [debugSpooferMode, setDebugSpooferMode] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -142,7 +144,14 @@ export default function ClaimsScreen() {
       setDemoLoading(true);
       setDemoFlow(null);
       setDisplayedTimeline([]);
-      const result = await insuranceApi.triggerDemoFlow({ scenario: demoScenario });
+      // ── Hardware Context Injection (Layer D & E Reality Checks) ────────────
+      // Refer Documentation: ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md
+      const result = await insuranceApi.triggerDemoFlow({ 
+        scenario: demoScenario,
+        accelerometerVariance: debugSpooferMode ? 0.01 : 4.5,
+        barometricPressureHpa: debugSpooferMode ? 1013 : 995,
+        acousticMatchConfidence: debugSpooferMode ? 0.1 : 0.92,
+      });
       setDemoFlow(result);
 
       const timeline = Array.isArray(result?.timeline) ? result.timeline : [];
@@ -206,6 +215,21 @@ export default function ClaimsScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 10 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>
+              Debug Mode (Spoofer)
+            </Text>
+            <Switch
+              value={debugSpooferMode}
+              onValueChange={setDebugSpooferMode}
+              trackColor={{ false: '#D1D5DB', true: '#EF4444' }}
+              thumbColor={debugSpooferMode ? '#fff' : '#f4f3f4'}
+            />
+          </View>
+          <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 15 }}>
+            {debugSpooferMode ? "GeoTruth Block (1013 Hpa, 0.1 Acoustic) simulating indoor flatline." : "GeoTruth Valid (995 Hpa, 0.92 Acoustic) simulating severe storm profile."}
+          </Text>
 
           <TouchableOpacity
             style={[styles.runDemoBtn, demoLoading && styles.runDemoBtnDisabled]}

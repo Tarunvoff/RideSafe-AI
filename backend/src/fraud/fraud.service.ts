@@ -9,7 +9,7 @@
  * ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md and ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md.
  */
 import { getTimeBucket } from './time-utils';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHash } from 'crypto';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -41,6 +41,10 @@ const FRAUD_FEATURE_URL = process.env.FRAUD_FEATURE_SERVICE_URL;
 const FRAUD_AUTO_QUEUE_APPROVE_MAX = Number(process.env.FRAUD_AUTO_QUEUE_APPROVE_MAX ?? 55);
 const FRAUD_AUTO_QUEUE_REJECT_MIN = Number(process.env.FRAUD_AUTO_QUEUE_REJECT_MIN ?? 75);
 const FRAUD_AUTO_QUEUE_BATCH_SIZE = Number(process.env.FRAUD_AUTO_QUEUE_BATCH_SIZE ?? 50);
+
+const STATIONARY_THRESHOLD = 0.5;
+const STORM_PRESSURE_THRESHOLD = 1000;
+const ACOUSTIC_CONFIDENCE_THRESHOLD = 0.75;
 
 // ── Shape of the Python service response ─────────────────────────────────────
 interface FraudFeatureResponse {
@@ -103,10 +107,10 @@ export class FraudService {
   private readonly mlServiceUrl = process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
   // ── Circuit Breakers (Fail-Closed Pattern) ──────────────────────────────────
-  private readonly featureBreaker: OpossumBreaker<[string, AnalyzeFraudDto], FraudFeatureResponse> = 
+  private readonly featureBreaker: OpossumBreaker<[string, AnalyzeFraudDto], FraudFeatureResponse> =
     new CircuitBreaker(this.fetchFraudFeatures.bind(this), breakerOptions);
 
-  private readonly mlBreaker: OpossumBreaker<[string, FraudFeatureResponse, AnalyzeFraudDto, string | undefined], FraudMlScoreResponse> = 
+  private readonly mlBreaker: OpossumBreaker<[string, FraudFeatureResponse, AnalyzeFraudDto, string | undefined], FraudMlScoreResponse> =
     new CircuitBreaker(this.fetchHybridFraudScore.bind(this), breakerOptions);
 
   constructor(
@@ -128,23 +132,23 @@ export class FraudService {
   ): Promise<FraudFeatureResponse | null> {
     try {
       const payload = {
-        user_id:      userId,
-        device_id:    dto.deviceId      ?? `device_${userId}`,
-        upi_id:       dto.upiId         ?? `upi_${userId}`,
-        lat:          dto.gpsLatitude,
-        lng:          dto.gpsLongitude,
-        timestamp:    Math.floor(Date.now() / 1000),
-        claim_amount: dto.claimAmount   ?? 0,
-        event_type:   dto.eventType     ?? 'ANALYZE',
+        user_id: userId,
+        device_id: dto.deviceId ?? `device_${userId}`,
+        upi_id: dto.upiId ?? `upi_${userId}`,
+        lat: dto.gpsLatitude,
+        lng: dto.gpsLongitude,
+        timestamp: Math.floor(Date.now() / 1000),
+        claim_amount: dto.claimAmount ?? 0,
+        event_type: dto.eventType ?? 'ANALYZE',
       };
 
       this.logger.log(`→ fraud-feature-service [user=${userId}]`);
 
       const resp = await fetch(`${FRAUD_FEATURE_URL}/fraud-features`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
-        signal:  AbortSignal.timeout(5_000),  // 5 s hard timeout
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5_000),  // 5 s hard timeout
       });
 
       if (!resp.ok) {
@@ -161,8 +165,65 @@ export class FraudService {
     }
   }
 
-  // ── Main analysis entry point ─────────────────────────────────────────────
   async analyzeFraud(userId: string, dto: AnalyzeFraudDto, token?: string) {
+    // ── Step 0.1: Kinematic Consistency check (Layer D Check) ────────────────
+    // Ref: ARCHITECTURE/SENTINEL_KINEMATIC_ENGINE.md
+    if (dto.accelerometerVariance != null && dto.accelerometerVariance < STATIONARY_THRESHOLD) {
+      structuredLogger.warn({ event: 'KINEMATIC_ANOMALY', userId, variance: dto.accelerometerVariance }, 'Device momentum spoofed.');
+      const dbData = {
+        gpsLatitude: dto.gpsLatitude,
+        gpsLongitude: dto.gpsLongitude,
+        riskScore: 100,
+        status: 'SPOOFED_ATTACK',
+        deviceIntegrity: dto.deviceIntegrity ?? null,
+        networkType: dto.networkType ?? null,
+        velocityCheck: dto.velocityCheck ?? null,
+        accelerometerVariance: dto.accelerometerVariance,
+        barometricPressureHpa: dto.barometricPressureHpa ?? null,
+        acousticMatchConfidence: dto.acousticMatchConfidence ?? null,
+        isKinematicallyValid: false,
+        fraudReason: 'Kinematic anomaly detected: Device momentum does not match physical expectations for a delivery vehicle',
+        analysisDetails: JSON.stringify({ mlFeatures: 'skipped_due_to_kinematic_failure' }),
+      };
+      await this.persistFraudAnalysis(userId, dbData);
+      throw new ForbiddenException('Kinematic anomaly detected: Device momentum does not match physical expectations for a delivery vehicle');
+    }
+
+    // ── Step 0.2: GeoTruth Engine (Environmental Reality Check - Layer E) ─────
+    // Refer Documentation: ARCHITECTURE/SENTINEL_GEOTRUTH_ENGINE.md
+    const isPressureInvalid = dto.barometricPressureHpa != null && dto.barometricPressureHpa > STORM_PRESSURE_THRESHOLD;
+    const isAcousticInvalid = dto.acousticMatchConfidence != null && dto.acousticMatchConfidence < ACOUSTIC_CONFIDENCE_THRESHOLD;
+
+    if (isPressureInvalid || isAcousticInvalid) {
+      structuredLogger.warn({
+        event: 'GEOTRUTH_ANOMALY',
+        userId,
+        pressure: dto.barometricPressureHpa,
+        acoustic: dto.acousticMatchConfidence
+      }, 'Environmental telemetry does not match claimed weather event.');
+
+      const dbData = {
+        gpsLatitude: dto.gpsLatitude,
+        gpsLongitude: dto.gpsLongitude,
+        riskScore: 100,
+        status: 'SPOOFED_ATTACK',
+        deviceIntegrity: dto.deviceIntegrity ?? null,
+        networkType: dto.networkType ?? null,
+        velocityCheck: dto.velocityCheck ?? null,
+        accelerometerVariance: dto.accelerometerVariance ?? null,
+        barometricPressureHpa: dto.barometricPressureHpa ?? null,
+        acousticMatchConfidence: dto.acousticMatchConfidence ?? null,
+        isKinematicallyValid: true,
+        fraudReason: 'GeoTruth anomaly detected: Environmental telemetry does not match claimed weather event.',
+        analysisDetails: JSON.stringify({
+          pressure_failure: isPressureInvalid,
+          acoustic_failure: isAcousticInvalid
+        }),
+      };
+      await this.persistFraudAnalysis(userId, dbData);
+      throw new ForbiddenException('GeoTruth anomaly detected: Environmental telemetry does not match claimed weather event.');
+    }
+
     const duplicateSignal = await this.detectDuplicateClaim(userId, dto);
 
     // 1. Fetch ML feature vector from Python service (Circuit Breaker protected)
@@ -170,13 +231,13 @@ export class FraudService {
     try {
       features = await this.featureBreaker.fire(userId, dto);
     } catch (err) {
-      structuredLogger.warn({ 
-        event: 'SERVICE_DEGRADATION', 
-        target: 'feature-service', 
-        userId, 
-        error: err.message 
+      structuredLogger.warn({
+        event: 'SERVICE_DEGRADATION',
+        target: 'feature-service',
+        userId,
+        error: err.message
       }, 'Feature service unavailable; falling back to conservative rule-base.');
-      features = null; 
+      features = null;
     }
 
     if (!features) {
@@ -199,15 +260,15 @@ export class FraudService {
       mlScore = await this.mlBreaker.fire(userId, features, dto, token);
     } catch (err) {
       // ── FAIL CLOSED ──────────────────────────────────────────────────────
-      structuredLogger.error({ 
-        event: 'ENFORCEMENT_FAIL_CLOSED', 
-        userId, 
+      structuredLogger.error({
+        event: 'ENFORCEMENT_FAIL_CLOSED',
+        userId,
         service: 'ml-insurance-service',
         error: err.message
       }, 'ML Intelligence Layer offline. Triggering high-security fail-closed rejection.');
-      
+
       mlScore = {
-        fraud_score: 95.0, 
+        fraud_score: 95.0,
         rule_score: 95.0,
         ml_anomaly_score: 0,
         ml_classifier_score: 0,
@@ -253,8 +314,8 @@ export class FraudService {
       await this.fraudQueue.add(
         'review-ttl',
         { userId },
-        { 
-          delay: 5 * 60 * 1000, 
+        {
+          delay: 5 * 60 * 1000,
           removeOnComplete: true,
           jobId: `review_ttl_${userId}` // idempotent by userId
         }
@@ -318,36 +379,38 @@ export class FraudService {
     );
 
     const dbData = {
-      gpsLatitude:     dto.gpsLatitude,
-      gpsLongitude:    dto.gpsLongitude,
+      gpsLatitude: dto.gpsLatitude,
+      gpsLongitude: dto.gpsLongitude,
       riskScore,
       status,
       deviceIntegrity: dto.deviceIntegrity ?? null,
-      networkType:     dto.networkType     ?? null,
-      velocityCheck:   dto.velocityCheck   ?? null,
+      networkType: dto.networkType ?? null,
+      velocityCheck: dto.velocityCheck ?? null,
+      accelerometerVariance: dto.accelerometerVariance ?? null,
+      isKinematicallyValid: true,
       analysisDetails,
     };
 
     const result = existing
       ? await this.prisma.fraudAnalysis.update({
-          where: { userId },
-          data:  dbData,
-        })
+        where: { userId },
+        data: dbData,
+      })
       : await this.prisma.fraudAnalysis.create({
-          data: { userId, ...dbData },
-        });
+        data: { userId, ...dbData },
+      });
 
     return {
       message: 'Fraud analysis completed',
       data: {
-        id:            result.id,
-        riskScore:     result.riskScore,
-        status:        result.status,
+        id: result.id,
+        riskScore: result.riskScore,
+        status: result.status,
         featureSource,
         topSignals,
         fraudReason,
-        features:      features ?? null,
-        analysis:      JSON.parse(result.analysisDetails ?? '{}'),
+        features: features ?? null,
+        analysis: JSON.parse(result.analysisDetails ?? '{}'),
       },
     };
   }
@@ -405,37 +468,37 @@ export class FraudService {
 
     if (f) {
       // ── Layer 1: ML / Identity signals ────────────────────────────────────────
-      if (f.identity.account_age_days < 7)          score += 20; // brand-new account
-      if (f.identity.device_id_uniqueness < 0.3)    score += 15; // shared device
-      if (f.identity.device_switch_frequency > 3)   score += 20; // 3+ switches/week
+      if (f.identity.account_age_days < 7) score += 20; // brand-new account
+      if (f.identity.device_id_uniqueness < 0.3) score += 15; // shared device
+      if (f.identity.device_switch_frequency > 3) score += 20; // 3+ switches/week
 
       // ── Layer 2: Location signals ─────────────────────────────────────────────
-      if (f.location.gps_speed > 150)               score += 25; // impossible speed
-      if (f.location.h3_zone_consistency < 0.3)     score += 10; // erratic zone
-      if (f.location.gps_cell_distance > 50)        score += 15; // giant cell jump
+      if (f.location.gps_speed > 150) score += 25; // impossible speed
+      if (f.location.h3_zone_consistency < 0.3) score += 10; // erratic zone
+      if (f.location.gps_cell_distance > 50) score += 15; // giant cell jump
 
       // ── Layer 3: Behaviour signals ────────────────────────────────────────────
-      if (f.behavior.claims_last_30d > 10)           score += 20;
-      if (f.behavior.trigger_frequency > 1.0)        score += 15; // > 1 claim/day
+      if (f.behavior.claims_last_30d > 10) score += 20;
+      if (f.behavior.trigger_frequency > 1.0) score += 15; // > 1 claim/day
       if (f.behavior.earnings_pattern_deviation > 1) score += 10;
 
       // ── Layer 4-6: Meta Intelligence ────────────────────────────────────────
-      if (f.meta.device_high_share)                  score += 20;
-      if (f.meta.h3_burst_detected)                  score += 15;
-      if ((f.meta.claims_last_24h ?? 0) >= 2)        score += 20;
+      if (f.meta.device_high_share) score += 20;
+      if (f.meta.h3_burst_detected) score += 15;
+      if ((f.meta.claims_last_24h ?? 0) >= 2) score += 20;
     }
 
     // ── Layer 7: Legacy device / network heuristics (defence-in-depth) ────────
-    if (dto.deviceIntegrity === 'Rooted Device')     score += 20;
+    if (dto.deviceIntegrity === 'Rooted Device') score += 20;
     if (dto.deviceIntegrity === 'Jailbroken Device') score += 25;
-    if (dto.networkType === 'Premium VPN')           score += 15;
-    if (dto.networkType === 'Proxy')                 score += 25;
-    if (dto.velocityCheck === 'Suspicious')          score += 20;
+    if (dto.networkType === 'Premium VPN') score += 15;
+    if (dto.networkType === 'Proxy') score += 25;
+    if (dto.velocityCheck === 'Suspicious') score += 20;
 
     // ── Layer 8: GPS Spoof Intelligence ───────────────────────────────────────
-    if (dto.isSpoofed)                                score += 60; // critical spoof signal
-    if (dto.developerMode)                           score += 30; // dev mode active
-    if (dto.altitudeAccuracy != null && dto.altitudeAccuracy > 10) score += 10; 
+    if (dto.isSpoofed) score += 60; // critical spoof signal
+    if (dto.developerMode) score += 30; // dev mode active
+    if (dto.altitudeAccuracy != null && dto.altitudeAccuracy > 10) score += 10;
 
     return Math.min(score, 100);
   }
@@ -443,13 +506,13 @@ export class FraudService {
   // ── Scoring: heuristic fallback (Python service down) ─────────────────────
   private scoreFallback(dto: AnalyzeFraudDto): number {
     let score = 0;
-    if (dto.gpsLatitude === 0 && dto.gpsLongitude === 0)                      score += 30;
-    if (Math.abs(dto.gpsLatitude) > 90 || Math.abs(dto.gpsLongitude) > 180)  score += 40;
-    if (dto.deviceIntegrity === 'Rooted Device')     score += 20;
+    if (dto.gpsLatitude === 0 && dto.gpsLongitude === 0) score += 30;
+    if (Math.abs(dto.gpsLatitude) > 90 || Math.abs(dto.gpsLongitude) > 180) score += 40;
+    if (dto.deviceIntegrity === 'Rooted Device') score += 20;
     if (dto.deviceIntegrity === 'Jailbroken Device') score += 25;
-    if (dto.networkType === 'Premium VPN')           score += 15;
-    if (dto.networkType === 'Proxy')                 score += 25;
-    if (dto.velocityCheck === 'Suspicious')          score += 20;
+    if (dto.networkType === 'Premium VPN') score += 15;
+    if (dto.networkType === 'Proxy') score += 25;
+    if (dto.velocityCheck === 'Suspicious') score += 20;
     return Math.min(score, 100);
   }
 
@@ -521,7 +584,7 @@ export class FraudService {
     return {
       featureSource,
       gpsCoordinates: `${dto.gpsLatitude}, ${dto.gpsLongitude}`,
-      mlFeatures:     features ?? 'unavailable',
+      mlFeatures: features ?? 'unavailable',
       riskFactors,
       duplicateClaimSignal: duplicateSignal ?? { isDuplicate: false },
     };
@@ -591,11 +654,11 @@ export class FraudService {
     const isDuplicate = isCrossUserBurst || sameUserCount > 0 || recentPayouts.length > 0;
     const matchedAmount = claimAmount
       ? recentPayouts.find((p) => {
-          const approved = Number(p.approvedPayout ?? p.estimatedLoss ?? 0);
-          if (!approved || approved <= 0) return false;
-          const delta = Math.abs(approved - claimAmount);
-          return delta / Math.max(1, claimAmount) <= amountVariance;
-        })
+        const approved = Number(p.approvedPayout ?? p.estimatedLoss ?? 0);
+        if (!approved || approved <= 0) return false;
+        const delta = Math.abs(approved - claimAmount);
+        return delta / Math.max(1, claimAmount) <= amountVariance;
+      })
       : null;
 
     const matchedDisruption = dto.eventType
@@ -657,12 +720,12 @@ export class FraudService {
       return { status: 'PENDING', riskScore: 0, message: 'No analysis found' };
     }
     return {
-      status:          analysis.status,
-      riskScore:       analysis.riskScore,
+      status: analysis.status,
+      riskScore: analysis.riskScore,
       deviceIntegrity: analysis.deviceIntegrity,
-      networkType:     analysis.networkType,
-      velocityCheck:   analysis.velocityCheck,
-      analysis:        JSON.parse(analysis.analysisDetails ?? '{}'),
+      networkType: analysis.networkType,
+      velocityCheck: analysis.velocityCheck,
+      analysis: JSON.parse(analysis.analysisDetails ?? '{}'),
     };
   }
 
@@ -676,35 +739,35 @@ export class FraudService {
       total: submissions.length,
       submissions: submissions.map((sub: any) => ({
         analysisId: sub.id,
-        userId:     sub.userId,
-        user:       sub.user.driverName || sub.user.email,
-        email:      sub.user.email,
-        phone:      sub.user.phone,
-        riskScore:  sub.riskScore,
-        status:     sub.status,
-        createdAt:  sub.createdAt,
+        userId: sub.userId,
+        user: sub.user.driverName || sub.user.email,
+        email: sub.user.email,
+        phone: sub.user.phone,
+        riskScore: sub.riskScore,
+        status: sub.status,
+        createdAt: sub.createdAt,
       })),
     };
   }
 
   async getSubmissionDetails(userId: string) {
     const analysis = await this.prisma.fraudAnalysis.findUnique({
-      where:   { userId },
+      where: { userId },
       include: { user: { select: { id: true, email: true, phone: true } } },
     });
     if (!analysis) throw new NotFoundException('Fraud analysis not found');
     return {
       analysis: {
-        id:              analysis.id,
-        riskScore:       analysis.riskScore,
-        status:          analysis.status,
-        gpsLatitude:     analysis.gpsLatitude,
-        gpsLongitude:    analysis.gpsLongitude,
+        id: analysis.id,
+        riskScore: analysis.riskScore,
+        status: analysis.status,
+        gpsLatitude: analysis.gpsLatitude,
+        gpsLongitude: analysis.gpsLongitude,
         deviceIntegrity: analysis.deviceIntegrity,
-        networkType:     analysis.networkType,
-        velocityCheck:   analysis.velocityCheck,
-        details:         JSON.parse(analysis.analysisDetails ?? '{}'),
-        createdAt:       analysis.createdAt,
+        networkType: analysis.networkType,
+        velocityCheck: analysis.velocityCheck,
+        details: JSON.parse(analysis.analysisDetails ?? '{}'),
+        createdAt: analysis.createdAt,
       },
       user: analysis.user,
     };
@@ -714,7 +777,7 @@ export class FraudService {
     const analysis = await this.prisma.fraudAnalysis.update({
       where: { userId },
       data: {
-        status:     dto.status,
+        status: dto.status,
         reviewedAt: new Date(),
         reviewNote: dto.reviewNote ?? null,
       },
@@ -722,8 +785,8 @@ export class FraudService {
     return {
       message: `Fraud analysis ${dto.status.toLowerCase()} successfully`,
       data: {
-        userId:     analysis.userId,
-        status:     analysis.status,
+        userId: analysis.userId,
+        status: analysis.status,
         reviewedAt: analysis.reviewedAt,
         reviewNote: analysis.reviewNote,
       },
@@ -734,7 +797,7 @@ export class FraudService {
     const analysis = await this.prisma.fraudAnalysis.update({
       where: { userId },
       data: {
-        status:     'ESCALATED',
+        status: 'ESCALATED',
         reviewedAt: new Date(),
         reviewNote: reviewNote ?? 'Escalated to fraud analyst',
       },
@@ -742,8 +805,8 @@ export class FraudService {
     return {
       message: 'Fraud analysis escalated successfully',
       data: {
-        userId:     analysis.userId,
-        status:     analysis.status,
+        userId: analysis.userId,
+        status: analysis.status,
         reviewedAt: analysis.reviewedAt,
         reviewNote: analysis.reviewNote,
       },
@@ -825,5 +888,17 @@ export class FraudService {
     parts.push(trailer);
 
     return Buffer.from(parts.join(''), 'utf8');
+  }
+
+  private async persistFraudAnalysis(userId: string, dbData: any) {
+    const existingUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (existingUser) {
+      const existing = await this.prisma.fraudAnalysis.findUnique({ where: { userId } });
+      if (existing) {
+        await this.prisma.fraudAnalysis.update({ where: { userId }, data: dbData });
+      } else {
+        await this.prisma.fraudAnalysis.create({ data: { userId, ...dbData } });
+      }
+    }
   }
 }

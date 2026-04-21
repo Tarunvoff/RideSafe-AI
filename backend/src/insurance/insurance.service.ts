@@ -101,6 +101,9 @@ export class InsuranceService {
       scenario?: 'RAIN' | 'TRAFFIC' | 'FLOOD';
       h3Cell?: string;
       fraudScore?: number;
+      accelerometerVariance?: number;
+      barometricPressureHpa?: number;
+      acousticMatchConfidence?: number;
     },
   ) {
     const scenario = this.resolveDemoScenario(dto.scenario);
@@ -133,6 +136,19 @@ export class InsuranceService {
       dto.fraudScore != null && Number.isFinite(Number(dto.fraudScore))
         ? Number(dto.fraudScore)
         : scenario.fraudScore;
+
+    // ── Forensic Hardware Check (Layer D & E Verification) ───────────────────
+    // Refer Documentation: ARCHITECTURE/SENTINEL_GEOTRUTH_ENGINE.md
+    if (dto.accelerometerVariance != null || dto.barometricPressureHpa != null || dto.acousticMatchConfidence != null) {
+      await this.fraudIntegration.computeFraudScore(driverId, {
+        gpsLatitude: scenario.lat,
+        gpsLongitude: scenario.lng,
+        eventType: `DEMO_TRIGGER`,
+        accelerometerVariance: dto.accelerometerVariance,
+        barometricPressureHpa: dto.barometricPressureHpa,
+        acousticMatchConfidence: dto.acousticMatchConfidence,
+      });
+    }
 
     const correlationId = `driver_demo_${scenario.code.toLowerCase()}_${eventTimestamp}`;
 
@@ -632,6 +648,9 @@ export class InsuranceService {
           upiId: dto.upiId,
           claimAmount: dto.claimAmount,
           eventType: dto.eventType ?? 'TRIGGER_EVAL',
+          accelerometerVariance: dto.accelerometerVariance,
+          barometricPressureHpa: dto.barometricPressureHpa,
+          acousticMatchConfidence: dto.acousticMatchConfidence,
         });
         fraudScore = fraudResult.fraudScore;
         fraudSource = fraudResult.featureSource ?? 'ml-fraud-feature-service';

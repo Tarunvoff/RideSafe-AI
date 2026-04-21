@@ -42,6 +42,8 @@ The Aegis Shield is an active enforcement infrastructure that translates ML-driv
 | **Layer A** | **Device Intelligence** | Detects hardware spoofing, SIM swapping, and shared-device clusters (>3 users per hardware fingerprint). |
 | **Layer B** | **H3 Burst Detection** | Identifies high-density "Flash-Mob" fraud within specific hexagonal H3 cells (Simultaneous claims from close proximity). |
 | **Layer C** | **Geometric Defense** | Velocity checks (>150km/h physically impossible for gig-transit) and teleportation detection (Instantaneous H3 cell jumps). |
+| **Layer D** | **Kinematic Auth**    | Accelerometer variance analysis to detect "Flatline Spoofing" (Digital motion without physical vibration). |
+| **Layer E** | **GeoTruth Engine**   | Barometric and Acoustic validation matching localized weather profiles (Defeats "Indoor" spoofs). |
 
 ### 2.2 Operational Enforcement Loop
 When the ML ensemble return a high-confidence fraud signal (Risk Score $\geq 90\%$), the **Active Enforcement Engine** triggers an irrevocable compliance sequence:
@@ -79,6 +81,9 @@ To prevent Distributed Denial of Service (DDoS) attacks and brute-force claim bu
 | **Replay Attack** | JWT Refresh Token Rotation | `generateTokens` Logic |
 | **Identity Theft** | Federated OAuth + Mandatory MFA | Blinkit/Zepto/Instamart/JioMart/BigBasket SSO Integrations |
 | **Systemic Fraud** | Aegis Shield ML Ensemble | `FraudService` (Python/NestJS) |
+| **Atmospheric Spoof**| BarometricOracle Check | `STORM_PRESSURE_THRESHOLD` Verification |
+| **Acoustic Simulation**| Sound Profile Match    | `ACOUSTIC_CONFIDENCE_THRESHOLD` Gate |
+| **Hardware Spoof** | Kinematic Baseline Check | `STATIONARY_THRESHOLD` Verification Logic |
 
 ---
 

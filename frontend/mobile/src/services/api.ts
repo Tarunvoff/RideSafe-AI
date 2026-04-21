@@ -826,6 +826,9 @@ export const insuranceApi = {
     upiId?: string;
     claimAmount?: number;
     eventType?: string;
+    accelerometerVariance?: number;
+    barometricPressureHpa?: number;
+    acousticMatchConfidence?: number;
   }) =>
     request<{
       plan: string | null;
@@ -843,6 +846,9 @@ export const insuranceApi = {
     scenario?: 'RAIN' | 'TRAFFIC' | 'FLOOD';
     h3Cell?: string;
     fraudScore?: number;
+    accelerometerVariance?: number;
+    barometricPressureHpa?: number;
+    acousticMatchConfidence?: number;
   }) =>
     request<{
       success: boolean;

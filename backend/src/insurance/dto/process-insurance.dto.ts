@@ -28,4 +28,16 @@ export class ProcessInsuranceRequestDto {
   @IsOptional()
   @IsNumber()
   eventTimestamp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  accelerometerVariance?: number;
+
+  @IsOptional()
+  @IsNumber()
+  barometricPressureHpa?: number;
+
+  @IsOptional()
+  @IsNumber()
+  acousticMatchConfidence?: number;
 }

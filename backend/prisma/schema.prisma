@@ -123,21 +123,26 @@ model KYCPayoutSetup {
 }
 
 model FraudAnalysis {
-  id              String    @id @default(uuid())
-  userId          String    @unique
-  gpsLatitude     Float?
-  gpsLongitude    Float?
-  riskScore       Float     @default(0)
-  status          String    @default("PENDING")
-  deviceIntegrity String?
-  networkType     String?
-  velocityCheck   String?
-  analysisDetails String?
-  reviewedAt      DateTime?
-  reviewNote      String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(uuid())
+  userId                String    @unique
+  gpsLatitude           Float?
+  gpsLongitude          Float?
+  riskScore             Float     @default(0)
+  status                String    @default("PENDING")
+  deviceIntegrity       String?
+  networkType           String?
+  velocityCheck         String?
+  accelerometerVariance Float?
+  barometricPressureHpa  Float?
+  acousticMatchConfidence Float?
+  isKinematicallyValid  Boolean?
+  fraudReason           String?
+  analysisDetails       String?
+  reviewedAt            DateTime?
+  reviewNote            String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("fraud_analysis")
 }

@@ -8,8 +8,18 @@ By separating **Enrichment** from **Decisioning**, Aegis identifies complex, adv
 
 ---
 
-### The 5-Stage "Defense-in-Depth" Production Pipeline
+### The 7-Stage "Defense-in-Depth" Production Pipeline
 Our "Multi-Stage Line" operates as a sophisticated forensic sieve, increasing the granularity of analysis at every step to ensure a **Mission-Critical Production Standard**.
+
+#### Stage 0: Physicality Check (The Physical Anchor)
+*   **Kinematic Consistency Engine**: Before any analytical logic is applied, Aegis verifies the physical presence of the device via **Accelerometer Variance**.
+*   **Enforcement**: Any variance $< 0.5 \text{ m/s}^2$ triggers an immediate `SPOOFED_ATTACK` rejection.
+*   **Reference**: [SENTINEL_KINEMATIC_ENGINE.md](SENTINEL_KINEMATIC_ENGINE.md).
+
+#### Stage 0.5: Environmental Reality Check (The Environmental Oracle)
+*   **GeoTruth Engine**: Validates barometric pressure and acoustic signatures against the meteorological event.
+*   **Enforcement**: If pressure $> 1000$ hPa (Indoor) or acoustic confidence $< 0.75$, the claim is intercepted.
+*   **Reference**: [SENTINEL_GEOTRUTH_ENGINE.md](SENTINEL_GEOTRUTH_ENGINE.md).
 
 #### Stage 1: Pre-Processing & Enrichment (The Senses)
 *   **1A - Filtering & Temporal Alignment**: Immediate duplicate-claim pre-checks utilization. Using a deterministic **Standardized Time Bucket** (Unix Epoch / 1800), we eliminate Cross-Service Clock Drift, ensuring that fingerprints are perfectly aligned across distributed Node.js and Python nodes.

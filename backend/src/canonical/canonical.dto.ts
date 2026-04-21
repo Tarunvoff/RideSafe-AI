@@ -88,6 +88,21 @@ export class ManualClaimTriggerDto {
   @IsOptional()
   @IsString()
   eventType?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  accelerometerVariance?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  barometricPressureHpa?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  acousticMatchConfidence?: number;
 }
 
 export class PayoutInitiateDto {

@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class AnalyzeFraudDto {
@@ -24,6 +25,21 @@ export class AnalyzeFraudDto {
   @IsOptional()
   @IsString()
   eventType?: string;      // e.g. ZONE_HALTED, GPS_PING, CLAIM_SUBMITTED
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  accelerometerVariance?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  barometricPressureHpa?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  acousticMatchConfidence?: number;
 
   // ── Legacy device / network fields (kept for heuristic fallback) ──────────
   @IsOptional()
