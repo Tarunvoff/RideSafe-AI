@@ -6,7 +6,6 @@ import { PayoutIdempotencyService } from './payout-idempotency.service';
 import { PremiumService } from '../premium/premium.service';
 import { ctForPlan } from '../insurance/policy-tiers';
 import { NotificationsService } from '../notifications/notifications.service';
-import { assertDriverPolicyEligibility } from '../compliance/driver-eligibility.util';
 import { LiquidityPoolService } from '../compliance/liquidity-pool.service';
 
 const MAX_WEEKLY_PREMIUM_INR = 150;
@@ -284,8 +283,6 @@ export class PaymentsService {
     const plan = await this.prisma.weeklyPlan.findUnique({ where: { id: weeklyPlanId } });
     if (!plan) throw new BadRequestException('Weekly plan not found');
 
-    await assertDriverPolicyEligibility(this.prisma, userId, plan.key);
-
     const razorpay = this.getRazorpayClient();
     const tierCap = this.resolveTierCapForPlanKey(plan.key ?? null);
 
@@ -359,8 +356,6 @@ export class PaymentsService {
       throw new UnauthorizedException('Order does not belong to this user');
     }
 
-    await assertDriverPolicyEligibility(this.prisma, userId, razorpayOrder.weeklyPlan?.key ?? null);
-
     // Idempotency: if already successful, just return the existing active policy (if any).
     if (razorpayOrder.status === 'SUCCESS') {
       const activePolicy = await this.prisma.policy.findFirst({
@@ -425,9 +420,17 @@ export class PaymentsService {
         });
 
         // Unique Implementation: Actuarial Pool Replenishment
-        // After successful policy issuance, we inject the premium into the 
-        // stratified liquidity pool to support future parametric payouts.
-        await this.liquidityPool.injectPremium(paidPremium, `verify_${razorpay_order_id}`);
+        // After successful policy issuance, inject premium into stratified pool.
+        // This must never block policy activation if auxiliary liquidity tables
+        // are not initialized yet.
+        try {
+          await this.liquidityPool.injectPremium(paidPremium, `verify_${razorpay_order_id}`);
+        } catch (poolErr: any) {
+          this.logger.error(
+            `Liquidity injection skipped for order=${razorpay_order_id} policy=${policy.id}. ` +
+            `Activation preserved. Reason: ${poolErr?.message ?? poolErr}`,
+          );
+        }
 
         return policy;
       });

@@ -26,6 +26,10 @@ import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
+const appendLiveRiskDebugLog = async (_event: string) => {
+  // Kept as no-op to avoid navigation side effects in production path.
+};
+
 /**
  * [IN-LINE PRIDE]: Ergonomic Navigation Schema
  * Implements a dynamic icon resolution strategy integrated with the Aegis Theme tokens. 
@@ -66,6 +70,17 @@ export default function MainTabNavigator() {
         name="Live Risk" 
         component={DriverLiveRiskMapboxScreen} 
         options={{ tabBarLabel: t('tabs.live_risk') }}
+        listeners={{
+          tabPress: () => {
+            void appendLiveRiskDebugLog('TAB_PRESS_LIVE_RISK');
+          },
+          focus: () => {
+            void appendLiveRiskDebugLog('TAB_FOCUS_LIVE_RISK');
+          },
+          blur: () => {
+            void appendLiveRiskDebugLog('TAB_BLUR_LIVE_RISK');
+          },
+        }}
       />
       <Tab.Screen 
         name="Work Pulse" 

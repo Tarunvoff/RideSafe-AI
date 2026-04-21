@@ -25,14 +25,13 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
-  ImageBackground
 } from 'react-native';
 import { cellToBoundary, latLngToCell, gridDisk } from 'h3-js';
 import MapView, { Polygon, Marker } from 'react-native-maps';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
-import ScooterMarker from '../../components/driver/ScooterMarker';
+import { ScooterMarker as DriverScooterMarker } from '../../components/driver/ScooterMarker';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { fraudApi, telemetryApi } from '../../services/api';
@@ -132,18 +131,34 @@ function h3BoundaryToCoordinates(h3Cell: string, fallbackLat: number, fallbackLn
 
 const CARD_BG = '#f0ecce';
 
+const appendLiveRiskDebugLog = async (_event: string, _payload?: unknown) => {
+  // Kept as no-op for non-Android renderer path.
+};
+
+function isFiniteCoordinate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 export default function DriverLiveRiskScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const { user, logout } = useAuth();
   const { location, refreshLocation } = useLocation();
   const mapRef = React.useRef<MapView | null>(null);
+  const hasBootstrappedLocationRef = React.useRef(false);
   const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [selectedCellId, setSelectedCellId] = useState('c0');
   const [loading, setLoading] = useState(false);
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+  useEffect(() => {
+    void appendLiveRiskDebugLog('LIVE_RISK_MOUNT');
+    return () => {
+      void appendLiveRiskDebugLog('LIVE_RISK_UNMOUNT');
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -158,6 +173,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     () => (hasValidLocation ? { lat: location.latitude as number, lng: location.longitude as number } : null),
     [hasValidLocation, location.latitude, location.longitude],
   );
+  const hasRenderableCoords = !!coords && isFiniteCoordinate(coords.lat) && isFiniteCoordinate(coords.lng);
 
   const mapW = clamp(width - 48, 320, 380);
   const mapH = 260;
@@ -217,7 +233,12 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
    */
   const loadZones = useCallback(async () => {
     try {
-      if (location.loading || !coords) return;
+      void appendLiveRiskDebugLog('LOAD_ZONES_START', {
+        locationLoading: location.loading,
+        hasCoords: !!coords,
+        userId: user?.id ?? null,
+      });
+      if (location.loading || !coords || !isFiniteCoordinate(coords.lat) || !isFiniteCoordinate(coords.lng)) return;
       setLoading(true);
       if (!user?.id) return;
       await telemetryApi.sendGps({
@@ -251,7 +272,14 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
       setCellData({ current: center, neighbors: gridCells.filter(c => c.h3Id !== centralH3) });
       setSelectedCellId('c0');
-    } catch {
+      void appendLiveRiskDebugLog('LOAD_ZONES_SUCCESS', {
+        center: center.h3Id,
+        neighbors: gridCells.length,
+      });
+    } catch (err: any) {
+      void appendLiveRiskDebugLog('LOAD_ZONES_ERROR', {
+        message: err?.message ?? 'unknown',
+      });
       if (!coords) return;
       const centralH3 = latLngToCell(coords.lat, coords.lng, 8);
       const fullDisk = gridDisk(centralH3, 4);
@@ -268,14 +296,47 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         neighbors: gridCells.slice(1) 
       });
       setSelectedCellId('c0');
+      void appendLiveRiskDebugLog('LOAD_ZONES_FALLBACK_SUCCESS', {
+        center: gridCells[0]?.h3Id ?? null,
+        neighbors: gridCells.length,
+      });
     } finally {
       setLoading(false);
+      void appendLiveRiskDebugLog('LOAD_ZONES_END');
     }
   }, [coords, location.loading, toCellRisk, user?.id]);
 
   useEffect(() => {
     void loadZones();
   }, [loadZones]);
+
+  useEffect(() => {
+    // Attempt a single automatic location bootstrap when entering Live Risk.
+    // Manual retries remain available via the Retry button.
+    if (!hasBootstrappedLocationRef.current && !hasValidLocation && !location.loading) {
+      hasBootstrappedLocationRef.current = true;
+      void appendLiveRiskDebugLog('LOCATION_BOOTSTRAP_TRIGGERED');
+      void refreshLocation();
+    }
+  }, [hasValidLocation, location.loading, refreshLocation]);
+
+  useEffect(() => {
+    void appendLiveRiskDebugLog('LOCATION_STATE_CHANGED', {
+      isValid: location.isValid,
+      loading: location.loading,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy,
+      error: location.error,
+    });
+  }, [
+    location.isValid,
+    location.loading,
+    location.latitude,
+    location.longitude,
+    location.accuracy,
+    location.error,
+  ]);
 
   const cells = useMemo(() => cellData ?? {
     current: toCellRisk({}, 'c0'),
@@ -302,16 +363,16 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     : '—';
 
   const mapRegion = useMemo(
-    () => (coords
+    () => (hasRenderableCoords
       ? {
-        latitude: coords.lat,
-        longitude: coords.lng,
+        latitude: coords!.lat,
+        longitude: coords!.lng,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       }
       : null
     ),
-    [coords],
+    [hasRenderableCoords, coords],
   );
 
   const formatCoords = (lat: number, lng: number) => {
@@ -321,17 +382,13 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   };
 
   const handleRecenter = () => {
-    if (mapRef.current && mapRegion) {
-      mapRef.current.animateToRegion(mapRegion, 600);
-    }
+    void appendLiveRiskDebugLog('RETRY_PRESSED', {
+      hasRenderableCoords,
+      hasValidLocation,
+      loading: location.loading,
+    });
     void refreshLocation();
   };
-
-  useEffect(() => {
-    if (mapRef.current && !location.loading && mapRegion) {
-      mapRef.current.animateToRegion(mapRegion, 600);
-    }
-  }, [location.loading, mapRegion]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -353,21 +410,25 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         {/* MAP CARD */}
         <View style={[styles.neoCard, styles.mapCardWrapper]}>
           <View style={styles.mapHero}>
-            {coords && mapRegion ? (
+            {hasRenderableCoords && mapRegion ? (
               <MapView
                 ref={mapRef}
                 style={[styles.mapView, { width: mapW, height: mapH }]}
                 initialRegion={mapRegion}
               >
                 {allCells.map((cell) => {
+                  const safePolygon = cell.polygon.filter(
+                    (p) => isFiniteCoordinate(p.latitude) && isFiniteCoordinate(p.longitude),
+                  );
+                  if (safePolygon.length < 3) return null;
                   const tone = riskPalette(cell.riskLevel);
                   const active = cell.id === selectedCell.id;
                   return (
                     <Polygon
                       key={cell.id}
-                      coordinates={cell.polygon}
-                      tappable
-                      onPress={() => setSelectedCellId(cell.id)}
+                      coordinates={safePolygon}
+                      tappable={!useStaticPolygons}
+                      onPress={useStaticPolygons ? undefined : () => setSelectedCellId(cell.id)}
                       strokeColor={tone.stroke}
                       fillColor={tone.fill}
                       strokeWidth={active ? 2.8 : 1.4}
