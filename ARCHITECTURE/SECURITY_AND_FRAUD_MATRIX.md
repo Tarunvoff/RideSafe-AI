@@ -35,15 +35,16 @@ High-privilege accounts (Admin) and sensitive driver operations (Login/Reset) ar
 ## 2. The "Aegis Shield" (Operational Fraud Defense)
 The Aegis Shield is an active enforcement infrastructure that translates ML-driven probability into operational reality. It operates through three distinct layers of forensic scrutiny.
 
-### 2.1 Defense Layers
-
 | Layer | Domain | Forensic Vector |
 | :--- | :--- | :--- |
-| **Layer A** | **Device Intelligence** | Detects hardware spoofing, SIM swapping, and shared-device clusters (>3 users per hardware fingerprint). |
-| **Layer B** | **H3 Burst Detection** | Identifies high-density "Flash-Mob" fraud within specific hexagonal H3 cells (Simultaneous claims from close proximity). |
-| **Layer C** | **Geometric Defense** | Velocity checks (>150km/h physically impossible for gig-transit) and teleportation detection (Instantaneous H3 cell jumps). |
-| **Layer D** | **Kinematic Auth**    | Accelerometer variance analysis to detect "Flatline Spoofing" (Digital motion without physical vibration). |
-| **Layer E** | **GeoTruth Engine**   | Barometric and Acoustic validation matching localized weather profiles (Defeats "Indoor" spoofs). |
+| **Layer 0** | **Kinematic Auth**    | Accelerometer variance analysis to detect "Flatline Spoofing" (Digital motion without physical vibration). |
+| **Layer 0.5**| **GeoTruth Engine**   | Barometric and Acoustic validation matching localized weather profiles (Defeats "Indoor" spoofs). |
+| **Layer 1** | **Temporal Logic**     | Deterministic time-bucketing to eliminate Cross-Service Clock Drift and temporal snips. |
+| **Layer 2** | **H3 Burst Detection** | Identifies high-density claims within specific hexagonal H3 cells (Simultaneous coordination). |
+| **Layer 3** | **Geometric Defense** | Velocity checks (>150km/h) and teleportation detection (Instantaneous H3 cell jumps). |
+| **Layer 4** | **Hardware Heuristics**| Detects hardware spoofing, isHardenedCheck GPS injection, and Rooted/Jailbroken environments. |
+| **Layer 5** | **Identity & Device**  | SIM swapping detection and shared-device clusters (>3 users per hardware fingerprint). |
+| **Layer 6** | **ML Fusion Core**     | Isolation Forest anomaly scoring combined with GBDT supervised pattern recognition. |
 
 ### 2.2 Operational Enforcement Loop
 When the ML ensemble return a high-confidence fraud signal (Risk Score $\geq 90\%$), the **Active Enforcement Engine** triggers an irrevocable compliance sequence:

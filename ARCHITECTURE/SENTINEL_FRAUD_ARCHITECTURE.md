@@ -8,35 +8,24 @@ By separating **Enrichment** from **Decisioning**, Aegis identifies complex, adv
 
 ---
 
-### The 7-Stage "Defense-in-Depth" Production Pipeline
-Our "Multi-Stage Line" operates as a sophisticated forensic sieve, increasing the granularity of analysis at every step to ensure a **Mission-Critical Production Standard**.
+### The 8-Layer "Defense-in-Depth" Production Pipeline
+Our "Multi-Stage Line" operates as a sophisticated forensic sieve, consisting of **2 New Elite Engines** and **6 Classic Defense Layers**, increasing the granularity of analysis at every step to ensure a **Mission-Critical Production Standard**.
 
-#### Stage 0: Physicality Check (The Physical Anchor)
-*   **Kinematic Consistency Engine**: Before any analytical logic is applied, Aegis verifies the physical presence of the device via **Accelerometer Variance**.
-*   **Enforcement**: Any variance $< 0.5 \text{ m/s}^2$ triggers an immediate `SPOOFED_ATTACK` rejection.
-*   **Reference**: [SENTINEL_KINEMATIC_ENGINE.md](SENTINEL_KINEMATIC_ENGINE.md).
+#### Phase 1: Hardware & Environmental Reality (The 2 New Features)
+- **Stage 0: Kinematic Consistency Engine** (IMU Fingerprinting) — Defeats "Flatline" spoofing by requiring physical vehicle vibration.
+- **Stage 0.5: GeoTruth Engine** (Environmental Oracle) — Defeats "Indoor" spoofs by matching barometric pressure and acoustic signatures to the storm.
 
-#### Stage 0.5: Environmental Reality Check (The Environmental Oracle)
-*   **GeoTruth Engine**: Validates barometric pressure and acoustic signatures against the meteorological event.
-*   **Enforcement**: If pressure $> 1000$ hPa (Indoor) or acoustic confidence $< 0.75$, the claim is intercepted.
-*   **Reference**: [SENTINEL_GEOTRUTH_ENGINE.md](SENTINEL_GEOTRUTH_ENGINE.md).
+#### Phase 2: The Classic Aegis Shield (The 6 Old Layers)
+1. **Layer 1: Temporal Alignment & GPS Drift** — Detects perfectly static or "snapped" coordinates via deterministic time-bucketing.
+2. **Layer 2: H3 Geospatial Burst Detection** — Identifies coordinated "Flash-Mob" fraud within specific hexagonal cells.
+3. **Layer 3: Geometric Velocity & Teleportation** — Blocks claims with physically impossible speed (>150km/h) or H3-cell jumps.
+4. **Layer 4: Hardware & Network Heuristics** — Immediate detection of Rooted/Jailbroken devices, VPNs, and Proxy nodes.
+5. **Layer 5: Identity & Device Fingerprint Graph** — Tracks device-sharing clusters (>3 users/device) and account-age volatility.
+6. **Layer 6: Hybrid ML Ensemble (The Brain)** — Fuses unsupervised Isolation Forest anomalies with supervised GBDT classifiers.
 
-#### Stage 1: Pre-Processing & Enrichment (The Senses)
-*   **1A - Filtering & Temporal Alignment**: Immediate duplicate-claim pre-checks utilization. Using a deterministic **Standardized Time Bucket** (Unix Epoch / 1800), we eliminate Cross-Service Clock Drift, ensuring that fingerprints are perfectly aligned across distributed Node.js and Python nodes.
-*   **1B - Contextual Enrichment**: Aegis pings the Feature Service to calculate high-entropy signals including:
-    *   **H3-Geospatial Bursts**: Detecting anomalous concentrations of claims within precise hexagonal grid cells (Cell 8 resolution).
-    *   **Device Velocity**: Real-time tracking of hardware share and device-to-user mappings over rolling 24-hour windows.
-
-#### Stage 2: Heuristic Decisioning (The Reflex)
-Aegis evaluates the "Digital Hygiene" of every request through a rigorous multi-factor rule engine.
-*   **Hardware Heuristics**: Immediate detection of Rooted/Jailbroken devices and GPS Spoofing (isHardenedCheck) attempts.
-*   **Network Intelligence**: Identification of Premium VPNs, Proxies, and Tor exit nodes with sub-5ms latency.
-*   **Identity Integrity**: Verification of account age and device-switching frequency to flag volatile user profiles before they enter the ML hot-path.
-
-#### Stage 3: Hybrid ML Scoring (The Brain)
-*   **Weighted Fusion Core**: Aegis combines Stage 2 rule outputs with unsupervised anomaly detection (Isolation Forest) and supervised classifiers (GBDT).
-*   **Probabilistic Risk Modeling**: Rather than a simple "Pass/Fail," the system generates a nuanced **Hybrid Risk Score**.
-*   **Fail-Closed Resiliency**: Utilizing **Opossum Circuit Breakers**, the system is designed to "Fail Closed." In the event of a microservice timeout or network anomaly, Aegis Sentinel defaults to a high-security state, prioritizing ecosystem integrity over "Failing Open."
+#### Phase 3: Action & Enforcement
+- **Stage 4: Trigger & Action Gating** (The Enforcer) — Maps the risk score to `APPROVE`, `REJECT`, or `CHALLENGE` (BullMQ Review).
+- **Stage 5: Persistence & Revocation** (The Memory) — Immutable decision logging and O(1) global token revocation via Redis.
 
 #### Stage 4: Trigger & Action Gating (The Enforcer)
 *   **Dynamic Response Orchestration**: Maps the risk score to definitive downstream actions: `APPROVE`, `REJECT`, or `CHALLENGE`.
