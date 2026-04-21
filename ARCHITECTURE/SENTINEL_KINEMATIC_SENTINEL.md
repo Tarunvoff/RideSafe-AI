@@ -1,8 +1,8 @@
-# Sentinel Kinematic Engine: Hardware-Level Momentum Verification
+# Sentinel Kinematic Sentinel: Hardware-Level Momentum Verification
 ## Defeating the Flatline. Physicality Authentication. Total Anti-Spoofing.
 
 ### Executive Overview
-In the evolving landscape of adversarial fraud, GPS spoofing has achieved a level of sophistication that bypasses standard location heuristics. The **Aegis Kinematic Consistency Engine** represents the ultimate defense: **IMU Fingerprinting**. By analyzing raw accelerometer variance ($\sigma^2$) directly from the device hardware, Aegis differentiates between a legitimate vehicle in motion and a static, virtualized simulator or a "stationary spoof" attack.
+In the evolving landscape of adversarial fraud, GPS spoofing has achieved a level of sophistication that bypasses standard location heuristics. The **Aegis Kinematic Sentinel** represents the ultimate defense: **IMU Fingerprinting**. By analyzing raw accelerometer variance ($\sigma^2$) directly from the device hardware, Aegis differentiates between a legitimate vehicle in motion and a static, virtualized simulator or a "stationary spoof" attack.
 
 This engine serves as **Layer 0** of the Aegis Sentinel Pipeline, providing a physical anchor for every digital claim.
 
@@ -16,7 +16,7 @@ Standard fraud detection treats GPS coordinates as trusted endpoints. However, "
 ---
 
 ### The Aegis Solution: Momentum Verification
-The Kinematic Engine enforces a strictly non-negotiable physical contract. It requires that the claimed spatial displacement (GPS) is matched by a corresponding biological/mechanical vibration (Accelerometer).
+The Kinematic Sentinel enforces a strictly non-negotiable physical contract. It requires that the claimed spatial displacement (GPS) is matched by a corresponding biological/mechanical vibration (Accelerometer).
 
 #### 1. Statistical Variance Analysis ($\sigma^2$)
 Aegis captures high-frequency accelerometer telemetry across three axes (X, Y, Z). We calculate the **Total Dynamic Variance**:
@@ -25,7 +25,7 @@ $$ \text{Total Variance} = \text{Var}(A_x) + \text{Var}(A_y) + \text{Var}(A_z) $
 - **The "Flatline" Signal**: A virtualized or stationary device exhibits a variance of near-zero ($< 0.05 \text{ m/s}^2$).
 
 #### 2. The Fail-Closed Gate
-If the measured variance falls below the **STATIONARY_THRESHOLD**, the Kinematic Engine triggers an immediate, non-reviewable rejection.
+If the measured variance falls below the **STATIONARY_THRESHOLD**, the Kinematic Sentinel triggers an immediate, non-reviewable rejection.
 > [!CAUTION]
 > **Enforcement Action**: Claims with Kinematic Anomalies are assigned a `SPOOFED_ATTACK` status. This halts the orchestrator before it pings external ML services, preserving compute credits and maintaining a hard perimeter.
 
@@ -64,4 +64,4 @@ If the measured variance falls below the **STATIONARY_THRESHOLD**, the Kinematic
 ### Why This is Unique
 Aegis is the only parametric platform that binds **Actuarial Risk** to **Hardware Physics**. By treating the accelerometer as a "Physicality Signature," we eliminate 99% of "Flatline Spoofing" attempts that leverage developer-mode mock locations or low-level GPS injection.
 
-**Sentinel Kinematic Engine: If you aren't moving, you aren't covered.**
+**Kinematic Sentinel: If you aren't moving, you aren't covered.**

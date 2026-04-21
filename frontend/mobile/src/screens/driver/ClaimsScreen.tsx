@@ -228,7 +228,7 @@ export default function ClaimsScreen() {
             />
           </View>
           <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 15 }}>
-            {debugSpooferMode ? "GeoTruth Block (1013 Hpa, 0.1 Acoustic) simulating indoor flatline." : "GeoTruth Valid (995 Hpa, 0.92 Acoustic) simulating severe storm profile."}
+            {debugSpooferMode ? "Atmos Sentinel Block (1013 Hpa, 0.1 Acoustic) simulating indoor flatline." : "Atmos Sentinel Valid (995 Hpa, 0.92 Acoustic) simulating severe storm profile."}
           </Text>
 
           <TouchableOpacity

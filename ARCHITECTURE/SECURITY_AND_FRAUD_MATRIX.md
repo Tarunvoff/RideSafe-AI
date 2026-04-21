@@ -37,8 +37,8 @@ The Aegis Shield is an active enforcement infrastructure that translates ML-driv
 
 | Layer | Domain | Forensic Vector |
 | :--- | :--- | :--- |
-| **Layer 0** | **Kinematic Auth**    | Accelerometer variance analysis to detect "Flatline Spoofing" (Digital motion without physical vibration). |
-| **Layer 0.5**| **GeoTruth Engine**   | Barometric and Acoustic validation matching localized weather profiles (Defeats "Indoor" spoofs). |
+| **Layer 0** | **Kinematic Sentinel** | Accelerometer variance analysis to detect "Flatline Spoofing" (Digital motion without physical vibration). |
+| **Layer 0.5**| **Atmos Sentinel**   | Barometric and Acoustic validation matching localized weather profiles (Defeats "Indoor" spoofs). |
 | **Layer 1** | **Temporal Logic**     | Deterministic time-bucketing to eliminate Cross-Service Clock Drift and temporal snips. |
 | **Layer 2** | **H3 Burst Detection** | Identifies high-density claims within specific hexagonal H3 cells (Simultaneous coordination). |
 | **Layer 3** | **Geometric Defense** | Velocity checks (>150km/h) and teleportation detection (Instantaneous H3 cell jumps). |
@@ -82,9 +82,9 @@ To prevent Distributed Denial of Service (DDoS) attacks and brute-force claim bu
 | **Replay Attack** | JWT Refresh Token Rotation | `generateTokens` Logic |
 | **Identity Theft** | Federated OAuth + Mandatory MFA | Blinkit/Zepto/Instamart/JioMart/BigBasket SSO Integrations |
 | **Systemic Fraud** | Aegis Shield ML Ensemble | `FraudService` (Python/NestJS) |
-| **Atmospheric Spoof**| BarometricOracle Check | `STORM_PRESSURE_THRESHOLD` Verification |
+| **Atmospheric Spoof**| Atmos Sentinel Oracle Check | `STORM_PRESSURE_THRESHOLD` Verification |
 | **Acoustic Simulation**| Sound Profile Match    | `ACOUSTIC_CONFIDENCE_THRESHOLD` Gate |
-| **Hardware Spoof** | Kinematic Baseline Check | `STATIONARY_THRESHOLD` Verification Logic |
+| **Hardware Spoof** | Kinematic Sentinel Baseline Check | `STATIONARY_THRESHOLD` Verification Logic |
 
 ---
 

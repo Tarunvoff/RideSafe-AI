@@ -166,10 +166,10 @@ export class FraudService {
   }
 
   async analyzeFraud(userId: string, dto: AnalyzeFraudDto, token?: string) {
-    // ── Step 0.1: Kinematic Consistency check (Layer D Check) ────────────────
-    // Ref: ARCHITECTURE/SENTINEL_KINEMATIC_ENGINE.md
+    // ── Step 0.1: Kinematic Sentinel check (Layer D Check) ────────────────
+    // Ref: ARCHITECTURE/SENTINEL_KINEMATIC_SENTINEL.md
     if (dto.accelerometerVariance != null && dto.accelerometerVariance < STATIONARY_THRESHOLD) {
-      structuredLogger.warn({ event: 'KINEMATIC_ANOMALY', userId, variance: dto.accelerometerVariance }, 'Device momentum spoofed.');
+      structuredLogger.warn({ event: 'KINEMATIC_SENTINEL_ANOMALY', userId, variance: dto.accelerometerVariance }, 'Device momentum spoofed.');
       const dbData = {
         gpsLatitude: dto.gpsLatitude,
         gpsLongitude: dto.gpsLongitude,
@@ -182,21 +182,21 @@ export class FraudService {
         barometricPressureHpa: dto.barometricPressureHpa ?? null,
         acousticMatchConfidence: dto.acousticMatchConfidence ?? null,
         isKinematicallyValid: false,
-        fraudReason: 'Kinematic anomaly detected: Device momentum does not match physical expectations for a delivery vehicle',
+        fraudReason: 'Kinematic Sentinel anomaly detected: Device momentum does not match physical expectations for a delivery vehicle',
         analysisDetails: JSON.stringify({ mlFeatures: 'skipped_due_to_kinematic_failure' }),
       };
       await this.persistFraudAnalysis(userId, dbData);
-      throw new ForbiddenException('Kinematic anomaly detected: Device momentum does not match physical expectations for a delivery vehicle');
+      throw new ForbiddenException('Kinematic Sentinel anomaly detected: Device momentum does not match physical expectations for a delivery vehicle');
     }
 
-    // ── Step 0.2: GeoTruth Engine (Environmental Reality Check - Layer E) ─────
-    // Refer Documentation: ARCHITECTURE/SENTINEL_GEOTRUTH_ENGINE.md
+    // ── Step 0.2: Atmos Sentinel (Atmospheric Oracle Reality Check - Layer E) ─────
+    // Refer Documentation: ARCHITECTURE/SENTINEL_ATMOS_SENTINEL.md
     const isPressureInvalid = dto.barometricPressureHpa != null && dto.barometricPressureHpa > STORM_PRESSURE_THRESHOLD;
     const isAcousticInvalid = dto.acousticMatchConfidence != null && dto.acousticMatchConfidence < ACOUSTIC_CONFIDENCE_THRESHOLD;
 
     if (isPressureInvalid || isAcousticInvalid) {
       structuredLogger.warn({
-        event: 'GEOTRUTH_ANOMALY',
+        event: 'ATMOS_SENTINEL_ANOMALY',
         userId,
         pressure: dto.barometricPressureHpa,
         acoustic: dto.acousticMatchConfidence
@@ -214,14 +214,14 @@ export class FraudService {
         barometricPressureHpa: dto.barometricPressureHpa ?? null,
         acousticMatchConfidence: dto.acousticMatchConfidence ?? null,
         isKinematicallyValid: true,
-        fraudReason: 'GeoTruth anomaly detected: Environmental telemetry does not match claimed weather event.',
+        fraudReason: 'Atmos Sentinel anomaly detected: Environmental telemetry does not match claimed weather event.',
         analysisDetails: JSON.stringify({
           pressure_failure: isPressureInvalid,
           acoustic_failure: isAcousticInvalid
         }),
       };
       await this.persistFraudAnalysis(userId, dbData);
-      throw new ForbiddenException('GeoTruth anomaly detected: Environmental telemetry does not match claimed weather event.');
+      throw new ForbiddenException('Atmos Sentinel anomaly detected: Environmental telemetry does not match claimed weather event.');
     }
 
     const duplicateSignal = await this.detectDuplicateClaim(userId, dto);

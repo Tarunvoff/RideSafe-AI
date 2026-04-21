@@ -12,8 +12,8 @@ By separating **Enrichment** from **Decisioning**, Aegis identifies complex, adv
 Our "Multi-Stage Line" operates as a sophisticated forensic sieve, consisting of **2 New Elite Engines** and **6 Classic Defense Layers**, increasing the granularity of analysis at every step to ensure a **Mission-Critical Production Standard**.
 
 #### Phase 1: Hardware & Environmental Reality (The 2 New Features)
-- **Stage 0: Kinematic Consistency Engine** (IMU Fingerprinting) — Defeats "Flatline" spoofing by requiring physical vehicle vibration.
-- **Stage 0.5: GeoTruth Engine** (Environmental Oracle) — Defeats "Indoor" spoofs by matching barometric pressure and acoustic signatures to the storm.
+- **Stage 0: Kinematic Sentinel** (IMU Fingerprinting) — Defeats "Flatline" spoofing by requiring physical vehicle vibration.
+- **Stage 0.5: Atmos Sentinel** (Atmospheric Oracle) — Defeats "Indoor" spoofs by matching barometric pressure and acoustic signatures to the storm.
 
 #### Phase 2: The Classic Aegis Shield (The 6 Old Layers)
 1. **Layer 1: Temporal Alignment & GPS Drift** — Detects perfectly static or "snapped" coordinates via deterministic time-bucketing.

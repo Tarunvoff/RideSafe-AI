@@ -79,7 +79,7 @@ To understand the precision of Aegis, you must move beyond high-level summaries 
 ### 💎 Unique Engineering Feats: What Makes Aegis Best-in-Class?
 
 #### 1. The Sentinel 8-Layer Forensic Sieve
-Unlike reactive "Fraud Scores," Aegis Sentinel enforces a **layer-zero physical validation** using **IMU Fingerprinting** and accelerometer variance ($\sigma^2$). We don't just trust the GPS; we utilize an **Environmental Oracle** to verify the **GeoTruth** of the device (barometric pressure and acoustic storm-signatures). This approach ensures **Forensic Traceability** and absolute security, as claims are physically impossible to spoof without an atmospheric laboratory. Every decision is governed by a **Fail-Closed Security** architecture, prioritizing the integrity of the risk pool above all else.
+Unlike reactive "Fraud Scores," Aegis Sentinel enforces a **layer-zero physical validation** using **IMU Fingerprinting** and accelerometer variance ($\sigma^2$). We don't just trust the GPS; we utilize an **Atmospheric Oracle** to verify the **Atmos Sentinel** status of the device (barometric pressure and acoustic storm-signatures). This approach ensures **Forensic Traceability** and absolute security, as claims are physically impossible to spoof without an atmospheric laboratory. Every decision is governed by a **Fail-Closed Security** architecture, prioritizing the integrity of the risk pool above all else.
 
 #### 2. Actuarial Reserve Stratification (ARS)
 Liquidity is the platform's anchor. Aegis implements the **ARS Engine**, a system of **Deterministic Solvency** that surgically partitions every incoming premium into a **Triple-Partition Model** (Core Risk, Contingency, and Platform). By maintaining an algorithmically governed **Actuarial Buffer** and high **Capital Efficiency**, Aegis proves its pool will not collapse even under "Black Swan" climatic anomalies like a 14-Day Monsoon surge.
@@ -114,8 +114,8 @@ For a deep-dive into the mathematical and architectural specifications of these 
 | Document | Domain | Forensic Insight |
 | :--- | :--- | :--- |
 | **[Sentinel Fraud Architecture](./ARCHITECTURE/SENTINEL_FRAUD_ARCHITECTURE.md)** | **Pipeline** | The 8-layer "Defense-in-Depth" forensic sieve. |
-| **[Sentinel Kinematic Engine](./ARCHITECTURE/SENTINEL_KINEMATIC_ENGINE.md)** | **Hardware** | IMU Fingerprinting & Variance analysis to defeat GPS spoofs. |
-| **[Sentinel GeoTruth Engine](./ARCHITECTURE/SENTINEL_GEOTRUTH_ENGINE.md)** | **Hardware** | Barometric & Acoustic oracles for environmental authenticity. |
+| **[Sentinel Kinematic Sentinel](./ARCHITECTURE/SENTINEL_KINEMATIC_ENGINE.md)** | **Hardware** | IMU Fingerprinting & Variance analysis to defeat GPS spoofs. |
+| **[Sentinel Atmos Sentinel](./ARCHITECTURE/SENTINEL_ATMOS_SENTINEL.md)** | **Hardware** | Barometric & Acoustic oracles for environmental authenticity. |
 | **[Security & Fraud Matrix](./ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md)** | **Defense** | Detailed mapping of threat vectors and defense layers. |
 | **[Zero-Trust Identity](./ARCHITECTURE/ZERO_TRUST_IDENTITY_AND_KYC_MATRIX.md)** | **Auth** | Path-level identity enforcement and cryptographic KYC. |
 
@@ -346,7 +346,7 @@ Pricing adjusts dynamically by season and zone — monsoon periods carry higher 
 Aegis Sentinel fundamentally rejects the concept of fragile, binary fraud rules. Instead, it utilizes a **Unified Cognitive Kernel** that bridges deterministic hardware verification with generative intelligence through an **8-Layer Pipeline**.
 - **Phase 1: Hardware & Environmental Reality** (2 New Engines):
     - **IMU Fingerprinting**: Analyzes raw accelerometer variance ($\sigma^2$) to detect "Stationary Spoofs".
-    - **GeoTruth Verification**: Cross-references barometric pressure and acoustic signatures to verify storm presence.
+    - **Atmos Sentinel Verification**: Cross-references barometric pressure and acoustic signatures to verify storm presence.
 - **Phase 2: The Classic Aegis Shield** (6 Historic Layers):
     - **Temporal Alignment, H3 Burst, Geometric Velocity, Hardware Heuristics, Device Fingerprint Graph, and Hybrid ML Ensemble.**
 
@@ -713,7 +713,7 @@ Aegis Sentinel fundamentally rejects the concept of fragile, "one-shot" fraud de
 #### Phase 1: Hardware & Environmental Reality (The "Physical Anchor")
 Unlike traditional apps that trust the operating system's location API, Aegis treats the device as a **Sensor Node**.
 - **Layer 0: Kinematic Consistency (IMU Fingerprinting)**: Before a claim is processed, the system analyzes raw accelerometer variance ($\sigma^2$). It requires physical vehicle vibration to match the claimed spatial displacement. If the GPS moves but the IMU remains static (near-zero variance), the system triggers an immediate `SPOOFED_ATTACK` block.
-- **Layer 0.5: GeoTruth Engine (Atmospheric Oracle)**: Validates that the device physically experiences the atmospheric drop ($<1000$ hPa) and the high-entropy acoustic noise profile of a storm. This defeats "Indoor" spoofs where a user attempts a claim from a dry building while a storm is active outside.
+- **Layer 0.5: Atmos Sentinel (Atmospheric Oracle)**: Validates that the device physically experiences the atmospheric drop ($<1000$ hPa) and the high-entropy acoustic noise profile of a storm. This defeats "Indoor" spoofs where a user attempts a claim from a dry building while a storm is active outside.
 
 #### Phase 2: The Classic Aegis Shield (Forensic Logic)
 This phase evaluates "Digital Hygiene" and behavioral topology.

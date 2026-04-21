@@ -1,10 +1,10 @@
-# Sentinel GeoTruth Engine: Environmental Oracle Verification
+# Sentinel Atmos Sentinel: Environmental Oracle Verification
 ## Atmospheric Authenticity. Acoustic Fingerprinting. Total Zero-Trust.
 
 ### Executive Overview
-The **Aegis GeoTruth Engine** represents the second half of the platform's hardware reality check. While the Kinematic Engine verifies physical momentum, the GeoTruth Engine validates the **Atmospheric Context** of a claim. By cross-referencing real-time barometric pressure (hPa) and ambient acoustic signatures against the claimed meteorological event, Aegis eliminates "API Spoofing"—where a user leverages real-time weather data to simulate a claim from a dry, indoor environment.
+The **Aegis Atmos Sentinel** represents the second half of the platform's hardware reality check. While the Kinematic Sentinel verifies physical momentum, the Atmos Sentinel validates the **Atmosp+heric Context** of a claim. By cross-referencing real-time barometric pressure (hPa) and ambient acoustic signatures against the claimed meteorological event, Aegis eliminates "API Spoofing"—where a user leverages real-time weather data to simulate a claim from a dry, indoor environment.
 
-This engine serves as **Layer 1** of the Aegis Sentinel Pipeline, ensuring that the device is experiencing the same physics as the weather station reports.
+This engine serves as **Layer 0.5** of the Aegis Sentinel Pipeline, ensuring that the device is experiencing the same physics as the weather station reports.
 
 ---
 
@@ -17,13 +17,13 @@ As parametric insurance moves toward high-fidelity API triggers (e.g., IMD/OpenW
 ---
 
 ### The Aegis Solution: Environmental Cross-Verification
-The GeoTruth Engine enforces a mathematical match between the **Device Telemetry** and the **Weather Oracle**.
+The Atmos Sentinel enforces a mathematical match between the **Device Telemetry** and the **Weather Oracle**.
 
 #### 1. Barometric Pressure Gradient ($\Delta P$)
 Severe storm cells are characterized by a localized drop in atmospheric pressure. 
 - **The Threshold**: A standard "Severe Storm" profile drops below **1000 hPa**.
 - **Indoor Detection**: Modern indoor environments (AC/Pressurized buildings) maintain a standard baseline of **~1013 hPa**.
-- **Logic**: If the API reports a storm but the device reports $> 1000$ hPa, it is flagged as a `GEOTRUTH_ANOMALY`.
+- **Logic**: If the API reports a storm but the device reports $> 1000$ hPa, it is flagged as an `ATMOS_SENTINEL_ANOMALY`.
 
 #### 2. Acoustic Match Confidence ($\lambda$)
 Heavy rain and wind produce unique, high-entropy acoustic signatures.
@@ -39,7 +39,7 @@ Heavy rain and wind produce unique, high-entropy acoustic signatures.
 [ Mobile Telemetry ] ───────────────> [ Aegis Sentinel ]
 (Pressure + Acoustic)                        │
                                              ▼
-                                    { GeoTruth Gate }
+                                    { Atmos Sentinel Gate }
                                              │
                        ┌─────────────────────┴─────────────────────┐
                        ▼                                           ▼
@@ -66,4 +66,4 @@ Heavy rain and wind produce unique, high-entropy acoustic signatures.
 ### Why This is "Best-in-Class"
 Aegis does not trust the weather API in isolation. We treat the **Device as a Sensor Node**. By binding the payout to a multi-variable environmental signature (Pressure + Sound + Gravity), we create a "Physical Proof of Loss" that is virtually impossible to forge without being physically present in the storm.
 
-**GeoTruth Engine: The atmosphere does not lie.**
+**Atmos Sentinel: The atmosphere does not lie.**

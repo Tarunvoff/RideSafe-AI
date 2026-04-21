@@ -138,7 +138,7 @@ export class InsuranceService {
         : scenario.fraudScore;
 
     // ── Forensic Hardware Check (Layer D & E Verification) ───────────────────
-    // Refer Documentation: ARCHITECTURE/SENTINEL_GEOTRUTH_ENGINE.md
+    // Refer Documentation: ARCHITECTURE/SENTINEL_ATMOS_SENTINEL.md
     if (dto.accelerometerVariance != null || dto.barometricPressureHpa != null || dto.acousticMatchConfidence != null) {
       await this.fraudIntegration.computeFraudScore(driverId, {
         gpsLatitude: scenario.lat,
