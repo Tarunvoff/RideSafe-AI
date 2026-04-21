@@ -230,8 +230,14 @@ export class PlansService {
     policy: Policy & { weeklyPlan: WeeklyPlan | null },
     disruption: DisruptionEvent,
     userId: string,
-  ): Promise<Payout & { disruptionEvent: DisruptionEvent | null }> {
-    await assertDriverPolicyEligibility(this.prisma, userId, policy.weeklyPlan?.key ?? policy.planType ?? null);
+  ): Promise<(Payout & { disruptionEvent: DisruptionEvent | null }) | null> {
+    try {
+      await assertDriverPolicyEligibility(this.prisma, userId, policy.weeklyPlan?.key ?? policy.planType ?? null);
+    } catch {
+      // Read path should not fail hard when payout-eligibility is not met.
+      // Returning null allows the caller to continue rendering purchased plans.
+      return null;
+    }
 
     let shouldBeApproved = false;
 

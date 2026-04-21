@@ -37,7 +37,7 @@ export async function assertDriverPolicyEligibility(
   const [user, kycProfile] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, isVerified: true, createdAt: true, platform: true },
+      select: { id: true, email: true, isVerified: true, createdAt: true, platform: true },
     }),
     prisma.kYCProfile.findUnique({
       where: { userId },
@@ -80,6 +80,9 @@ export async function assertDriverPolicyEligibility(
   });
 
   if (!kycProfile || kycProfile.status !== 'APPROVED') {
+    console.warn(
+      `[eligibility] KYC block userId=${userId} email=${user.email ?? 'unknown'} status=${kycProfile?.status ?? 'MISSING'} plan=${planKey ?? 'UNKNOWN'}`,
+    );
     throw new ForbiddenException('KYC must be approved before policy enrollment or payout processing.');
   }
 

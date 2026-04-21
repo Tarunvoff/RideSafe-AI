@@ -48,3 +48,11 @@ Aegis views regulatory compliance not as an add-on, but as localized system boun
 A system is evaluated not by how it operates seamlessly, but how it degrades under duress. 
 *   **The Unique Implementation**: All development scripts and telemetry injectors have been purged from the repository. Aegis utilizes **Opossum Circuit Breakers** interacting with external API webhooks.
 *   **Production Readiness**: If OpenWeather API timeouts or RazorpayX goes dark, Aegis is constructed to **"Fail Closed."** It will instantly transition into a safe `INSUFFICIENT_DATA_STATE`. It prioritizes defending the core liquidity reserve over imprecise estimation and incorrectly clearing parametric invoices. Zero Trust. Absolute Performance. Absolute Canonical Production.
+
+---
+
+### 7. The Unified Multi-Channel Sentinel Gateway
+Standard InsurTech deployments utilize fragmented bot implementations for Voice and Messaging, leading to data drift and inconsistent user experiences.
+*   **The Unique Implementation**: Aegis Sentinel utilizes a **Unified Cognitive Kernel** that bridges the parity gap between deterministic **IVR Voice** and generative **WhatsApp Chat**. It operates on a shared execution logic, ensuring that a driver hears the exact same authoritative status on a phone call as they read in a WhatsApp message.
+*   **Production Readiness**: The integration uses high-concurrency TwiML orchestration and Gemini-augmented fallbacks to provide human-tier support without human overhead. It is statistically consistent, spatial-risk aware, and hardened for massive event surges.
+*   **Documentation**: Refer to [DUAL_CHANNEL_SENTINEL_INTEGRATION.md](DUAL_CHANNEL_SENTINEL_INTEGRATION.md) for the full architectural breakdown.

@@ -1,11 +1,3 @@
-// ── Aegis Relational Core & Actuarial Persistence Layer ──────────────────────
-// This schema defines the immutable data contract for the Aegis platform.
-// It is engineered for ACID-compliant FinTech ledgering, ensuring that every 
-// driver payout and risk assessment is persisted with 100% integrity.
-//
-// Ref: DATA_SCHEMA_AND_STATE.md | SYSTEM_ARCHITECTURE.md
-// Status: Hardened / Production-Ready
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,6 +5,487 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// **User Identity & Security Principal**
+///
+/// Represents the centralized identity persistence layer. This model is the 
+/// primary anchor for the "Zero-Trust" identity pipeline, managing 
+/// cryptographic credentials and behavioral risk metadata (fraudWarningCount).
+model User {
+  id                           String                   @id @default(uuid())
+  email                        String                   @unique
+  phone                        String?                  @unique
+  passwordHash                 String
+  role                         Role                     @default(DRIVER)
+  isVerified                   Boolean                  @default(false)
+  otpCode                      String?
+  otpExpiresAt                 DateTime?
+  refreshToken                 String?
+  createdAt                    DateTime                 @default(now())
+  updatedAt                    DateTime                 @updatedAt
+  driverName                   String?
+  platform                     String?
+  fraudWarningCount            Int                      @default(0)
+  isActive                     Boolean                  @default(true)
+  gpsConsentTimestamp          DateTime?
+  gpsConsentVersion            String?
+  platformDataConsentTimestamp DateTime?
+  platformDataPartner          String?
+  billingMandates              BillingMandate[]
+  claimCases                   ClaimCase[]
+  claimFingerprints            ClaimFingerprint[]
+  fraudAnalysis                FraudAnalysis?
+  kycBasicIdentity             KYCBasicIdentity?
+  kycIdentityVerification      KYCIdentityVerification?
+  kycPayoutSetup               KYCPayoutSetup?
+  kycPersonalDetails           KYCPersonalDetails?
+  kycProfile                   KYCProfile?
+  policies                     Policy[]
+  premiumInvoices              PremiumInvoice[]
+  razorpayOrders               RazorpayOrder[]
+
+  @@map("users")
+}
+
+model KYCProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  status      KYCStatus @default(NOT_STARTED)
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_profiles")
+}
+
+model KYCBasicIdentity {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  fullName  String
+  dob       DateTime
+  gender    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_basic_identity")
+}
+
+model KYCPersonalDetails {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  address   String
+  city      String
+  state     String
+  pincode   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_personal_details")
+}
+
+model KYCIdentityVerification {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  aadhaarNumber String
+  panNumber     String
+  aadhaarDocUrl String?
+  panDocUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_identity_verification")
+}
+
+model KYCPayoutSetup {
+  id                     String       @id @default(uuid())
+  userId                 String       @unique
+  method                 PayoutMethod @default(UPI)
+  upiId                  String?
+  accountNumber          String?
+  ifscCode               String?
+  accountHolder          String?
+  bankName               String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  consentVersion         String?
+  financialDataConsent   Boolean      @default(false)
+  financialDataConsentAt DateTime?
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_payout_setup")
+}
+
+model FraudAnalysis {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  gpsLatitude     Float?
+  gpsLongitude    Float?
+  riskScore       Float     @default(0)
+  status          String    @default("PENDING")
+  deviceIntegrity String?
+  networkType     String?
+  velocityCheck   String?
+  analysisDetails String?
+  reviewedAt      DateTime?
+  reviewNote      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("fraud_analysis")
+}
+
+/// **Adversarial High-Concurrency Fraud Prevention**
+///
+/// Stores unique telemetry fingerprints to prevent multi-device claim spoofing.
+/// Utilizes a compound unique constraint to enforce "Temporal Integrity" 
+/// across the global H3 grid.
+model ClaimFingerprint {
+  id              String   @id @default(uuid())
+  userId          String
+  h3Cell          String   @map("h3_cell")
+  eventType       String   @map("event_type")
+  claimAmount     Float    @default(0) @map("claim_amount")
+  amountBucket    Int      @map("amount_bucket")
+  timeBucket      Int      @map("time_bucket")
+  fingerprintHash String   @map("fingerprint_hash")
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprintHash, timeBucket])
+  @@index([fingerprintHash, createdAt])
+  @@index([userId, createdAt])
+  @@map("claim_fingerprints")
+}
+
+model WeeklyPlan {
+  id                      String          @id @default(uuid())
+  key                     String          @unique
+  name                    String
+  price                   Float
+  maxPayout               Float           @default(0)
+  durationDays            Int             @default(7)
+  eligibleDisruptionTypes String[]        @default([])
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  policies                Policy[]
+  razorpayOrders          RazorpayOrder[]
+
+  @@map("weekly_plans")
+}
+
+model DisruptionEvent {
+  id             String            @id @default(uuid())
+  type           String
+  title          String
+  expectedLoss   Float?
+  expectedPayout Float?
+  occurredAt     DateTime          @default(now())
+  expiresAt      DateTime?
+  verified       Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  claimCases     ClaimCase[]
+  payouts        Payout[]
+  triggerLogs    TriggerEventLog[]
+
+  @@map("disruption_events")
+}
+
+model Policy {
+  id              String           @id @default(uuid())
+  userId          String
+  planType        String
+  status          String           @default("ACTIVE")
+  premium         Float
+  startDate       DateTime
+  endDate         DateTime
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  weeklyPlanId    String?
+  billingMandates BillingMandate[]
+  claimCases      ClaimCase[]
+  payouts         Payout[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weeklyPlan      WeeklyPlan?      @relation(fields: [weeklyPlanId], references: [id])
+  premiumInvoices PremiumInvoice[]
+
+  @@map("policies")
+}
+
+model Payout {
+  id                String          @id @default(uuid())
+  policyId          String
+  disruptionEventId String
+  status            String          @default("PROCESSING")
+  estimatedLoss     Float?          @default(0)
+  approvedPayout    Float?          @default(0)
+  transactionId     String?
+  paymentMethod     String?
+  processingTime    String?
+  timeline          Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  bankReference     String?
+  transferredAt     DateTime?
+  disruptionEvent   DisruptionEvent @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
+  policy            Policy          @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, disruptionEventId])
+  @@map("payouts")
+}
+
+model BillingMandate {
+  id                String               @id @default(uuid())
+  userId            String
+  policyId          String
+  provider          String               @default("RAZORPAY")
+  providerMandateId String?
+  status            BillingMandateStatus @default(ACTIVE)
+  nextChargeAt      DateTime
+  lastChargedAt     DateTime?
+  failureCount      Int                  @default(0)
+  metadata          Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  policy            Policy               @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices          PremiumInvoice[]
+
+  @@index([userId, status])
+  @@index([policyId, status])
+  @@map("billing_mandates")
+}
+
+model PremiumInvoice {
+  id                String                 @id @default(uuid())
+  userId            String
+  policyId          String
+  mandateId         String?
+  billingCycleStart DateTime               @map("billing_cycle_start")
+  billingCycleEnd   DateTime               @map("billing_cycle_end")
+  amountDue         Float                  @map("amount_due")
+  amountPaid        Float?                 @default(0) @map("amount_paid")
+  status            PremiumInvoiceStatus   @default(PENDING)
+  dueAt             DateTime               @map("due_at")
+  paidAt            DateTime?              @map("paid_at")
+  failureReason     String?                @map("failure_reason")
+  correlationId     String?                @map("correlation_id")
+  metadata          Json?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  attempts          PremiumChargeAttempt[]
+  mandate           BillingMandate?        @relation(fields: [mandateId], references: [id])
+  policy            Policy                 @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerEntries     PremiumLedgerEntry[]
+
+  @@unique([policyId, billingCycleStart])
+  @@index([userId, status, dueAt])
+  @@index([status, dueAt])
+  @@map("premium_invoices")
+}
+
+model PremiumChargeAttempt {
+  id               String              @id @default(uuid())
+  invoiceId        String
+  attemptNumber    Int                 @default(1) @map("attempt_number")
+  status           ChargeAttemptStatus @default(STARTED)
+  gatewayProvider  String              @default("RAZORPAY") @map("gateway_provider")
+  gatewayReference String?             @map("gateway_reference")
+  errorCode        String?             @map("error_code")
+  errorMessage     String?             @map("error_message")
+  correlationId    String?             @map("correlation_id")
+  metadata         Json?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  invoice          PremiumInvoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, attemptNumber])
+  @@index([status, createdAt])
+  @@map("premium_charge_attempts")
+}
+
+model PremiumLedgerEntry {
+  id            String         @id @default(uuid())
+  userId        String
+  policyId      String
+  invoiceId     String
+  direction     String
+  amount        Float
+  currency      String         @default("INR")
+  description   String?
+  correlationId String?        @map("correlation_id")
+  createdAt     DateTime       @default(now())
+  invoice       PremiumInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([policyId, createdAt])
+  @@map("premium_ledger_entries")
+}
+
+model ClaimCase {
+  id                String          @id @default(uuid())
+  userId            String
+  policyId          String
+  disruptionEventId String
+  payoutId          String?         @unique
+  status            ClaimCaseStatus @default(OPEN)
+  reasonCode        String?
+  fraudScore        Float?
+  decisionNote      String?
+  correlationId     String?         @map("correlation_id")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  disruptionEvent   DisruptionEvent @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
+  policy            Policy          @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, disruptionEventId])
+  @@index([userId, status, createdAt])
+  @@map("claim_cases")
+}
+
+model TriggerEventLog {
+  id                String           @id @default(uuid())
+  userId            String?
+  policyId          String?
+  disruptionEventId String?
+  h3Cell            String           @map("h3_cell")
+  decision          TriggerDecision
+  source            String
+  reason            String?
+  riskScore         Float?
+  correlationId     String?          @map("correlation_id")
+  eventTimestamp    Int?             @map("event_timestamp")
+  createdAt         DateTime         @default(now())
+  disruptionEvent   DisruptionEvent? @relation(fields: [disruptionEventId], references: [id])
+
+  @@index([h3Cell, createdAt])
+  @@index([decision, createdAt])
+  @@index([userId, createdAt])
+  @@map("trigger_event_logs")
+}
+
+model RazorpayOrder {
+  id                String     @id @default(uuid())
+  userId            String
+  weeklyPlanId      String
+  razorpayOrderId   String     @unique
+  amount            Int
+  currency          String     @default("INR")
+  status            String     @default("CREATED")
+  razorpayPaymentId String?
+  razorpaySignature String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weeklyPlan        WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+
+  @@map("razorpay_orders")
+}
+
+model AdminSettings {
+  id                   String   @id @default(uuid())
+  alertThresholds      Json
+  riskConfig           Json
+  planConfig           Json
+  verificationSettings Json
+  notifications        Json
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("admin_settings")
+}
+
+model SystemSetting {
+  key   String @id
+  value String
+
+  @@map("system_settings")
+}
+
+model ZoneTelemetryLog {
+  id        String   @id @default(uuid())
+  h3Cell    String   @map("h3_cell")
+  lfScore   Float    @map("lf_score")
+  weather   String?
+  aqi       Int?
+  timestamp DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@map("zone_telemetry_logs")
+}
+
+model PayoutIdempotencyKey {
+  id             String   @id @default(uuid())
+  userId         String
+  h3Cell         String   @map("h3_cell")
+  eventTimestamp Int      @map("event_timestamp")
+  payoutState    String   @default("PENDING") @map("payout_state")
+  payoutId       String?  @map("payout_id")
+  errorMessage   String?  @map("error_message")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, h3Cell, eventTimestamp])
+  @@index([userId])
+  @@map("payout_idempotency_keys")
+}
+
+model ZoneRiskData {
+  id              String   @id @default(cuid())
+  h3_cell         String   @unique
+  riskScore       Float
+  riskLevel       String
+  rainfall        Float
+  temperature     Float
+  aqi             Int
+  floodChance     String
+  disruptionScore Float
+  trafficStatus   String
+  activeRiders    Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([h3_cell])
+  @@map("zone_risk_data")
+}
+
+model KafkaDLQ {
+  id         String   @id @default(uuid())
+  topic      String
+  eventKey   String?  @map("event_key")
+  payload    String
+  error      String?
+  retryCount Int      @default(0) @map("retry_count")
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([topic, status])
+  @@index([createdAt])
+  @@map("kafka_dlq")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  eventType String
+  message   String
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+  @@map("notifications")
 }
 
 enum Role {
@@ -66,529 +539,4 @@ enum TriggerDecision {
   APPROVED
   HOLD
   REJECTED
-}
-
-/// **User Identity & Security Principal**
-/// 
-/// Represents the centralized identity persistence layer. This model is the 
-/// primary anchor for the "Zero-Trust" identity pipeline, managing 
-/// cryptographic credentials and behavioral risk metadata (fraudWarningCount).
-model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  phone         String?  @unique
-  passwordHash  String
-  driverName    String?
-  platform      String?
-  role          Role     @default(DRIVER)
-  isVerified    Boolean  @default(false)
-  otpCode       String?
-  otpExpiresAt  DateTime?
-  refreshToken  String?
-  isActive      Boolean  @default(true)
-  fraudWarningCount Int  @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // DPDP Act 2023 Explicit Consents
-  gpsConsentTimestamp          DateTime?
-  gpsConsentVersion            String?
-  platformDataConsentTimestamp DateTime?
-  platformDataPartner          String?
-
-  kycProfile            KYCProfile?
-  kycBasicIdentity      KYCBasicIdentity?
-  kycPersonalDetails    KYCPersonalDetails?
-  kycIdentityVerification KYCIdentityVerification?
-  kycPayoutSetup        KYCPayoutSetup?
-  fraudAnalysis         FraudAnalysis?
-  claimFingerprints     ClaimFingerprint[]
-  policies              Policy[]
-  razorpayOrders       RazorpayOrder[]
-  billingMandates      BillingMandate[]
-  premiumInvoices      PremiumInvoice[]
-  claimCases           ClaimCase[]
-
-  @@map("users")
-}
-
-model KYCProfile {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status      KYCStatus @default(NOT_STARTED)
-  submittedAt DateTime?
-  reviewedAt  DateTime?
-  reviewNote  String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@map("kyc_profiles")
-}
-
-model KYCBasicIdentity {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fullName  String
-  dob       DateTime
-  gender    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("kyc_basic_identity")
-}
-
-model KYCPersonalDetails {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  address   String
-  city      String
-  state     String
-  pincode   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("kyc_personal_details")
-}
-
-model KYCIdentityVerification {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  aadhaarNumber  String
-  panNumber      String
-  aadhaarDocUrl  String?
-  panDocUrl      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@map("kyc_identity_verification")
-}
-
-model KYCPayoutSetup {
-  id              String       @id @default(uuid())
-  userId          String       @unique
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  method          PayoutMethod @default(UPI)
-  financialDataConsent   Boolean      @default(false)
-  financialDataConsentAt DateTime?
-  consentVersion         String?
-  upiId           String?
-  accountNumber   String?
-  ifscCode        String?
-  accountHolder   String?
-  bankName        String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  @@map("kyc_payout_setup")
-}
-
-model FraudAnalysis {
-  id                String   @id @default(uuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gpsLatitude       Float?
-  gpsLongitude      Float?
-  riskScore         Float    @default(0)
-  status            String   @default("PENDING")
-  deviceIntegrity   String?
-  networkType       String?
-  velocityCheck     String?
-  analysisDetails   String?
-  reviewedAt        DateTime?
-  reviewNote        String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@map("fraud_analysis")
-}
-
-/// **Adversarial High-Concurrency Fraud Prevention**
-/// 
-/// Stores unique telemetry fingerprints to prevent multi-device claim spoofing.
-/// Utilizes a compound unique constraint to enforce "Temporal Integrity" 
-/// across the global H3 grid.
-model ClaimFingerprint {
-  id             String   @id @default(uuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  h3Cell         String   @map("h3_cell")
-  eventType      String   @map("event_type")
-  claimAmount    Float    @default(0) @map("claim_amount")
-  amountBucket   Int      @map("amount_bucket")
-  timeBucket     Int      @map("time_bucket")
-  fingerprintHash String  @map("fingerprint_hash")
-  createdAt      DateTime @default(now())
-
-  @@unique([userId, fingerprintHash, timeBucket])
-  @@index([fingerprintHash, createdAt])
-  @@index([userId, createdAt])
-  @@map("claim_fingerprints")
-}
-
-model WeeklyPlan {
-  id                     String   @id @default(uuid())
-  key                    String   @unique
-  name                   String
-  price                  Float
-  maxPayout              Float    @default(0)
-  durationDays          Int      @default(7)
-  eligibleDisruptionTypes String[] @default([])
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  policies               Policy[]
-  razorpayOrders         RazorpayOrder[]
-
-  @@map("weekly_plans")
-}
-
-model DisruptionEvent {
-  id           String   @id @default(uuid())
-  type         String
-  title        String
-  expectedLoss Float?
-  expectedPayout Float?
-  occurredAt   DateTime @default(now())
-  expiresAt    DateTime?
-  verified     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  payouts      Payout[]
-  claimCases   ClaimCase[]
-  triggerLogs  TriggerEventLog[]
-
-  @@map("disruption_events")
-}
-
-model Policy {
-  id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Keeps backward compatibility with any existing UI/data that refers to planType.
-  planType     String
-  status       String   @default("ACTIVE")
-  premium      Float
-  startDate    DateTime
-  endDate      DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  weeklyPlanId String?
-  weeklyPlan   WeeklyPlan? @relation(fields: [weeklyPlanId], references: [id], onDelete: SetNull)
-
-  payouts      Payout[]
-  billingMandates BillingMandate[]
-  premiumInvoices PremiumInvoice[]
-  claimCases      ClaimCase[]
-
-  @@map("policies")
-}
-
-model Payout {
-  id String @id @default(uuid())
-
-  policyId           String
-  disruptionEventId String
-
-  policy            Policy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  disruptionEvent  DisruptionEvent  @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
-
-  status           String  @default("PROCESSING") // PROCESSING | APPROVED | REJECTED
-  estimatedLoss   Float?  @default(0)
-  approvedPayout  Float?  @default(0)
-  transactionId   String?
-  bankReference   String?
-  transferredAt   DateTime?
-  paymentMethod   String?
-  processingTime  String?
-
-  // Optional timeline for UI.
-  timeline         Json?
-
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@unique([policyId, disruptionEventId])
-  @@map("payouts")
-}
-
-model BillingMandate {
-  id                String              @id @default(uuid())
-  userId            String
-  policyId          String
-  provider          String              @default("RAZORPAY")
-  providerMandateId String?
-  status            BillingMandateStatus @default(ACTIVE)
-  nextChargeAt      DateTime
-  lastChargedAt     DateTime?
-  failureCount      Int                 @default(0)
-  metadata          Json?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  policy            Policy              @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  invoices          PremiumInvoice[]
-
-  @@index([userId, status])
-  @@index([policyId, status])
-  @@map("billing_mandates")
-}
-
-model PremiumInvoice {
-  id                String             @id @default(uuid())
-  userId            String
-  policyId          String
-  mandateId         String?
-  billingCycleStart DateTime           @map("billing_cycle_start")
-  billingCycleEnd   DateTime           @map("billing_cycle_end")
-  amountDue         Float              @map("amount_due")
-  amountPaid        Float?             @default(0) @map("amount_paid")
-  status            PremiumInvoiceStatus @default(PENDING)
-  dueAt             DateTime           @map("due_at")
-  paidAt            DateTime?          @map("paid_at")
-  failureReason     String?            @map("failure_reason")
-  correlationId     String?            @map("correlation_id")
-  metadata          Json?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  policy            Policy             @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  mandate           BillingMandate?    @relation(fields: [mandateId], references: [id], onDelete: SetNull)
-  attempts          PremiumChargeAttempt[]
-  ledgerEntries     PremiumLedgerEntry[]
-
-  @@unique([policyId, billingCycleStart])
-  @@index([userId, status, dueAt])
-  @@index([status, dueAt])
-  @@map("premium_invoices")
-}
-
-model PremiumChargeAttempt {
-  id                String            @id @default(uuid())
-  invoiceId         String
-  attemptNumber     Int               @default(1) @map("attempt_number")
-  status            ChargeAttemptStatus @default(STARTED)
-  gatewayProvider   String            @default("RAZORPAY") @map("gateway_provider")
-  gatewayReference  String?           @map("gateway_reference")
-  errorCode         String?           @map("error_code")
-  errorMessage      String?           @map("error_message")
-  correlationId     String?           @map("correlation_id")
-  metadata          Json?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-
-  invoice           PremiumInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@index([invoiceId, attemptNumber])
-  @@index([status, createdAt])
-  @@map("premium_charge_attempts")
-}
-
-model PremiumLedgerEntry {
-  id                String          @id @default(uuid())
-  userId            String
-  policyId          String
-  invoiceId         String
-  direction         String
-  amount            Float
-  currency          String          @default("INR")
-  description       String?
-  correlationId     String?         @map("correlation_id")
-  createdAt         DateTime        @default(now())
-
-  invoice           PremiumInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([policyId, createdAt])
-  @@map("premium_ledger_entries")
-}
-
-model ClaimCase {
-  id                String          @id @default(uuid())
-  userId            String
-  policyId          String
-  disruptionEventId String
-  payoutId          String?         @unique
-  status            ClaimCaseStatus @default(OPEN)
-  reasonCode        String?
-  fraudScore        Float?
-  decisionNote      String?
-  correlationId     String?         @map("correlation_id")
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  policy            Policy          @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  disruptionEvent   DisruptionEvent @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
-
-  @@unique([policyId, disruptionEventId])
-  @@index([userId, status, createdAt])
-  @@map("claim_cases")
-}
-
-model TriggerEventLog {
-  id                String          @id @default(uuid())
-  userId            String?
-  policyId          String?
-  disruptionEventId String?
-  h3Cell            String          @map("h3_cell")
-  decision          TriggerDecision
-  source            String
-  reason            String?
-  riskScore         Float?
-  correlationId     String?         @map("correlation_id")
-  eventTimestamp    Int?            @map("event_timestamp")
-  createdAt         DateTime        @default(now())
-
-  disruptionEvent   DisruptionEvent? @relation(fields: [disruptionEventId], references: [id], onDelete: SetNull)
-
-  @@index([h3Cell, createdAt])
-  @@index([decision, createdAt])
-  @@index([userId, createdAt])
-  @@map("trigger_event_logs")
-}
-
-model RazorpayOrder {
-  id String @id @default(uuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  weeklyPlanId String
-  weeklyPlan   WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
-
-  razorpayOrderId String @unique
-  amount Int
-  currency String @default("INR")
-
-  status String @default("CREATED") // CREATED | SUCCESS | FAILED
-
-  razorpayPaymentId String?
-  razorpaySignature String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("razorpay_orders")
-}
-
-model AdminSettings {
-  id                    String   @id @default(uuid())
-  alertThresholds       Json
-  riskConfig            Json
-  planConfig            Json
-  verificationSettings  Json
-  notifications         Json
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@map("admin_settings")
-}
-
-model SystemSetting {
-  key   String @id
-  value String
-
-  @@map("system_settings")
-}
-
-model ZoneTelemetryLog {
-  id        String   @id @default(uuid())
-  h3Cell    String   @map("h3_cell")
-  lfScore   Float    @map("lf_score")
-  weather   String?  // Clear, Heavy Rain, etc.
-  aqi       Int?     // PM2.5 readings
-  timestamp DateTime @default(now())
-
-  // TimescaleDB specifically requires the timestamp column to be indexed
-  @@index([timestamp(sort: Desc)])
-  @@map("zone_telemetry_logs")
-}
-
-// ── Parametric Payout Idempotency Loop ─────────────────────────────────────────
-// This model enforces the "Exactly-Once" payment semantic at the database 
-// level. It is the core of the Aegis ACID-compliant FinTech ledgering system, 
-// preventing double-disbursements during high-concurrency H3 burst events.
-//
-// Ref: DATA_SCHEMA_AND_STATE.md
-model PayoutIdempotencyKey {
-  id             String   @id @default(uuid())
-  userId         String
-  h3Cell         String   @map("h3_cell")
-  eventTimestamp Int      @map("event_timestamp")   // unix epoch seconds
-
-  // Payout lifecycle: PENDING → PROCESSING → SUCCESS | FAILED
-  payoutState    String   @default("PENDING") @map("payout_state")
-  payoutId       String?  @map("payout_id")          // filled when SUCCESS
-  errorMessage   String?  @map("error_message")       // filled when FAILED
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Enforce exactly-once semantics at DB level
-  @@unique([userId, h3Cell, eventTimestamp])
-  @@index([userId])
-  @@map("payout_idempotency_keys")
-}
-
-// ── High-Fidelity Regional Risk Matrix ───────────────────────────────────────
-// Elite deterministic risk matrices for the H3 lifecycle.
-// Elite real-time reconciliation via Kafka/Redis high-throughput brokers.
-model ZoneRiskData {
-  id              String   @id @default(cuid())
-  h3_cell         String   @unique
-  riskScore       Float                          // 0–100
-  riskLevel       String                         // HIGH | MEDIUM | LOW
-  rainfall        Float                          // mm
-  temperature     Float                          // °C
-  aqi             Int                            // 0–500
-  floodChance     String                         // High | Medium | Low
-  disruptionScore Float                          // 0–1
-  trafficStatus   String                         // Halt | Slow Traffic | Stable Flow
-  activeRiders    Int
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([h3_cell])
-  @@map("zone_risk_data")
-}
-
-// ── Elite Event Resiliency Buffer (DB Contingency) ──────────────────────────
-// In the rare event of asynchronous broker non-availability, events are 
-// preserved for forensic replay once the high-order broker state is restored.
-model KafkaDLQ {
-  id          String   @id @default(uuid())
-  topic       String                          // original Kafka topic
-  eventKey    String?  @map("event_key")      // Kafka message key (rider_id)
-  payload     String                          // JSON-serialised message body
-  error       String?                         // reason for DLQ / failure
-  retryCount  Int      @default(0) @map("retry_count")
-  status      String   @default("PENDING")    // PENDING | RETRYING | DEAD
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([topic, status])
-  @@index([createdAt])
-  @@map("kafka_dlq")
-}
-
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  eventType String
-  message   String
-  metadata  Json?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([userId, createdAt])
-  @@index([userId, isRead])
-  @@map("notifications")
 }

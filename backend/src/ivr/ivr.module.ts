@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { WhatsappController } from './whatsapp.controller';
+import { IvrController } from './ivr.controller';
 import { AssistantModule } from '../assistant/assistant.module';
 
 @Module({
   imports: [AssistantModule],
-  controllers: [WhatsappController],
+  controllers: [IvrController],
 })
-export class WhatsappModule {}
+export class IvrModule {}

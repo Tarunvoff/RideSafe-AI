@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -25,6 +26,14 @@ export class LiquidityPoolService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private isMissingSystemSettingsTableError(error: unknown): boolean {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      return error.code === 'P2021';
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return message.includes('system_settings') && message.includes('does not exist');
+  }
+
   /**
    * Performs an Actuarial Injection of fresh premium capital into the ecosystem.
    * Unlike generic additions, this stratified injection partitions funds 
@@ -40,40 +49,54 @@ export class LiquidityPoolService {
       `Risk=${riskAmount.toFixed(2)} | Contingency=${contingencyAmount.toFixed(2)} | Ops=${operatingAmount.toFixed(2)}`
     );
 
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Update Core Risk Pool (SYSTEM_LIQUIDITY)
-      const currentPool = await tx.systemSetting.findUnique({ where: { key: this.POOL_KEY } });
-      const newPoolVal = Number(currentPool?.value ?? 5000000) + riskAmount;
-      await tx.systemSetting.upsert({
-        where: { key: this.POOL_KEY },
-        create: { key: this.POOL_KEY, value: String(newPoolVal) },
-        update: { value: String(newPoolVal) },
-      });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Update Core Risk Pool (SYSTEM_LIQUIDITY)
+        const currentPool = await tx.systemSetting.findUnique({ where: { key: this.POOL_KEY } });
+        const newPoolVal = Number(currentPool?.value ?? 5000000) + riskAmount;
+        await tx.systemSetting.upsert({
+          where: { key: this.POOL_KEY },
+          create: { key: this.POOL_KEY, value: String(newPoolVal) },
+          update: { value: String(newPoolVal) },
+        });
 
-      // 2. Update Contingency Reserve
-      const currentReserve = await tx.systemSetting.findUnique({ where: { key: this.RESERVE_KEY } });
-      const newReserveVal = Number(currentReserve?.value ?? 1000000) + contingencyAmount;
-      await tx.systemSetting.upsert({
-        where: { key: this.RESERVE_KEY },
-        create: { key: this.RESERVE_KEY, value: String(newReserveVal) },
-        update: { value: String(newReserveVal) },
-      });
+        // 2. Update Contingency Reserve
+        const currentReserve = await tx.systemSetting.findUnique({ where: { key: this.RESERVE_KEY } });
+        const newReserveVal = Number(currentReserve?.value ?? 1000000) + contingencyAmount;
+        await tx.systemSetting.upsert({
+          where: { key: this.RESERVE_KEY },
+          create: { key: this.RESERVE_KEY, value: String(newReserveVal) },
+          update: { value: String(newReserveVal) },
+        });
 
-      // 3. Update Operating Fund
-      const currentOps = await tx.systemSetting.findUnique({ where: { key: this.OPERATING_FUND_KEY } });
-      const newOpsVal = Number(currentOps?.value ?? 0) + operatingAmount;
-      await tx.systemSetting.upsert({
-        where: { key: this.OPERATING_FUND_KEY },
-        create: { key: this.OPERATING_FUND_KEY, value: String(newOpsVal) },
-        update: { value: String(newOpsVal) },
-      });
+        // 3. Update Operating Fund
+        const currentOps = await tx.systemSetting.findUnique({ where: { key: this.OPERATING_FUND_KEY } });
+        const newOpsVal = Number(currentOps?.value ?? 0) + operatingAmount;
+        await tx.systemSetting.upsert({
+          where: { key: this.OPERATING_FUND_KEY },
+          create: { key: this.OPERATING_FUND_KEY, value: String(newOpsVal) },
+          update: { value: String(newOpsVal) },
+        });
 
-      return {
-        totalInjected: amountRupees,
-        newPoolBalance: newPoolVal,
-        newReserveBalance: newReserveVal,
-      };
-    });
+        return {
+          totalInjected: amountRupees,
+          newPoolBalance: newPoolVal,
+          newReserveBalance: newReserveVal,
+        };
+      });
+    } catch (error) {
+      if (this.isMissingSystemSettingsTableError(error)) {
+        this.logger.warn(
+          '[LIQUIDITY_DEGRADED_MODE] system_settings table missing; skipping liquidity ledger update to avoid blocking policy issuance.',
+        );
+        return {
+          totalInjected: amountRupees,
+          newPoolBalance: null,
+          newReserveBalance: null,
+        };
+      }
+      throw error;
+    }
   }
 
   /**
@@ -82,9 +105,10 @@ export class LiquidityPoolService {
    * it evaluates eligibility to tap the Contingency Reserve.
    */
   async withdrawPayout(amountRupees: number, referenceId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const currentPool = await tx.systemSetting.findUnique({ where: { key: this.POOL_KEY } });
-      let poolBalance = Number(currentPool?.value ?? 5000000);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const currentPool = await tx.systemSetting.findUnique({ where: { key: this.POOL_KEY } });
+        let poolBalance = Number(currentPool?.value ?? 5000000);
 
       if (poolBalance < amountRupees) {
         // Evaluate "Reserve Tapping" Eligibility
@@ -122,19 +146,39 @@ export class LiquidityPoolService {
         update: { value: String(nextPoolVal) },
       });
 
-      return { withdrawnFrom: 'CORE', remainingPool: nextPoolVal };
-    });
+        return { withdrawnFrom: 'CORE', remainingPool: nextPoolVal };
+      });
+    } catch (error) {
+      if (this.isMissingSystemSettingsTableError(error)) {
+        this.logger.warn(
+          `[LIQUIDITY_DEGRADED_MODE] system_settings table missing; allowing payout ${referenceId} without ledger withdrawal tracking.`,
+        );
+        return { withdrawnFrom: 'UNTRACKED', remainingPool: null, remainingReserve: null };
+      }
+      throw error;
+    }
   }
 
   /**
    * Provides a forensic snapshot of the platform's liquidity health.
    */
   async getLiquidityStatus() {
-    const [pool, reserve, ops] = await Promise.all([
-      this.prisma.systemSetting.findUnique({ where: { key: this.POOL_KEY } }),
-      this.prisma.systemSetting.findUnique({ where: { key: this.RESERVE_KEY } }),
-      this.prisma.systemSetting.findUnique({ where: { key: this.OPERATING_FUND_KEY } }),
-    ]);
+    let pool: { value: string } | null = null;
+    let reserve: { value: string } | null = null;
+    let ops: { value: string } | null = null;
+    try {
+      [pool, reserve, ops] = await Promise.all([
+        this.prisma.systemSetting.findUnique({ where: { key: this.POOL_KEY }, select: { value: true } }),
+        this.prisma.systemSetting.findUnique({ where: { key: this.RESERVE_KEY }, select: { value: true } }),
+        this.prisma.systemSetting.findUnique({ where: { key: this.OPERATING_FUND_KEY }, select: { value: true } }),
+      ]);
+    } catch (error) {
+      if (this.isMissingSystemSettingsTableError(error)) {
+        this.logger.warn('[LIQUIDITY_DEGRADED_MODE] system_settings table missing; returning fallback liquidity status.');
+      } else {
+        throw error;
+      }
+    }
 
     const poolVal = Number(pool?.value ?? 0);
     const reserveVal = Number(reserve?.value ?? 0);

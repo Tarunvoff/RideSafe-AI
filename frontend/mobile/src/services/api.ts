@@ -557,12 +557,13 @@ export const fraudApi = {
       riskScore?: number;
       riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
       [key: string]: any;
-    }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`),
+    }>(`/fraud/zone-risk?lat=${lat}&lng=${lng}`, {}, true),
 
   getZoneNeighbors: (lat: number, lng: number, radius = 1) =>
     request<{ center: any; neighbors: any[] }>(
       `/fraud/zone-neighbors?lat=${lat}&lng=${lng}&radius=${radius}`,
       {},
+      true,
     ),
 
   // ── ADMIN ENDPOINTS ──────────────────────────────────────────────────────

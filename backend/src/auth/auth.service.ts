@@ -9,7 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { Prisma } from '@prisma/client';
+import { KYCStatus, Prisma } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notifications/notification.service';
@@ -59,6 +59,75 @@ export class AuthService {
     private notifications: NotificationService,
     private dynamicQCommerce: DynamicQCommerceService,
   ) {}
+
+  private normalizeEmail(email: string): string {
+    return String(email ?? '').trim().toLowerCase();
+  }
+
+  private kycStatusPriority(status?: KYCStatus | null): number {
+    switch (status) {
+      case 'APPROVED':
+        return 5;
+      case 'SUBMITTED':
+        return 4;
+      case 'IN_PROGRESS':
+        return 3;
+      case 'REJECTED':
+        return 2;
+      case 'NOT_STARTED':
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
+  private async findUserByEmailCI(email: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const users = await this.prisma.user.findMany({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!users.length) {
+      return null;
+    }
+
+    const kycProfiles = await this.prisma.kYCProfile.findMany({
+      where: {
+        userId: {
+          in: users.map((u) => u.id),
+        },
+      },
+      select: {
+        userId: true,
+        status: true,
+      },
+    });
+
+    const kycByUserId = new Map<string, KYCStatus>();
+    for (const profile of kycProfiles) {
+      kycByUserId.set(profile.userId, profile.status);
+    }
+
+    users.sort((a, b) => {
+      const kycScore =
+        this.kycStatusPriority(kycByUserId.get(b.id) ?? null) -
+        this.kycStatusPriority(kycByUserId.get(a.id) ?? null);
+      if (kycScore !== 0) return kycScore;
+
+      if (a.isVerified !== b.isVerified) {
+        return a.isVerified ? -1 : 1;
+      }
+
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    return users[0];
+  }
 
   private formatPhoneForSms(phone: string): string {
     const digits = String(phone ?? '').replace(/\D/g, '');
@@ -514,15 +583,13 @@ export class AuthService {
 
     const user = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
 
-    const otp = generateOTP();
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { otpCode: hashOTP(otp), otpExpiresAt: otpExpiresAt() },
-    });
-    await this.email.sendOTPEmail(user.email, otp, 'ADMIN_MFA');
+    const tokens = await this.generateTokens(user);
+    const rtHash = hashOTP(tokens.refreshToken);
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
     return {
-      message: 'Admin OTP sent. Please verify to complete sign-in.',
+      message: 'Admin sign-in successful.',
+      ...tokens,
       role: 'ADMIN',
       userId: user.id,
     };
@@ -568,20 +635,33 @@ export class AuthService {
 
   // ── DRIVER 2FA (Reusing Admin Logic) ──────────────────────────────────────
   async startDriverLoginOtp(email: string) {
+    const normalizedEmail = this.normalizeEmail(email);
     const otp = generateOTP();
     const expiry = otpExpiresAt();
 
     // Store OTP on the user record so email ownership can be verified pre-OAuth.
-    let user = await this.prisma.user.findUnique({ where: { email } });
+    let user = await this.findUserByEmailCI(normalizedEmail);
     if (!user) {
       const bootstrapPasswordHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12);
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          passwordHash: bootstrapPasswordHash,
-          role: 'DRIVER',
-          isVerified: false,
-        }
+      user = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash: bootstrapPasswordHash,
+            role: 'DRIVER',
+            isVerified: false,
+          }
+        });
+
+        // Ensure eligibility checks always have a baseline KYC record.
+        await tx.kYCProfile.create({
+          data: {
+            userId: created.id,
+            status: 'NOT_STARTED',
+          },
+        });
+
+        return created;
       });
     }
 
@@ -590,12 +670,12 @@ export class AuthService {
       data: { otpCode: hashOTP(otp), otpExpiresAt: expiry },
     });
 
-    await this.email.sendOTPEmail(email, otp, 'LOGIN');
+    await this.email.sendOTPEmail(normalizedEmail, otp, 'LOGIN');
     return { message: 'OTP sent to your email. Please verify to continue.' };
   }
 
   async verifyDriverLoginOtp(email: string, otp: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.findUserByEmailCI(email);
     if (!user || !user.otpCode || !user.otpExpiresAt) throw new BadRequestException('No OTP requested');
     if (new Date() > user.otpExpiresAt) throw new BadRequestException('OTP has expired');
     if (hashOTP(otp) !== user.otpCode) throw new BadRequestException('Invalid OTP');
@@ -673,10 +753,10 @@ export class AuthService {
 
     const driverProfile = oauthResult?.driverProfile;
     const providerKycVerified = Boolean(driverProfile?.kyc?.kycVerified);
-    const email = driverProfile?.identity?.email?.trim();
+    const email = this.normalizeEmail(driverProfile?.identity?.email ?? '');
     if (!email) throw new BadRequestException('Provider did not return an email identity');
 
-    let user = await this.prisma.user.findUnique({ where: { email } });
+    let user = await this.findUserByEmailCI(email);
     if (!user) {
       const bootstrapPasswordSeed = crypto.randomBytes(16).toString('hex');
       const passwordHash = await bcrypt.hash(bootstrapPasswordSeed, 12);

@@ -30,6 +30,9 @@ import { StateModule } from './state/state.module';
 import { RiskMonitorModule } from './risk-monitor/risk-monitor.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
+import { IvrModule } from './ivr/ivr.module';
+import { TwilioModule } from './twilio-provider/twilio.module';
+import { AssistantModule } from './assistant/assistant.module';
 import { TokenRevocationMiddleware } from './auth/token-revocation.middleware';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -64,7 +67,10 @@ import { APP_GUARD } from '@nestjs/core';
     StateModule,
     RiskMonitorModule,
     ComplianceModule,
+    TwilioModule,
+    AssistantModule,
     WhatsappModule,
+    IvrModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
