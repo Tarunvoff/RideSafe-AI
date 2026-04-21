@@ -354,15 +354,13 @@ export class AuthService {
 
     const user = await this.ensureAdminUserExists(adminCreds.email, adminCreds.password);
 
-    const otp = generateOTP();
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { otpCode: hashOTP(otp), otpExpiresAt: otpExpiresAt() },
-    });
-    await this.email.sendOTPEmail(user.email, otp, 'ADMIN_MFA');
+    const tokens = await this.generateTokens(user);
+    const rtHash = hashOTP(tokens.refreshToken);
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: rtHash } });
 
     return {
-      message: 'Admin OTP sent. Please verify to complete sign-in.',
+      message: 'Admin sign-in successful.',
+      ...tokens,
       role: 'ADMIN',
       userId: user.id,
     };

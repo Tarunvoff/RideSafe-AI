@@ -47,8 +47,6 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [email, setEmail] = useState('suryaravichandran5555@gmail.com');
   const [password, setPassword] = useState('surya@100416');
-  const [otp, setOtp] = useState('');
-  const [mfaRequired, setMfaRequired] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -88,43 +86,17 @@ export default function App() {
       setLoading(true);
       setAuthError('');
 
-      if (!mfaRequired) {
-        // Step 1: Password Authentication
-        const res = await adminApi.login({ email, password });
-
-        if (res.message && res.message.includes('OTP')) {
-          setMfaRequired(true);
-        } else {
-          // Some configurations might skip MFA for certain nodes
-          const token = res.accessToken || res.access_token;
-          if (token) {
-            localStorage.setItem('adminToken', token);
-            setIsAuthenticated(true);
-          } else {
-            throw new Error('MFA required but no redirect provided');
-          }
-        }
+      const res = await adminApi.login({ email, password });
+      const token = res.accessToken || res.access_token;
+      if (token) {
+        localStorage.setItem('adminToken', token);
+        setIsAuthenticated(true);
       } else {
-        // Step 2: OTP Verification
-        const res = await adminApi.verifyOtp({ email, otp: otp.trim() });
-
-        const token = res.accessToken || res.access_token;
-        if (token) {
-          localStorage.setItem('adminToken', token);
-          setIsAuthenticated(true);
-          setMfaRequired(false);
-          setOtp(''); // Clear OTP on success
-        } else {
-          throw new Error('Verification successful, but session token is missing');
-        }
+        throw new Error('Authentication successful, but session token is missing');
       }
     } catch (e: any) {
       console.error('Authentication Error Detail:', e);
       setAuthError(e.message || 'Authentication Protocol Rejected');
-      if (e.message.includes('expired')) {
-        setMfaRequired(false);
-        setOtp('');
-      }
     } finally {
       setLoading(false);
     }
@@ -134,8 +106,6 @@ export default function App() {
     localStorage.removeItem('adminToken');
     setIsAuthenticated(false);
     setData(null);
-    setMfaRequired(false);
-    setOtp('');
   };
 
   if (!isAuthenticated) {
@@ -149,7 +119,7 @@ export default function App() {
             <h1 className="text-4xl italic">AEGIS ADMIN</h1>
           </div>
           <p className="font-bold mb-6 text-gray-500 uppercase tracking-tighter">
-            {mfaRequired ? 'Multi-Factor Verification' : 'Operational Command Entrance'}
+            Operational Command Entrance
           </p>
 
           {authError && (
@@ -159,53 +129,31 @@ export default function App() {
           )}
 
           <div className="flex flex-col gap-4">
-            {!mfaRequired ? (
-              <>
-                <input
-                  type="email"
-                  placeholder="ADMIN@AEGIS.COM"
-                  className="neo-input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className="neo-input"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs font-black uppercase text-gray-400 mb-1">Enter Security Code sent to email</p>
-                <input
-                  type="text"
-                  placeholder="6-DIGIT OTP"
-                  className="neo-input text-center text-2xl tracking-[0.5em] font-black"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  maxLength={6}
-                />
-                <button
-                  className="text-sm font-bold text-coral underline text-left mt-1"
-                  onClick={() => setMfaRequired(false)}
-                >
-                  Return to email/password
-                </button>
-              </div>
-            )}
+            <input
+              type="email"
+              placeholder="ADMIN@AEGIS.COM"
+              className="neo-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="••••••••"
+              className="neo-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
             <button
               className={`neo-btn w-full mt-4 ${loading ? 'opacity-50 cursor-wait' : ''}`}
               onClick={handleLogin}
               disabled={loading}
             >
-              {loading ? 'VERIFYING...' : mfaRequired ? 'Complete Sign-In' : 'Initialize Secure Session'}
+              {loading ? 'VERIFYING...' : 'Initialize Secure Session'}
             </button>
           </div>
           <p className="text-xs mt-8 text-gray-400 font-bold uppercase tracking-[0.2em] text-center">
-            {mfaRequired ? 'MFA Protocol v2 - Node Validated' : 'Secured by Aegis Enforcer v2 • Real-time Monitoring Active'}
+            Secured by Aegis Enforcer v2 • Real-time Monitoring Active
           </p>
         </div>
       </div>
