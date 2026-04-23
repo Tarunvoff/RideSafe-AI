@@ -28,7 +28,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { cellToBoundary, latLngToCell, gridDisk } from 'h3-js';
-import { WebView } from 'react-native-webview';
+import MapboxGL from '@rnmapbox/maps';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
@@ -39,6 +39,12 @@ import { fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'HALT';
+
+const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim();
+if (mapboxToken) {
+  MapboxGL.setAccessToken(mapboxToken);
+}
+MapboxGL.setTelemetryEnabled(false);
 
 /**
  * [IN-LINE PRIDE]: Parametric Risk Normalization
@@ -104,6 +110,25 @@ function riskPalette(level: RiskLevel) {
   };
 }
 
+type MapboxRiskFeature = {
+  type: 'Feature';
+  id: string;
+  properties: {
+    id: string;
+    riskLevel: RiskLevel;
+    h3Id: string;
+  };
+  geometry: {
+    type: 'Polygon';
+    coordinates: number[][][];
+  };
+};
+
+type MapboxRiskFeatureCollection = {
+  type: 'FeatureCollection';
+  features: MapboxRiskFeature[];
+};
+
 function resolveRiskLevel(rawRiskLevel: unknown, riskScore: number, trafficStatus: string): RiskLevel {
   if (trafficStatus === 'Halt') return 'HALT';
   const level = String(rawRiskLevel ?? '').toUpperCase();
@@ -151,6 +176,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const { user, logout } = useAuth();
   const { location, refreshLocation } = useLocation();
   const hasBootstrappedLocationRef = React.useRef(false);
+  const isMountedRef = React.useRef(true);
   const hasGpsCoords = isFiniteCoordinate(location.latitude) && isFiniteCoordinate(location.longitude);
   const hasValidLocation = location.isValid && hasGpsCoords;
 
@@ -162,8 +188,21 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   useEffect(() => {
     void appendLiveRiskDebugLog('LIVE_RISK_MOUNT');
     return () => {
+      isMountedRef.current = false;
       void appendLiveRiskDebugLog('LIVE_RISK_UNMOUNT');
     };
+  }, []);
+
+  const safeSetLoading = useCallback((value: boolean) => {
+    if (isMountedRef.current) setLoading(value);
+  }, []);
+
+  const safeSetCellData = useCallback((value: { current: CellRisk; neighbors: CellRisk[] } | null) => {
+    if (isMountedRef.current) setCellData(value);
+  }, []);
+
+  const safeSetSelectedCellId = useCallback((value: string) => {
+    if (isMountedRef.current) setSelectedCellId(value);
   }, []);
 
   const handleLogout = async () => {
@@ -246,7 +285,7 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         userId: user?.id ?? null,
       });
       if (location.loading || !coords || !isFiniteCoordinate(coords.lat) || !isFiniteCoordinate(coords.lng)) return;
-      setLoading(true);
+      safeSetLoading(true);
       if (!user?.id) return;
       await telemetryApi.sendGps({
         driverId: user.id,
@@ -256,29 +295,43 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       });
       const res = await fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1);
       
-      // Local Grid Generation for 'Admin Map' feel with 500m resolution cells
-      const centralH3 = latLngToCell(coords.lat, coords.lng, 8);
-      const fullDisk = gridDisk(centralH3, 4); // Larger radius for more 'island' variety
-      
-      // High-sparsity filter for 'separated regions' look
-      const gridIds = fullDisk.filter((hid) => {
-        if (hid === centralH3) return true;
-        // Use a more aggressive spacing filter
-        const hash = parseInt(hid.slice(-4), 16);
-        return (hash % 12 === 0); // Keep only ~8% of cells, creating clear separation
-      });
-      
+      let centralH3: string | null = null;
+      try {
+        centralH3 = latLngToCell(coords.lat, coords.lng, 8);
+      } catch {
+        centralH3 = null;
+      }
+
       const center = toCellRisk(res?.center ?? { h3_cell: centralH3 }, 'c0');
       const neighborsRaw = Array.isArray(res?.neighbors) ? res.neighbors : [];
-      
-      const gridCells: CellRisk[] = gridIds.map((hid, idx) => {
-        if (hid === centralH3) return center;
-        const existing = neighborsRaw.find((n: any) => n.h3_cell === hid);
-        return toCellRisk(existing ?? { h3_cell: hid }, `g${idx}`);
-      });
 
-      setCellData({ current: center, neighbors: gridCells.filter(c => c.h3Id !== centralH3) });
-      setSelectedCellId('c0');
+      let gridCells: CellRisk[] = [];
+      if (centralH3) {
+        let fullDisk: string[] = [];
+        try {
+          fullDisk = gridDisk(centralH3, 4);
+        } catch {
+          fullDisk = [centralH3];
+        }
+
+        const gridIds = fullDisk.filter((hid) => {
+          if (hid === centralH3) return true;
+          const hash = parseInt(hid.slice(-4), 16);
+          return Number.isFinite(hash) && hash % 12 === 0;
+        });
+
+        gridCells = gridIds.map((hid, idx) => {
+          if (hid === centralH3) return center;
+          const existing = neighborsRaw.find((n: any) => n.h3_cell === hid);
+          return toCellRisk(existing ?? { h3_cell: hid }, `g${idx}`);
+        });
+      } else {
+        const inferredNeighbors = neighborsRaw.map((n: any, idx: number) => toCellRisk(n, `n${idx + 1}`));
+        gridCells = [center, ...inferredNeighbors];
+      }
+
+      safeSetCellData({ current: center, neighbors: gridCells.filter(c => c.id !== center.id) });
+      safeSetSelectedCellId('c0');
       void appendLiveRiskDebugLog('LOAD_ZONES_SUCCESS', {
         center: center.h3Id,
         neighbors: gridCells.length,
@@ -288,30 +341,36 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         message: err?.message ?? 'unknown',
       });
       if (!coords) return;
-      const centralH3 = latLngToCell(coords.lat, coords.lng, 8);
-      const fullDisk = gridDisk(centralH3, 4);
-      const gridIds = fullDisk.filter((hid) => {
-        if (hid === centralH3) return true;
-        const hash = parseInt(hid.slice(-4), 16);
-        return (hash % 12 === 0);
-      });
 
-      const gridCells = gridIds.map((hid, idx) => toCellRisk({ h3_cell: hid }, `f${idx}`));
-      
-      setCellData({ 
-        current: gridCells[0], 
-        neighbors: gridCells.slice(1) 
+      let fallbackCells: CellRisk[] = [];
+      try {
+        const centralH3 = latLngToCell(coords.lat, coords.lng, 8);
+        const fullDisk = gridDisk(centralH3, 4);
+        const gridIds = fullDisk.filter((hid) => {
+          if (hid === centralH3) return true;
+          const hash = parseInt(hid.slice(-4), 16);
+          return Number.isFinite(hash) && hash % 12 === 0;
+        });
+        fallbackCells = gridIds.map((hid, idx) => toCellRisk({ h3_cell: hid }, `f${idx}`));
+      } catch {
+        fallbackCells = [toCellRisk({ lat: coords.lat, lng: coords.lng }, 'f0')];
+      }
+
+      const safeCurrent = fallbackCells[0] ?? toCellRisk({ lat: coords.lat, lng: coords.lng }, 'f0');
+      safeSetCellData({ 
+        current: safeCurrent, 
+        neighbors: fallbackCells.slice(1) 
       });
-      setSelectedCellId('c0');
+      safeSetSelectedCellId('c0');
       void appendLiveRiskDebugLog('LOAD_ZONES_FALLBACK_SUCCESS', {
-        center: gridCells[0]?.h3Id ?? null,
-        neighbors: gridCells.length,
+        center: safeCurrent.h3Id ?? null,
+        neighbors: fallbackCells.length,
       });
     } finally {
-      setLoading(false);
+      safeSetLoading(false);
       void appendLiveRiskDebugLog('LOAD_ZONES_END');
     }
-  }, [coords, location.loading, toCellRisk, user?.id]);
+  }, [coords, location.loading, safeSetCellData, safeSetLoading, safeSetSelectedCellId, toCellRisk, user?.id]);
 
   useEffect(() => {
     void loadZones();
@@ -364,8 +423,11 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const allCells = useMemo(() => [cells.current, ...cells.neighbors], [cells]);
 
   const selectedCell: CellRisk = useMemo(() => {
-    return allCells.find((cell) => cell.id === selectedCellId) ?? allCells[0];
-  }, [allCells, selectedCellId]);
+    const selected = allCells.find((cell) => cell.id === selectedCellId);
+    if (selected) return selected;
+    if (allCells.length > 0) return allCells[0];
+    return toCellRisk({}, 'c0');
+  }, [allCells, selectedCellId, toCellRisk]);
 
   const driverLat = coords?.lat ?? 0;
   const driverLon = coords?.lng ?? 0;
@@ -380,115 +442,52 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     })
     : '—';
 
-  const mapRegion = useMemo(
-    () => (hasRenderableCoords
-      ? {
-        latitude: coords!.lat,
-        longitude: coords!.lng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-      : null
-    ),
-    [hasRenderableCoords, coords],
+  const mapCenterCoordinate = useMemo(
+    () => (coords ? ([coords.lng, coords.lat] as [number, number]) : null),
+    [coords],
   );
 
-  const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
-  const mapGeoJson = useMemo(() => ({
+  const mapPolygons = useMemo(
+    () =>
+      allCells.map((cell) => ({
+        id: cell.id,
+        riskLevel: cell.riskLevel,
+        coordinates: cell.polygon.filter(
+          (p) => isFiniteCoordinate(p.latitude) && isFiniteCoordinate(p.longitude),
+        ),
+      })),
+    [allCells],
+  );
+
+  const mapboxRiskSource = useMemo<MapboxRiskFeatureCollection>(() => ({
     type: 'FeatureCollection',
-    features: allCells
-      .map((cell) => {
-        const polygon = cell.polygon
-          .filter((p) => isFiniteCoordinate(p.latitude) && isFiniteCoordinate(p.longitude))
-          .map((p) => [p.longitude, p.latitude]);
-        if (polygon.length < 3) return null;
-        polygon.push([...polygon[0]]);
-        return {
-          type: 'Feature',
-          id: cell.id,
-          properties: {
-            id: cell.id,
-            strokeColor: riskPalette(cell.riskLevel).stroke,
-            fillColor: riskPalette(cell.riskLevel).fill,
-            selected: cell.id === selectedCell.id ? 1 : 0,
-          },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [polygon],
-          },
-        };
-      })
-      .filter(Boolean),
-  }), [allCells, selectedCell.id]);
+    features: mapPolygons
+      .filter((poly) => poly.coordinates.length >= 3)
+      .map((poly) => ({
+        type: 'Feature',
+        id: poly.id,
+        properties: {
+          id: poly.id,
+          riskLevel: poly.riskLevel,
+          h3Id: allCells.find((cell) => cell.id === poly.id)?.h3Id ?? poly.id,
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [(() => {
+            const ring = poly.coordinates.map((point) => [point.longitude, point.latitude]);
+            if (ring.length > 0) {
+              ring.push([...ring[0]] as [number, number]);
+            }
+            return ring;
+          })()],
+        },
+      })),
+  }), [allCells, mapPolygons]);
 
-  const mapboxHtml = useMemo(() => {
-    const centerLat = coords?.lat ?? 12.9716;
-    const centerLng = coords?.lng ?? 77.5946;
-    const escapedToken = JSON.stringify(mapboxToken);
-    const escapedGeoJson = JSON.stringify(mapGeoJson);
-    const escapedSelected = JSON.stringify(selectedCell.id);
-    const escapedMarker = JSON.stringify({ lat: centerLat, lng: centerLng });
-
-    return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet" />
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
-  <style>
-    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #f8fafc; }
-    .scooter {
-      width: 18px; height: 18px; border-radius: 50%;
-      background: #111827; border: 2px solid #ffffff; box-shadow: 0 0 0 2px #11182733;
-    }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    mapboxgl.accessToken = ${escapedToken};
-    const selectedId = ${escapedSelected};
-    const markerCoord = ${escapedMarker};
-    const geojson = ${escapedGeoJson};
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [markerCoord.lng, markerCoord.lat],
-      zoom: 14
-    });
-    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: false }), 'top-right');
-    map.on('load', () => {
-      map.addSource('risk-cells', { type: 'geojson', data: geojson });
-      map.addLayer({
-        id: 'risk-fill',
-        type: 'fill',
-        source: 'risk-cells',
-        paint: { 'fill-color': ['get', 'fillColor'], 'fill-opacity': 1 }
-      });
-      map.addLayer({
-        id: 'risk-line',
-        type: 'line',
-        source: 'risk-cells',
-        paint: {
-          'line-color': ['get', 'strokeColor'],
-          'line-width': ['case', ['==', ['get', 'id'], selectedId], 3, 1.5]
-        }
-      });
-      const markerEl = document.createElement('div');
-      markerEl.className = 'scooter';
-      new mapboxgl.Marker(markerEl).setLngLat([markerCoord.lng, markerCoord.lat]).addTo(map);
-    });
-    map.on('click', 'risk-fill', (e) => {
-      const id = e.features && e.features[0] && e.features[0].properties && e.features[0].properties.id;
-      if (id && window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'cell-press', id }));
-      }
-    });
-  </script>
-</body>
-</html>`;
-  }, [coords?.lat, coords?.lng, mapGeoJson, mapboxToken, selectedCell.id]);
+  const mapRegionKey = useMemo(
+    () => (mapCenterCoordinate ? `${mapCenterCoordinate[1].toFixed(5)}:${mapCenterCoordinate[0].toFixed(5)}` : 'no-region'),
+    [mapCenterCoordinate],
+  );
 
   const formatCoords = (lat: number, lng: number) => {
     const latDir = lat >= 0 ? 'N' : 'S';
@@ -520,40 +519,107 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
       />
       <LoadingOverlay visible={loading} message={t('live_risk.refreshing')} />
 
-      <AegisNavbar 
+      <AegisNavbar
         onProfile={() => setProfileMenuVisible(true)}
         light
       />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-
-        {/* MAP CARD */}
         <View style={[styles.neoCard, styles.mapCardWrapper]}>
           <View style={styles.mapHero}>
-            {hasRenderableCoords && mapRegion ? (
+            {hasRenderableCoords && mapCenterCoordinate ? (
               <View style={[styles.mapView, { width: mapW, height: mapH }]}>
-                <WebView
-                  source={{ html: mapboxHtml }}
-                  originWhitelist={['*']}
-                  javaScriptEnabled
-                  domStorageEnabled
+                <MapboxGL.MapView
+                  key={mapRegionKey}
                   style={styles.mapWebView}
-                  onMessage={(event) => {
-                    try {
-                      const payload = JSON.parse(event.nativeEvent.data);
-                      if (payload?.type === 'cell-press' && typeof payload.id === 'string') {
-                        setSelectedCellId(payload.id);
+                  styleURL={MapboxGL.StyleURL.Street}
+                  logoEnabled={false}
+                  compassEnabled={false}
+                  scaleBarEnabled={false}
+                >
+                  <MapboxGL.Camera
+                    key={mapRegionKey}
+                    centerCoordinate={mapCenterCoordinate}
+                    zoomLevel={14}
+                    animationDuration={600}
+                    animationMode="flyTo"
+                  />
+
+                  <MapboxGL.ShapeSource
+                    id="live-risk-source"
+                    shape={mapboxRiskSource as any}
+                    onPress={(event: any) => {
+                      const feature = event?.features?.[0];
+                      const featureId = String(feature?.properties?.id ?? feature?.id ?? '');
+                      if (featureId) {
+                        safeSetSelectedCellId(featureId);
                       }
-                    } catch {
-                      // Ignore malformed map webview payloads.
-                    }
-                  }}
-                />
-                {coords && (
-                  <View style={styles.scooterOverlay}>
-                    <DriverScooterMarker size={54} />
-                  </View>
-                )}
+                    }}
+                  >
+                    <MapboxGL.FillLayer
+                      id="live-risk-fill"
+                      style={{
+                        fillColor: [
+                          'match',
+                          ['get', 'riskLevel'],
+                          'HALT', '#ef4444',
+                          'HIGH', '#f97316',
+                          'MEDIUM', '#facc15',
+                          '#22d3ee',
+                        ] as any,
+                        fillOpacity: 0.24,
+                      }}
+                    />
+                    <MapboxGL.LineLayer
+                      id="live-risk-outline"
+                      style={{
+                        lineColor: [
+                          'match',
+                          ['get', 'riskLevel'],
+                          'HALT', '#ef4444',
+                          'HIGH', '#f97316',
+                          'MEDIUM', '#facc15',
+                          '#0f172a',
+                        ] as any,
+                        lineWidth: 1.5,
+                        lineOpacity: 0.95,
+                      }}
+                    />
+                    <MapboxGL.LineLayer
+                      id="live-risk-selected-outline"
+                      filter={['==', ['get', 'id'], selectedCell.id] as any}
+                      style={{
+                        lineColor: '#000000',
+                        lineWidth: 3,
+                        lineOpacity: 1,
+                      }}
+                    />
+                  </MapboxGL.ShapeSource>
+
+                  <MapboxGL.MarkerView coordinate={mapCenterCoordinate}>
+                    <View style={styles.scooterOverlay}>
+                      <DriverScooterMarker size={54} />
+                    </View>
+                  </MapboxGL.MarkerView>
+                </MapboxGL.MapView>
+
+                <View style={styles.secureGridBadge}>
+                  <Text style={styles.secureGridText}>{selectedCell.h3Id}</Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.highHazardBadge,
+                    {
+                      backgroundColor: riskPalette(selectedCell.riskLevel).chipBg,
+                      borderColor: riskPalette(selectedCell.riskLevel).stroke,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.highHazardText, { color: riskPalette(selectedCell.riskLevel).chipText }]}>
+                    {selectedCell.riskLevel} Zone
+                  </Text>
+                </View>
               </View>
             ) : (
               <View style={styles.mapFallback}>
@@ -565,25 +631,6 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Overlays */}
-            <View style={styles.secureGridBadge}>
-              <Text style={styles.secureGridText}>{selectedCell.h3Id}</Text>
-            </View>
-
-            <View
-              style={[
-                styles.highHazardBadge,
-                {
-                  backgroundColor: riskPalette(selectedCell.riskLevel).chipBg,
-                  borderColor: riskPalette(selectedCell.riskLevel).stroke,
-                },
-              ]}
-            >
-              <Text style={[styles.highHazardText, { color: riskPalette(selectedCell.riskLevel).chipText }]}>
-                {selectedCell.riskLevel} Zone
-              </Text>
-            </View>
           </View>
         </View>
 
