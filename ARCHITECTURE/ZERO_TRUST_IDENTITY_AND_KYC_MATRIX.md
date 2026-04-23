@@ -23,5 +23,10 @@ Under Indian DPDP Law, when a gig worker initiates data deletion, "soft deletes"
 ### 4. Real-Time Revocation Middleware
 As mapped in the `Sentinel Fraud Architecture`, if a driver's session is hijacked, the JWT is immediately inserted into the global Redis Denylist. The `TokenRevocationMiddleware` evaluates this instantly, violently terminating any active KYC data ingestion pipes from that session before malicious data can write to Postgres.
 
+### 5. Elite Dual-Track Provisioning
+Aegis empowers users with **Total Identity Choice** between two parallel, industrial-grade paths:
+*   **The Master Flow:** Detailed technical deep-dive on Automated OAuth vs. Universal Identity Path in [ELITE_IDENTITY_PROVISIONING_AND_MANUAL_KYC_MASTERY.md](./ELITE_IDENTITY_PROVISIONING_AND_MANUAL_KYC_MASTERY.md).
+*   **Forensic Parity:** Regardless of the chosen path, all entries are bridged into the `FraudAnalysis` core for unified security enforcement.
+
 ---
 **Vault Status:** *Encrypted. Segregated. Authoritative.*

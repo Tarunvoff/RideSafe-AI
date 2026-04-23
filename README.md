@@ -95,6 +95,9 @@ Aegis views compliance (DPDP, SS Code 2020) not as a checkbox, but as a system b
 - **DPDP Act 2023**: Enforced via **Isolated Consent Segments**; telemetry is only ingested after granular, non-stoppable modal authorization.
 - **Social Security Code**: Natively enforces **90/120 eligibility gates** within the Prisma DB layer, preventing non-compliant enrollment and ensuring **Regulatory Canonicity** is a property of the code itself.
 
+#### 6. Dual-Track Identity Autonomy
+Aegis sets a new benchmark in user-centric design by offering **Total Identity Autonomy**. We provide two parallel, industrial-grade onboarding paths—**Elite Dynamic OAuth** and **High-Fidelity Universal Identity**. Users have the absolute freedom to choose their preferred method; whether they opt for sub-4s automated sync or a deep document-based verification, both paths deliver the same level of cryptographic certainty and forensic parity.
+
 ---
 
 ### 📖 Forensic Documentation Suite
@@ -118,6 +121,7 @@ For a deep-dive into the mathematical and architectural specifications of these 
 | **[Sentinel Atmos Sentinel](./ARCHITECTURE/SENTINEL_ATMOS_SENTINEL.md)** | **Hardware** | Barometric & Acoustic oracles for environmental authenticity. |
 | **[Security & Fraud Matrix](./ARCHITECTURE/SECURITY_AND_FRAUD_MATRIX.md)** | **Defense** | Detailed mapping of threat vectors and defense layers. |
 | **[Zero-Trust Identity](./ARCHITECTURE/ZERO_TRUST_IDENTITY_AND_KYC_MATRIX.md)** | **Auth** | Path-level identity enforcement and cryptographic KYC. |
+| **[Identity & KYC Mastery](./ARCHITECTURE/ELITE_IDENTITY_PROVISIONING_AND_MANUAL_KYC_MASTERY.md)** | **Mastery** | Deep-dive into the Dual-Track OAuth and Universal Identity flows. |
 
 #### Actuarial & Financial Integrity
 | Document | Domain | Forensic Insight |
@@ -473,6 +477,9 @@ Standard KYC flows have ~85% drop-off. Aegis eliminates all manual entry through
 Onboarding takes about 4 seconds. No typing. Identity, earnings baseline, and H3 zone come pre-filled directly from the DynamicQCommerce identity provisioning engine. (Supports Blinkit, Zepto, Instamart, JioMart and BigBasket).
 
 KYC state machine: `NOT_STARTED → IN_PROGRESS → SUBMITTED → APPROVED / REJECTED`
+
+> [!NOTE]
+> **Elite Mastery**: Aegis offers **Total Onboarding Choice**. Users can opt for either our **Elite Dynamic OAuth** for sub-4s sync or our **High-Fidelity Universal Identity Path** for a document-based experience. Both are primary, production-ready features ensuring 100% platform inclusivity. See the **[Identity & KYC Mastery Guide](./ARCHITECTURE/ELITE_IDENTITY_PROVISIONING_AND_MANUAL_KYC_MASTERY.md)** for details.
 
 Under the Digital Personal Data Protection Act, 2023, Aegis collects exactly three categories of personal data: GPS location (zone presence verification), bank/UPI account details (payout disbursement), and platform activity data (active delivery day confirmation). Each category has a distinct, non-dismissible consent flow — GPS triggers a separate `GPSConsentModal`, UPI collection is gated behind KYC approval, and platform activity is governed by a formal data sharing agreement. No data category is used beyond its declared purpose.
 
