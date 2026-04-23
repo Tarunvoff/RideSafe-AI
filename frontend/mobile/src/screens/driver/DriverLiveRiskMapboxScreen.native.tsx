@@ -14,6 +14,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -27,7 +28,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { cellToBoundary, latLngToCell, gridDisk } from 'h3-js';
-import MapView, { Polygon, Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
@@ -139,14 +140,19 @@ function isFiniteCoordinate(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  const num = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
 export default function DriverLiveRiskScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const { user, logout } = useAuth();
   const { location, refreshLocation } = useLocation();
-  const mapRef = React.useRef<MapView | null>(null);
   const hasBootstrappedLocationRef = React.useRef(false);
-  const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
+  const hasGpsCoords = isFiniteCoordinate(location.latitude) && isFiniteCoordinate(location.longitude);
+  const hasValidLocation = location.isValid && hasGpsCoords;
 
   const [cellData, setCellData] = useState<{ current: CellRisk; neighbors: CellRisk[] } | null>(null);
   const [selectedCellId, setSelectedCellId] = useState('c0');
@@ -170,20 +176,20 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   };
 
   const coords = useMemo(
-    () => (hasValidLocation ? { lat: location.latitude as number, lng: location.longitude as number } : null),
-    [hasValidLocation, location.latitude, location.longitude],
+    () => (hasGpsCoords ? { lat: location.latitude as number, lng: location.longitude as number } : null),
+    [hasGpsCoords, location.latitude, location.longitude],
   );
   const hasRenderableCoords = !!coords && isFiniteCoordinate(coords.lat) && isFiniteCoordinate(coords.lng);
 
   const mapW = clamp(width - 48, 320, 380);
   const mapH = 260;
-  const useStaticPolygons = false;
 
   const toCellRisk = useCallback((raw: any, id: string): CellRisk => {
-    const baseLat = Number(raw?.lat ?? coords?.lat ?? 12.9716);
-    const baseLng = Number(raw?.lng ?? coords?.lng ?? 77.5946);
-    const riskScore: number = Number(raw?.riskScore ?? Math.round(Number(raw?.Lf ?? raw?.lf_score ?? 0) * 100) ?? 0);
-    const disruptionScore: number = Number((raw?.disruptionScore ?? 0).toFixed(2));
+    const baseLat = toFiniteNumber(raw?.lat, coords?.lat ?? 12.9716);
+    const baseLng = toFiniteNumber(raw?.lng, coords?.lng ?? 77.5946);
+    const lfScore = toFiniteNumber(raw?.Lf ?? raw?.lf_score, 0);
+    const riskScore = toFiniteNumber(raw?.riskScore, Math.round(lfScore * 100));
+    const disruptionScore = Number(toFiniteNumber(raw?.disruptionScore, 0).toFixed(2));
 
     const rawFloodChance: string = raw?.floodChance ?? '';
     const floodChance =
@@ -214,8 +220,8 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     return {
       id,
       h3Id,
-      rainPct: Number(raw?.rainfall ?? raw?.rain_pct ?? 0),
-      aqi: Number(raw?.aqi ?? raw?.aqi_index ?? 0),
+      rainPct: toFiniteNumber(raw?.rainfall ?? raw?.rain_pct, 0),
+      aqi: toFiniteNumber(raw?.aqi ?? raw?.aqi_index, 0),
       floodChance,
       disruptionScore,
       trafficStatus,
@@ -311,6 +317,17 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     void loadZones();
   }, [loadZones]);
 
+  useFocusEffect(
+    useCallback(() => {
+      // Re-sync location and risk cells whenever the tab regains focus.
+      const syncOnFocus = async () => {
+        await refreshLocation();
+        await loadZones();
+      };
+      void syncOnFocus();
+    }, [loadZones, refreshLocation]),
+  );
+
   useEffect(() => {
     // Attempt a single automatic location bootstrap when entering Live Risk.
     // Manual retries remain available via the Retry button.
@@ -376,6 +393,103 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     [hasRenderableCoords, coords],
   );
 
+  const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
+  const mapGeoJson = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: allCells
+      .map((cell) => {
+        const polygon = cell.polygon
+          .filter((p) => isFiniteCoordinate(p.latitude) && isFiniteCoordinate(p.longitude))
+          .map((p) => [p.longitude, p.latitude]);
+        if (polygon.length < 3) return null;
+        polygon.push([...polygon[0]]);
+        return {
+          type: 'Feature',
+          id: cell.id,
+          properties: {
+            id: cell.id,
+            strokeColor: riskPalette(cell.riskLevel).stroke,
+            fillColor: riskPalette(cell.riskLevel).fill,
+            selected: cell.id === selectedCell.id ? 1 : 0,
+          },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [polygon],
+          },
+        };
+      })
+      .filter(Boolean),
+  }), [allCells, selectedCell.id]);
+
+  const mapboxHtml = useMemo(() => {
+    const centerLat = coords?.lat ?? 12.9716;
+    const centerLng = coords?.lng ?? 77.5946;
+    const escapedToken = JSON.stringify(mapboxToken);
+    const escapedGeoJson = JSON.stringify(mapGeoJson);
+    const escapedSelected = JSON.stringify(selectedCell.id);
+    const escapedMarker = JSON.stringify({ lat: centerLat, lng: centerLng });
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+  <style>
+    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #f8fafc; }
+    .scooter {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #111827; border: 2px solid #ffffff; box-shadow: 0 0 0 2px #11182733;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    mapboxgl.accessToken = ${escapedToken};
+    const selectedId = ${escapedSelected};
+    const markerCoord = ${escapedMarker};
+    const geojson = ${escapedGeoJson};
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [markerCoord.lng, markerCoord.lat],
+      zoom: 14
+    });
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: false }), 'top-right');
+    map.on('load', () => {
+      map.addSource('risk-cells', { type: 'geojson', data: geojson });
+      map.addLayer({
+        id: 'risk-fill',
+        type: 'fill',
+        source: 'risk-cells',
+        paint: { 'fill-color': ['get', 'fillColor'], 'fill-opacity': 1 }
+      });
+      map.addLayer({
+        id: 'risk-line',
+        type: 'line',
+        source: 'risk-cells',
+        paint: {
+          'line-color': ['get', 'strokeColor'],
+          'line-width': ['case', ['==', ['get', 'id'], selectedId], 3, 1.5]
+        }
+      });
+      const markerEl = document.createElement('div');
+      markerEl.className = 'scooter';
+      new mapboxgl.Marker(markerEl).setLngLat([markerCoord.lng, markerCoord.lat]).addTo(map);
+    });
+    map.on('click', 'risk-fill', (e) => {
+      const id = e.features && e.features[0] && e.features[0].properties && e.features[0].properties.id;
+      if (id && window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'cell-press', id }));
+      }
+    });
+  </script>
+</body>
+</html>`;
+  }, [coords?.lat, coords?.lng, mapGeoJson, mapboxToken, selectedCell.id]);
+
   const formatCoords = (lat: number, lng: number) => {
     const latDir = lat >= 0 ? 'N' : 'S';
     const lngDir = lng >= 0 ? 'E' : 'W';
@@ -383,12 +497,17 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   };
 
   const handleRecenter = () => {
+    if (loading) return;
     void appendLiveRiskDebugLog('RETRY_PRESSED', {
       hasRenderableCoords,
       hasValidLocation,
       loading: location.loading,
     });
-    void refreshLocation();
+    const refreshAndReload = async () => {
+      await refreshLocation();
+      await loadZones();
+    };
+    void refreshAndReload();
   };
 
   return (
@@ -412,42 +531,30 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         <View style={[styles.neoCard, styles.mapCardWrapper]}>
           <View style={styles.mapHero}>
             {hasRenderableCoords && mapRegion ? (
-              <MapView
-                ref={mapRef}
-                style={[styles.mapView, { width: mapW, height: mapH }]}
-                initialRegion={mapRegion}
-              >
-                {allCells.map((cell) => {
-                  const safePolygon = cell.polygon.filter(
-                    (p) => isFiniteCoordinate(p.latitude) && isFiniteCoordinate(p.longitude),
-                  );
-                  if (safePolygon.length < 3) return null;
-                  const tone = riskPalette(cell.riskLevel);
-                  const active = cell.id === selectedCell.id;
-                  return (
-                    <Polygon
-                      key={cell.id}
-                      coordinates={safePolygon}
-                      tappable={!useStaticPolygons}
-                      onPress={useStaticPolygons ? undefined : () => setSelectedCellId(cell.id)}
-                      strokeColor={tone.stroke}
-                      fillColor={tone.fill}
-                      strokeWidth={active ? 2.8 : 1.4}
-                    />
-                  );
-                })}
-
+              <View style={[styles.mapView, { width: mapW, height: mapH }]}>
+                <WebView
+                  source={{ html: mapboxHtml }}
+                  originWhitelist={['*']}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  style={styles.mapWebView}
+                  onMessage={(event) => {
+                    try {
+                      const payload = JSON.parse(event.nativeEvent.data);
+                      if (payload?.type === 'cell-press' && typeof payload.id === 'string') {
+                        setSelectedCellId(payload.id);
+                      }
+                    } catch {
+                      // Ignore malformed map webview payloads.
+                    }
+                  }}
+                />
                 {coords && (
-                  <Marker
-                    coordinate={{ latitude: coords.lat, longitude: coords.lng }}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                  >
-                    <View style={styles.scooterMarkerContainer}>
-                      <DriverScooterMarker size={54} />
-                    </View>
-                  </Marker>
+                  <View style={styles.scooterOverlay}>
+                    <DriverScooterMarker size={54} />
+                  </View>
                 )}
-              </MapView>
+              </View>
             ) : (
               <View style={styles.mapFallback}>
                 <Ionicons name="location-outline" size={28} color="#9ca3af" />
@@ -616,6 +723,11 @@ const styles = StyleSheet.create({
   mapView: {
     flex: 1,
     borderRadius: 14,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  mapWebView: {
+    flex: 1,
   },
   mapFallback: {
     flex: 1,
@@ -756,5 +868,15 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 5,
+  },
+  scooterOverlay: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    marginLeft: -27,
+    marginTop: -27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
   },
 });

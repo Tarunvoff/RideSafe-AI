@@ -7,7 +7,7 @@
     "icon": "./assets/images/productlogo.png",
     "scheme": "aegis",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -73,8 +73,9 @@
     "owner": "bitzaura",
     "extra": {
       "eas": {
-        "projectId": "e78536d5-92cb-4b3a-a51a-8ec1b2932d79"
+        "projectId": "d2c6d683-574e-44ea-b2f9-ed87de7adbdc"
       }
-    }
+    },
+    "owner": "bitaura"
   }
 }

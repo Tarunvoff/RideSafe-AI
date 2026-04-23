@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,6 +29,7 @@ export default function DriverRiskPipelineScreen() {
   const [profile, setProfile] = useState<any | null>(null);
   const [zoneRisk, setZoneRisk] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
 
   const driverId = user?.id ?? null;
   const hasValidLocation = location.isValid && location.latitude != null && location.longitude != null;
@@ -83,6 +85,26 @@ export default function DriverRiskPipelineScreen() {
   useEffect(() => {
     void loadHome();
   }, [loadHome]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Keep home telemetry fresh when returning from other tabs/screens.
+      void loadHome();
+    }, [loadHome]),
+  );
+
+  const handleRecheck = useCallback(async () => {
+    if (rechecking) return;
+    try {
+      setRechecking(true);
+      await refreshLocation();
+      await loadHome();
+    } catch (error) {
+      Alert.alert(t('common.error'), t('common.something_went_wrong'));
+    } finally {
+      setRechecking(false);
+    }
+  }, [loadHome, rechecking, refreshLocation, t]);
 
   const weeklyEarnings = profile?.currentWeek?.weeklyEarningsTotal
     ?? profile?.currentWeek?.totalEarnings
@@ -177,14 +199,14 @@ export default function DriverRiskPipelineScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.recheckButton}
+            style={[styles.recheckButton, rechecking && styles.recheckButtonDisabled]}
             activeOpacity={0.8}
             onPress={() => {
-              void refreshLocation();
-              void loadHome();
+              void handleRecheck();
             }}
+            disabled={rechecking}
           >
-            <Text style={styles.recheckButtonText}>Recheck</Text>
+            <Text style={styles.recheckButtonText}>{rechecking ? 'Rechecking...' : 'Recheck'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -368,6 +390,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 0,
+  },
+  recheckButtonDisabled: {
+    opacity: 0.75,
   },
   recheckButtonText: {
     fontSize: 20,

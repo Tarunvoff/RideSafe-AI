@@ -8,14 +8,14 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cheaper-exchanges-journalism-assessment.trycloudflare.com/api",
+        "EXPO_PUBLIC_API_URL": "https://sporting-nearby-patch-citizenship.trycloudflare.com/api",
         "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1Ijoic3VyeWEyMDA3IiwiYSI6ImNtbXhsdWIwZzBuamYycHM0dGg1Mnc2bXYifQ.4fBnenKsvRVZaZn8kTULYw"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cheaper-exchanges-journalism-assessment.trycloudflare.com/api",
+        "EXPO_PUBLIC_API_URL": "https://sporting-nearby-patch-citizenship.trycloudflare.com/api",
         "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1Ijoic3VyeWEyMDA3IiwiYSI6ImNtbXhsdWIwZzBuamYycHM0dGg1Mnc2bXYifQ.4fBnenKsvRVZaZn8kTULYw"
       }
     },
@@ -23,7 +23,7 @@
       "autoIncrement": true,
       "distribution" : "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cheaper-exchanges-journalism-assessment.trycloudflare.com/api",
+        "EXPO_PUBLIC_API_URL": "https://sporting-nearby-patch-citizenship.trycloudflare.com/api",
         "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1Ijoic3VyeWEyMDA3IiwiYSI6ImNtbXhsdWIwZzBuamYycHM0dGg1Mnc2bXYifQ.4fBnenKsvRVZaZn8kTULYw"
       }
     }
