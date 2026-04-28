@@ -25,9 +25,10 @@ import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import DriverLogoutMenu from '../../components/driver/DriverLogoutMenu';
 import AegisNavbar from '../../components/layout/AegisNavbar';
 import { ScooterMarker as DriverScooterMarker } from '../../components/driver/ScooterMarker';
+import DarkstoreMarker from '../../components/driver/DarkstoreMarker';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
-import { fraudApi, telemetryApi } from '../../services/api';
+import { driverApi, fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 // ─── Mapbox token init (must happen before any MapboxGL component renders) ───
@@ -66,6 +67,18 @@ function isFiniteCoordinate(value: unknown): value is number {
 function toFiniteNumber(value: unknown, fallback = 0): number {
   const num = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(num) ? num : fallback;
+}
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * (Math.PI / 180);
+  const dLng = (b.lng - a.lng) * (Math.PI / 180);
+  const lat1 = a.lat * (Math.PI / 180);
+  const lat2 = b.lat * (Math.PI / 180);
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const x = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
 }
 
 function riskLevelFromScore(score: number): RiskLevel {
@@ -177,6 +190,17 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const [selectedCellId, setSelectedCellId] = useState('c0');
   const [loading, setLoading] = useState(false);
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [followDriver, setFollowDriver] = useState(true);
+  const [darkstore, setDarkstore] = useState<null | {
+    name: string;
+    coordinate: [number, number]; // [lng, lat]
+    distanceKm: number | null;
+  }>(null);
+  const [darkstoreFetch, setDarkstoreFetch] = useState<{
+    status: 'idle' | 'loading' | 'loaded' | 'missing' | 'error';
+    message?: string;
+    rawLocation?: { lat?: unknown; lng?: unknown } | null;
+  }>({ status: 'idle' });
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -189,6 +213,8 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   const safeSetLoading = safeSet(setLoading);
   const safeSetCellData = safeSet(setCellData);
   const safeSetSelectedCellId = safeSet(setSelectedCellId);
+  const safeSetDarkstore = safeSet(setDarkstore);
+  const safeSetDarkstoreFetch = safeSet(setDarkstoreFetch);
 
   const handleLogout = async () => {
     try {
@@ -268,7 +294,41 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         });
       }
 
-      const res = await fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1);
+      const [res, profileRes] = await Promise.all([
+        fraudApi.getZoneNeighbors(coords.lat, coords.lng, 1),
+        user?.id ? driverApi.getProfile(user.id).catch(() => null) : Promise.resolve(null),
+      ]);
+
+      // Resolve "primary darkstore" marker from the simulated q-commerce profile.
+      safeSetDarkstoreFetch({ status: 'loading' });
+      const primaryStoreName =
+        String((profileRes as any)?.driverProfile?.identity?.primaryDarkStore ?? '').trim();
+      const rawLoc = (profileRes as any)?.driverProfile?.identity?.primaryDarkStoreLocation ?? null;
+      const storeLat = toFiniteNumber(rawLoc?.lat, NaN);
+      const storeLng = toFiniteNumber(rawLoc?.lng, NaN);
+      if (primaryStoreName && Number.isFinite(storeLat) && Number.isFinite(storeLng)) {
+        const distanceKm = haversineKm(coords, { lat: storeLat, lng: storeLng });
+        safeSetDarkstore({
+          name: primaryStoreName,
+          coordinate: [storeLng, storeLat],
+          distanceKm,
+        });
+        safeSetDarkstoreFetch({
+          status: 'loaded',
+          rawLocation: { lat: rawLoc?.lat, lng: rawLoc?.lng },
+        });
+      } else {
+        safeSetDarkstore(null);
+        if (!primaryStoreName) {
+          safeSetDarkstoreFetch({ status: 'missing', message: 'No primary darkstore assigned' });
+        } else {
+          safeSetDarkstoreFetch({
+            status: 'error',
+            message: 'Darkstore location missing/invalid',
+            rawLocation: { lat: rawLoc?.lat, lng: rawLoc?.lng },
+          });
+        }
+      }
 
       let centralH3: string | null = null;
       try { centralH3 = latLngToCell(coords.lat, coords.lng, 8); } catch { centralH3 = null; }
@@ -326,11 +386,30 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
 
   useFocusEffect(
     useCallback(() => {
+      let isActive = true;
       const sync = async () => {
         await refreshLocation();
         await loadZones();
       };
       void sync();
+
+      // Lightweight live tracking: update location frequently so the driver marker moves.
+      // Risk grid + telemetry is heavier, so we refresh that slower.
+      const locationTimer = setInterval(() => {
+        if (!isActive) return;
+        void refreshLocation();
+      }, 5_000);
+
+      const zonesTimer = setInterval(() => {
+        if (!isActive) return;
+        void loadZones();
+      }, 15_000);
+
+      return () => {
+        isActive = false;
+        clearInterval(locationTimer);
+        clearInterval(zonesTimer);
+      };
     }, [loadZones, refreshLocation]),
   );
 
@@ -371,6 +450,17 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     [coords],
   );
 
+  // Follow mode: keep the camera centered on the driver as location updates.
+  useEffect(() => {
+    if (!followDriver) return;
+    if (!centerCoordinate) return;
+    cameraRef.current?.setCamera({
+      centerCoordinate,
+      zoomLevel: 14,
+      animationDuration: 450,
+    });
+  }, [centerCoordinate, followDriver]);
+
   const driverLat = coords?.lat ?? 0;
   const driverLon = coords?.lng ?? 0;
   const accuracyLabel =
@@ -403,6 +493,26 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         });
       }
     })();
+  };
+
+  const handleFitDriverAndDarkstore = () => {
+    if (!centerCoordinate || !darkstore?.coordinate) return;
+    try {
+      // Fit both points so the hub marker is guaranteed visible.
+      cameraRef.current?.fitBounds(
+        centerCoordinate,
+        darkstore.coordinate,
+        90,
+        700,
+      );
+    } catch {
+      // Fallback: fly to midpoint.
+      const mid: [number, number] = [
+        (centerCoordinate[0] + darkstore.coordinate[0]) / 2,
+        (centerCoordinate[1] + darkstore.coordinate[1]) / 2,
+      ];
+      cameraRef.current?.setCamera({ centerCoordinate: mid, zoomLevel: 13, animationDuration: 700 });
+    }
   };
 
   const handleMapPress = useCallback(
@@ -462,7 +572,15 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         <View style={[styles.neoCard, styles.mapCardWrapper]}>
           {/* Map container — fixed height so Mapbox can measure it */}
           <View style={{ height: mapH, width: '100%', borderRadius: 14, overflow: 'hidden' }}>
-            {centerCoordinate ? (
+            {!_mapboxToken ? (
+              <View style={styles.mapFallback}>
+                <Ionicons name="warning-outline" size={28} color="#9ca3af" />
+                <Text style={styles.mapFallbackTitle}>Missing Mapbox token</Text>
+                <Text style={styles.mapFallbackHint}>
+                  Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN to enable the Live Risk map.
+                </Text>
+              </View>
+            ) : centerCoordinate ? (
               <>
                 <MapboxGL.MapView
                   style={StyleSheet.absoluteFillObject}
@@ -521,6 +639,28 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                       <DriverScooterMarker size={54} />
                     </View>
                   </MapboxGL.MarkerView>
+
+                  {/* Darkstore marker (primary hub) */}
+                  {darkstore?.coordinate ? (
+                    <MapboxGL.MarkerView coordinate={darkstore.coordinate}>
+                      <View style={styles.darkstoreMarkerWrap}>
+                        <View style={styles.darkstorePin}>
+                          <DarkstoreMarker size={30} />
+                        </View>
+                        <View style={styles.darkstoreLabel}>
+                          <Text style={styles.darkstoreLabelTitle} numberOfLines={1}>
+                            Darkstore
+                          </Text>
+                          <Text style={styles.darkstoreLabelSub} numberOfLines={1}>
+                            {darkstore.name}
+                            {typeof darkstore.distanceKm === 'number'
+                              ? ` • ${darkstore.distanceKm.toFixed(1)} km`
+                              : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    </MapboxGL.MarkerView>
+                  ) : null}
                 </MapboxGL.MapView>
 
                 {/* Overlaid badges — rendered as native Views on top of the map */}
@@ -546,18 +686,102 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
                 <TouchableOpacity style={styles.recenterBtn} onPress={handleRecenter} activeOpacity={0.85}>
                   <Ionicons name="locate" size={14} color="#111827" />
                 </TouchableOpacity>
+
+                {/* Fit driver + darkstore */}
+                {darkstore?.coordinate ? (
+                  <TouchableOpacity
+                    style={styles.fitBtn}
+                    onPress={handleFitDriverAndDarkstore}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="scan-outline" size={14} color="#111827" />
+                  </TouchableOpacity>
+                ) : null}
+
+                {/* Follow toggle */}
+                <TouchableOpacity
+                  style={[styles.followBtn, followDriver ? styles.followBtnOn : null]}
+                  onPress={() => setFollowDriver((v) => !v)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name={followDriver ? 'navigate' : 'navigate-outline'} size={14} color="#111827" />
+                </TouchableOpacity>
               </>
             ) : (
               /* ── No location fallback ── */
               <View style={styles.mapFallback}>
                 <Ionicons name="location-outline" size={28} color="#9ca3af" />
                 <Text style={styles.mapFallbackTitle}>Location Required</Text>
+                <Text style={styles.mapFallbackHint}>
+                  Enable location permissions to load your current risk zone.
+                </Text>
                 <TouchableOpacity style={styles.mapFallbackBtn} onPress={handleRecenter}>
                   <Ionicons name="refresh" size={14} color="#111827" />
                   <Text style={styles.mapFallbackBtnText}>Retry</Text>
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+        </View>
+
+        {/* ── ASSIGNMENT CARD (debuggable, driver-friendly) ── */}
+        <View style={[styles.neoCard, styles.assignmentCard]}>
+          <View style={styles.assignmentHeader}>
+            <View style={styles.assignmentTitleRow}>
+              <Ionicons name="storefront-outline" size={16} color="#111827" />
+              <Text style={styles.assignmentTitle}>Assignment</Text>
+            </View>
+
+            <View style={styles.assignmentStatusPill}>
+              <Text style={styles.assignmentStatusText}>
+                {darkstoreFetch.status === 'loaded'
+                  ? 'DARKSTORE OK'
+                  : darkstoreFetch.status === 'loading'
+                  ? 'FETCHING…'
+                  : darkstoreFetch.status === 'missing'
+                  ? 'MISSING'
+                  : darkstoreFetch.status === 'error'
+                  ? 'INVALID'
+                  : '—'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Driver</Text>
+            <Text style={styles.assignmentValue} numberOfLines={1}>
+              {hasValidLocation ? formatCoords(driverLat, driverLon) : 'Location not available'}
+              {hasValidLocation ? ` • ±${accuracyLabel}` : ''}
+            </Text>
+          </View>
+
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Darkstore</Text>
+            <Text style={styles.assignmentValue} numberOfLines={2}>
+              {darkstore?.name ?? darkstoreFetch.message ?? '—'}
+              {darkstore?.coordinate
+                ? `\n${formatCoords(darkstore.coordinate[1], darkstore.coordinate[0])}`
+                : ''}
+              {typeof darkstore?.distanceKm === 'number'
+                ? ` • ${darkstore.distanceKm.toFixed(1)} km`
+                : ''}
+            </Text>
+          </View>
+
+          <View style={styles.assignmentActions}>
+            <TouchableOpacity style={styles.assignmentBtn} onPress={handleRecenter} activeOpacity={0.85}>
+              <Ionicons name="refresh" size={14} color="#111827" />
+              <Text style={styles.assignmentBtnText}>Refresh</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.assignmentBtn, !darkstore?.coordinate && styles.assignmentBtnDisabled]}
+              onPress={handleFitDriverAndDarkstore}
+              activeOpacity={0.85}
+              disabled={!darkstore?.coordinate}
+            >
+              <Ionicons name="scan-outline" size={14} color="#111827" />
+              <Text style={styles.assignmentBtnText}>Fit both</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -691,6 +915,49 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
+  // ── Darkstore marker ──
+  darkstoreMarkerWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    // Nudge so the pin is centered on the coordinate.
+    marginLeft: -17,
+    marginTop: -34,
+  },
+  darkstorePin: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  darkstoreLabel: {
+    maxWidth: 200,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderWidth: 2,
+    borderColor: '#111827',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  darkstoreLabelTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  darkstoreLabelSub: {
+    marginTop: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#374151',
+  },
+
   // ── Map overlay badges ──
   secureGridBadge: {
     position: 'absolute',
@@ -735,6 +1002,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  fitBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1.5,
+    borderColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followBtn: {
+    position: 'absolute',
+    top: 92,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1.5,
+    borderColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followBtnOn: {
+    backgroundColor: 'rgba(255,255,255,1)',
+  },
 
   // ── Map fallback ──
   mapFallback: {
@@ -749,6 +1045,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
   },
+  mapFallbackHint: {
+    maxWidth: 260,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#6b7280',
+    paddingHorizontal: 18,
+  },
   mapFallbackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -762,6 +1066,87 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#111827',
+  },
+
+  // ── Assignment card ──
+  assignmentCard: {
+    padding: 16,
+    marginBottom: 16,
+  },
+  assignmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  assignmentTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  assignmentTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.4,
+  },
+  assignmentStatusPill: {
+    borderWidth: 2,
+    borderColor: '#111827',
+    borderRadius: 999,
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  assignmentStatusText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.6,
+  },
+  assignmentRow: {
+    marginBottom: 10,
+  },
+  assignmentLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  assignmentValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1f2937',
+    lineHeight: 18,
+  },
+  assignmentActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  assignmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderColor: '#111827',
+    borderRadius: 14,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+  },
+  assignmentBtnDisabled: {
+    opacity: 0.5,
+  },
+  assignmentBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.4,
   },
 
   // ── Readout grid ──
