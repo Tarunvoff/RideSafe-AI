@@ -31,7 +31,7 @@ import { fraudApi, telemetryApi } from '../../services/api';
 import { Theme } from '../../theme';
 
 // ─── Mapbox token init (must happen before any MapboxGL component renders) ───
-const _mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() ?? '';
+const _mapboxToken = process.env.VITE_MAPBOX_ACCESS_TOKEN?.trim() ?? '';
 if (_mapboxToken) {
   MapboxGL.setAccessToken(_mapboxToken);
 }
@@ -228,8 +228,8 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
         rawTraffic === 'Halt'
           ? 'Halt'
           : rawTraffic === 'Slow Traffic'
-          ? 'Slow Traffic'
-          : 'Stable Flow';
+            ? 'Slow Traffic'
+            : 'Stable Flow';
 
       let h3Id = String(raw?.h3_cell ?? '');
       if (!h3Id || h3Id === '—') {
@@ -377,11 +377,11 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
     location.accuracy != null ? `${Math.round(location.accuracy)} m` : '—';
   const lastPing = location.fetchedAt
     ? location.fetchedAt.toLocaleTimeString('en-IN', {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      })
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    })
     : '—';
 
   const formatCoords = (lat: number, lng: number) => {
@@ -418,24 +418,24 @@ export default function DriverLiveRiskScreen({ navigation }: any) {
   // ─── Map fill/line expressions (Mapbox GL style spec) ─────────────────────
   const fillColorExpr: any = [
     'match', ['get', 'riskLevel'],
-    'HALT',   riskPalette('HALT').fill,
-    'HIGH',   riskPalette('HIGH').fill,
+    'HALT', riskPalette('HALT').fill,
+    'HIGH', riskPalette('HIGH').fill,
     'MEDIUM', riskPalette('MEDIUM').fill,
     riskPalette('LOW').fill,
   ];
 
   const fillOpacityExpr: any = [
     'match', ['get', 'riskLevel'],
-    'HALT',   0.30,
-    'HIGH',   0.24,
+    'HALT', 0.30,
+    'HIGH', 0.24,
     'MEDIUM', 0.22,
     0.20,
   ];
 
   const lineColorExpr: any = [
     'match', ['get', 'riskLevel'],
-    'HALT',   riskPalette('HALT').stroke,
-    'HIGH',   riskPalette('HIGH').stroke,
+    'HALT', riskPalette('HALT').stroke,
+    'HIGH', riskPalette('HIGH').stroke,
     'MEDIUM', riskPalette('MEDIUM').stroke,
     riskPalette('LOW').stroke,
   ];
