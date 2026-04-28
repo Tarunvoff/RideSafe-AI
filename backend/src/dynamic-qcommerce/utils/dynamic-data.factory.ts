@@ -23,7 +23,7 @@ export interface DriverCityContext {
   city: string;
   state: string;
   serviceZones: string[];
-  darkStores: string[];
+  darkStores: Array<{ name: string; lat: number; lng: number }>;
   clusters: string[];
 }
 
@@ -33,10 +33,10 @@ const CITY_BLUEPRINTS: DriverCityContext[] = [
     state: 'Karnataka',
     serviceZones: ['HSR Layout', 'Koramangala', 'BTM Layout', 'Bellandur'],
     darkStores: [
-      'HSR Dark Store 12',
-      'Koramangala Rapid Hub',
-      'Bellandur Grid Node',
-      'BTM Night Runner Store',
+      { name: 'HSR Dark Store 12', lat: 12.9122, lng: 77.6446 },
+      { name: 'Koramangala Rapid Hub', lat: 12.9346, lng: 77.6246 },
+      { name: 'Bellandur Grid Node', lat: 12.9308, lng: 77.6785 },
+      { name: 'BTM Night Runner Store', lat: 12.9156, lng: 77.6101 },
     ],
     clusters: ['HSR Cluster', 'Outer Ring Cluster', 'Koramangala Cluster'],
   },
@@ -45,10 +45,10 @@ const CITY_BLUEPRINTS: DriverCityContext[] = [
     state: 'Maharashtra',
     serviceZones: ['Andheri West', 'Powai', 'Bandra', 'Lower Parel'],
     darkStores: [
-      'Andheri Express Node',
-      'Bandra Hyperlocal Hub',
-      'Powai Central Dark Store',
-      'Lower Parel Grid Station',
+      { name: 'Andheri Express Node', lat: 19.1364, lng: 72.8296 },
+      { name: 'Bandra Hyperlocal Hub', lat: 19.0606, lng: 72.8322 },
+      { name: 'Powai Central Dark Store', lat: 19.1176, lng: 72.9058 },
+      { name: 'Lower Parel Grid Station', lat: 19.0058, lng: 72.8307 },
     ],
     clusters: ['Western Express Cluster', 'Bandra Kurla Cluster'],
   },
@@ -57,10 +57,10 @@ const CITY_BLUEPRINTS: DriverCityContext[] = [
     state: 'Telangana',
     serviceZones: ['Gachibowli', 'Kondapur', 'Madhapur', 'Tolichowki'],
     darkStores: [
-      'Gachibowli Dash Hub',
-      'Madhapur Lightning Store',
-      'Kondapur Fulfilment Node',
-      'Tolichowki Sprint Depot',
+      { name: 'Gachibowli Dash Hub', lat: 17.4401, lng: 78.3489 },
+      { name: 'Madhapur Lightning Store', lat: 17.4483, lng: 78.3915 },
+      { name: 'Kondapur Fulfilment Node', lat: 17.4645, lng: 78.3632 },
+      { name: 'Tolichowki Sprint Depot', lat: 17.3993, lng: 78.4013 },
     ],
     clusters: ['HITEC Corridor Cluster', 'Ring Road Cluster'],
   },
@@ -69,10 +69,10 @@ const CITY_BLUEPRINTS: DriverCityContext[] = [
     state: 'Delhi',
     serviceZones: ['Dwarka', 'Saket', 'Gurugram Sector 29', 'Noida Sector 62'],
     darkStores: [
-      'Dwarka 24x7 Node',
-      'Saket Night Ops Store',
-      'Cyber City Dark Hub',
-      'Noida Sector 62 Velocity Hub',
+      { name: 'Dwarka 24x7 Node', lat: 28.5921, lng: 77.0460 },
+      { name: 'Saket Night Ops Store', lat: 28.5245, lng: 77.2066 },
+      { name: 'Cyber City Dark Hub', lat: 28.4934, lng: 77.0889 },
+      { name: 'Noida Sector 62 Velocity Hub', lat: 28.6280, lng: 77.3649 },
     ],
     clusters: ['Airport Corridor Cluster', 'Cyber City Cluster'],
   },
@@ -191,7 +191,7 @@ const resolveEmploymentType = (random: DeterministicRandom): EmploymentType => {
 
 const generateDailyBreakdown = (
   random: DeterministicRandom,
-  darkStores: string[],
+  darkStores: Array<{ name: string; lat: number; lng: number }>,
   weekStart: Date,
 ): { dailyBreakdown: DriverDailyBreakdown[]; totals: DriverWeekSummaryTotals } => {
   const start = new Date(weekStart);
@@ -269,7 +269,7 @@ const generateDailyBreakdown = (
     const totalEarnings = formatCurrency(baseEarnings + incentives - penalties);
 
     const storesServedCount = completedDeliveries ? random.nextInt(1, Math.min(3, darkStores.length)) : 0;
-    const servedStores = Array.from({ length: storesServedCount }, () => random.pick(darkStores));
+    const servedStores = Array.from({ length: storesServedCount }, () => random.pick(darkStores).name);
 
     const dayRow: DriverDailyBreakdown = {
       date: toISODateOnly(currentDay),
@@ -330,7 +330,7 @@ const generateDailyBreakdown = (
 const generateOrderHistory = (
   random: DeterministicRandom,
   provider: QCommerceProvider,
-  storePool: string[],
+  storePool: Array<{ name: string; lat: number; lng: number }>,
   zonePool: string[],
   city: string,
   darkStoresServed: string[],
@@ -356,7 +356,7 @@ const generateOrderHistory = (
 
       const storeName = darkStoresServed.length
         ? random.pick(darkStoresServed)
-        : random.pick(storePool);
+        : random.pick(storePool).name;
       const deliveryZone = random.pick(zonePool);
       const pickupZone = random.pick(zonePool);
       const deliveryStatus = DeliveryStatus.COMPLETED;
@@ -392,13 +392,14 @@ const generateOrderHistory = (
     const orderDate = new Date(weekStart);
     orderDate.setUTCDate(orderDate.getUTCDate() + random.nextInt(0, 6));
     const status = random.pick([DeliveryStatus.SKIPPED, DeliveryStatus.REJECTED]);
+      const storeName = random.pick(storePool).name;
     history.push({
       orderId,
       provider,
       orderDateTime: toISODate(orderDate),
       deliveryStatus: status,
-      assignedStoreId: `${random.pick(storePool).replace(/\s+/g, '-')}-${random.nextInt(100, 999)}`,
-      assignedStoreName: random.pick(storePool),
+        assignedStoreId: `${storeName.replace(/\s+/g, '-')}-${random.nextInt(100, 999)}`,
+        assignedStoreName: storeName,
       storeType: random.pick(storeTypes),
       pickupZone: random.pick(zonePool),
       deliveryZone: `${random.pick(zonePool)}, ${city}`,
@@ -476,6 +477,7 @@ const generateIdentity = (
   random: DeterministicRandom,
 ) => {
   const city = random.pick(CITY_BLUEPRINTS);
+  const primaryStore = random.pick(city.darkStores);
   const fullName = random.pick(NAME_SETS[provider]);
   const vehicleType = random.pick(VEHICLE_TYPES);
   const employmentType = resolveEmploymentType(random);
@@ -501,7 +503,8 @@ const generateIdentity = (
       city: city.city,
       state: city.state,
       primaryServiceZone: random.pick(city.serviceZones),
-      primaryDarkStore: random.pick(city.darkStores),
+      primaryDarkStore: primaryStore.name,
+      primaryDarkStoreLocation: { lat: primaryStore.lat, lng: primaryStore.lng },
       employmentType,
       vehicleType,
       vehicleNumberMasked: maskValue(createVehicleNumber(city.state, random), 4),
@@ -643,7 +646,7 @@ export const buildWeeklySnapshot = (
     cityContext.darkStores,
     cityContext.serviceZones,
     cityContext.city,
-    cityContext.darkStores,
+    cityContext.darkStores.map((s) => s.name),
     dailyBreakdown,
     weekStart,
   );

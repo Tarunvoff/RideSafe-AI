@@ -14,6 +14,10 @@ export interface DriverIdentity {
   state: string;
   primaryServiceZone: string;
   primaryDarkStore: string;
+  primaryDarkStoreLocation?: {
+    lat: number;
+    lng: number;
+  };
   employmentType: EmploymentType;
   vehicleType: VehicleType;
   vehicleNumberMasked: string;
